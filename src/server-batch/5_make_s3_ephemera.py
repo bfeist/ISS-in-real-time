@@ -17,7 +17,7 @@ API_BASE_URL = "https://www.space-track.org/basicspacedata/query"
 NORAD_ID = 25544  # ISS NORAD ID
 
 COMM_S3 = os.getenv("S3_FOLDER") + "comm/"
-EPHEMERIS_S3 = os.getenv("S3_FOLDER") + "ephemeris/"
+EPHEMERA_S3 = os.getenv("S3_FOLDER") + "ephemera/"
 
 
 # Function to create an authenticated session
@@ -212,14 +212,12 @@ def main():
                 required_months.add(f"{year}-{month}")
 
         # Fetch TLE data for required months
-        all_tle = []
-        ephemeris_dir = EPHEMERIS_S3
         for month_str in required_months:
             year, month = month_str.split("-")
-            output_file = os.path.join(ephemeris_dir, year, f"{year}-{month}.json")
+            output_file = os.path.join(EPHEMERA_S3, year, f"{year}-{month}.json")
             if os.path.exists(output_file):
                 print(
-                    f"Ephemeris file for {year}-{month} already exists. Skipping API call."
+                    f"Ephemera file for {year}-{month} already exists. Skipping API call."
                 )
                 continue
 

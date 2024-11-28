@@ -14,7 +14,7 @@ load_dotenv(dotenv_path="../../.env")
 # CSV file in the 'comm' directory. It also copies the corresponding AAC files to the 'comm' directory.
 
 
-COMM_TRANSCRIPTS_AACS = os.getenv("COMM_TRANSCRIPTS_AACS")
+COMM_TRANSCRIPTS_AACS = os.getenv("SG_RAW_FOLDER") + "comm_transcripts_aacs/"
 COMM_S3 = os.getenv("S3_FOLDER") + "comm/"
 
 

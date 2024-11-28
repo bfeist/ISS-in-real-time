@@ -11,7 +11,7 @@ const Images: FunctionComponent<{
       {imageItems.map((item, index) => (
         <div key={index} className={styles.imageItem}>
           <div className={styles.dateTaken}>{item.dateTaken}</div>
-          <img src={`${imageBaseUrl}/${item.smallUrl}`} alt={item.ID} />
+          <img src={`${imageBaseUrl}/${item.smallUrl}`} alt={item.ID} width={200} />
         </div>
       ))}
     </div>
