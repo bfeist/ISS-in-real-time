@@ -1,0 +1,6 @@
+.images {
+  flex: 1;
+  background-color: #b8b8b8;
+  height: 100%;
+  overflow-y: auto;
+}

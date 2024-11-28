@@ -1,0 +1,32 @@
+.transcripts {
+  flex: 1;
+  background-color: #797979;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.transcriptItem {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  border-bottom: 1px solid #b8b8b8;
+  cursor: pointer;
+}
+
+.channelnum {
+  white-space: nowrap;
+}
+
+.textContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.textOriginalLang {
+  color: #474747;
+}
+
+.audioPlayer {
+  display: none;
+}
