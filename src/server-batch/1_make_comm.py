@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv(dotenv_path="../../../.env")
+load_dotenv(dotenv_path="../../.env")
 
 # This script processes the JSON files in the 'tb_transcribed_aacs' directory that are produced by
 # the Internet Archive batch processor. It extracts the relevant data and writes it to a pipe-delimited

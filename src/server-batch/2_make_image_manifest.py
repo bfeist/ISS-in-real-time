@@ -8,7 +8,7 @@ import sys
 import os  # Add import for os
 
 # Load environment variables from .env file
-load_dotenv(dotenv_path="../../../.env")
+load_dotenv(dotenv_path="../../.env")
 
 # Constants
 API_ENDPOINT = (

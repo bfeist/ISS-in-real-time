@@ -9,7 +9,7 @@ import json
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv(dotenv_path="../../../.env")
+load_dotenv(dotenv_path="../../.env")
 
 # Constants
 LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
