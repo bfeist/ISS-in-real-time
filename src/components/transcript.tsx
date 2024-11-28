@@ -2,12 +2,10 @@ import { extractChannelnumFromFilename } from "utils/transcript";
 import { FunctionComponent, useRef } from "react";
 import styles from "./transcript.module.css";
 
-type TranscriptProps = {
+const Transcript: FunctionComponent<{
   viewDate: string;
   transcriptItems: TranscriptItem[];
-};
-
-const Transcript: FunctionComponent<TranscriptProps> = ({ viewDate, transcriptItems }) => {
+}> = ({ viewDate, transcriptItems }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
 

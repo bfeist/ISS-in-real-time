@@ -31,6 +31,7 @@
 .mapContainer {
   flex: 1;
   background-color: white;
+  height: 100%;
 }
 
 .lower {

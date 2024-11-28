@@ -15,7 +15,14 @@ type ImageItem = {
   largeUrl: string;
 };
 
+type EphemeraItem = {
+  epoch: string;
+  tle_line1: string;
+  tle_line2: string;
+};
+
 type GetDatePageDataResponse = {
   transcriptItems: TranscriptItem[];
   imageItems: ImageItem[];
+  ephemeraItems: EphemeraItem[];
 };
