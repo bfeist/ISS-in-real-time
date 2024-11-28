@@ -10,8 +10,6 @@ services:
       - ${DOCKER_SSL_PRIVATE_DIR}:/etc/pki/tls/private
     ports:
       - "443:443"
-    environment:
-      - VITE_BASE_STATIC_URL=${VITE_BASE_STATIC_URL}
     networks:
       - boilerplate-network
 
