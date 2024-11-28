@@ -26,3 +26,11 @@ type GetDatePageDataResponse = {
   imageItems: ImageItem[];
   ephemeraItems: EphemeraItem[];
 };
+
+type TimeDef = {
+  // hh:mm:ss
+  startValue: string;
+  // unix timestamp
+  startedTimestamp: number;
+  running: boolean;
+};
