@@ -57,7 +57,7 @@ temp
 /playwright/.cache/
 **/playwright/.auth
 
-/whisperx_models
+whisperx_models
 ia_zips_processed.txt
 ia_zips_in_progress.txt
 ia_skip_zips.txt

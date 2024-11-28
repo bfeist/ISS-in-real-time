@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import wave
+from dotenv import load_dotenv
 import whisperx
 import zipfile
 import time
@@ -25,6 +26,8 @@ import threading  # Add threading for file locks
 import msvcrt  # For detecting key presses on Windows
 from threading import Event
 
+load_dotenv(dotenv_path="../../.env")
+
 # Constants
 SHORT_NORMALIZE = 1.0 / 32768.0
 MODEL_TYPE = "large-v3"
@@ -46,12 +49,9 @@ IA_ZIPS_PROCESSED_TRACKING_FILE = "ia_zips_processed.txt"
 IA_ZIPS_IN_PROGRESS_TRACKING_FILE = "ia_zips_in_progress.txt"  # New tracking file
 IA_SKIP_ZIPS_TRACKING_FILE = "ia_skip_zips.txt"  # New skip list tracking file
 
-INPUT_IA_ZIPS_PATH = os.path.join(
-    "F:/ISSiRT_assets/_raw/InternetArchive_space_to_grounds"
-)
-# INPUT_IA_ZIPS_PATH = os.path.join("F:/ISS_assets/test_s2gs")
+INPUT_IA_ZIPS_PATH = os.path.join(os.getenv("IA_ZIP_WAVS_WORKING_FOLDER"))
 CURRENT_IA_ZIP_WAVS_ROOT = Path("F:/tempF/iss_working/current_ia_zip_wavs")
-TB_TRANSCRIBED_AACS = Path("F:/ISSiRT_assets/_raw/comm_transcripts_aacs")
+COMM_TRANSCRIPTS_AACS = Path(os.getenv("SG_RAW_FOLDER") + "comm_transcripts_aacs/")
 
 # Thread lock for file operations
 file_lock = threading.RLock()
@@ -294,7 +294,7 @@ class AudioSegmenter(object):
             # Create utterance time string
             utteranceTime = self.lastCaptureStartTime
             # Create the dated directory path
-            dated_directory = TB_TRANSCRIBED_AACS / year / month / day
+            dated_directory = COMM_TRANSCRIPTS_AACS / year / month / day
             # Ensure the directory exists
             dated_directory.mkdir(parents=True, exist_ok=True)
             aacFullPath = dated_directory / fileName
@@ -602,7 +602,7 @@ if __name__ == "__main__":
     logger.critical("Starting ISS transcription process...")
 
     # Ensure the directories exist
-    TB_TRANSCRIBED_AACS.mkdir(parents=True, exist_ok=True)
+    COMM_TRANSCRIPTS_AACS.mkdir(parents=True, exist_ok=True)
 
     asr_options = {"hotwords": None}
 
