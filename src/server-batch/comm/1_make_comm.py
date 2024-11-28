@@ -4,14 +4,18 @@ import csv
 import shutil
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path="../../../.env")
 
 # This script processes the JSON files in the 'tb_transcribed_aacs' directory that are produced by
 # the Internet Archive batch processor. It extracts the relevant data and writes it to a pipe-delimited
 # CSV file in the 'comm' directory. It also copies the corresponding AAC files to the 'comm' directory.
 
 
-TRANSCRIBED_AACS = "F:/ISSiRT_assets/_raw/comm_transcripts_aacs"
-COMM_S3 = "F:/ISSiRT_assets/iss_irt_s3/comm/"
+COMM_TRANSCRIPTS_AACS = os.getenv("COMM_TRANSCRIPTS_AACS")
+COMM_S3 = os.getenv("S3_FOLDER") + "comm/"
 
 
 def create_daily_transcript(root_dir, date_str, output_dir):
@@ -131,7 +135,7 @@ def process_all_transcripts(root_dir, output_dir):
 
 
 if __name__ == "__main__":
-    processed_dates = process_all_transcripts(TRANSCRIBED_AACS, COMM_S3)
+    processed_dates = process_all_transcripts(COMM_TRANSCRIPTS_AACS, COMM_S3)
     # Save processed dates to a file for use in make_tles.py
     with open("processed_dates.json", "w") as f:
         json.dump(processed_dates, f)

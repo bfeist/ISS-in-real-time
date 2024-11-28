@@ -8,16 +8,16 @@ import os
 import json
 from dotenv import load_dotenv
 
+# Load environment variables from .env file
+load_dotenv(dotenv_path="../../../.env")
+
 # Constants
 LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
 API_BASE_URL = "https://www.space-track.org/basicspacedata/query"
 NORAD_ID = 25544  # ISS NORAD ID
-COMM_S3 = "F:/acme_assets/iss_irt_s3/comm/"
-EPHEMERIS_S3 = "F:/acme_assets/iss_irt_s3/ephemeris/"
 
-# Load .env file from two directories up
-env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
-load_dotenv(dotenv_path=env_path)
+COMM_S3 = os.getenv("S3_FOLDER") + "comm/"
+EPHEMERIS_S3 = os.getenv("S3_FOLDER") + "ephemeris/"
 
 
 # Function to create an authenticated session

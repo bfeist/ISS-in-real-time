@@ -7,13 +7,16 @@ from collections import defaultdict
 import sys
 import os  # Add import for os
 
+# Load environment variables from .env file
+load_dotenv(dotenv_path="../../../.env")
+
 # Constants
 API_ENDPOINT = (
     "https://eol.jsc.nasa.gov/SearchPhotos/PhotosDatabaseAPI/PhotosDatabaseAPI.pl"
 )
 BASE_URL = "https://eol.jsc.nasa.gov/DatabaseImages"
-COMM_ROOT = "F:/ISSiRT_assets/iss_irt_s3/comm/"  # Define comm_root
-IMAGES_S3 = "F:/ISSiRT_assets/iss_irt_s3/images/"  # Add IMAGES_S3 constant
+COMM_S3 = os.getenv("S3_FOLDER") + "comm/"
+IMAGES_S3 = os.getenv("S3_FOLDER") + "images/"
 
 # Load .env file from two directories up
 env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
@@ -168,8 +171,8 @@ def main():
 
     images_root = IMAGES_S3  # Define images_root
 
-    for year in os.listdir(COMM_ROOT):
-        year_path = os.path.join(COMM_ROOT, year)
+    for year in os.listdir(COMM_S3):
+        year_path = os.path.join(COMM_S3, year)
         if os.path.isdir(year_path):
             for month in os.listdir(year_path):
                 month_path = os.path.join(year_path, month)

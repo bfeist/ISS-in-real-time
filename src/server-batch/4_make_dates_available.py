@@ -1,8 +1,12 @@
 import os
 import json
+from dotenv import load_dotenv
 
-S3_FOLDER = "F:/tempF/iss_irt_s3/"
-COMM_S3 = os.path.join(S3_FOLDER, "comm/")
+# Load environment variables from .env file
+load_dotenv(dotenv_path="../../.env")
+
+S3_FOLDER = os.getenv("S3_FOLDER")
+COMM_S3 = S3_FOLDER + "comm/"
 
 
 def collect_available_dates(comm_dir):
