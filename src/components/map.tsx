@@ -1,4 +1,4 @@
-import { FunctionComponent, useRef, useEffect } from "react";
+import { FunctionComponent, useRef, useEffect, useState } from "react";
 import { findClosestEphemeraItem } from "utils/map";
 import { getLatLngObj } from "tle.js";
 import "ol/ol.css";
@@ -17,13 +17,21 @@ import { Vector as VectorLayerOL } from "ol/layer";
 import VectorSourceOL from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import Terminator from "utils/terminator";
+import { timeStringFromTimeDef } from "utils/time";
 
 const MapComponent: FunctionComponent<{
   viewDate: string;
   ephemeraItems: EphemeraItem[];
-}> = ({ viewDate, ephemeraItems }) => {
+  timeDef: TimeDef;
+}> = ({ viewDate, ephemeraItems, timeDef }) => {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const olMapRef = useRef<Map | null>(null);
+  const intervalRef = useRef(null);
+
+  const [timeStr, setTimeStr] = useState<string>(null);
+
+  const markerLayerRef = useRef<VectorLayer | null>(null);
+  const markerFeatureRef = useRef<Feature | null>(null);
 
   useEffect(() => {
     const labelLayer = new TileLayer({
@@ -58,31 +66,56 @@ const MapComponent: FunctionComponent<{
       }),
     });
 
+    // Initialize marker layer once
+    markerLayerRef.current = new VectorLayer({
+      source: new VectorSource(),
+    });
+    olMapRef.current.addLayer(markerLayerRef.current);
+
     return () => {
       olMapRef.current.setTarget(undefined);
+      if (markerLayerRef.current && olMapRef.current) {
+        olMapRef.current.removeLayer(markerLayerRef.current);
+      }
     };
   }, []);
 
+  useEffect(() => {
+    // Create an interval to update the time based on the timeDef
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    intervalRef.current = setInterval(() => {
+      if (timeDef.running) {
+        setTimeStr(timeStringFromTimeDef(timeDef));
+      }
+    }, 500);
+    return () => {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    };
+  }, [timeDef]);
+
   /**
-   * Add a marker to the map for the current ISS position
+   * Update the marker position without adding new layers
    */
   useEffect(() => {
-    if (!mapRef.current || !olMapRef.current) return;
+    if (!olMapRef.current || !ephemeraItems || !viewDate || !timeStr) return;
 
-    let vectorLayer: VectorLayer; // Declare outside for cleanup
-
-    if (ephemeraItems && viewDate) {
-      const ephemeris = findClosestEphemeraItem(new Date(viewDate), ephemeraItems);
-      if (ephemeris) {
-        const tle = `${ephemeris.tle_line1}
+    const ephemeris = findClosestEphemeraItem(new Date(`${viewDate}T${timeStr}Z`), ephemeraItems);
+    if (ephemeris) {
+      const tle = `${ephemeris.tle_line1}
         ${ephemeris.tle_line2}`;
-        const { lat, lng } = getLatLngObj(tle, new Date(viewDate).getTime());
+      const { lat, lng } = getLatLngObj(tle, new Date(`${viewDate}T${timeStr}Z`).getTime());
+      // console.log(`lat: ${lat}, lng: ${lng}`);
 
-        const xFeature = new Feature({
+      if (!markerFeatureRef.current) {
+        // Create marker feature if it doesn't exist
+        markerFeatureRef.current = new Feature({
           geometry: new Point(fromLonLat([lng, lat])),
         });
 
-        xFeature.setStyle(
+        markerFeatureRef.current.setStyle(
           new Style({
             text: new Text({
               text: "X",
@@ -93,22 +126,13 @@ const MapComponent: FunctionComponent<{
           })
         );
 
-        vectorLayer = new VectorLayer({
-          source: new VectorSource({
-            features: [xFeature],
-          }),
-        });
-
-        olMapRef.current.addLayer(vectorLayer);
+        markerLayerRef.current.getSource().addFeature(markerFeatureRef.current);
+      } else {
+        // Update marker position
+        markerFeatureRef.current.setGeometry(new Point(fromLonLat([lng, lat])));
       }
     }
-
-    return () => {
-      if (vectorLayer && olMapRef.current) {
-        olMapRef.current.removeLayer(vectorLayer);
-      }
-    };
-  }, [ephemeraItems, viewDate]);
+  }, [ephemeraItems, viewDate, timeStr]);
 
   /**
    * Add a terminator layer to the map

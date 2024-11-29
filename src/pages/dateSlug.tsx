@@ -71,7 +71,7 @@ const DatePage = (): JSX.Element => {
       <div className={styles.upper}>
         <div className={styles.videoContainer}></div>
         <div className={styles.mapContainer}>
-          <Map ephemeraItems={ephemeraItems} viewDate={date} />
+          <Map ephemeraItems={ephemeraItems} viewDate={date} timeDef={timeDef} />
         </div>
       </div>
 
