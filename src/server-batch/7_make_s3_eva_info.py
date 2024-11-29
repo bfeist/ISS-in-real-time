@@ -27,6 +27,7 @@ for table in tables:
     # Iterate over each row in the table
     for row in table.find_all("tr")[1:]:  # Skip the header row
         cells = row.find_all(["td", "th"])
+
         if len(cells) == 6:
             # Extract data with improved handling
             number = cells[0].get_text(strip=True)
@@ -114,6 +115,12 @@ for table in tables:
             }
 
         elif len(cells) == 1:
+            cell = cells[0]
+
+            # if the cell is a divider row, skip it
+            if cell.get("bgcolor") == "#ccccff":
+                continue
+
             # Extract the mission name with HTML and remove reference hyperlinks
             description_html = cells[0].decode_contents()
             soup_desc = BeautifulSoup(description_html, "html.parser")
@@ -131,6 +138,8 @@ for table in tables:
             eva["description"] = description
 
             eva_details.append(eva)
+
+            eva = {}
 # audit the EVA details removing any planned EVAs. These can be determined by crew being TBD or TBC
 eva_details = [
     eva
