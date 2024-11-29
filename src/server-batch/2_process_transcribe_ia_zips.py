@@ -429,6 +429,7 @@ def runTranscriptionLocally(model, utteranceTime, aacFilePath, descriptor):
         " Thank you for watching.",
         " Thank you for watching!",
         " .",
+        " This video is a derivative work of the Touhou Project",
     ]
     try:
         aacFileName = aacFilePath.name

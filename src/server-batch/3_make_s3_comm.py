@@ -18,6 +18,19 @@ COMM_TRANSCRIPTS_AACS = os.getenv("SG_RAW_FOLDER") + "comm_transcripts_aacs/"
 COMM_S3 = os.getenv("S3_FOLDER") + "comm/"
 
 
+def is_invalid_utterance(text):
+    textStringsIndicateInvalidUtterance = [
+        "Thank you.",
+        "Bye.",
+        "...",
+        "Thanks for watching!",
+        "Thank you for watching.",
+        "Thank you for watching!",
+        "This video is a derivative work of the Touhou Project",
+    ]
+    return text in textStringsIndicateInvalidUtterance
+
+
 def create_daily_transcript(root_dir, date_str, output_dir):
     # Split the date string into year, month, day
     year, month, day = date_str.split("-")
@@ -54,6 +67,10 @@ def create_daily_transcript(root_dir, date_str, output_dir):
                     segment.get("text", "").strip().replace("|", " ")
                     for segment in segments
                 )
+
+                if is_invalid_utterance(text):
+                    continue
+
                 start = segments[0].get("start", "") if segments else ""
                 end = segments[-1].get("end", "") if segments else ""
 
