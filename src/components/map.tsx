@@ -18,6 +18,7 @@ import VectorSourceOL from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import Terminator from "utils/terminator";
 import { timeStringFromTimeDef } from "utils/time";
+import { containsCoordinate } from "ol/extent";
 
 const MapComponent: FunctionComponent<{
   viewDate: string;
@@ -26,7 +27,8 @@ const MapComponent: FunctionComponent<{
 }> = ({ viewDate, ephemeraItems, timeDef }) => {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const olMapRef = useRef<Map | null>(null);
-  const intervalRef = useRef(null);
+  const animationId = useRef<number | null>(null);
+  const viewRef = useRef<View | null>(null);
 
   const [timeStr, setTimeStr] = useState<string>(null);
 
@@ -66,11 +68,31 @@ const MapComponent: FunctionComponent<{
       }),
     });
 
+    viewRef.current = olMapRef.current.getView();
+
     // Initialize marker layer once
     markerLayerRef.current = new VectorLayer({
       source: new VectorSource(),
     });
     olMapRef.current.addLayer(markerLayerRef.current);
+
+    // Initialize marker feature
+    markerFeatureRef.current = new Feature({
+      geometry: new Point(fromLonLat([0, 0])), // Initial position
+    });
+
+    markerFeatureRef.current.setStyle(
+      new Style({
+        text: new Text({
+          text: "X",
+          font: "bold 16px sans-serif",
+          fill: new Fill({ color: "red" }),
+          stroke: new Stroke({ color: "white", width: 1 }),
+        }),
+      })
+    );
+
+    markerLayerRef.current.getSource().addFeature(markerFeatureRef.current);
 
     return () => {
       olMapRef.current.setTarget(undefined);
@@ -81,23 +103,20 @@ const MapComponent: FunctionComponent<{
   }, []);
 
   useEffect(() => {
-    // Create an interval to update the time based on the timeDef
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    intervalRef.current = setInterval(() => {
+    const updateTime = () => {
       if (timeDef.running) {
         setTimeStr(timeStringFromTimeDef(timeDef));
       }
-    }, 500);
+      animationId.current = requestAnimationFrame(updateTime);
+    };
+    animationId.current = requestAnimationFrame(updateTime);
     return () => {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+      cancelAnimationFrame(animationId.current);
     };
   }, [timeDef]);
 
   /**
-   * Update the marker position without adding new layers
+   * Update the marker position and re-center the map if the marker is out of view
    */
   useEffect(() => {
     if (!olMapRef.current || !ephemeraItems || !viewDate || !timeStr) return;
@@ -107,29 +126,20 @@ const MapComponent: FunctionComponent<{
       const tle = `${ephemeris.tle_line1}
         ${ephemeris.tle_line2}`;
       const { lat, lng } = getLatLngObj(tle, new Date(`${viewDate}T${timeStr}Z`).getTime());
-      // console.log(`lat: ${lat}, lng: ${lng}`);
 
-      if (!markerFeatureRef.current) {
-        // Create marker feature if it doesn't exist
-        markerFeatureRef.current = new Feature({
-          geometry: new Point(fromLonLat([lng, lat])),
-        });
+      if (markerFeatureRef.current) {
+        // Update marker position directly for better performance
+        (markerFeatureRef.current.getGeometry() as Point).setCoordinates(fromLonLat([lng, lat]));
 
-        markerFeatureRef.current.setStyle(
-          new Style({
-            text: new Text({
-              text: "X",
-              font: "bold 16px sans-serif",
-              fill: new Fill({ color: "red" }),
-              stroke: new Stroke({ color: "white", width: 1 }),
-            }),
-          })
-        );
-
-        markerLayerRef.current.getSource().addFeature(markerFeatureRef.current);
-      } else {
-        // Update marker position
-        markerFeatureRef.current.setGeometry(new Point(fromLonLat([lng, lat])));
+        // Check if the marker is within the current view
+        const view = viewRef.current;
+        const markerCoord = fromLonLat([lng, lat]);
+        if (view) {
+          const extent = view.calculateExtent(olMapRef.current.getSize());
+          if (!containsCoordinate(extent, markerCoord)) {
+            view.animate({ center: markerCoord, duration: 10 });
+          }
+        }
       }
     }
   }, [ephemeraItems, viewDate, timeStr]);
