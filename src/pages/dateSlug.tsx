@@ -15,14 +15,14 @@ const DatePage = (): JSX.Element => {
   const searchParams = new URLSearchParams(location.search);
   const t = searchParams.get("t");
 
-  const intervalRef = useRef(null);
-
   const [timeDef, setTimeDef] = useState<TimeDef>({
     startValue: "00:00:00",
     startedTimestamp: new Date().getTime(),
     running: true,
   });
-  const [timeStr, setTimeStr] = useState<string>(null);
+
+  const timeStrRef = useRef<HTMLSpanElement>(null);
+  const animationRef = useRef<number>(null);
 
   useEffect(() => {
     if (isValidTimestring(t)) {
@@ -48,25 +48,26 @@ const DatePage = (): JSX.Element => {
   }, [t, transcriptItems, date]);
 
   useEffect(() => {
-    // Create an interval to update the time based on the timeDef
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    intervalRef.current = setInterval(() => {
+    const updateTime = () => {
       if (timeDef.running) {
-        setTimeStr(timeStringFromTimeDef(timeDef));
+        animationRef.current = requestAnimationFrame(updateTime);
+        if (timeStrRef.current) {
+          timeStrRef.current.innerHTML = timeStringFromTimeDef(timeDef);
+        }
       }
-    }, 100);
+    };
+    animationRef.current = requestAnimationFrame(updateTime);
     return () => {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+      }
     };
   }, [timeDef]);
 
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        Date: {date} Time: {timeStr}
+        Date: {date} Time: <span ref={timeStrRef} />
       </div>
       <div className={styles.upper}>
         <div className={styles.videoContainer}></div>
