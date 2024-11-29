@@ -1,12 +1,12 @@
 import { FunctionComponent, useRef, useEffect, useState } from "react";
-import { findClosestEphemeraItem } from "utils/map";
+import { findClosestEphemeraItem, updateOrbitLine } from "utils/map";
 import { getLatLngObj } from "tle.js";
 import "ol/ol.css";
 import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import Feature from "ol/Feature";
-import { Point } from "ol/geom";
+import { Point, LineString } from "ol/geom";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { Style, Text, Fill, Stroke } from "ol/style";
@@ -34,6 +34,7 @@ const MapComponent: FunctionComponent<{
 
   const markerLayerRef = useRef<VectorLayer | null>(null);
   const markerFeatureRef = useRef<Feature | null>(null);
+  const orbitLayerRef = useRef<VectorLayer | null>(null);
 
   useEffect(() => {
     const labelLayer = new TileLayer({
@@ -94,10 +95,25 @@ const MapComponent: FunctionComponent<{
 
     markerLayerRef.current.getSource().addFeature(markerFeatureRef.current);
 
+    // Initialize orbit layer
+    orbitLayerRef.current = new VectorLayer({
+      source: new VectorSource(),
+      style: new Style({
+        stroke: new Stroke({
+          color: "red",
+          width: 2,
+        }),
+      }),
+    });
+    olMapRef.current.addLayer(orbitLayerRef.current);
+
     return () => {
       olMapRef.current.setTarget(undefined);
       if (markerLayerRef.current && olMapRef.current) {
         olMapRef.current.removeLayer(markerLayerRef.current);
+      }
+      if (orbitLayerRef.current && olMapRef.current) {
+        olMapRef.current.removeLayer(orbitLayerRef.current);
       }
     };
   }, []);
@@ -177,6 +193,34 @@ const MapComponent: FunctionComponent<{
       olMapRef.current.removeLayer(terminatorLayer);
     };
   }, [viewDate]);
+
+  /**
+   * Update the orbit line based on the current time
+   */
+  useEffect(() => {
+    if (!viewDate || !olMapRef.current || !ephemeraItems.length) return;
+
+    const { coordinates1, coordinates2 } = updateOrbitLine(viewDate, timeStr, ephemeraItems);
+
+    const orbitSource = orbitLayerRef.current?.getSource();
+    if (orbitSource) {
+      orbitSource.clear();
+
+      if (coordinates1.length > 0) {
+        const orbitFeature1 = new Feature({
+          geometry: new LineString(coordinates1.map((coord) => fromLonLat(coord))),
+        });
+        orbitSource.addFeature(orbitFeature1);
+      }
+
+      if (coordinates2.length > 0) {
+        const orbitFeature2 = new Feature({
+          geometry: new LineString(coordinates2.map((coord) => fromLonLat(coord))),
+        });
+        orbitSource.addFeature(orbitFeature2);
+      }
+    }
+  }, [viewDate, ephemeraItems, timeStr]);
 
   return <div ref={mapRef} style={{ width: "100%", height: "100%" }}></div>;
 };
