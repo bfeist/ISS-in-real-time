@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import json
 from itertools import count
 import os
+import datetime  # ...existing code...
 
 S3_FOLDER = os.getenv("S3_FOLDER")
 
@@ -51,8 +52,8 @@ for table in tables:
                 for link in crew_links
                 if link.get_text(strip=True)
             ]
-            start_time = cells[3].get_text(strip=True).replace("<br>", " ")
-            end_time = cells[4].get_text(strip=True).replace("<br>", " ")
+            start_time_raw = cells[3].get_text(strip=True)
+            end_time_raw = cells[4].get_text(strip=True)
             duration = cells[5].get_text(strip=True)
 
             # Correctly map the data
@@ -61,8 +62,9 @@ for table in tables:
                 "mission": mission,
                 "mission_eva_num": mission_eva_num,
                 "crew": crew,
-                "start_time": start_time,
-                "end_time": end_time,
+                "groundIVcrew": [],
+                "start_time": start_time_raw,
+                "end_time": end_time_raw,
                 "duration": duration,
             }
 
@@ -98,8 +100,8 @@ for table in tables:
                 for link in groundIVcrew_links
                 if link.get_text(strip=True)
             ]
-            start_time = cells[4].get_text(strip=True).replace("<br>", " ")
-            end_time = cells[5].get_text(strip=True).replace("<br>", " ")
+            start_time_raw = cells[4].get_text(strip=True)
+            end_time_raw = cells[5].get_text(strip=True)
             duration = cells[6].get_text(strip=True)
 
             # Correctly map the data
@@ -109,8 +111,8 @@ for table in tables:
                 "mission_eva_num": mission_eva_num,
                 "crew": crew,
                 "groundIVcrew": groundIVcrew,
-                "start_time": start_time,
-                "end_time": end_time,
+                "start_time": start_time_raw,
+                "end_time": end_time_raw,
                 "duration": duration,
             }
 
@@ -140,6 +142,8 @@ for table in tables:
             eva_details.append(eva)
 
             eva = {}
+
+
 # audit the EVA details removing any planned EVAs. These can be determined by crew being TBD or TBC
 eva_details = [
     eva
@@ -150,6 +154,34 @@ eva_details = [
     and eva["duration"] not in ["TBC", "TBD"]
 ]
 
+# convert the start_time and end_time to isoformat
+for eva in eva_details:
+    try:
+        eva["start_time"] = (
+            datetime.datetime.strptime(eva["start_time"], "%d %B %Y%H:%M").isoformat()
+            + "Z"
+        )
+    except:
+        eva["start_time"] = None
+
+    try:
+        eva["end_time"] = (
+            datetime.datetime.strptime(eva["end_time"], "%d %B %Y%H:%M").isoformat()
+            + "Z"
+        )
+    except:
+        eva["end_time"] = None
+
+# Define the cutoff date with Zulu time
+cutoff_date = datetime.datetime(2015, 1, 1, tzinfo=datetime.timezone.utc)
+
+# Filter out EVAs before the cutoff date
+eva_details = [
+    eva
+    for eva in eva_details
+    if not eva["start_time"] == None
+    and datetime.datetime.fromisoformat(eva["start_time"]) >= cutoff_date
+]
 
 # Convert the list to a JSON object
 eva_json = json.dumps(eva_details, indent=4)
