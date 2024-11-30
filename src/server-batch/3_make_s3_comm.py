@@ -154,5 +154,5 @@ def process_all_transcripts(root_dir, output_dir):
 if __name__ == "__main__":
     processed_dates = process_all_transcripts(COMM_TRANSCRIPTS_AACS, COMM_S3)
     # Save processed dates to a file for use in make_tles.py
-    with open("processed_dates.json", "w") as f:
-        json.dump(processed_dates, f)
+    # with open("processed_dates.json", "w") as f:
+    #     json.dump(processed_dates, f)
