@@ -1,6 +1,5 @@
 import requests
 import os
-from datetime import datetime, timedelta
 
 API_KEY = os.getenv("YOUTUBE_API_KEY")
 CHANNEL_ID = "UCLA_DiR1FfKNvjuUpBHmylQ"  # NASA's official YouTube Channel ID
