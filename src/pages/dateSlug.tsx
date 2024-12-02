@@ -6,6 +6,7 @@ import Map from "components/map";
 import { useEffect, useRef, useState } from "react";
 import { isValidTimestring } from "utils/params";
 import { timeStringFromTimeDef } from "utils/time";
+import YouTube from "components/youtube";
 
 const DatePage = (): JSX.Element => {
   const { date } = useParams();
@@ -22,7 +23,6 @@ const DatePage = (): JSX.Element => {
   });
 
   const timeStrRef = useRef<HTMLSpanElement>(null);
-  const animationRef = useRef<number>(null);
 
   useEffect(() => {
     if (isValidTimestring(t)) {
@@ -50,27 +50,39 @@ const DatePage = (): JSX.Element => {
   useEffect(() => {
     const updateTime = () => {
       if (timeDef.running) {
-        animationRef.current = requestAnimationFrame(updateTime);
         if (timeStrRef.current) {
           timeStrRef.current.innerHTML = timeStringFromTimeDef(timeDef);
         }
       }
     };
-    animationRef.current = requestAnimationFrame(updateTime);
+    const intervalId = setInterval(updateTime, 500);
     return () => {
-      if (animationRef.current !== null) {
-        cancelAnimationFrame(animationRef.current);
-      }
+      clearInterval(intervalId);
     };
   }, [timeDef]);
 
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        Date: {date} Time: <span ref={timeStrRef} />
+        <div>
+          Date: {date} Time: <span ref={timeStrRef} />
+        </div>
+        <button
+          onClick={() => {
+            setTimeDef({
+              startValue: timeStringFromTimeDef(timeDef),
+              startedTimestamp: new Date().getTime(),
+              running: !timeDef.running,
+            });
+          }}
+        >
+          start/stop
+        </button>
       </div>
       <div className={styles.upper}>
-        <div className={styles.videoContainer}></div>
+        <div className={styles.videoContainer}>
+          <YouTube timeDef={timeDef} />
+        </div>
         <div className={styles.mapContainer}>
           <Map ephemeraItems={ephemeraItems} viewDate={date} timeDef={timeDef} />
         </div>

@@ -28,6 +28,7 @@
     "react-dom": "^18.3.1",
     "react-router": "^7.0.1",
     "react-router-dom": "^7.0.1",
+    "react-youtube": "^10.1.0",
     "tle.js": "^4.9.0"
   },
   "devDependencies": {

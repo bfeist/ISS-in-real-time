@@ -27,7 +27,6 @@ const MapComponent: FunctionComponent<{
 }> = ({ viewDate, ephemeraItems, timeDef }) => {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const olMapRef = useRef<Map | null>(null);
-  const animationId = useRef<number | null>(null);
   const viewRef = useRef<View | null>(null);
 
   const [timeStr, setTimeStr] = useState<string>(null);
@@ -123,11 +122,10 @@ const MapComponent: FunctionComponent<{
       if (timeDef.running) {
         setTimeStr(timeStringFromTimeDef(timeDef));
       }
-      animationId.current = requestAnimationFrame(updateTime);
     };
-    animationId.current = requestAnimationFrame(updateTime);
+    const intervalId = setInterval(updateTime, 500); // Update every second
     return () => {
-      cancelAnimationFrame(animationId.current);
+      clearInterval(intervalId);
     };
   }, [timeDef]);
 
