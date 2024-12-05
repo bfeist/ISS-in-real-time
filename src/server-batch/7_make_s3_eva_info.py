@@ -31,7 +31,7 @@ for table in tables:
 
         if len(cells) == 6:
             # Extract data with improved handling
-            number = cells[0].get_text(strip=True)
+            number = cells[0].get_text(strip=True).replace(".", "")
             mission = cells[1].find("a").get_text(strip=True)
             mission_eva_tag = cells[1].find("small")
             mission_eva_num = (
@@ -70,7 +70,7 @@ for table in tables:
 
         if len(cells) == 7:
             # Extract data with improved handling
-            number = cells[0].get_text(strip=True)
+            number = cells[0].get_text(strip=True).replace(".", "")
             mission = cells[1].find("a").get_text(strip=True)
             mission_eva_tag = cells[1].find("small")
             mission_eva_num = (
