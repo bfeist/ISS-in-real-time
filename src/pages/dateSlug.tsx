@@ -7,10 +7,19 @@ import { useEffect, useRef, useState } from "react";
 import { isValidTimestring } from "utils/params";
 import { timeStringFromTimeDef } from "utils/time";
 import YouTube from "components/youtube";
+import { getCrewMembersOnboardByDate } from "utils/crew";
 
 const DatePage = (): JSX.Element => {
   const { date } = useParams();
-  const { transcriptItems, imageItems, ephemeraItems } = useLoaderData() as GetDatePageDataResponse;
+  const {
+    transcriptItems,
+    imageItems,
+    ephemeraItems,
+    evaDetails,
+    youtubeLiveRecordings,
+    crewArrDep,
+    expeditionInfo,
+  } = useLoaderData() as GetDatePageDataResponse;
 
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -23,6 +32,19 @@ const DatePage = (): JSX.Element => {
   });
 
   const timeStrRef = useRef<HTMLSpanElement>(null);
+
+  const evaDetailsForDate = evaDetails.filter((evaDetail) => evaDetail.startTime.startsWith(date));
+  const youtubeLiveRecordingsForDate = youtubeLiveRecordings.filter((recording) =>
+    recording.startTime.startsWith(date)
+  );
+
+  const crewOnboard = getCrewMembersOnboardByDate({ crewArrDep, dateStr: date });
+  const expedition = expeditionInfo.find((exp) => exp.start <= date && exp.end >= date);
+
+  console.log("evaDetailsForDate", evaDetailsForDate);
+  console.log("youtubeLiveRecordingsForDate", youtubeLiveRecordingsForDate);
+  console.log("crewOnboard", crewOnboard);
+  console.log("expedition", expedition);
 
   useEffect(() => {
     if (isValidTimestring(t)) {
@@ -81,7 +103,7 @@ const DatePage = (): JSX.Element => {
       </div>
       <div className={styles.upper}>
         <div className={styles.videoContainer}>
-          <YouTube timeDef={timeDef} />
+          <YouTube viewDate={date} timeDef={timeDef} />
         </div>
         <div className={styles.mapContainer}>
           <Map ephemeraItems={ephemeraItems} viewDate={date} timeDef={timeDef} />

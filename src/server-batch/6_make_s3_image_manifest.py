@@ -15,8 +15,8 @@ API_ENDPOINT = (
     "https://eol.jsc.nasa.gov/SearchPhotos/PhotosDatabaseAPI/PhotosDatabaseAPI.pl"
 )
 BASE_URL = "https://eol.jsc.nasa.gov/DatabaseImages"
-COMM_S3 = os.getenv("S3_FOLDER") + "comm/"
 IMAGES_S3 = os.getenv("S3_FOLDER") + "images/"
+AVAILABLE_DATES_S3 = os.getenv("S3_FOLDER") + "/available_dates.json"
 
 # Load .env file from two directories up
 env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
@@ -60,6 +60,10 @@ def fetch_api_data(formatted_date):
         response = requests.get(API_ENDPOINT, params=params)
         response.raise_for_status()
         data = response.json()
+
+        # if data is not an array, return an empty array. This happens when 'result' = 'SQL found no records that match the specified criteria'
+        if not isinstance(data, list):
+            return None
         return data
     except requests.RequestException as e:
         print(f"Error fetching data from API: {e}")
@@ -72,6 +76,9 @@ def fetch_api_data(formatted_date):
 def process_data(data):
     # Group records by (mission, roll, frame)
     grouped = defaultdict(dict)
+
+    if not data:
+        return grouped
 
     for record in data:
         mission = record.get("nadir.mission")
@@ -171,48 +178,52 @@ def main():
 
     images_root = IMAGES_S3  # Define images_root
 
-    for year in os.listdir(COMM_S3):
-        year_path = os.path.join(COMM_S3, year)
-        if os.path.isdir(year_path):
-            for month in os.listdir(year_path):
-                month_path = os.path.join(year_path, month)
-                if os.path.isdir(month_path):
-                    for day in os.listdir(month_path):
-                        day_path = os.path.join(month_path, day)
-                        if os.path.isdir(day_path):
-                            date_str = f"{year}-{month}-{day}"
-                            print(f"Processing date: {date_str}")
-                            formatted_date = f"{year}{month}{day}"
+    # get dates available json in S3 root. Array of strings in format 2022-09-27
+    available_dates = []
+    if os.path.exists(AVAILABLE_DATES_S3):
+        with open(AVAILABLE_DATES_S3, "r") as f:
+            available_dates = json.load(f)
 
-                            data = fetch_api_data(
-                                formatted_date
-                            )  # Fetch data for the day
+    for available_date in available_dates:
+        print(f"Processing date: {available_date}")
+        [year, month, day] = available_date.split("-")
+        formatted_date = f"{year}{month}{day}"
 
-                            if not data:
-                                print(f"No data returned from API for {date_str}.")
-                                continue
+        # check if the json file for this date already exists
+        output_file = os.path.join(
+            images_root, year, month, f"images-manifest_{year}-{month}-{day}.json"
+        )
+        if os.path.exists(output_file):
+            print(f"Manifest for {available_date} already exists. Skipping API call.")
+            continue
 
-                            grouped_data = process_data(data)
+        data = fetch_api_data(formatted_date)  # Fetch data for the day
 
-                            if not grouped_data:
-                                print(f"No valid photo records found for {date_str}.")
-                                continue
+        if not data:
+            print(f"No data returned from API for {available_date}.")
+            continue
 
-                            manifest = generate_manifest(grouped_data)
+        grouped_data = process_data(data)
 
-                            if not manifest:
-                                print(f"No manifest entries to save for {date_str}.")
-                                continue
+        if not grouped_data:
+            print(f"No valid photo records found for {available_date}.")
+            continue
 
-                            # Define output folder with nested month directory
-                            output_folder = os.path.join(images_root, year, month)
-                            os.makedirs(output_folder, exist_ok=True)
+        manifest = generate_manifest(grouped_data)
 
-                            output_file = os.path.join(
-                                output_folder,
-                                f"images-manifest_{year}-{month}-{day}.json",  # Use hyphens for the date
-                            )
-                            save_manifest(manifest, output_file)
+        if not manifest:
+            print(f"No manifest entries to save for {available_date}.")
+            continue
+
+        # Define output folder with nested month directory
+        output_folder = os.path.join(images_root, year, month)
+        os.makedirs(output_folder, exist_ok=True)
+
+        output_file = os.path.join(
+            output_folder,
+            f"images-manifest_{year}-{month}-{day}.json",  # Use hyphens for the date
+        )
+        save_manifest(manifest, output_file)
 
 
 if __name__ == "__main__":

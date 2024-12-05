@@ -15,6 +15,8 @@ export async function getDatePageData({
   const evaDetailsUrl = `${baseStaticUrl}/eva_details.json`;
   const availableDatesUrl = `${baseStaticUrl}/available_dates.json`;
   const youtubeLiveRecordingsUrl = `${baseStaticUrl}/youtube_live_recordings.csv`;
+  const crewArrDepUrl = `${baseStaticUrl}/iss_crew_arr_dep.json`;
+  const expeditionInfoUrl = `${baseStaticUrl}/expeditions.json`;
 
   try {
     const [
@@ -24,6 +26,8 @@ export async function getDatePageData({
       evaDetailsResponse,
       availableDatesResponse,
       youtubeLiveRecordingsResponse,
+      crewArrDepResponse,
+      expeditionInfoResponse,
     ] = await Promise.all([
       fetch(transcriptUrl),
       fetch(imagesUrl),
@@ -31,6 +35,8 @@ export async function getDatePageData({
       fetch(evaDetailsUrl),
       fetch(availableDatesUrl),
       fetch(youtubeLiveRecordingsUrl),
+      fetch(crewArrDepUrl),
+      fetch(expeditionInfoUrl),
     ]);
 
     if (
@@ -39,7 +45,9 @@ export async function getDatePageData({
       !ephemeraResponse.ok ||
       !evaDetailsResponse.ok ||
       !availableDatesResponse.ok ||
-      !youtubeLiveRecordingsResponse.ok
+      !youtubeLiveRecordingsResponse.ok ||
+      !crewArrDepResponse.ok ||
+      !expeditionInfoResponse.ok
     ) {
       throw new Response("Failed to fetch data", { status: 500 });
     }
@@ -52,6 +60,8 @@ export async function getDatePageData({
     const availableDates: string[] = await availableDatesResponse.json();
     const youtubeLiveRecordingsCsv = await youtubeLiveRecordingsResponse.text();
     const youtubeLiveRecordings = processYoutubeVideosCsv(youtubeLiveRecordingsCsv);
+    const crewArrDep: CrewArrDepItem[] = await crewArrDepResponse.json();
+    const expeditionInfo: ExpeditionInfo[] = await expeditionInfoResponse.json();
 
     return {
       transcriptItems,
@@ -60,6 +70,8 @@ export async function getDatePageData({
       evaDetails,
       availableDates,
       youtubeLiveRecordings,
+      crewArrDep,
+      expeditionInfo,
     };
   } catch (error) {
     return {
@@ -69,6 +81,8 @@ export async function getDatePageData({
       evaDetails: [],
       availableDates: [],
       youtubeLiveRecordings: [],
+      crewArrDep: [],
+      expeditionInfo: [],
     };
   }
 }

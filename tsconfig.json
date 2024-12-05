@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "es2022",
     "jsx": "react-jsx",
-    "module": "ESNext",
-    "moduleResolution": "node",
+    "module": "es2022",
+    "moduleResolution": "bundler",
     "sourceMap": true,
     "outDir": "./.local/vite/dist",
     "rootDir": ".",
@@ -18,7 +18,7 @@
     "noUnusedParameters": false,
     "types": ["node", "jest"],
     "allowImportingTsExtensions": true,
-    "skipLibCheck": true /* Skip type checking all .d.ts files. */,
+    "skipLibCheck": false /* Skip type checking all .d.ts files. */,
     "lib": ["dom", "dom.iterable", "es2022"],
     "allowJs": true,
     "alwaysStrict": true,

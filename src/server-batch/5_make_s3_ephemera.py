@@ -16,8 +16,8 @@ LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
 API_BASE_URL = "https://www.space-track.org/basicspacedata/query"
 NORAD_ID = 25544  # ISS NORAD ID
 
-COMM_S3 = os.getenv("S3_FOLDER") + "comm/"
 EPHEMERA_S3 = os.getenv("S3_FOLDER") + "ephemera/"
+AVAILABLE_DATES_S3 = os.getenv("S3_FOLDER") + "/available_dates.json"
 
 
 # Function to create an authenticated session
@@ -164,7 +164,7 @@ def get_all_tle(session, start_year=2015, norad_id=NORAD_ID):
 
 def save_monthly_tle(tle_df, output_file):
     tle_df = tle_df[["EPOCH", "TLE_LINE1", "TLE_LINE2"]]
-    tle_df["EPOCH"] = pd.to_datetime(tle_df["EPOCH"])
+    tle_df.loc[:, "EPOCH"] = pd.to_datetime(tle_df["EPOCH"])
     tle_df = tle_df.rename(
         columns={
             "EPOCH": "epoch",
@@ -192,24 +192,21 @@ def main():
     username = os.getenv("SPACETRACK_USERNAME")
     password = os.getenv("SPACETRACK_PASSWORD")
 
+    available_dates = []
+    if os.path.exists(AVAILABLE_DATES_S3):
+        with open(AVAILABLE_DATES_S3, "r") as f:
+            available_dates = json.load(f)
+
+    required_months = set()
+    for date_str in available_dates:
+        year, month, day = date_str.split("-")
+        required_months.add(f"{year}-{month}")
+
+    required_months = sorted(required_months)
+
     try:
         # Create an authenticated session
         session = create_session(username, password)
-
-        # Determine required months from COMM_S3 directories
-        required_months = set()
-        years = [
-            y for y in os.listdir(COMM_S3) if os.path.isdir(os.path.join(COMM_S3, y))
-        ]
-        for year in years:
-            year_path = os.path.join(COMM_S3, year)
-            months = [
-                m
-                for m in os.listdir(year_path)
-                if os.path.isdir(os.path.join(year_path, m))
-            ]
-            for month in months:
-                required_months.add(f"{year}-{month}")
 
         # Fetch TLE data for required months
         for month_str in required_months:
@@ -237,7 +234,7 @@ def main():
 
             tle_df = pd.DataFrame(tle_batch)
             save_monthly_tle(tle_df, output_file)
-            time.sleep(1)  # Respect API rate limits
+            timesleep(1)  # Respect API rate limits
 
     except Exception as e:
         print(f"An error occurred: {e}")

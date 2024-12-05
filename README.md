@@ -73,26 +73,29 @@ This script builds the application. The result is put in `.local/vite/dist`.
 
 ### The below scripts should be executed in order.
 
-- `1_download_IA_sg_zips.py`
+- `download_IA_sg_zips.py`
   This script downloads all of the space-to-ground zip files from internet archive uploaded by John Stoll in Building 2. Current size of this batch is 750GB and takes many days to run.
 
-- `2_process_transcribe_ia_zips.py`
+- `process_transcribe_ia_zips.py`
   Processes the downloaded Internet Archive zip files by extracting WAV audio files, converting them to the required format, segmenting the audio using Voice Activity Detection (VAD), transcribing the segments using WhisperX, and generating JSON transcription files. It also manages tracking of processed and in-progress zip files. Takes many months to run on a RTX 4090 currently resulting in over 3M files.
 
-- `3_make_s3_comm.py`
+- `make_s3_comm.py`
   Processes JSON transcript files made in step 2 and converts them into one pipe-delimited CSV file per day and places these in the 'comm' directory on S3. It also copies corresponding AAC audio files to each day's S3 folder.
 
-- `4_make_s3_image_manifest.py`
-  Generates astronaut photography image manifests for S3 storage by fetching data from the NASA EOL PhotosDatabaseAPI, and places these manifests into a nested folder structure in S3. Note that these images are served directly from the NASA EOL servers to the browser.
-
-- `5_make_s3_ephemera.py`
-  Downloads ephemera "TLE" data from space-track.org for every month available in S3's comm folder structure and organizes them into the 'ephemera' directory on S3.
-
-- `6_make_s3_dates_available.py`
+- `make_s3_dates_available.py`
   Maintains and updates a list of available dates for which data exists in S3. This allows other scripts or services to reference which dates have associated data.
 
-- `7_make_s3_eva_info.py`
+- `make_s3_image_manifest.py`
+  Generates astronaut photography image manifests for S3 storage by fetching data from the NASA EOL PhotosDatabaseAPI, and places these manifests into a nested folder structure in S3. Note that these images are served directly from the NASA EOL servers to the browser.
+
+- `make_s3_ephemera.py`
+  Downloads ephemera "TLE" data from space-track.org for every month available in S3's comm folder structure and organizes them into the 'ephemera' directory on S3.
+
+- `make_s3_eva_info.py`
   Scrapes wikipedia at https://en.wikipedia.org/wiki/List_of_International_Space_Station_spacewalks and generates a Extra-Vehicular Activity (EVA) related information json and stores it in the root of S3.
 
-- `8_get_youtube_live_recordings.py`
+- `get_youtube_live_recordings.py`
   Retrieves recorded live stream videos from YouTube that pertain to "station", "spacewalk", or "ISS" keywords. It filters and saves relevant video information to the root of S3 as a pipe-delimited csv file.
+
+- `get_crew_arrival_dep.py`
+  Scrapes the table at https://en.wikipedia.org/wiki/List_of_International_Space_Station_expeditions#Completed_expeditions into a json file and stores it at the root of S3.

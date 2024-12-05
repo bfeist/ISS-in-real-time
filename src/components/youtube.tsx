@@ -2,13 +2,16 @@ import { FunctionComponent, useRef } from "react";
 import YouTube, { YouTubePlayer, YouTubeEvent } from "react-youtube";
 import styles from "./youtube.module.css";
 
-const YouTubeComponent: FunctionComponent<{ timeDef: TimeDef }> = ({ timeDef }) => {
+const YouTubeComponent: FunctionComponent<{ viewDate: string; timeDef: TimeDef }> = ({
+  viewDate,
+  timeDef,
+}) => {
   const playerRef = useRef<YouTubePlayer | null>(null);
 
   const onPlayerReady = (event: YouTubeEvent) => {
     playerRef.current = event.target;
     playerRef.current.mute();
-    playerRef.current.seekTo(30);
+    playerRef.current.seekTo(30, true);
     playerRef.current.playVideo();
   };
 

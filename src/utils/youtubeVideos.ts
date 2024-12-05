@@ -1,7 +1,7 @@
-export function processYoutubeVideosCsv(data: string): YoutubeVideoItem[] {
+export function processYoutubeVideosCsv(data: string): YoutubeLiveRecording[] {
   // lines are "|" delimited
   const lines = data.split("\n");
-  const items: YoutubeVideoItem[] = [];
+  const items: YoutubeLiveRecording[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const fields = line.split("|");

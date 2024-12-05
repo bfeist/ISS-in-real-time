@@ -111,6 +111,7 @@ def create_daily_transcript(root_dir, date_str, output_dir):
         output_dir, year, month, day, f"_transcript_{date_str}.csv"
     )
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
     fieldnames = [
         "utteranceTime",
         "filename",

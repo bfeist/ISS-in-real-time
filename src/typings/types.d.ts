@@ -27,7 +27,9 @@ type GetDatePageDataResponse = {
   ephemeraItems: EphemeraItem[];
   evaDetails: EvaDetail[];
   availableDates: string[];
-  youtubeLiveRecordings: YouTubeLiveRecording[];
+  youtubeLiveRecordings: YoutubeLiveRecording[];
+  crewArrDep: CrewArrDepItem[];
+  expeditionInfo: ExpeditionInfo[];
 };
 
 type TimeDef = {
@@ -44,19 +46,36 @@ type CrewItem = {
   nationality: string;
 };
 
+type CrewArrDepItem = {
+  name: string;
+  nationality: string;
+  arrivalDate: string;
+  arrivalFlight: string;
+  departureDate: string;
+  departureFlight: string;
+  durationDays: string;
+};
+
+type ExpeditionInfo = {
+  expedition: number;
+  start: string;
+  end: string;
+  expeditionblurb: string;
+};
+
 type EvaDetail = {
   number: string;
   mission: string;
-  mission_eva_num: number;
+  missionEvaNum: number;
   crew: CrewItem[];
   groundIVCrew: CrewItem[];
-  start_time: string;
-  end_time: string;
+  startTime: string;
+  endTime: string;
   duration: string;
   description: string;
 };
 
-type YoutubeVideoItem = {
+type YoutubeLiveRecording = {
   startTime: string;
   videoId: string;
   duration: number;

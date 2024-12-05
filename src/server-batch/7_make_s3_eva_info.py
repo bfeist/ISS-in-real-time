@@ -60,11 +60,11 @@ for table in tables:
             eva = {
                 "number": number,
                 "mission": mission,
-                "mission_eva_num": mission_eva_num,
+                "missionEvaNum": mission_eva_num,
                 "crew": crew,
                 "groundIVcrew": [],
-                "start_time": start_time_raw,
-                "end_time": end_time_raw,
+                "startTime": start_time_raw,
+                "endTime": end_time_raw,
                 "duration": duration,
             }
 
@@ -108,11 +108,11 @@ for table in tables:
             eva = {
                 "number": number,
                 "mission": mission,
-                "mission_eva_num": mission_eva_num,
+                "missionEvaNum": mission_eva_num,
                 "crew": crew,
                 "groundIVcrew": groundIVcrew,
-                "start_time": start_time_raw,
-                "end_time": end_time_raw,
+                "startTime": start_time_raw,
+                "endTime": end_time_raw,
                 "duration": duration,
             }
 
@@ -149,28 +149,28 @@ eva_details = [
     eva
     for eva in eva_details
     if all([crew["name"] not in ["TBD", "TBC"] for crew in eva["crew"]])
-    and eva["start_time"] not in ["TBD", "TBC"]
-    and eva["end_time"] not in ["TBD", "TBC"]
+    and eva["startTime"] not in ["TBD", "TBC"]
+    and eva["endTime"] not in ["TBD", "TBC"]
     and eva["duration"] not in ["TBC", "TBD"]
 ]
 
-# convert the start_time and end_time to isoformat
+# convert the startTime and end_time to isoformat
 for eva in eva_details:
     try:
-        eva["start_time"] = (
-            datetime.datetime.strptime(eva["start_time"], "%d %B %Y%H:%M").isoformat()
+        eva["startTime"] = (
+            datetime.datetime.strptime(eva["startTime"], "%d %B %Y%H:%M").isoformat()
             + "Z"
         )
     except:
-        eva["start_time"] = None
+        eva["startTime"] = None
 
     try:
-        eva["end_time"] = (
-            datetime.datetime.strptime(eva["end_time"], "%d %B %Y%H:%M").isoformat()
+        eva["endTime"] = (
+            datetime.datetime.strptime(eva["endTime"], "%d %B %Y%H:%M").isoformat()
             + "Z"
         )
     except:
-        eva["end_time"] = None
+        eva["endTime"] = None
 
 # Define the cutoff date with Zulu time
 cutoff_date = datetime.datetime(2015, 1, 1, tzinfo=datetime.timezone.utc)
@@ -179,8 +179,8 @@ cutoff_date = datetime.datetime(2015, 1, 1, tzinfo=datetime.timezone.utc)
 eva_details = [
     eva
     for eva in eva_details
-    if not eva["start_time"] == None
-    and datetime.datetime.fromisoformat(eva["start_time"]) >= cutoff_date
+    if not eva["startTime"] == None
+    and datetime.datetime.fromisoformat(eva["startTime"]) >= cutoff_date
 ]
 
 # Convert the list to a JSON object
