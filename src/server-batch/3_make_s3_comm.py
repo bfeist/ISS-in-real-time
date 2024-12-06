@@ -144,6 +144,20 @@ def process_all_transcripts(root_dir, output_dir):
                         day_path = os.path.join(month_path, day)
                         if os.path.isdir(day_path):
                             date_str = f"{year}-{month}-{day}"
+                            # if transcriptions for the date already exist, skip
+                            if os.path.exists(
+                                os.path.join(
+                                    output_dir,
+                                    year,
+                                    month,
+                                    day,
+                                    f"_transcript_{date_str}.csv",
+                                )
+                            ):
+                                print(
+                                    f"Transcript for {date_str} already exists. Skipping."
+                                )
+                                continue
                             print(f"Processing date: {date_str}")
                             processed_date = create_daily_transcript(
                                 root_dir, date_str, output_dir

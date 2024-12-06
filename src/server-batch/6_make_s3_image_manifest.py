@@ -185,6 +185,7 @@ def main():
             available_dates = json.load(f)
 
     for available_date in available_dates:
+        no_data = False
         print(f"Processing date: {available_date}")
         [year, month, day] = available_date.split("-")
         formatted_date = f"{year}{month}{day}"
@@ -201,19 +202,21 @@ def main():
 
         if not data:
             print(f"No data returned from API for {available_date}.")
-            continue
+            no_data = True
 
-        grouped_data = process_data(data)
+        if not no_data:
+            grouped_data = process_data(data)
 
-        if not grouped_data:
-            print(f"No valid photo records found for {available_date}.")
-            continue
+            if not grouped_data:
+                print(f"No valid photo records found for {available_date}.")
+                no_data = True
 
-        manifest = generate_manifest(grouped_data)
+        if not no_data:
+            manifest = generate_manifest(grouped_data)
 
-        if not manifest:
-            print(f"No manifest entries to save for {available_date}.")
-            continue
+            if not manifest:
+                print(f"No manifest entries to save for {available_date}.")
+                no_data = True
 
         # Define output folder with nested month directory
         output_folder = os.path.join(images_root, year, month)
@@ -223,7 +226,12 @@ def main():
             output_folder,
             f"images-manifest_{year}-{month}-{day}.json",  # Use hyphens for the date
         )
-        save_manifest(manifest, output_file)
+        if no_data:
+            print(f"No data available for {available_date}. Writing empty manifest.")
+            with open(output_file, "w") as f:
+                f.write("[]")
+        else:
+            save_manifest(manifest, output_file)
 
 
 if __name__ == "__main__":

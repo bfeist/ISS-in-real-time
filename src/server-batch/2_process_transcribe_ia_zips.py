@@ -105,9 +105,13 @@ def checkIfZipAlreadyProcessed(zipFileName):
 
 
 def ensure_mono_wav(input_wav_path):
-    with wave.open(str(input_wav_path), "rb") as wf:
-        n_channels = wf.getnchannels()
-        frame_rate = wf.getframerate()
+    try:
+        with wave.open(str(input_wav_path), "rb") as wf:
+            n_channels = wf.getnchannels()
+            frame_rate = wf.getframerate()
+    except Exception as e:
+        logger.error(f"Failed to open WAV file '{input_wav_path}': {e}")
+        return None  # Indicate failure
 
     need_conversion = False
     if n_channels != 1:
@@ -397,8 +401,10 @@ def unzipSGZipWavs(zip_path, destination_dir):
                     original_file_name
                 )
                 if not date_time or not sg_channel_descriptor:
-                    # Unable to parse filename; terminate the script
-                    Exception("Unable to parse filename inside zip")
+                    logger.warning(
+                        f"Unable to parse filename '{original_file_name}' inside zip '{zip_path}'. Skipping this file."
+                    )
+                    continue  # Skip this file
 
                 # Construct the new filename
                 new_file_name = f"{date_time}-{sg_channel_descriptor}_IA.wav"
@@ -428,6 +434,7 @@ def runTranscriptionLocally(model, utteranceTime, aacFilePath, descriptor):
         " Thanks for watching!",
         " Thank you for watching.",
         " Thank you for watching!",
+        " Thank you for watching",
         " .",
         " This video is a derivative work of the Touhou Project",
     ]
@@ -527,11 +534,13 @@ def process_zip_file(zip_file):
         for wav_file in CURRENT_IA_ZIP_WAVS.glob("*.wav"):
             if exit_event.is_set():
                 break
-            # Convert to Path object
             wav_file = Path(wav_file)
 
             # Ensure the WAV file is mono and has acceptable sample rate
             wav_file = ensure_mono_wav(wav_file)
+            if wav_file is None:
+                logger.error(f"Skipping invalid WAV file '{wav_file}'")
+                continue  # Skip this file
 
             # Parse the start time. The filename is in the format 2024-01-08T012943-1_SG_1_IA.wav
             start_time_str = wav_file.stem[:17]

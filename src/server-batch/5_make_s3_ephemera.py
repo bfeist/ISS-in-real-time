@@ -234,7 +234,7 @@ def main():
 
             tle_df = pd.DataFrame(tle_batch)
             save_monthly_tle(tle_df, output_file)
-            timesleep(1)  # Respect API rate limits
+            time.sleep(1)  # Respect API rate limits
 
     except Exception as e:
         print(f"An error occurred: {e}")

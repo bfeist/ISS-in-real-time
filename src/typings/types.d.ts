@@ -61,6 +61,7 @@ type ExpeditionInfo = {
   start: string;
   end: string;
   expeditionblurb: string;
+  patchUrl: string;
 };
 
 type EvaDetail = {

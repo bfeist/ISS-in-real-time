@@ -19,16 +19,7 @@ export async function getDatePageData({
   const expeditionInfoUrl = `${baseStaticUrl}/expeditions.json`;
 
   try {
-    const [
-      transcriptResponse,
-      imagesResponse,
-      ephemeraResponse,
-      evaDetailsResponse,
-      availableDatesResponse,
-      youtubeLiveRecordingsResponse,
-      crewArrDepResponse,
-      expeditionInfoResponse,
-    ] = await Promise.all([
+    const results = await Promise.allSettled([
       fetch(transcriptUrl),
       fetch(imagesUrl),
       fetch(ephemeraUrl),
@@ -39,29 +30,49 @@ export async function getDatePageData({
       fetch(expeditionInfoUrl),
     ]);
 
-    if (
-      !transcriptResponse.ok ||
-      !imagesResponse.ok ||
-      !ephemeraResponse.ok ||
-      !evaDetailsResponse.ok ||
-      !availableDatesResponse.ok ||
-      !youtubeLiveRecordingsResponse.ok ||
-      !crewArrDepResponse.ok ||
-      !expeditionInfoResponse.ok
-    ) {
-      throw new Response("Failed to fetch data", { status: 500 });
-    }
+    const [
+      transcriptResult,
+      imagesResult,
+      ephemeraResult,
+      evaDetailsResult,
+      availableDatesResult,
+      youtubeLiveRecordingsResult,
+      crewArrDepResult,
+      expeditionInfoResult,
+    ] = results;
 
-    const transcriptCsv = await transcriptResponse.text();
-    const transcriptItems = processTranscriptCsv(transcriptCsv);
-    const imageItems: ImageItem[] = await imagesResponse.json();
-    const ephemeraItems: EphemeraItem[] = await ephemeraResponse.json();
-    const evaDetails: EvaDetail[] = await evaDetailsResponse.json();
-    const availableDates: string[] = await availableDatesResponse.json();
-    const youtubeLiveRecordingsCsv = await youtubeLiveRecordingsResponse.text();
-    const youtubeLiveRecordings = processYoutubeVideosCsv(youtubeLiveRecordingsCsv);
-    const crewArrDep: CrewArrDepItem[] = await crewArrDepResponse.json();
-    const expeditionInfo: ExpeditionInfo[] = await expeditionInfoResponse.json();
+    const transcriptItems =
+      transcriptResult.status === "fulfilled" && transcriptResult.value.ok
+        ? processTranscriptCsv(await transcriptResult.value.text())
+        : [];
+    const imageItems =
+      imagesResult.status === "fulfilled" && imagesResult.value.ok
+        ? await imagesResult.value.json()
+        : [];
+    const ephemeraItems =
+      ephemeraResult.status === "fulfilled" && ephemeraResult.value.ok
+        ? await ephemeraResult.value.json()
+        : [];
+    const evaDetails =
+      evaDetailsResult.status === "fulfilled" && evaDetailsResult.value.ok
+        ? await evaDetailsResult.value.json()
+        : [];
+    const availableDates =
+      availableDatesResult.status === "fulfilled" && availableDatesResult.value.ok
+        ? await availableDatesResult.value.json()
+        : [];
+    const youtubeLiveRecordings =
+      youtubeLiveRecordingsResult.status === "fulfilled" && youtubeLiveRecordingsResult.value.ok
+        ? processYoutubeVideosCsv(await youtubeLiveRecordingsResult.value.text())
+        : [];
+    const crewArrDep =
+      crewArrDepResult.status === "fulfilled" && crewArrDepResult.value.ok
+        ? await crewArrDepResult.value.json()
+        : [];
+    const expeditionInfo =
+      expeditionInfoResult.status === "fulfilled" && expeditionInfoResult.value.ok
+        ? await expeditionInfoResult.value.json()
+        : [];
 
     return {
       transcriptItems,
