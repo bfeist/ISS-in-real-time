@@ -5,12 +5,13 @@ import {
   Math as CesiumMath,
   JulianDate,
   Color,
-  CallbackPositionProperty,
   CallbackProperty,
+  SampledPositionProperty,
+  ClockRange,
 } from "cesium";
 import * as Cesium from "cesium";
 import { Clock } from "resium";
-import { FunctionComponent, useState } from "react";
+import { FunctionComponent, useState, useRef } from "react";
 import { useLoaderData } from "react-router-dom";
 import { Viewer, Entity, PointGraphics, EntityDescription } from "resium";
 import { findClosestEphemeraItem } from "utils/map";
@@ -21,45 +22,13 @@ Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
 
 const CesiumPage: FunctionComponent = (): JSX.Element => {
   const startTime = new Date("2022-11-01T01:00:00Z");
-  const julianDate = JulianDate.fromIso8601(new Date(startTime).toISOString());
+  const julianDate = JulianDate.fromDate(startTime);
 
   const ephemeraItems = useLoaderData() as EphemeraItem[];
   const [tle, _setTle] = useState<string[]>(() => {
     const ephemeris = findClosestEphemeraItem(startTime, ephemeraItems);
     return [ephemeris.tle_line1, ephemeris.tle_line2];
   });
-
-  // Modify calculatePosition to accept currentTime:
-  const calculatePosition = (currentTime: JulianDate) => {
-    if (!tle || tle.length === 0) {
-      return Cartesian3.ZERO;
-    }
-    const jsDate = JulianDate.toDate(currentTime);
-    const satrec = satellite.twoline2satrec(tle[0], tle[1]);
-    const positionAndVelocity = satellite.propagate(satrec, jsDate);
-    const positionEci = positionAndVelocity.position as satellite.EciVec3<number>;
-
-    if (!positionEci) {
-      return Cartesian3.ZERO;
-    }
-
-    const gmst = satellite.gstime(jsDate);
-    const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-    const longitude = positionGd.longitude;
-    const latitude = positionGd.latitude;
-    const height = positionGd.height * 1000; // Convert km to meters
-
-    return Cartesian3.fromDegrees(
-      CesiumMath.toDegrees(longitude),
-      CesiumMath.toDegrees(latitude),
-      height
-    );
-  };
-
-  // Create a CallbackProperty for smooth position updates and cast it to any:
-  const positionProperty = new CallbackPositionProperty((currentTime, _result) => {
-    return calculatePosition(currentTime);
-  }, false);
 
   // Create a CallbackProperty for the label's text to display velocity and height:
   const labelProperty = new CallbackProperty((currentTime, _result) => {
@@ -82,18 +51,61 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
 
     const speed =
       Math.sqrt(velocityVector.x ** 2 + velocityVector.y ** 2 + velocityVector.z ** 2) * 3600; // Convert km/s to km/h
-    return `ISS - Velocity: ${speed.toFixed(4)} km/h - Height: ${heightKm.toFixed(4)} km`;
+
+    // Format the current date and time
+    const dateTimeStr = jsDate.toISOString();
+
+    return `ISS - ${dateTimeStr}\nVelocity: ${speed.toFixed(4)} km/h - Height: ${heightKm.toFixed(4)} km`;
   }, false);
+
+  const computeSampledPositions = () => {
+    if (!tle || tle.length === 0) {
+      return null;
+    }
+
+    const satrec = satellite.twoline2satrec(tle[0], tle[1]);
+    const positions = new SampledPositionProperty();
+    const startTimeJD = JulianDate.addSeconds(julianDate, -3600, new JulianDate());
+    const endTimeJD = JulianDate.addSeconds(julianDate, 3600, new JulianDate());
+    const stepSeconds = 60; // 1-minute intervals
+
+    let time = JulianDate.clone(startTimeJD, new JulianDate());
+    while (JulianDate.lessThanOrEquals(time, endTimeJD)) {
+      const jsDate = JulianDate.toDate(time);
+      const positionAndVelocity = satellite.propagate(satrec, jsDate);
+      const positionEci = positionAndVelocity.position as satellite.EciVec3<number>;
+
+      if (positionEci) {
+        const gmst = satellite.gstime(jsDate);
+        const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+        const longitude = CesiumMath.toDegrees(positionGd.longitude);
+        const latitude = CesiumMath.toDegrees(positionGd.latitude);
+        const height = positionGd.height * 1000; // Convert km to meters
+
+        const position = Cartesian3.fromDegrees(longitude, latitude, height);
+        positions.addSample(time, position);
+      }
+
+      time = JulianDate.addSeconds(time, stepSeconds, new JulianDate());
+    }
+
+    return positions;
+  };
+
+  const sampledPositionProperty = computeSampledPositions();
 
   const terrainProvider = createWorldTerrainAsync();
   const position = Cartesian3.fromDegrees(-74.0707383, 40.7117244, 100);
   const pointGraphics = { pixelSize: 10 };
 
+  const issEntityRef = useRef(null);
+
   return (
     <Viewer
       full
       terrainProvider={terrainProvider}
-      // timeline={false}
+      trackedEntity={issEntityRef.current}
+      timeline={false}
       // animation={false}
       // Disable individual toolbar components
       navigationHelpButton={false}
@@ -106,8 +118,9 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
       // infoBox={false}
     >
       <Entity
+        ref={issEntityRef}
         name="ISS"
-        position={positionProperty}
+        position={sampledPositionProperty}
         point={{ pixelSize: 10, color: Color.RED }}
         label={{
           text: labelProperty,
@@ -117,8 +130,22 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           pixelOffset: new Cesium.Cartesian2(0, -9),
         }}
+        path={{
+          material: Color.YELLOW,
+          width: 2,
+          leadTime: 3600,
+          trailTime: 3600,
+          resolution: 60,
+        }}
       />
-      <Clock startTime={julianDate} currentTime={julianDate} multiplier={1} shouldAnimate={true} />
+      <Clock
+        startTime={JulianDate.addSeconds(julianDate, -3600, new JulianDate())}
+        currentTime={julianDate}
+        stopTime={JulianDate.addSeconds(julianDate, 3600, new JulianDate())}
+        clockRange={ClockRange.LOOP_STOP}
+        multiplier={1}
+        shouldAnimate={true}
+      />
       <Entity position={position} name="Tokyo" description="Hello, world.">
         <PointGraphics {...pointGraphics}>
           <EntityDescription>
