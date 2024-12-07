@@ -32,6 +32,10 @@ type GetDatePageDataResponse = {
   expeditionInfo: ExpeditionInfo[];
 };
 
+type GetCesiumPageDataResponse = {
+  ephemeraItems: EphemeraItem[];
+};
+
 type TimeDef = {
   // hh:mm:ss
   startValue: string;

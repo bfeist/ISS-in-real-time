@@ -111,3 +111,21 @@ export async function getAvailableDates(): Promise<string[]> {
     return [];
   }
 }
+
+export async function getCesiumPageData(): Promise<GetCesiumPageDataResponse> {
+  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
+  const date = "2023-11-01";
+  const [year, month, _day] = date.split("-");
+
+  const ephemeraUrl = `${baseStaticUrl}/ephemera/${year}/${year}-${month}.json`;
+
+  try {
+    const ephemeraResult = await fetch(ephemeraUrl);
+    const ephemeraItems = await ephemeraResult.json();
+    return ephemeraItems;
+  } catch (error) {
+    return {
+      ephemeraItems: [],
+    };
+  }
+}

@@ -10,7 +10,9 @@ import {
 import App from "./App.tsx";
 import Home from "pages/index";
 import DatePage from "pages/dateSlug";
-import { getDatePageData, getAvailableDates } from "utils/dataLoaders";
+import { getDatePageData, getAvailableDates, getCesiumPageData } from "utils/dataLoaders";
+import Cesium from "pages/cesium.tsx";
+import Cesium2 from "pages/cesium2.tsx";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -18,6 +20,8 @@ const router = createBrowserRouter(
       <Route path="/" element={<App />}>
         <Route index element={<Home />} loader={getAvailableDates} />
         <Route path="date/:date" element={<DatePage />} loader={getDatePageData} />
+        <Route path="/cesium" element={<Cesium />} loader={getCesiumPageData} />
+        <Route path="/cesium2" element={<Cesium2 />} loader={getCesiumPageData} />
       </Route>
     </>
   )

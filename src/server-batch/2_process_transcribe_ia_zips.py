@@ -343,7 +343,12 @@ class AudioSegmenter(object):
                 logger.debug(
                     f"Transcription provided no result for {aacFullPath.name}. Deleting."
                 )
-                aacFullPath.unlink()
+                try:
+                    aacFullPath.unlink()
+                except FileNotFoundError:
+                    logger.warning(
+                        f"File not found when attempting to delete: {aacFullPath}"
+                    )
 
             # Reset currentBlocks
             self.currentBlocks = []
