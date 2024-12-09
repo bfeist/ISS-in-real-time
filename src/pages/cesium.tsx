@@ -10,7 +10,7 @@ import {
   ClockRange,
 } from "cesium";
 import * as Cesium from "cesium";
-import { Clock } from "resium";
+import { Clock, Scene, Camera } from "resium";
 import { FunctionComponent, useState, useRef } from "react";
 import { useLoaderData } from "react-router-dom";
 import { Viewer, Entity, PointGraphics, EntityDescription } from "resium";
@@ -95,10 +95,23 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
   const sampledPositionProperty = computeSampledPositions();
 
   const terrainProvider = createWorldTerrainAsync();
-  const position = Cartesian3.fromDegrees(-74.0707383, 40.7117244, 100);
-  const pointGraphics = { pixelSize: 10 };
 
   const issEntityRef = useRef(null);
+  const sceneRef = useRef(null);
+  const cameraRef = useRef(null);
+
+  // Update camera position to follow the ISS
+  const updateCameraPosition = (currentTime: JulianDate) => {
+    if (cameraRef.current && issEntityRef.current) {
+      const position = issEntityRef.current.position.getValue(currentTime);
+      if (position) {
+        cameraRef.current.flyTo({
+          destination: position,
+          duration: 0,
+        });
+      }
+    }
+  };
 
   return (
     <Viewer
@@ -117,6 +130,9 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
       // selectionIndicator={false}
       // infoBox={false}
     >
+      <Scene ref={sceneRef}>
+        <Camera ref={cameraRef} />
+      </Scene>
       <Entity
         ref={issEntityRef}
         name="ISS"
@@ -145,15 +161,8 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
         clockRange={ClockRange.LOOP_STOP}
         multiplier={1}
         shouldAnimate={true}
+        onTick={(clock) => updateCameraPosition(clock.currentTime)}
       />
-      <Entity position={position} name="Tokyo" description="Hello, world.">
-        <PointGraphics {...pointGraphics}>
-          <EntityDescription>
-            <h1>Hello, world.</h1>
-            <p>JSX is available here!</p>
-          </EntityDescription>
-        </PointGraphics>
-      </Entity>
     </Viewer>
   );
 };

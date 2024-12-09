@@ -58,6 +58,7 @@ file_lock = threading.RLock()
 
 exit_flag = False  # Flag to signal exit
 exit_event = Event()  # Event to signal exit
+immediate_exit_event = Event()  # Event to signal immediate exit
 
 
 def read_tracking_file(file_path):
@@ -225,7 +226,7 @@ class AudioSegmenter(object):
         return fileName
 
     def processWav(self):
-        if exit_event.is_set():
+        if exit_event.is_set() or immediate_exit_event.is_set():
             return False
         try:
             raw_data = self.wf.readframes(int(self.FRAME_SIZE / self.sample_width))
@@ -393,6 +394,10 @@ def parse_wav_filename(filename):
 
 
 def unzipSGZipWavs(zip_path, destination_dir):
+    # get date in zip path. will contain something like 1-9-23_Space-to-Grounds_wavs which m-d-y
+    parts = zip_path.split("\\")[1].split("_")[0].split("-")
+    zipDate = f"20{parts[2]}-{parts[0].zfill(2)}-{parts[1].zfill(2)}"
+
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         # Iterate over each file in the zip archive
         for file_info in zip_ref.infolist():
@@ -410,6 +415,14 @@ def unzipSGZipWavs(zip_path, destination_dir):
                         f"Unable to parse filename '{original_file_name}' inside zip '{zip_path}'. Skipping this file."
                     )
                     continue  # Skip this file
+
+                fileDate = date_time.split("T")[0]
+
+                if fileDate != zipDate:
+                    logger.warning(
+                        f"Date mismatch: {fileDate} in filename does not match {zipDate} in zip path. Skipping this file."
+                    )
+                    continue
 
                 # Construct the new filename
                 new_file_name = f"{date_time}-{sg_channel_descriptor}_IA.wav"
@@ -515,10 +528,12 @@ def suppress_stdout_stderr():
 
 
 def process_zip_file(zip_file):
-    if exit_event.is_set():
+    if immediate_exit_event.is_set():
+        logger.info(f"Immediate exit requested. Skipping zip: {zip_file}")
         return
     add_to_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
     try:
+        logger.info(f"Processing IA ZIP file...{zip_file}")
         input_zip_file_full_path = os.path.join(INPUT_IA_ZIPS_PATH, zip_file)
 
         # Use zip file name (without extension) for unique directory
@@ -537,8 +552,9 @@ def process_zip_file(zip_file):
 
         # Process each IA WAV file in the unique directory
         for wav_file in CURRENT_IA_ZIP_WAVS.glob("*.wav"):
-            if exit_event.is_set():
-                break
+            if immediate_exit_event.is_set():
+                logger.info("Immediate exit requested. Stopping processing.")
+                return
             wav_file = Path(wav_file)
 
             # Ensure the WAV file is mono and has acceptable sample rate
@@ -563,14 +579,16 @@ def process_zip_file(zip_file):
 
             logger.info(f"Segmenting IA WAV file...{wav_file.name}")
             while True:
-                if exit_event.is_set():
-                    break
+                if immediate_exit_event.is_set():
+                    logger.info("Immediate exit requested during segmentation.")
+                    return
                 if not segmenter.processWav():
                     break
 
             segmenter.stop()
-            if exit_event.is_set():
-                break
+            if immediate_exit_event.is_set():
+                logger.info("Immediate exit requested after segmentation.")
+                return
             # Delete the "orig" file
             orig_wav_file = wav_file.parent / (wav_file.stem + "_orig.wav")
             if orig_wav_file.exists():
@@ -579,17 +597,25 @@ def process_zip_file(zip_file):
         # Clean up the unique directory after processing
         if CURRENT_IA_ZIP_WAVS.exists():
             shutil.rmtree(CURRENT_IA_ZIP_WAVS)
-
+    except Exception as e:
+        logger.exception(f"Error processing IA ZIP file: {zip_file}")
+        # add the bad file to the ia-skip-zips.txt file
+        add_to_tracking_file(IA_SKIP_ZIPS_TRACKING_FILE, zip_file)
     finally:
         remove_from_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
 
 
 def check_for_exit():
     global exit_flag
-    while not exit_event.is_set():
+    while not exit_event.is_set() and not immediate_exit_event.is_set():
         if msvcrt.kbhit():
-            print("\nAborting script...")
-            exit_event.set()
+            key = msvcrt.getch()
+            if key.lower() == b"a":
+                print("\nAborting script after current IA zip...")
+                exit_event.set()
+            elif key.lower() == b"x":
+                print("\nExiting script immediately...")
+                immediate_exit_event.set()
         time.sleep(0.1)  # Sleep briefly to reduce CPU usage
 
 
@@ -659,7 +685,11 @@ if __name__ == "__main__":
     zip_files = [zip_file for date, zip_file in dated_zip_file_tuple]
 
     for zip_file in zip_files:
-        if exit_event.is_set():
+        if immediate_exit_event.is_set():
+            logger.info("Immediate exit requested. Exiting main loop.")
+            break
+        if exit_event.is_set() and not immediate_exit_event.is_set():
+            logger.info("Exit after current IA zip requested. Exiting main loop.")
             break
         if zip_file in skip_zips:
             logger.info(f"Skipping {zip_file} as it is in the skip list.")
@@ -672,12 +702,19 @@ if __name__ == "__main__":
 
         process_zip_file(zip_file)
 
-        if exit_event.is_set():
-            break
-
+        # Add the zip to the processed list before checking exit flags
         add_to_tracking_file(IA_ZIPS_PROCESSED_TRACKING_FILE, zip_file)
 
-    if exit_event.is_set():
-        print("Script aborted by user.")
+        if immediate_exit_event.is_set():
+            logger.info("Immediate exit requested after processing zip.")
+            break
+        if exit_event.is_set():
+            logger.info("Exit after current IA zip after processing zip.")
+            break
+
+    if immediate_exit_event.is_set():
+        print("Script exited immediately by user.")
+    elif exit_event.is_set():
+        print("Script aborted after current IA zip.")
     else:
         print("All zip files processed.")
