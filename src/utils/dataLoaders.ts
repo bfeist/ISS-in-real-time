@@ -98,7 +98,7 @@ export async function getDatePageData({
   }
 }
 
-export async function getAvailableDates(): Promise<string[]> {
+export async function getAvailableDates(): Promise<AvailableDate[]> {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
   try {
     const response = await fetch(`${baseStaticUrl}/available_dates.json`);

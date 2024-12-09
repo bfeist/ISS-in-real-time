@@ -1,3 +1,9 @@
+type AvailableDate = {
+  date: string;
+  youtube: boolean;
+  eva: boolean;
+};
+
 type TranscriptItem = {
   utteranceTime: string;
   filename: string;

@@ -102,7 +102,7 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
 
   // Update camera position to follow the ISS
   const updateCameraPosition = (currentTime: JulianDate) => {
-    if (cameraRef.current && issEntityRef.current) {
+    if (cameraRef.current && issEntityRef.current?.position) {
       const position = issEntityRef.current.position.getValue(currentTime);
       if (position) {
         cameraRef.current.flyTo({
