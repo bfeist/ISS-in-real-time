@@ -26,8 +26,8 @@ jobs:
       - name: Rebuild native modules
         run: npm rebuild
 
-      - name: List installed dependencies
-        run: npm ls --depth=0
+      # - name: List installed dependencies
+      #   run: npm ls --depth=0
 
       - name: Create .env file
         run: |
