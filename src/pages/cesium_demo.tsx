@@ -13,7 +13,7 @@ import * as Cesium from "cesium";
 import { Clock, Scene, Camera } from "resium";
 import { FunctionComponent, useState, useRef } from "react";
 import { useLoaderData } from "react-router-dom";
-import { Viewer, Entity, PointGraphics, EntityDescription } from "resium";
+import { Viewer, Entity } from "resium";
 import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
 

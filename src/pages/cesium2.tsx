@@ -1,10 +1,9 @@
-// SatelliteOrbit.js
-import { useEffect, useState } from "react";
-import { Viewer, Entity, CameraFlyTo, Clock } from "resium";
-import { Cartesian3, Color, JulianDate, Math as CesiumMath } from "cesium";
+import { Viewer, Entity } from "resium";
+import { Cartesian3, Color } from "cesium";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import * as satellite from "satellite.js";
+import { FunctionComponent } from "react";
 
 // Replace with your Cesium Ion access token
 Cesium.Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
@@ -14,7 +13,8 @@ const TLE_LINE2 = "2 25544  51.6457  15.5688 0000933  62.4501   1.8288 15.499093
 
 const satrec = satellite.twoline2satrec(TLE_LINE1, TLE_LINE2);
 
-const SatelliteOrbit = () => {
+const SatelliteOrbit: FunctionComponent = () => {
+  console.log(satrec);
   return (
     <Viewer full>
       <Entity position={new Cartesian3(0, 0, 0)} point={{ pixelSize: 10, color: Color.RED }} />

@@ -198,7 +198,8 @@ def main():
             available_dates = json.load(f)
 
     required_months = set()
-    for date_str in available_dates:
+    for available_date in available_dates:
+        date_str = available_date["date"]
         year, month, day = date_str.split("-")
         required_months.add(f"{year}-{month}")
 

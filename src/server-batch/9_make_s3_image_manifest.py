@@ -184,7 +184,8 @@ def main():
         with open(AVAILABLE_DATES_S3, "r") as f:
             available_dates = json.load(f)
 
-    for available_date in available_dates:
+    for item in available_dates:
+        available_date = item["date"]
         no_data = False
         print(f"Processing date: {available_date}")
         [year, month, day] = available_date.split("-")
