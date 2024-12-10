@@ -1,3 +1,74 @@
+body {
+  margin: 0;
+  padding: 0;
+}
+
 .cesium-viewer-bottom {
   display: none !important;
+}
+
+/* General styles for a compressed DayPicker month view */
+
+/* Reduce the padding and margin of the calendar container */
+.rdp {
+  font-size: 10px; /* Further reduce overall font size */
+  padding: 4px; /* Smaller padding for the entire calendar */
+}
+
+/* Compress the grid for the day cells */
+.rdp-months {
+  gap: 2px; /* Further reduce spacing between months */
+}
+
+.rdp-month {
+  margin: 0;
+  padding: 4px; /* Further reduce padding within each month */
+}
+
+/* Compact header styles */
+.rdp-caption {
+  font-size: 12px; /* Smaller font size for month and year */
+  margin: 2px 0;
+}
+
+/* Reduce day names spacing */
+.rdp-head {
+  gap: 1px; /* Minimize spacing between day names */
+}
+.rdp-head_cell {
+  padding: 1px; /* Smaller padding for weekday headers */
+}
+
+/* Smaller day cells */
+.rdp-cell {
+  padding: 2px; /* Shrink day cell size */
+  width: 20px; /* Define more compact width */
+  height: 20px; /* Define more compact height */
+}
+
+/* Adjust selected day style to fit compact view */
+.rdp-day_selected {
+  border-radius: 2px; /* Further reduce border-radius for selected day */
+  background-color: #0078d4; /* Adjust color for visibility */
+  color: white;
+}
+
+/* Minimize navigation button size */
+.rdp-nav_button {
+  width: 20px; /* More compact navigation buttons */
+  height: 20px;
+  padding: 2px;
+}
+
+/* Reduce hover and focus effects */
+.rdp-day:hover:not(.rdp-day_outside) {
+  background-color: #e0e0e0; /* Subtle hover effect */
+}
+.rdp-day:focus:not(.rdp-day_outside) {
+  box-shadow: 0 0 1px #0078d4;
+}
+
+/* Disable extra spacing for outside days */
+.rdp-day_outside {
+  opacity: 0.5; /* Make outside days less prominent */
 }

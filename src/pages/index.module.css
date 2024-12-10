@@ -3,7 +3,6 @@
   font-family: Arial, sans-serif;
   margin: 0;
   padding: 0;
-  height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -27,4 +26,17 @@
   flex-direction: row;
   height: 100%;
   overflow: hidden;
+}
+
+.yearContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pickMonth {
+  /* flex: 1; */
+  flex: 0 0 auto;
+  background-color: beige;
 }

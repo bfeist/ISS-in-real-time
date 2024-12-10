@@ -3,8 +3,7 @@ name: Deploy React App
 on:
   push:
     branches:
-      - dev
-      - prod
+      - "**"
 
 jobs:
   deploy:
@@ -56,11 +55,8 @@ jobs:
 
           if [ "${GITHUB_REF}" == "refs/heads/prod" ]; then
             DEPLOY_PATH="$DREAMHOST_PATH"
-          elif [ "${GITHUB_REF}" == "refs/heads/dev" ]; then
+          else [ "${GITHUB_REF}" == "refs/heads/dev" ]; then
             DEPLOY_PATH="$DREAMHOST_PATH_DEV"
-          else
-            echo "Unknown branch. Skipping deployment."
-            exit 1
           fi
 
           ssh "$DREAMHOST_USER@$DREAMHOST_HOST" "mkdir -p $DEPLOY_PATH"
