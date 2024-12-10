@@ -18,23 +18,16 @@ jobs:
         with:
           node-version: 20
 
-      - name: Cache Node.js modules
-        uses: actions/cache@v3
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Clean node_modules
+      - name: Clean dependencies
         run: |
-          rm -rf node_modules
-
-      - name: Reinstall dependencies
-        run: npm ci
+          rm -rf node_modules package-lock.json
+          npm install
 
       - name: Rebuild native modules
         run: npm rebuild
+
+      - name: List installed dependencies
+        run: npm ls --depth=0
 
       - name: Build the app
         run: npm run build
