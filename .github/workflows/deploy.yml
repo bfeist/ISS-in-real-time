@@ -29,6 +29,12 @@ jobs:
       - name: List installed dependencies
         run: npm ls --depth=0
 
+      - name: Create .env file
+        run: |
+          echo "VITE_BASE_STATIC_URL=${{ secrets.VITE_BASE_STATIC_URL }}" >> .env
+          echo "VITE_IMAGE_BASE_URL=${{ secrets.VITE_IMAGE_BASE_URL }}" >> .env
+          echo "VITE_CESIUM_ION_TOKEN=${{ secrets.VITE_CESIUM_ION_TOKEN }}" >> .env
+
       - name: Build the app
         run: npm run build
 
