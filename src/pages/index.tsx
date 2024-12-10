@@ -1,13 +1,19 @@
 import styles from "./index.module.css";
-import { Link } from "react-router-dom";
+import { Link, useLoaderData } from "react-router-dom";
 
 const Home = (): JSX.Element => {
-  // const availableDateItems = useLoaderData() as AvailableDate[];
+  const availableDateItems = useLoaderData() as AvailableDate[];
 
   return (
-    <div className={`${styles.page} ${styles.home}`}>
-      <h1>Coming Soon</h1>
-      <img src="/images/nasa-logo.svg" alt="Coming Soon" width="100px" />
+    <div className={styles.page}>
+      <h1>Available Dates</h1>
+      <ul>
+        {availableDateItems.map((availableDateItem) => (
+          <li key={availableDateItem.date}>
+            <Link to={`/date/${availableDateItem.date}`}>{availableDateItem.date}</Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };

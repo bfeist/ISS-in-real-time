@@ -3,7 +3,8 @@ name: Deploy React App
 on:
   push:
     branches:
-      - main
+      - dev
+      - prod
 
 jobs:
   deploy:
@@ -41,15 +42,30 @@ jobs:
       - name: Deploy to DreamHost
         env:
           SSH_AUTH_SOCK: /tmp/ssh-agent.sock
+          DREAMHOST_PRIVATE_KEY: "${{ secrets.DREAMHOST_PRIVATE_KEY }}"
+          DREAMHOST_HOST: "${{ secrets.DREAMHOST_HOST }}"
+          DREAMHOST_USER: "${{ secrets.DREAMHOST_USER }}"
+          DREAMHOST_PATH: "${{ secrets.DREAMHOST_PATH }}"
+          DREAMHOST_PATH_DEV: "${{ secrets.DREAMHOST_PATH_DEV }}"
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.DREAMHOST_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "$DREAMHOST_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           touch ~/.ssh/known_hosts
-          ssh-keyscan -H ${{ secrets.DREAMHOST_HOST }} >> ~/.ssh/known_hosts
-          ssh ${{ secrets.DREAMHOST_USER }}@${{ secrets.DREAMHOST_HOST }} "mkdir -p ${{ secrets.DREAMHOST_PATH_DEV }}"
+          ssh-keyscan -H "$DREAMHOST_HOST" >> ~/.ssh/known_hosts
+
+          if [ "${GITHUB_REF}" == "refs/heads/prod" ]; then
+            DEPLOY_PATH="$DREAMHOST_PATH"
+          elif [ "${GITHUB_REF}" == "refs/heads/dev" ]; then
+            DEPLOY_PATH="$DREAMHOST_PATH_DEV"
+          else
+            echo "Unknown branch. Skipping deployment."
+            exit 1
+          fi
+
+          ssh "$DREAMHOST_USER@$DREAMHOST_HOST" "mkdir -p $DEPLOY_PATH"
           if [ -d .local/vite/dist ]; then
-            rsync -avz --delete .local/vite/dist/ ${{ secrets.DREAMHOST_USER }}@${{ secrets.DREAMHOST_HOST }}:${{ secrets.DREAMHOST_PATH_DEV }}
+            rsync -avz --delete .local/vite/dist/ "$DREAMHOST_USER@$DREAMHOST_HOST":"$DEPLOY_PATH"
           else
             echo "Error: .local/vite/dist directory is missing. Skipping deployment."
             exit 1
