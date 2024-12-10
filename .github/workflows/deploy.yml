@@ -3,36 +3,46 @@ name: Deploy React App
 on:
   push:
     branches:
-      - main # Adjust this to your default branch
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Set up Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18 # Ensure compatibility with your Vite setup
+          node-version: 20
 
-      # Step 3: Install dependencies and build the app
-      - name: Install dependencies and build
+      - name: Cache Node.js modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Clean cache and reinstall dependencies
         run: |
+          rm -rf node_modules package-lock.json
           npm ci
-          npm run build
 
-      # Step 4: Deploy via SSH
+      - name: Rebuild native modules
+        run: npm rebuild
+
+      - name: Build the app
+        run: npm run build
+
       - name: Deploy to DreamHost
         env:
           SSH_AUTH_SOCK: /tmp/ssh-agent.sock
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.DREAMHOST_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+          echo "${{ secrets.DREAMHOST_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan ${{ secrets.DREAMHOST_HOST }} >> ~/.ssh/known_hosts
+          ssh-keygen -F ${{ secrets.DREAMHOST_HOST }} || ssh-keyscan ${{ secrets.DREAMHOST_HOST }} >> ~/.ssh/known_hosts
           rsync -avz --delete dist/ ${{ secrets.DREAMHOST_USER }}@${{ secrets.DREAMHOST_HOST }}:${{ secrets.DREAMHOST_PATH_DEV }}
