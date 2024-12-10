@@ -26,10 +26,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Clean cache and reinstall dependencies
+      - name: Clean node_modules
         run: |
-          rm -rf node_modules package-lock.json
-          npm ci
+          rm -rf node_modules
+
+      - name: Reinstall dependencies
+        run: npm ci
 
       - name: Rebuild native modules
         run: npm rebuild
