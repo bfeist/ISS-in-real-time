@@ -226,7 +226,8 @@ class AudioSegmenter(object):
         return fileName
 
     def processWav(self):
-        if exit_event.is_set() or immediate_exit_event.is_set():
+        if immediate_exit_event.is_set():
+            logger.info("Immediate exit requested during WAV processing.")
             return False
         try:
             raw_data = self.wf.readframes(int(self.FRAME_SIZE / self.sample_width))
@@ -256,6 +257,10 @@ class AudioSegmenter(object):
         except Exception as e:
             logger.error(f"Error in is_speech: {e}")
             is_speech = False
+
+        if immediate_exit_event.is_set():
+            logger.info("Immediate exit requested during WAV processing.")
+            return False
 
         if is_speech:
             if not self.capturing:
@@ -459,10 +464,18 @@ def runTranscriptionLocally(model, utteranceTime, aacFilePath, descriptor):
     try:
         aacFileName = aacFilePath.name
 
+        if immediate_exit_event.is_set():
+            logger.info("Immediate exit requested before transcription.")
+            return None
+
         # Use the model with suppressed output
         with suppress_stdout_stderr():
             # Load audio file
             audio = whisperx.load_audio(str(aacFilePath))
+
+        if immediate_exit_event.is_set():
+            logger.info("Immediate exit requested before transcribing audio.")
+            return None
 
         # Transcribe audio
         logger.debug(f"Transcribing {aacFileName} and detecting language")
@@ -606,8 +619,7 @@ def process_zip_file(zip_file):
 
 
 def check_for_exit():
-    global exit_flag
-    while not exit_event.is_set() and not immediate_exit_event.is_set():
+    while True:
         if msvcrt.kbhit():
             key = msvcrt.getch()
             if key.lower() == b"a":

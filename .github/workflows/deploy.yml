@@ -1,0 +1,38 @@
+name: Deploy React App
+
+on:
+  push:
+    branches:
+      - main # Adjust this to your default branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18 # Ensure compatibility with your Vite setup
+
+      # Step 3: Install dependencies and build the app
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      # Step 4: Deploy via SSH
+      - name: Deploy to DreamHost
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh-agent.sock
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DREAMHOST_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan ${{ secrets.DREAMHOST_HOST }} >> ~/.ssh/known_hosts
+          rsync -avz --delete dist/ ${{ secrets.DREAMHOST_USER }}@${{ secrets.DREAMHOST_HOST }}:${{ secrets.DREAMHOST_PATH_DEV }}
