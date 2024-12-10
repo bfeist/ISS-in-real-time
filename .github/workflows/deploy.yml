@@ -36,6 +36,12 @@ jobs:
         env:
           SSH_AUTH_SOCK: /tmp/ssh-agent.sock
         run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DREAMHOST_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          touch ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.DREAMHOST_HOST }} >> ~/.ssh/known_hosts
+          ssh ${{ secrets.DREAMHOST_USER }}@${{ secrets.DREAMHOST_HOST }} "mkdir -p ${{ secrets.DREAMHOST_PATH_DEV }}"
           if [ -d .local/vite/dist ]; then
             rsync -avz --delete .local/vite/dist/ ${{ secrets.DREAMHOST_USER }}@${{ secrets.DREAMHOST_HOST }}:${{ secrets.DREAMHOST_PATH_DEV }}
           else
