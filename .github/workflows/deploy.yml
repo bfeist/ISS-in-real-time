@@ -55,7 +55,7 @@ jobs:
 
           if [ "${GITHUB_REF}" == "refs/heads/prod" ]; then
             DEPLOY_PATH="$DREAMHOST_PATH"
-          else [ "${GITHUB_REF}" == "refs/heads/dev" ]; then
+          else
             DEPLOY_PATH="$DREAMHOST_PATH_DEV"
           fi
 
