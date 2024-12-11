@@ -21,7 +21,7 @@ import * as satellite from "satellite.js";
 Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
 
 const CesiumPage: FunctionComponent = (): JSX.Element => {
-  const startTime = new Date("2022-11-01T01:00:00Z");
+  const startTime = new Date("2023-11-01T02:00:00Z");
   const julianDate = JulianDate.fromDate(startTime);
 
   const ephemeraItems = useLoaderData() as EphemeraItem[];
@@ -145,24 +145,25 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
       if (position) {
         // Define an offset (distance, heading, pitch)
         const offset = new Cesium.HeadingPitchRange(
-          CesiumMath.toRadians(-90), // Heading (rotation around vertical axis)
-          CesiumMath.toRadians(-45), // Pitch (angle from horizon)
-          5000000 // Range (distance from the entity in meters)
+          CesiumMath.toRadians(90), // Heading (rotation around vertical axis)
+          CesiumMath.toRadians(-90), // Pitch (angle from horizon)
+          6000000 // Range (distance from the entity in meters)
         );
 
         // Set the initial view without tracking the entity
-        camera.lookAt(position, offset);
-
-        // Optionally detach the camera from the entity
-        viewer.trackedEntity = undefined;
-
-        // Restore free mouse interactions
-        camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+        camera.lookAt(position, offset); // Remove this line
       }
     };
 
     setInitialView();
   }, [cesiumReady]);
+
+  const startOfDay = new Date(startTime);
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+  const startJd = JulianDate.fromDate(startOfDay);
+  const endJd = JulianDate.fromDate(endOfDay);
 
   return (
     <Viewer
@@ -206,9 +207,9 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
         }}
       />
       <Clock
-        startTime={JulianDate.addSeconds(julianDate, -3600, new JulianDate())}
+        startTime={startJd}
         currentTime={julianDate}
-        stopTime={JulianDate.addSeconds(julianDate, 3600, new JulianDate())}
+        stopTime={endJd}
         clockRange={ClockRange.LOOP_STOP}
         multiplier={1}
         shouldAnimate={true}
