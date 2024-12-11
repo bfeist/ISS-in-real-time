@@ -35,7 +35,7 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
   // poll for cesium to be ready
   useEffect(() => {
     const interval = setInterval(() => {
-      if (viewerRef.current?.cesiumElement && issEntityRef.current?.cesiumElement) {
+      if (viewerRef.current?.cesiumElement?.scene && issEntityRef.current?.cesiumElement) {
         setCesiumReady(true);
         clearInterval(interval);
       }
@@ -124,10 +124,12 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
   const viewerRef = useRef(null);
 
   useEffect(() => {
+    if (!viewerRef.current?.cesiumElement?.scene || !issEntityRef.current?.cesiumElement) return;
+
     // set globe lighting
     viewerRef.current.cesiumElement.scene.globe.enableLighting = true;
 
-    // Track the ISS entity
+    // track the ISS entity
     viewerRef.current.cesiumElement.trackedEntity = issEntityRef.current.cesiumElement;
 
     const viewer = viewerRef.current.cesiumElement;
@@ -161,8 +163,6 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
 
     setInitialView();
   }, [cesiumReady]);
-
-  useEffect(() => {}, [cesiumReady]);
 
   return (
     <Viewer
