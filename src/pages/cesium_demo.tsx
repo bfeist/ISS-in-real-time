@@ -10,8 +10,8 @@ import {
   ClockRange,
 } from "cesium";
 import * as Cesium from "cesium";
-import { Clock, Scene, Camera } from "resium";
-import { FunctionComponent, useState, useRef } from "react";
+import { Clock, Scene, Camera, CesiumComponentRef } from "resium";
+import { FunctionComponent, useState, useRef, useEffect } from "react";
 import { useLoaderData } from "react-router-dom";
 import { Viewer, Entity } from "resium";
 import { findClosestEphemeraItem } from "utils/map";
@@ -29,6 +29,19 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
     const ephemeris = findClosestEphemeraItem(startTime, ephemeraItems);
     return [ephemeris.tle_line1, ephemeris.tle_line2];
   });
+
+  const [cesiumReady, setCesiumReady] = useState(false);
+
+  // poll for cesium to be ready
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (viewerRef.current?.cesiumElement && issEntityRef.current?.cesiumElement) {
+        setCesiumReady(true);
+        clearInterval(interval);
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
 
   // Create a CallbackProperty for the label's text to display velocity and height:
   const labelProperty = new CallbackProperty((currentTime, _result) => {
@@ -64,9 +77,18 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
     }
 
     const satrec = satellite.twoline2satrec(tle[0], tle[1]);
+
+    // Calculate start of the day (midnight)
+    const startOfDay = new Date(startTime);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const startTimeJD = JulianDate.fromDate(startOfDay);
+
+    // Calculate end of the day (next midnight)
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+    const endTimeJD = JulianDate.fromDate(endOfDay);
+
     const positions = new SampledPositionProperty();
-    const startTimeJD = JulianDate.addSeconds(julianDate, -3600, new JulianDate());
-    const endTimeJD = JulianDate.addSeconds(julianDate, 3600, new JulianDate());
     const stepSeconds = 60; // 1-minute intervals
 
     let time = JulianDate.clone(startTimeJD, new JulianDate());
@@ -96,28 +118,57 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
 
   const terrainProvider = createWorldTerrainAsync();
 
-  const issEntityRef = useRef(null);
+  const issEntityRef = useRef<CesiumComponentRef<Cesium.Entity>>(null);
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
+  const viewerRef = useRef(null);
 
-  // Update camera position to follow the ISS
-  const updateCameraPosition = (currentTime: JulianDate) => {
-    if (cameraRef.current && issEntityRef.current?.position) {
-      const position = issEntityRef.current.position.getValue(currentTime);
+  useEffect(() => {
+    // set globe lighting
+    viewerRef.current.cesiumElement.scene.globe.enableLighting = true;
+
+    // Track the ISS entity
+    viewerRef.current.cesiumElement.trackedEntity = issEntityRef.current.cesiumElement;
+
+    const viewer = viewerRef.current.cesiumElement;
+    const camera = viewer.scene.camera;
+
+    const setInitialView = () => {
+      const entity = issEntityRef.current?.cesiumElement;
+      if (!entity) return;
+
+      // Compute the initial position of the entity
+      const position = entity.position.getValue(viewer.clock.currentTime);
+
       if (position) {
-        cameraRef.current.flyTo({
-          destination: position,
-          duration: 0,
-        });
+        // Define an offset (distance, heading, pitch)
+        const offset = new Cesium.HeadingPitchRange(
+          CesiumMath.toRadians(-90), // Heading (rotation around vertical axis)
+          CesiumMath.toRadians(-45), // Pitch (angle from horizon)
+          5000000 // Range (distance from the entity in meters)
+        );
+
+        // Set the initial view without tracking the entity
+        camera.lookAt(position, offset);
+
+        // Optionally detach the camera from the entity
+        viewer.trackedEntity = undefined;
+
+        // Restore free mouse interactions
+        camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
       }
-    }
-  };
+    };
+
+    setInitialView();
+  }, [cesiumReady]);
+
+  useEffect(() => {}, [cesiumReady]);
 
   return (
     <Viewer
+      ref={viewerRef}
       full
       terrainProvider={terrainProvider}
-      trackedEntity={issEntityRef.current}
       timeline={false}
       // animation={false}
       // Disable individual toolbar components
@@ -161,7 +212,6 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
         clockRange={ClockRange.LOOP_STOP}
         multiplier={1}
         shouldAnimate={true}
-        onTick={(clock) => updateCameraPosition(clock.currentTime)}
       />
     </Viewer>
   );
