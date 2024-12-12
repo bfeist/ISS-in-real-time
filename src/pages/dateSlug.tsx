@@ -34,15 +34,13 @@ const DatePage = (): JSX.Element => {
   const timeStrRef = useRef<HTMLSpanElement>(null);
 
   const evaDetailsForDate = evaDetails.filter((evaDetail) => evaDetail.startTime.startsWith(date));
-  const youtubeLiveRecordingsForDate = youtubeLiveRecordings.filter((recording) =>
-    recording.startTime.startsWith(date)
-  );
+  const youtubeLiveRecording =
+    youtubeLiveRecordings.filter((recording) => recording.startTime.startsWith(date))[0] || null;
 
   const crewOnboard = getCrewMembersOnboardByDate({ crewArrDep, dateStr: date });
   const expedition = expeditionInfo.find((exp) => exp.start <= date && exp.end >= date);
 
   console.log("evaDetailsForDate", evaDetailsForDate);
-  console.log("youtubeLiveRecordingsForDate", youtubeLiveRecordingsForDate);
   console.log("crewOnboard", crewOnboard);
   console.log("expedition", expedition);
 
@@ -103,7 +101,7 @@ const DatePage = (): JSX.Element => {
       </div>
       <div className={styles.upper}>
         <div className={styles.videoContainer}>
-          <YouTube viewDate={date} timeDef={timeDef} />
+          <YouTube youtubeLiveRecording={youtubeLiveRecording} timeDef={timeDef} />
         </div>
         <div className={styles.mapContainer}>
           <Map ephemeraItems={ephemeraItems} viewDate={date} timeDef={timeDef} />

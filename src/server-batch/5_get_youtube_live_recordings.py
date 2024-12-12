@@ -1,5 +1,6 @@
 import requests
 import os
+import json
 
 API_KEY = os.getenv("YOUTUBE_API_KEY")
 CHANNEL_ID = "UCLA_DiR1FfKNvjuUpBHmylQ"  # NASA's official YouTube Channel ID
@@ -62,6 +63,10 @@ def get_live_videos(channel_id, api_key):
                 "videoId": item["id"]["videoId"],
                 "duration": "Live",  # Indicate that the video is live
                 "title": item["snippet"]["title"],
+                # Add startTime from liveStreamingDetails
+                "startTime": item.get("liveStreamingDetails", {}).get(
+                    "actualStartTime", None
+                ),
             }
             videos.append(video)
 
@@ -119,7 +124,7 @@ def main():
     for video in filtered_videos:
         video_details_url = f"{YOUTUBE_API_URL}/videos"
         params = {
-            "part": "contentDetails",
+            "part": "contentDetails,liveStreamingDetails",
             "id": video["videoId"],
             "key": API_KEY,
         }
@@ -134,12 +139,15 @@ def main():
         video["duration"] = seconds_from_duration_str(
             response_data["items"][0]["contentDetails"]["duration"]
         )
+        # Add startTime from liveStreamingDetails
+        video["startTime"] = (
+            response_data["items"][0]
+            .get("liveStreamingDetails", {})
+            .get("actualStartTime", None)
+        )
 
-    with open(f"{S3_FOLDER}/youtube_live_recordings.csv", "w", encoding="utf-8") as f:
-        for video in filtered_videos:
-            f.write(
-                f"{video['publishedAt']}|{video['videoId']}|{video['duration']}|{video['title']}\n"
-            )
+    with open(f"{S3_FOLDER}/youtube_live_recordings.json", "w", encoding="utf-8") as f:
+        json.dump(filtered_videos, f, ensure_ascii=False, indent=4)
 
 
 if __name__ == "__main__":

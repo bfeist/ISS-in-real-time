@@ -154,7 +154,7 @@ def main():
         "https://blogs.nasa.gov/spacestation/2023/11/01/",
         "https://blogs.nasa.gov/stationreport/2023/11/01/",
     ]
-    transcript_url = "https://ares-iss-in-real-time.s3.us-gov-west-1.amazonaws.com/comm/2023/11/01/_transcript_2023-11-01.csv"  # Updated to URL
+    transcript_url = "https://data.issinrealtime.org/ISSiRT_assets/comm/2023/11/01/_transcript_2023-11-01.csv"  # Updated to URL
     output_json_path = "event_index.json"
 
     # Removed OpenAI API key check

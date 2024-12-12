@@ -135,7 +135,7 @@ for table in tables:
                 if a["href"].startswith("/wiki/"):
                     a["href"] = f"https://en.wikipedia.org{a['href']}"
                     a["target"] = "_blank"
-            description = str(soup_desc)
+            description = str(soup_desc).strip()
 
             eva["description"] = description
 

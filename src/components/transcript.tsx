@@ -7,7 +7,7 @@ const Transcript: FunctionComponent<{
   transcriptItems: TranscriptItem[];
 }> = ({ viewDate, transcriptItems }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
+  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL2;
 
   return (
     <>

@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import EnvironmentPlugin from "vite-plugin-environment";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import cesium from "vite-plugin-cesium";
@@ -7,7 +8,7 @@ import cesium from "vite-plugin-cesium";
 export default defineConfig({
   root: "./src",
   envDir: "../",
-  plugins: [react(), cesium()],
+  plugins: [react(), cesium(), EnvironmentPlugin("all", { prefix: "VITE_" })],
   resolve: {
     alias: {
       components: path.resolve(__dirname, "./src/components"),

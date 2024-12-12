@@ -32,7 +32,7 @@ type GetDatePageDataResponse = {
   imageItems: ImageItem[];
   ephemeraItems: EphemeraItem[];
   evaDetails: EvaDetail[];
-  availableDates: string[];
+  availableDates: AvailableDate[];
   youtubeLiveRecordings: YoutubeLiveRecording[];
   crewArrDep: CrewArrDepItem[];
   expeditionInfo: ExpeditionInfo[];
@@ -87,8 +87,16 @@ type EvaDetail = {
 };
 
 type YoutubeLiveRecording = {
+  publishedAt: string;
   startTime: string;
   videoId: string;
   duration: number;
   title: string;
+};
+
+type YoutubeManualStartTime = {
+  date: string;
+  videoId: string;
+  youtubeTime: string;
+  youtubeTimeIsoTimestamp: string;
 };

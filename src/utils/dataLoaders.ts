@@ -1,12 +1,12 @@
 import { LoaderFunctionArgs } from "react-router-dom";
 import { processTranscriptCsv } from "utils/transcript";
-import { processYoutubeVideosCsv } from "./youtubeVideos";
+import { youtubeApplyManualStartTimes } from "./youtubeVideos";
 
 export async function getDatePageData({
   params,
 }: LoaderFunctionArgs): Promise<GetDatePageDataResponse> {
   const date = params.date;
-  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
+  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL2;
   const [year, month, day] = date!.split("-");
 
   const transcriptUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/_transcript_${date}.csv`;
@@ -14,7 +14,8 @@ export async function getDatePageData({
   const ephemeraUrl = `${baseStaticUrl}/ephemera/${year}/${year}-${month}.json`;
   const evaDetailsUrl = `${baseStaticUrl}/eva_details.json`;
   const availableDatesUrl = `${baseStaticUrl}/available_dates.json`;
-  const youtubeLiveRecordingsUrl = `${baseStaticUrl}/youtube_live_recordings.csv`;
+  const youtubeLiveRecordingsUrl = `${baseStaticUrl}/youtube_live_recordings.json`;
+  const youtubeManualStartTimesUrl = `${baseStaticUrl}/youtube_manual_start_times.json`;
   const crewArrDepUrl = `${baseStaticUrl}/iss_crew_arr_dep.json`;
   const expeditionInfoUrl = `${baseStaticUrl}/expeditions.json`;
 
@@ -26,6 +27,7 @@ export async function getDatePageData({
       fetch(evaDetailsUrl),
       fetch(availableDatesUrl),
       fetch(youtubeLiveRecordingsUrl),
+      fetch(youtubeManualStartTimesUrl),
       fetch(crewArrDepUrl),
       fetch(expeditionInfoUrl),
     ]);
@@ -37,42 +39,52 @@ export async function getDatePageData({
       evaDetailsResult,
       availableDatesResult,
       youtubeLiveRecordingsResult,
+      youtubeManualStartTimesResult,
       crewArrDepResult,
       expeditionInfoResult,
     ] = results;
 
-    const transcriptItems =
+    const transcriptItems: TranscriptItem[] =
       transcriptResult.status === "fulfilled" && transcriptResult.value.ok
         ? processTranscriptCsv(await transcriptResult.value.text())
         : [];
-    const imageItems =
+    const imageItems: ImageItem[] =
       imagesResult.status === "fulfilled" && imagesResult.value.ok
         ? await imagesResult.value.json()
         : [];
-    const ephemeraItems =
+    const ephemeraItems: EphemeraItem[] =
       ephemeraResult.status === "fulfilled" && ephemeraResult.value.ok
         ? await ephemeraResult.value.json()
         : [];
-    const evaDetails =
+    const evaDetails: EvaDetail[] =
       evaDetailsResult.status === "fulfilled" && evaDetailsResult.value.ok
         ? await evaDetailsResult.value.json()
         : [];
-    const availableDates =
+    const availableDates: AvailableDate[] =
       availableDatesResult.status === "fulfilled" && availableDatesResult.value.ok
         ? await availableDatesResult.value.json()
         : [];
-    const youtubeLiveRecordings =
+    const youtubeLiveRecordingsUncorrected: YoutubeLiveRecording[] =
       youtubeLiveRecordingsResult.status === "fulfilled" && youtubeLiveRecordingsResult.value.ok
-        ? processYoutubeVideosCsv(await youtubeLiveRecordingsResult.value.text())
+        ? await youtubeLiveRecordingsResult.value.json()
         : [];
-    const crewArrDep =
+    const youtubeManualStartTimes: YoutubeManualStartTime[] =
+      youtubeManualStartTimesResult.status === "fulfilled" && youtubeManualStartTimesResult.value.ok
+        ? await youtubeManualStartTimesResult.value.json()
+        : [];
+    const crewArrDep: CrewArrDepItem[] =
       crewArrDepResult.status === "fulfilled" && crewArrDepResult.value.ok
         ? await crewArrDepResult.value.json()
         : [];
-    const expeditionInfo =
+    const expeditionInfo: ExpeditionInfo[] =
       expeditionInfoResult.status === "fulfilled" && expeditionInfoResult.value.ok
         ? await expeditionInfoResult.value.json()
         : [];
+
+    const youtubeLiveRecordings = youtubeApplyManualStartTimes({
+      youtubeLiveRecordings: youtubeLiveRecordingsUncorrected,
+      youtubeManualStartTimes,
+    });
 
     return {
       transcriptItems,
