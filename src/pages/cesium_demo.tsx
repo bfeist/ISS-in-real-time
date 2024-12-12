@@ -129,9 +129,6 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
     // set globe lighting
     viewerRef.current.cesiumElement.scene.globe.enableLighting = true;
 
-    // track the ISS entity
-    viewerRef.current.cesiumElement.trackedEntity = issEntityRef.current.cesiumElement;
-
     const viewer = viewerRef.current.cesiumElement;
     const camera = viewer.scene.camera;
 
@@ -143,15 +140,14 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
       const position = entity.position.getValue(viewer.clock.currentTime);
 
       if (position) {
-        // Define an offset (distance, heading, pitch)
+        // Define an adjusted offset to control zoom level
         const offset = new Cesium.HeadingPitchRange(
-          CesiumMath.toRadians(90), // Heading (rotation around vertical axis)
-          CesiumMath.toRadians(-90), // Pitch (angle from horizon)
-          6000000 // Range (distance from the entity in meters)
+          CesiumMath.toRadians(45), // Heading
+          CesiumMath.toRadians(-60), // Pitch
+          6000000 // Increased range to reduce zoom
         );
 
-        // Set the initial view without tracking the entity
-        camera.lookAt(position, offset); // Remove this line
+        camera.lookAt(position, offset);
       }
     };
 
@@ -186,6 +182,7 @@ const CesiumPage: FunctionComponent = (): JSX.Element => {
         <Camera ref={cameraRef} />
       </Scene>
       <Entity
+        tracked={true}
         ref={issEntityRef}
         name="ISS"
         position={sampledPositionProperty}
