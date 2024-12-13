@@ -295,69 +295,70 @@ class AudioSegmenter(object):
         return True  # Continue processing
 
     def audioComplete(self):
-        if len(self.currentBlocks) > 0:
-            fileName = self.getFileName(self.lastCaptureStartTime)
-            # Extract year, month, day from lastCaptureStartTime
-            year = str(self.lastCaptureStartTime.year)
-            month = str(self.lastCaptureStartTime.month).zfill(2)
-            day = str(self.lastCaptureStartTime.day).zfill(2)
-            # Create utterance time string
-            utteranceTime = self.lastCaptureStartTime
-            # Create the dated directory path
-            dated_directory = COMM_TRANSCRIPTS_AACS / year / month / day
-            # Ensure the directory exists
-            dated_directory.mkdir(parents=True, exist_ok=True)
-            aacFullPath = dated_directory / fileName
-            self.segment_count += 1
+        if not len(self.currentBlocks) > 0:
+            return
+        fileName = self.getFileName(self.lastCaptureStartTime)
+        # Extract year, month, day from lastCaptureStartTime
+        year = str(self.lastCaptureStartTime.year)
+        month = str(self.lastCaptureStartTime.month).zfill(2)
+        day = str(self.lastCaptureStartTime.day).zfill(2)
+        # Create utterance time string
+        utteranceTime = self.lastCaptureStartTime
+        # Create the dated directory path
+        dated_directory = COMM_TRANSCRIPTS_AACS / year / month / day
+        # Ensure the directory exists
+        dated_directory.mkdir(parents=True, exist_ok=True)
+        aacFullPath = dated_directory / fileName
+        self.segment_count += 1
 
-            # Combine audio frames into a single bytes object
-            audio_data = b"".join(self.currentBlocks)
+        # Combine audio frames into a single bytes object
+        audio_data = b"".join(self.currentBlocks)
 
-            # Create an AudioSegment from the raw audio data
-            audio_segment = AudioSegment(
-                data=audio_data,
-                sample_width=self.sample_width,
-                frame_rate=self.frame_rate,
-                channels=1,  # Mono
+        # Create an AudioSegment from the raw audio data
+        audio_segment = AudioSegment(
+            data=audio_data,
+            sample_width=self.sample_width,
+            frame_rate=self.frame_rate,
+            channels=1,  # Mono
+        )
+
+        # Export to AAC format using ADTS container
+        audio_segment.export(
+            aacFullPath, format="adts", codec="aac", bitrate=AAC_BITRATE
+        )
+        logger.debug(f"Saved AAC file: {aacFullPath}")
+
+        # Now process the segment immediately with WhisperX and save JSON
+        result = runTranscriptionLocally(
+            self.model, utteranceTime, aacFullPath, self.descriptor
+        )
+
+        if result:
+            # Save the result JSON to the same dated directory
+            jsonFileName = fileName.replace(".aac", ".json")
+            jsonFullPath = dated_directory / jsonFileName
+            with open(jsonFullPath, "w") as json_file:
+                json.dump(result, json_file)
+            logger.debug(f"Saved JSON file: {jsonFullPath}")
+
+            # Optional: Upload to TalkyBot API
+            if UPLOAD_TO_API:
+                dataToSend = json.dumps(result)
+                uploadToApi(aacFullPath, dataToSend)
+        else:
+            # Delete the AAC file if the transcription failed
+            logger.debug(
+                f"Transcription provided no result for {aacFullPath.name}. Deleting."
             )
-
-            # Export to AAC format using ADTS container
-            audio_segment.export(
-                aacFullPath, format="adts", codec="aac", bitrate=AAC_BITRATE
-            )
-            logger.debug(f"Saved AAC file: {aacFullPath}")
-
-            # Now process the segment immediately with WhisperX and save JSON
-            result = runTranscriptionLocally(
-                self.model, utteranceTime, aacFullPath, self.descriptor
-            )
-
-            if result:
-                # Save the result JSON to the same dated directory
-                jsonFileName = fileName.replace(".aac", ".json")
-                jsonFullPath = dated_directory / jsonFileName
-                with open(jsonFullPath, "w") as json_file:
-                    json.dump(result, json_file)
-                logger.debug(f"Saved JSON file: {jsonFullPath}")
-
-                # Optional: Upload to TalkyBot API
-                if UPLOAD_TO_API:
-                    dataToSend = json.dumps(result)
-                    uploadToApi(aacFullPath, dataToSend)
-            else:
-                # Delete the AAC file if the transcription failed
-                logger.debug(
-                    f"Transcription provided no result for {aacFullPath.name}. Deleting."
+            try:
+                aacFullPath.unlink()
+            except FileNotFoundError:
+                logger.warning(
+                    f"File not found when attempting to delete: {aacFullPath}"
                 )
-                try:
-                    aacFullPath.unlink()
-                except FileNotFoundError:
-                    logger.warning(
-                        f"File not found when attempting to delete: {aacFullPath}"
-                    )
 
-            # Reset currentBlocks
-            self.currentBlocks = []
+        # Reset currentBlocks
+        self.currentBlocks = []
 
 
 def parse_wav_filename(filename):
@@ -399,8 +400,14 @@ def parse_wav_filename(filename):
 
 
 def unzipSGZipWavs(zip_path, destination_dir):
-    # get date in zip path. will contain something like 1-9-23_Space-to-Grounds_wavs which m-d-y
-    parts = zip_path.split("\\")[1].split("_")[0].split("-")
+    # get date in zip path. will contain something like 1-9-23Space-to-Grounds_wavs which m-d-y
+    # if there are two underscores
+    if zip_path.split("\\")[1].count("_") == 1:
+        parts = zip_path.split("\\")[1].split("_")[0].split("-")
+    else:
+        # Get parts by splitting on "Space" and then splitting on "-" for files like 06-18-16Space-to-Grounds.zip
+        parts = zip_path.split("\\")[1].split("Space")[0].split("-")
+
     zipDate = f"20{parts[2]}-{parts[0].zfill(2)}-{parts[1].zfill(2)}"
 
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
@@ -697,6 +704,8 @@ if __name__ == "__main__":
     zip_files = [zip_file for date, zip_file in dated_zip_file_tuple]
 
     for zip_file in zip_files:
+        #     if zip_file == "06-16-16Space-to-Grounds.zip":
+        #         print("Skipping 06-16-16Space-to-Grounds.zip")
         if immediate_exit_event.is_set():
             logger.info("Immediate exit requested. Exiting main loop.")
             break
@@ -714,8 +723,9 @@ if __name__ == "__main__":
 
         process_zip_file(zip_file)
 
-        # Add the zip to the processed list before checking exit flags
-        add_to_tracking_file(IA_ZIPS_PROCESSED_TRACKING_FILE, zip_file)
+        # Add the zip to the processed list only if an immediate exit was not requested
+        if not immediate_exit_event.is_set():
+            add_to_tracking_file(IA_ZIPS_PROCESSED_TRACKING_FILE, zip_file)
 
         if immediate_exit_event.is_set():
             logger.info("Immediate exit requested after processing zip.")

@@ -33,12 +33,10 @@ if __name__ == "__main__":
 
     # get all of the dates that have youtube available
     youtube_dates = []
-    with open(f"{S3_FOLDER}/youtube_live_recordings.csv", "r", encoding="utf-8") as f:
-        youtube_live_recordings = f.readlines()
-        for i in range(len(youtube_live_recordings)):
-            youtube_live_recordings[i] = youtube_live_recordings[i].strip()
-            datestamp = youtube_live_recordings[i].split("|")[0].split("T")[0]
-            youtube_dates.append(datestamp)
+    with open(f"{S3_FOLDER}/youtube_live_recordings.json", "r", encoding="utf-8") as f:
+        youtube_live_recordings = json.load(f)
+        for youtube_live_recording in youtube_live_recordings:
+            youtube_dates.append(youtube_live_recording["startTime"].split("T")[0])
 
     # get all of the dates that have EVAs available
     eva_dates = []
