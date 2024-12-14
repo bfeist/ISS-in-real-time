@@ -6,7 +6,7 @@ export async function getDatePageData({
   params,
 }: LoaderFunctionArgs): Promise<GetDatePageDataResponse> {
   const date = params.date;
-  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL2;
+  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
   const [year, month, day] = date!.split("-");
 
   const transcriptUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/_transcript_${date}.csv`;

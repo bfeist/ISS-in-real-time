@@ -375,24 +375,43 @@ def parse_wav_filename(filename):
         r"^\d+_SYNC_(SG\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
         # Pattern 2: 0000000000_1_SG4_DUP_2024-07-02_13_56_41_by_ui_startdate_desc
         r"^\d+_\d+_(SG\d+)_DUP_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        # Pattern 3: 0000000038_SYNC_SG_2_2015-10-13_12_09_27_by_ui_duration_desc.wav
+        r"^\d+_SYNC_SG_(\d)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        # Pattern 4: 0000000140_Channel_15_2015-12-18_20_41_59_by_ui_startdate_asc.wav
+        r"^\d+_Channel_(\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
         # General Pattern: Allow optional elements for more flexibility
-        r"^\d+_(?:\d+_)?(?:SYNC_)?(SG\d+)_(?:DUP_)?(\d{4}-\d{2}-\d{2})_"
-        r"(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        # r"^\d+_(?:\d+_)?(?:SYNC_)?(SG\d+)_(?:DUP_)?(\d{4}-\d{2}-\d{2})_"
+        # r"(\d{2})_(\d{2})_(\d{2})_by_.*$",
         # Add more patterns here as new filename formats are discovered
     ]
 
-    for pattern in patterns:
-        match = re.match(pattern, basename)
-        if match:
-            # sg_channel could be "1_SG1" format or "1_SG_1" format. The last digit is what we want
-            sg_channel = match.group(1)[-1]
-            date_part = match.group(2)
-            hour = match.group(3)
-            minute = match.group(4)
-            second = match.group(5)
-            date_time = f"{date_part}T{hour}{minute}{second}"
-            sg_channel_descriptor = f"1_SG_{sg_channel}"
-            return date_time, sg_channel_descriptor
+    try:
+        for pattern in patterns:
+            match = re.match(pattern, basename)
+            if match:
+                # one zip has channel 14 for SG1, 15 for SG2, 16 for SG3, 17 for SG4
+                if match.group(1) == "14":
+                    sg_channel = "1"
+                elif match.group(1) == "15":
+                    sg_channel = "2"
+                elif match.group(1) == "16":
+                    sg_channel = "3"
+                elif match.group(1) == "17":
+                    sg_channel = "4"
+                else:
+                    # normal case
+                    # sg_channel could be "1_SG1" format or "1_SG_1" format. The last digit is what we want
+                    sg_channel = match.group(1)[-1]
+
+                date_part = match.group(2)
+                hour = match.group(3)
+                minute = match.group(4)
+                second = match.group(5)
+                date_time = f"{date_part}T{hour}{minute}{second}"
+                sg_channel_descriptor = f"1_SG_{sg_channel}"
+                return date_time, sg_channel_descriptor
+    except Exception as e:
+        logger.error(f"Error parsing filename: {e}")
 
     # If none of the patterns match, log a warning and return None
     logger.warning(f"Unable to parse filename '{filename}'. Skipping.")
