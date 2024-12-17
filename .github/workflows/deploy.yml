@@ -31,7 +31,7 @@ jobs:
 
       - name: Create .env file
         run: |
-          echo "VITE_BASE_STATIC_URL2=${{ secrets.VITE_BASE_STATIC_URL }}" >> .env
+          echo "VITE_BASE_STATIC_URL=${{ secrets.VITE_BASE_STATIC_URL }}" >> .env
           echo "VITE_IMAGE_BASE_URL=${{ secrets.VITE_IMAGE_BASE_URL }}" >> .env
           echo "VITE_CESIUM_ION_TOKEN=${{ secrets.VITE_CESIUM_ION_TOKEN }}" >> .env
 
