@@ -28,11 +28,22 @@
   overflow: hidden;
 }
 
+.yearsContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
 .yearContainer {
   display: flex;
   flex-direction: row;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.day {
+  cursor: pointer;
 }
 
 .pickMonth {

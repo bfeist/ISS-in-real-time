@@ -1,5 +1,6 @@
 import styles from "./index.module.css";
 import { useLoaderData, useNavigate } from "react-router-dom";
+import { DayPicker, OnSelectHandler } from "react-day-picker";
 import "react-day-picker/style.css";
 import { FunctionComponent, useEffect, useState } from "react";
 
@@ -28,26 +29,23 @@ const Home = (): JSX.Element => {
   return (
     <div className={styles.page}>
       <h1>Available Dates</h1>
-      <div className={styles.yearsContainer}>
-        {availableYears.map((year) => {
-          const availableDateItemsThisYear: AvailableDate[] = [];
-          availableDateItems.forEach((item) => {
-            if (parseInt(item.date.split("-")[0]) === year) {
-              availableDateItemsThisYear.push(item);
-            }
-          });
+      {availableYears.map((year) => {
+        const availableDateItemsThisYear: AvailableDate[] = [];
+        availableDateItems.forEach((item) => {
+          if (parseInt(item.date.split("-")[0]) === year) {
+            availableDateItemsThisYear.push(item);
+          }
+        });
 
-          return (
-            <>
-              <YearPicker
-                availableDateItemsThisYear={availableDateItemsThisYear}
-                year={year}
-                setSelected={setSelected}
-              />
-            </>
-          );
-        })}
-      </div>
+        return (
+          <YearPicker
+            availableDateItemsThisYear={availableDateItemsThisYear}
+            year={year}
+            selected={selected}
+            setSelected={setSelected}
+          />
+        );
+      })}
     </div>
   );
 };
@@ -57,8 +55,9 @@ export default Home;
 const YearPicker: FunctionComponent<{
   availableDateItemsThisYear: AvailableDate[];
   year: number;
-  setSelected: Function;
-}> = ({ availableDateItemsThisYear, year, setSelected }) => {
+  selected: Date;
+  setSelected: OnSelectHandler<Date>;
+}> = ({ availableDateItemsThisYear, year, selected, setSelected }) => {
   const availableMonthsThisYear: number[] = [];
   availableDateItemsThisYear.forEach((item) => {
     const month = parseInt(item.date.split("-")[1]);
@@ -83,7 +82,9 @@ const YearPicker: FunctionComponent<{
           return (
             <MonthPicker
               availableDateItemsThisMonth={availableDateItemsThisMonth}
+              year={year}
               month={month}
+              selected={selected}
               setSelected={setSelected}
             />
           );
@@ -95,10 +96,11 @@ const YearPicker: FunctionComponent<{
 
 const MonthPicker: FunctionComponent<{
   availableDateItemsThisMonth: AvailableDate[];
-
+  year: number;
   month: number;
-  setSelected: Function;
-}> = ({ availableDateItemsThisMonth, month, setSelected }) => {
+  selected: Date;
+  setSelected: OnSelectHandler<Date>;
+}> = ({ availableDateItemsThisMonth, year, month, selected, setSelected }) => {
   const availableDaysThisMonth: Date[] = [];
   availableDateItemsThisMonth.forEach((item) => {
     const parts = item.date.split("-");
@@ -111,24 +113,28 @@ const MonthPicker: FunctionComponent<{
   });
 
   return (
-    <div>
-      <h3>{month}</h3>
-      <div>
-        {availableDaysThisMonth.map((date) => {
-          return (
-            <div
-              key={date.toISOString()}
-              className={styles.day}
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelected(date)}
-              onKeyDown={() => setSelected(date)}
-            >
-              {date.toISOString().split("T")[0].split("-")[2]}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <DayPicker
+      numberOfMonths={1}
+      month={new Date(year, month - 1)}
+      mode="single"
+      selected={selected}
+      onSelect={setSelected}
+      hideNavigation={true}
+      // Define modifiers to highlight enabled dates
+      modifiers={{
+        enabled: availableDaysThisMonth,
+      }}
+      // Add CSS classes to enabled dates
+      modifiersClassNames={{
+        enabled: "enabled-date",
+      }}
+      // Disable all other dates
+      disabled={(date) =>
+        !availableDaysThisMonth.some(
+          (enabledDate) =>
+            enabledDate.toISOString().split("T")[0] === date.toISOString().split("T")[0]
+        )
+      }
+    />
   );
 };
