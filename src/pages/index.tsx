@@ -28,6 +28,10 @@ const Home = (): JSX.Element => {
   return (
     <div className={styles.page}>
       <h1>Available Dates</h1>
+      <p>
+        <span className={styles.dayYoutube}>Blue</span> means youtube coverage.
+        <span className={styles.dayEva}>Bold</span> means EVA that day.
+      </p>
       <div className={styles.yearsContainer}>
         {availableYears.map((year) => {
           const availableDateItemsThisYear: AvailableDate[] = [];
@@ -115,10 +119,17 @@ const MonthPicker: FunctionComponent<{
       <h3>{month}</h3>
       <div>
         {availableDaysThisMonth.map((date) => {
+          const dayItem = availableDateItemsThisMonth.find(
+            (item) => item.date === date.toISOString().split("T")[0]
+          );
+
+          const evaStyle = dayItem?.eva ? styles.dayEva : "";
+          const youtubeStyle = dayItem?.youtube ? styles.dayYoutube : "";
+
           return (
             <div
               key={date.toISOString()}
-              className={styles.day}
+              className={`${styles.day} ${evaStyle} ${youtubeStyle} `}
               role="button"
               tabIndex={0}
               onClick={() => setSelected(date)}

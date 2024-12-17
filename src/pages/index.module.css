@@ -46,6 +46,14 @@
   cursor: pointer;
 }
 
+.dayEva {
+  font-weight: 600;
+}
+
+.dayYoutube {
+  color: blue;
+}
+
 .pickMonth {
   /* flex: 1; */
   flex: 0 0 auto;
