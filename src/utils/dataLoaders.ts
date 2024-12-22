@@ -52,6 +52,8 @@ export async function getDatePageData({
       imagesResult.status === "fulfilled" && imagesResult.value.ok
         ? await imagesResult.value.json()
         : [];
+    imageItems.sort((a, b) => a.dateTaken.localeCompare(b.dateTaken));
+
     const ephemeraItems: EphemeraItem[] =
       ephemeraResult.status === "fulfilled" && ephemeraResult.value.ok
         ? await ephemeraResult.value.json()

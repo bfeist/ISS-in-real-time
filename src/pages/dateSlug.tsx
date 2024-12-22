@@ -3,12 +3,13 @@ import Images from "components/images";
 import styles from "./dateSlug.module.css";
 import Transcript from "components/transcript";
 import Map from "components/map";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { isValidTimestring } from "utils/params";
 import YouTube from "components/youtube";
 import { getCrewMembersOnboardByDate } from "utils/crew";
 import { useClockContext } from "context/clockContext";
 import { appSecondsFromTimeStr, timeStrFromAppSeconds } from "utils/time";
+import Globe from "components/globe";
 
 const DatePage = (): JSX.Element => {
   const { date } = useParams();
@@ -28,6 +29,8 @@ const DatePage = (): JSX.Element => {
 
   const { clock, setClock } = useClockContext();
 
+  const [showGlobe, setShowGlobe] = useState(true);
+
   const evaDetailsForDate = evaDetails.filter((evaDetail) => evaDetail.startTime.startsWith(date));
   const youtubeLiveRecording =
     youtubeLiveRecordings.filter((recording) => recording.startTime.startsWith(date))[0] || null;
@@ -41,15 +44,18 @@ const DatePage = (): JSX.Element => {
 
   useEffect(() => {
     if (isValidTimestring(t)) {
-      // set the time to the time parameter in the URL
-      // setTimeDef({
-      //   startValue: t,
-      //   startedTimestamp: new Date().getTime(),
-      //   running: true,
-      // });
-    }
-
-    if (transcriptItems.length > 0) {
+      setClock((prev) => ({
+        ...prev,
+        appSeconds: appSecondsFromTimeStr(t),
+        isRunning: true,
+      }));
+    } else if (youtubeLiveRecording) {
+      setClock((prev) => ({
+        ...prev,
+        appSeconds: appSecondsFromTimeStr(youtubeLiveRecording.startTime.split("T")[1]),
+        isRunning: true,
+      }));
+    } else if (transcriptItems.length > 0) {
       const firstTimeStr = transcriptItems[0].utteranceTime;
       setClock((prev) => ({
         ...prev,
@@ -57,7 +63,7 @@ const DatePage = (): JSX.Element => {
         isRunning: true,
       }));
     }
-  }, [t, transcriptItems, date, setClock]);
+  }, [t, transcriptItems, date, setClock, youtubeLiveRecording]);
 
   return (
     <div className={styles.page}>
@@ -70,7 +76,10 @@ const DatePage = (): JSX.Element => {
             setClock((prev) => ({ ...prev, isRunning: !prev.isRunning }));
           }}
         >
-          start/stop
+          {clock.isRunning ? "Pause" : "Play"}
+        </button>
+        <button onClick={() => setShowGlobe(!showGlobe)}>
+          Show {showGlobe ? "Map" : "Globe"}{" "}
         </button>
       </div>
       <div className={styles.upper}>
@@ -78,7 +87,11 @@ const DatePage = (): JSX.Element => {
           <YouTube youtubeLiveRecording={youtubeLiveRecording} />
         </div>
         <div className={styles.mapContainer}>
-          <Map ephemeraItems={ephemeraItems} viewDate={date} />
+          {showGlobe ? (
+            <Globe ephemeraItems={ephemeraItems} viewDate={date} />
+          ) : (
+            <Map ephemeraItems={ephemeraItems} viewDate={date} />
+          )}
         </div>
       </div>
 

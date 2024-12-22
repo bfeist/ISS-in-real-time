@@ -1,19 +1,51 @@
-import { FunctionComponent, useRef } from "react";
+import { FunctionComponent, useEffect, useRef, useState } from "react";
 import YouTube, { YouTubePlayer, YouTubeEvent } from "react-youtube";
 import styles from "./youtube.module.css";
+import { useClockContext } from "context/clockContext";
+import { appSecondsFromTimeStr } from "utils/time";
 
 const YouTubeComponent: FunctionComponent<{
   youtubeLiveRecording: YoutubeLiveRecording;
 }> = ({ youtubeLiveRecording }) => {
   const playerRef = useRef<YouTubePlayer | null>(null);
-  // const timeStrRef = useRef<HTMLSpanElement>(null);
+
+  const { clock } = useClockContext();
+
+  const [playerState, setPlayerState] = useState<number>(-1);
 
   const onPlayerReady = (event: YouTubeEvent) => {
     playerRef.current = event.target;
     playerRef.current.mute();
-    playerRef.current.seekTo(30, true);
-    playerRef.current.playVideo();
   };
+
+  const onPlayerStateChange = (event: YouTubeEvent) => {
+    setPlayerState(event.data);
+  };
+
+  useEffect(() => {
+    if (!playerRef.current) return;
+
+    const isPlaying = playerState === YouTube.PlayerState.PLAYING;
+
+    if (clock.isRunning && !isPlaying) {
+      playerRef.current.playVideo();
+    } else if (!clock.isRunning && isPlaying) {
+      playerRef.current.pauseVideo();
+    }
+
+    const syncTime = async () => {
+      // sync the player time with the clock
+      const ytStartSeconds = appSecondsFromTimeStr(youtubeLiveRecording?.startTime.split("T")[1]);
+      const playerAppSeconds = Math.round(
+        ytStartSeconds + (await playerRef.current.getCurrentTime())
+      );
+      if (playerAppSeconds !== clock.appSeconds) {
+        // set the player time to the clock time
+        playerRef.current.seekTo(clock.appSeconds - ytStartSeconds, true);
+      }
+    };
+    syncTime();
+  }, [playerState, clock, youtubeLiveRecording]);
 
   return (
     <>
@@ -22,6 +54,7 @@ const YouTubeComponent: FunctionComponent<{
           className={styles.yt}
           videoId={youtubeLiveRecording?.videoId}
           onReady={onPlayerReady}
+          onStateChange={onPlayerStateChange}
           opts={{
             playerVars: { autoplay: 0 },
             height: "100%",
