@@ -4,7 +4,7 @@ export function processTranscriptCsv(data: string): TranscriptItem[] {
   const transcriptItems: TranscriptItem[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const fields = line.split("|");
+    const fields = line.trim().split("|");
     if (fields.length === 7) {
       const [utteranceTime, filename, start, end, language, text, textOriginalLang] = fields;
       transcriptItems.push({

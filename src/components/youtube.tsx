@@ -11,29 +11,24 @@ const YouTubeComponent: FunctionComponent<{
 
   const { clock } = useClockContext();
 
-  const [playerState, setPlayerState] = useState<number>(-1);
-
   const onPlayerReady = (event: YouTubeEvent) => {
     playerRef.current = event.target;
     playerRef.current.mute();
   };
 
-  const onPlayerStateChange = (event: YouTubeEvent) => {
-    setPlayerState(event.data);
-  };
-
   useEffect(() => {
     if (!playerRef.current) return;
 
-    const isPlaying = playerState === YouTube.PlayerState.PLAYING;
-
-    if (clock.isRunning && !isPlaying) {
-      playerRef.current.playVideo();
-    } else if (!clock.isRunning && isPlaying) {
-      playerRef.current.pauseVideo();
-    }
-
     const syncTime = async () => {
+      const playerState = await playerRef.current.getPlayerState();
+      const isPlaying = playerState === YouTube.PlayerState.PLAYING;
+
+      if (clock.isRunning && !isPlaying) {
+        playerRef.current.playVideo();
+      } else if (!clock.isRunning && isPlaying) {
+        playerRef.current.pauseVideo();
+      }
+
       // sync the player time with the clock
       const ytStartSeconds = appSecondsFromTimeStr(youtubeLiveRecording?.startTime.split("T")[1]);
       const playerAppSeconds = Math.round(
@@ -45,7 +40,7 @@ const YouTubeComponent: FunctionComponent<{
       }
     };
     syncTime();
-  }, [playerState, clock, youtubeLiveRecording]);
+  }, [clock, youtubeLiveRecording]);
 
   return (
     <>
@@ -54,7 +49,6 @@ const YouTubeComponent: FunctionComponent<{
           className={styles.yt}
           videoId={youtubeLiveRecording?.videoId}
           onReady={onPlayerReady}
-          onStateChange={onPlayerStateChange}
           opts={{
             playerVars: { autoplay: 0 },
             height: "100%",

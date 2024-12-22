@@ -68,6 +68,7 @@ const DatePage = (): JSX.Element => {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
+        <button onClick={() => window.history.back()}>Back</button>
         <div>
           Date: {date} Time: {timeStrFromAppSeconds(clock.appSeconds)}
         </div>
@@ -96,9 +97,7 @@ const DatePage = (): JSX.Element => {
       </div>
 
       <div className={styles.lower}>
-        <div className={styles.transcriptContainer}>
-          <Transcript transcriptItems={transcriptItems} viewDate={date} />
-        </div>
+        <Transcript transcriptItems={transcriptItems} viewDate={date} />
         <Images imageItems={imageItems} />
       </div>
     </div>
