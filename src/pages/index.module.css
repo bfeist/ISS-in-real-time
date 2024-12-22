@@ -35,11 +35,22 @@
   flex-wrap: wrap;
 }
 
+.yearTitle {
+  font-size: 20px;
+  font-weight: 600;
+}
+
 .yearContainer {
   display: flex;
   flex-direction: row;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.monthTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 5px 0 5px 0;
 }
 
 .day {

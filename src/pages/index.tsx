@@ -75,7 +75,7 @@ const YearPicker: FunctionComponent<{
 
   return (
     <div className={styles.page}>
-      <h2>{year}</h2>
+      <div className={styles.yearTitle}>{year}</div>
       <div className={styles.yearContainer}>
         {availableMonthsThisYear.map((month) => {
           const availableDateItemsThisMonth: AvailableDate[] = [];
@@ -116,7 +116,7 @@ const MonthPicker: FunctionComponent<{
 
   return (
     <div>
-      <h3>{month}</h3>
+      <div className={styles.monthTitle}>{month}</div>
       <div>
         {availableDaysThisMonth.map((date) => {
           const dayItem = availableDateItemsThisMonth.find(

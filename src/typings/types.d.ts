@@ -42,14 +42,6 @@ type GetCesiumPageDataResponse = {
   ephemeraItems: EphemeraItem[];
 };
 
-type TimeDef = {
-  // hh:mm:ss
-  startValue: string;
-  // unix timestamp
-  startedTimestamp: number;
-  running: boolean;
-};
-
 type CrewItem = {
   ev?: number;
   name: string;

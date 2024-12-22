@@ -3,11 +3,12 @@ import Images from "components/images";
 import styles from "./dateSlug.module.css";
 import Transcript from "components/transcript";
 import Map from "components/map";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { isValidTimestring } from "utils/params";
-import { timeStringFromTimeDef } from "utils/time";
 import YouTube from "components/youtube";
 import { getCrewMembersOnboardByDate } from "utils/crew";
+import { useClockContext } from "context/clockContext";
+import { appSecondsFromTimeStr, timeStrFromAppSeconds } from "utils/time";
 
 const DatePage = (): JSX.Element => {
   const { date } = useParams();
@@ -25,13 +26,7 @@ const DatePage = (): JSX.Element => {
   const searchParams = new URLSearchParams(location.search);
   const t = searchParams.get("t");
 
-  const [timeDef, setTimeDef] = useState<TimeDef>({
-    startValue: "00:00:00",
-    startedTimestamp: new Date().getTime(),
-    running: true,
-  });
-
-  const timeStrRef = useRef<HTMLSpanElement>(null);
+  const { clock, setClock } = useClockContext();
 
   const evaDetailsForDate = evaDetails.filter((evaDetail) => evaDetail.startTime.startsWith(date));
   const youtubeLiveRecording =
@@ -47,53 +42,32 @@ const DatePage = (): JSX.Element => {
   useEffect(() => {
     if (isValidTimestring(t)) {
       // set the time to the time parameter in the URL
-      setTimeDef({
-        startValue: t,
-        startedTimestamp: new Date().getTime(),
-        running: true,
-      });
+      // setTimeDef({
+      //   startValue: t,
+      //   startedTimestamp: new Date().getTime(),
+      //   running: true,
+      // });
     }
 
     if (transcriptItems.length > 0) {
-      // set the time to the first transcript item - 5 seconds
-      const firstItemTimeDate = new Date(`${date}T${transcriptItems[0].utteranceTime}Z`);
-      firstItemTimeDate.setSeconds(firstItemTimeDate.getSeconds() - 5);
-      const firstItemTimeStr = firstItemTimeDate.toISOString().split("T")[1].split(".")[0];
-      setTimeDef({
-        startValue: firstItemTimeStr,
-        startedTimestamp: new Date().getTime(),
-        running: true,
-      });
+      const firstTimeStr = transcriptItems[0].utteranceTime;
+      setClock((prev) => ({
+        ...prev,
+        appSeconds: appSecondsFromTimeStr(firstTimeStr) - 5,
+        isRunning: true,
+      }));
     }
-  }, [t, transcriptItems, date]);
-
-  useEffect(() => {
-    const updateTime = () => {
-      if (timeDef.running) {
-        if (timeStrRef.current) {
-          timeStrRef.current.innerHTML = timeStringFromTimeDef(timeDef);
-        }
-      }
-    };
-    const intervalId = setInterval(updateTime, 500);
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [timeDef]);
+  }, [t, transcriptItems, date, setClock]);
 
   return (
     <div className={styles.page}>
       <div className={styles.header}>
         <div>
-          Date: {date} Time: <span ref={timeStrRef} />
+          Date: {date} Time: {timeStrFromAppSeconds(clock.appSeconds)}
         </div>
         <button
           onClick={() => {
-            setTimeDef({
-              startValue: timeStringFromTimeDef(timeDef),
-              startedTimestamp: new Date().getTime(),
-              running: !timeDef.running,
-            });
+            setClock((prev) => ({ ...prev, isRunning: !prev.isRunning }));
           }}
         >
           start/stop
@@ -101,10 +75,10 @@ const DatePage = (): JSX.Element => {
       </div>
       <div className={styles.upper}>
         <div className={styles.videoContainer}>
-          <YouTube youtubeLiveRecording={youtubeLiveRecording} timeDef={timeDef} />
+          <YouTube youtubeLiveRecording={youtubeLiveRecording} />
         </div>
         <div className={styles.mapContainer}>
-          <Map ephemeraItems={ephemeraItems} viewDate={date} timeDef={timeDef} />
+          <Map ephemeraItems={ephemeraItems} viewDate={date} />
         </div>
       </div>
 

@@ -1,27 +1,12 @@
-import { FunctionComponent, useEffect, useRef } from "react";
+import { FunctionComponent, useRef } from "react";
 import YouTube, { YouTubePlayer, YouTubeEvent } from "react-youtube";
 import styles from "./youtube.module.css";
 
 const YouTubeComponent: FunctionComponent<{
   youtubeLiveRecording: YoutubeLiveRecording;
-  timeDef: TimeDef;
-}> = ({ youtubeLiveRecording, timeDef }) => {
+}> = ({ youtubeLiveRecording }) => {
   const playerRef = useRef<YouTubePlayer | null>(null);
   // const timeStrRef = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    const updateTime = () => {
-      if (timeDef.running) {
-        // if (timeStrRef.current) {
-        //   timeStrRef.current.innerHTML = timeStringFromTimeDef(timeDef);
-        // }
-      }
-    };
-    const intervalId = setInterval(updateTime, 500);
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [timeDef]);
 
   const onPlayerReady = (event: YouTubeEvent) => {
     playerRef.current = event.target;
