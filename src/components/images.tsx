@@ -62,7 +62,7 @@ const Images: FunctionComponent<{
   }, [clock.appSeconds, imageItems]);
 
   return (
-    <div className={styles.images}>
+    <div className={styles.imagesContainer}>
       {imageItems.map((item, index) => (
         <div
           key={index}

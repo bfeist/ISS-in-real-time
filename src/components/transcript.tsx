@@ -56,7 +56,7 @@ const Transcript: FunctionComponent<{
   ]);
 
   return (
-    <>
+    <div className={styles.transcriptsContainer}>
       <div className={styles.audioPlayer}>
         <audio ref={audioRef} controls>
           <track src="" kind="captions" label="English" />
@@ -101,7 +101,7 @@ const Transcript: FunctionComponent<{
           );
         })}
       </div>
-    </>
+    </div>
   );
 };
 

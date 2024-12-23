@@ -1,3 +1,7 @@
+.transcriptsContainer {
+  flex: 1;
+}
+
 .transcripts {
   display: flex;
   flex-direction: column;

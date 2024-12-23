@@ -1,4 +1,4 @@
-import { useLoaderData, useParams, useLocation } from "react-router-dom";
+import { useLoaderData, useParams, useLocation, useNavigate } from "react-router-dom";
 import Images from "components/images";
 import styles from "./dateSlug.module.css";
 import Transcript from "components/transcript";
@@ -22,6 +22,8 @@ const DatePage = (): JSX.Element => {
     crewArrDep,
     expeditionInfo,
   } = useLoaderData() as GetDatePageDataResponse;
+
+  const navigate = useNavigate();
 
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -68,7 +70,7 @@ const DatePage = (): JSX.Element => {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <button onClick={() => window.history.back()}>Back</button>
+        <button onClick={() => navigate("/")}>Back</button>
         <div>
           Date: {date} Time: {timeStrFromAppSeconds(clock.appSeconds)}
         </div>
