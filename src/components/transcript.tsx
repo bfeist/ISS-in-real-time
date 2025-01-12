@@ -16,6 +16,11 @@ const Transcript: FunctionComponent<{
   useEffect(() => {
     if (!clock.appSeconds) return;
 
+    // If the clock isn't running, stop the audio
+    if (!clock.isRunning && audioRef.current) {
+      audioRef.current.pause();
+    }
+
     // Find the closest transcript item to the current time
     let closestTranscript = transcriptItems[0];
     let appSecondsDiff = null;
@@ -42,18 +47,12 @@ const Transcript: FunctionComponent<{
     // Play the audio
     const [year, month, day] = viewDate.split("-");
     const aacFileUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/${closestTranscript.filename}`;
-    if (audioRef.current) {
+    if (audioRef.current && clock.isRunning) {
       audioRef.current.src = aacFileUrl;
       audioRef.current.play();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    clock.appSeconds,
-    transcriptItems,
-    audioRef,
-    setLastScrolledToTimeStr,
-    lastScrolledToTimeStr,
-  ]);
+  }, [clock, transcriptItems, audioRef, setLastScrolledToTimeStr, lastScrolledToTimeStr]);
 
   return (
     <div className={styles.transcriptsContainer}>
