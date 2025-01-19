@@ -10,7 +10,7 @@ export const findClosestEphemeraItem = (
   if (!closestDate) {
     return undefined;
   }
-  const closestEphemeraItem = ephemeraItems.find(
+  const closestEphemeraItem = ephemeraItems?.find(
     (item) => new Date(item.epoch).getTime() === closestDate.getTime()
   );
   return closestEphemeraItem;

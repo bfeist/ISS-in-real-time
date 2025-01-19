@@ -1,4 +1,7 @@
 export const findClosestDate = (dateTime: Date, dates: Date[]): Date | undefined => {
+  if (dates.length === 0) {
+    return undefined;
+  }
   let closestDate = dates[0];
   let minDiff = Math.abs(closestDate.getTime() - dateTime.getTime());
   for (const current of dates) {
