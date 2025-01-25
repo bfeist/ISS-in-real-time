@@ -123,7 +123,7 @@ def generate_event_index(prompt):
 
     try:
         # Prepare the payload for Ollama API
-        payload = {"model": "gemma2:27b", "prompt": prompt}
+        payload = {"model": "deepseek-r1:14b", "prompt": prompt}
 
         # Make a POST request to the local Ollama API
         response = requests.post("http://localhost:11434/api/generate", json=payload)
