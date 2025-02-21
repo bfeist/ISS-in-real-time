@@ -187,7 +187,7 @@ def main():
     for item in available_dates:
         available_date = item["date"]
         no_data = False
-        print(f"Processing date: {available_date}")
+        # print(f"Processing date: {available_date}")
         [year, month, day] = available_date.split("-")
         formatted_date = f"{year}{month}{day}"
 

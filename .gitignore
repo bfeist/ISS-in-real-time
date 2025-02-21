@@ -61,4 +61,5 @@ whisperx_models
 ia_zips_processed.txt
 ia_zips_in_progress.txt
 ia_skip_zips.txt
+ia_zips_errors.txt
 identifiers.txt

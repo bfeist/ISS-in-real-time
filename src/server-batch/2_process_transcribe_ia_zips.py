@@ -45,9 +45,20 @@ MIN_WAIT_BLOCKS = 10
 UPLOAD_TO_API = False  # Set to True to enable uploading
 TALKYBOT_API_URL = "http://talkybot-local.fit.nasa.gov:5000/"
 
-IA_ZIPS_PROCESSED_TRACKING_FILE = "ia_zips_processed.txt"
-IA_ZIPS_IN_PROGRESS_TRACKING_FILE = "ia_zips_in_progress.txt"  # New tracking file
-IA_SKIP_ZIPS_TRACKING_FILE = "ia_skip_zips.txt"  # New skip list tracking file
+TRACKING_DIR = Path(
+    __file__
+).parent  # Tracking files reside in the same folder as this script
+
+IA_ZIPS_PROCESSED_TRACKING_FILE = str(TRACKING_DIR / "ia_zips_processed.txt")
+IA_ZIPS_IN_PROGRESS_TRACKING_FILE = str(
+    TRACKING_DIR / "ia_zips_in_progress.txt"
+)  # New tracking file
+IA_SKIP_ZIPS_TRACKING_FILE = str(
+    TRACKING_DIR / "ia_skip_zips.txt"
+)  # New skip list tracking file
+IA_ZIPS_ERRORS_TRACKING_FILE = str(
+    TRACKING_DIR / "ia_zips_errors.txt"
+)  # New error tracking file
 
 INPUT_IA_ZIPS_PATH = os.path.join(os.getenv("IA_ZIP_WAVS_WORKING_FOLDER"))
 CURRENT_IA_ZIP_WAVS_ROOT = Path("F:/tempF/iss_working/current_ia_zip_wavs")
@@ -361,15 +372,12 @@ class AudioSegmenter(object):
         self.currentBlocks = []
 
 
-def parse_wav_filename(filename):
+def parse_wav_filename(filename, downlink_number=None):
     """
     Parses the WAV filename and extracts date_time and sg_channel_descriptor.
     Returns date_time, sg_channel_descriptor.
     """
-    # Remove extension
     basename = os.path.splitext(filename)[0]
-
-    # Define a list of possible patterns to match different filename formats
     patterns = [
         # Pattern 1: 0000000000_SYNC_SG4_2024-01-08_02_09_04_by_servername_desc
         r"^\d+_SYNC_(SG\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
@@ -379,17 +387,25 @@ def parse_wav_filename(filename):
         r"^\d+_SYNC_SG_(\d)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
         # Pattern 4: 0000000140_Channel_15_2015-12-18_20_41_59_by_ui_startdate_asc.wav
         r"^\d+_Channel_(\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
-        # General Pattern: Allow optional elements for more flexibility
-        # r"^\d+_(?:\d+_)?(?:SYNC_)?(SG\d+)_(?:DUP_)?(\d{4}-\d{2}-\d{2})_"
-        # r"(\d{2})_(\d{2})_(\d{2})_by_.*$",
-        # Add more patterns here as new filename formats are discovered
+        # Pattern 5: 2022-03-30-08-30-42-019-Recorder.wav
+        r"^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{3}-Recorder$",
     ]
-
     try:
         for pattern in patterns:
             match = re.match(pattern, basename)
             if match:
-                # one zip has channel 14 for SG1, 15 for SG2, 16 for SG3, 17 for SG4
+                # Handle Pattern 5: manually split as no capture groups are defined.
+                if pattern.endswith(r"-Recorder$") and len(match.groups()) == 0:
+                    parts = basename.split("-")
+                    if len(parts) >= 7:
+                        # Build date and time from known positions.
+                        date_part = f"{parts[0]}-{parts[1]}-{parts[2]}"
+                        time_part = f"{parts[3]}{parts[4]}{parts[5]}"
+                        date_time = f"{date_part}T{time_part}"
+                        sg_channel = str(downlink_number) if downlink_number else "0"
+                        sg_channel_descriptor = f"1_SG_{sg_channel}"
+                        return date_time, sg_channel_descriptor
+                # For patterns 1-4:
                 if match.group(1) == "14":
                     sg_channel = "1"
                 elif match.group(1) == "15":
@@ -399,10 +415,10 @@ def parse_wav_filename(filename):
                 elif match.group(1) == "17":
                     sg_channel = "4"
                 else:
-                    # normal case
-                    # sg_channel could be "1_SG1" format or "1_SG_1" format. The last digit is what we want
-                    sg_channel = match.group(1)[-1]
-
+                    if downlink_number:
+                        sg_channel = str(downlink_number)
+                    else:
+                        sg_channel = match.group(1)[-1]
                 date_part = match.group(2)
                 hour = match.group(3)
                 minute = match.group(4)
@@ -412,8 +428,6 @@ def parse_wav_filename(filename):
                 return date_time, sg_channel_descriptor
     except Exception as e:
         logger.error(f"Error parsing filename: {e}")
-
-    # If none of the patterns match, log a warning and return None
     logger.warning(f"Unable to parse filename '{filename}'. Skipping.")
     return None, None
 
@@ -437,13 +451,24 @@ def unzipSGZipWavs(zip_path, destination_dir):
                 # Extract the filename without any directory structure
                 original_file_name = os.path.basename(file_info.filename)
 
+                # Extract the folder name
+                folder_name = os.path.dirname(file_info.filename)
+
+                # Downlink number is the last char of the folder name if it is a number between 1 and 4
+                downlink_number = None
+                if folder_name[-1].isdigit() and int(folder_name[-1]) in range(1, 5):
+                    downlink_number = int(folder_name[-1])
+
                 # Parse the filename using the supporting function
                 date_time, sg_channel_descriptor = parse_wav_filename(
-                    original_file_name
+                    original_file_name, downlink_number
                 )
                 if not date_time or not sg_channel_descriptor:
                     logger.warning(
                         f"Unable to parse filename '{original_file_name}' inside zip '{zip_path}'. Skipping this file."
+                    )
+                    add_to_tracking_file(
+                        IA_ZIPS_ERRORS_TRACKING_FILE, os.path.basename(zip_path)
                     )
                     continue  # Skip this file
 
@@ -594,28 +619,26 @@ def process_zip_file(zip_file):
             if immediate_exit_event.is_set():
                 logger.info("Immediate exit requested. Stopping processing.")
                 return
-            wav_file = Path(wav_file)
-
-            # Ensure the WAV file is mono and has acceptable sample rate
-            wav_file = ensure_mono_wav(wav_file)
+            original_wav_file = Path(wav_file)
+            wav_file = ensure_mono_wav(original_wav_file)
             if wav_file is None:
-                logger.error(f"Skipping invalid WAV file '{wav_file}'")
-                continue  # Skip this file
-
-            # Parse the start time. The filename is in the format 2024-01-08T012943-1_SG_1_IA.wav
-            start_time_str = wav_file.stem[:17]
-            start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H%M%S")
-
-            # Parse out the SG descriptor
-            descriptor = wav_file.stem[18:-3]
-
-            segmenter = AudioSegmenter(
-                str(wav_file),
-                start_time,
-                descriptor,
-                model,
-            )
-
+                logger.error(f"Skipping invalid WAV file '{original_wav_file}'")
+                continue
+            try:
+                # Parse the start time. The filename is in the format 2024-01-08T012943-1_SG_1_IA.wav
+                start_time_str = wav_file.stem[:17]
+                start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H%M%S")
+                # Parse out the SG descriptor
+                descriptor = wav_file.stem[18:-3]
+                segmenter = AudioSegmenter(
+                    str(wav_file),
+                    start_time,
+                    descriptor,
+                    model,
+                )
+            except Exception as e:
+                logger.error(f"Error opening WAV file '{wav_file}': {e}")
+                continue
             logger.info(f"Segmenting IA WAV file...{wav_file.name}")
             while True:
                 if immediate_exit_event.is_set():
@@ -623,7 +646,6 @@ def process_zip_file(zip_file):
                     return
                 if not segmenter.processWav():
                     break
-
             segmenter.stop()
             if immediate_exit_event.is_set():
                 logger.info("Immediate exit requested after segmentation.")
@@ -683,8 +705,6 @@ if __name__ == "__main__":
     # Ensure the directories exist
     COMM_TRANSCRIPTS_AACS.mkdir(parents=True, exist_ok=True)
 
-    asr_options = {"hotwords": None}
-
     # Create the model with suppressed output
     with suppress_stdout_stderr():
         model = whisperx.load_model(
@@ -692,7 +712,6 @@ if __name__ == "__main__":
             device=DEVICE,
             compute_type=COMPUTE_TYPE,
             download_root=Path("whisperx_models"),
-            asr_options=asr_options,
         )
 
     # Load skip list
@@ -743,7 +762,10 @@ if __name__ == "__main__":
         process_zip_file(zip_file)
 
         # Add the zip to the processed list only if an immediate exit was not requested
-        if not immediate_exit_event.is_set():
+        # and if no error has occurred (i.e. not in ia_zips_errors.txt)
+        if not immediate_exit_event.is_set() and zip_file not in read_tracking_file(
+            IA_ZIPS_ERRORS_TRACKING_FILE
+        ):
             add_to_tracking_file(IA_ZIPS_PROCESSED_TRACKING_FILE, zip_file)
 
         if immediate_exit_event.is_set():
