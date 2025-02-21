@@ -3,7 +3,7 @@ import Images from "components/images";
 import styles from "./dateSlug.module.css";
 import Transcript from "components/transcript";
 import Map from "components/map";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isValidTimestring } from "utils/params";
 import YouTube from "components/youtube";
 import { getCrewMembersOnboardByDate } from "utils/crew";
@@ -31,8 +31,9 @@ const DatePage = (): JSX.Element => {
 
   const { clock, setClock } = useClockContext();
 
+  const audioRef = useRef<HTMLAudioElement>(null);
+
   const [showGlobe, setShowGlobe] = useState(true);
-  const [activeTab, setActiveTab] = useState("video");
 
   const evaDetailsForDate = evaDetails.filter((evaDetail) => evaDetail.startTime.startsWith(date));
   const youtubeLiveRecording =
@@ -87,9 +88,41 @@ const DatePage = (): JSX.Element => {
         </button>
       </div>
       <div className={styles.upper}>
+        <div className={styles.transcriptsContainer}>
+          <Transcript
+            audioRef={audioRef}
+            transcriptItems={transcriptItems.filter((transcriptItem) =>
+              transcriptItem.filename.includes("_SG_1")
+            )}
+            viewDate={date}
+          />
+          <Transcript
+            audioRef={audioRef}
+            transcriptItems={transcriptItems.filter((transcriptItem) =>
+              transcriptItem.filename.includes("_SG_2")
+            )}
+            viewDate={date}
+          />
+          <Transcript
+            audioRef={audioRef}
+            transcriptItems={transcriptItems.filter((transcriptItem) =>
+              transcriptItem.filename.includes("_SG_3")
+            )}
+            viewDate={date}
+          />
+          <Transcript
+            audioRef={audioRef}
+            transcriptItems={transcriptItems.filter((transcriptItem) =>
+              transcriptItem.filename.includes("_SG_4")
+            )}
+            viewDate={date}
+          />
+        </div>
         <div className={styles.videoContainer}>
           <YouTube youtubeLiveRecording={youtubeLiveRecording} />
         </div>
+
+        <Images imageItems={imageItems} />
         <div className={styles.mapContainer}>
           {showGlobe ? (
             <Globe ephemeraItems={ephemeraItems} viewDate={date} />
@@ -97,25 +130,14 @@ const DatePage = (): JSX.Element => {
             <Map ephemeraItems={ephemeraItems} viewDate={date} />
           )}
         </div>
-
-        {/* Tab buttons */}
-        <div className={styles.tabButtons}>
-          <button onClick={() => setActiveTab("video")}>Video</button>
-          <button onClick={() => setActiveTab("map")}>Map</button>
-        </div>
-
-        {/* Tab content */}
-        <div className={`${styles.tabContent} ${activeTab === "video" ? styles.active : ""}`}>
-          <div className={styles.videoContainer}>{/* Video content */}</div>
-        </div>
-        <div className={`${styles.tabContent} ${activeTab === "map" ? styles.active : ""}`}>
-          <div className={styles.mapContainer}>{/* Map content */}</div>
-        </div>
       </div>
 
-      <div className={styles.lower}>
-        <Transcript transcriptItems={transcriptItems} viewDate={date} />
-        <Images imageItems={imageItems} />
+      <div className={styles.lower}></div>
+      <div className={styles.audioPlayer}>
+        <audio ref={audioRef} controls>
+          <track src="" kind="captions" label="English" />
+          Your browser does not support the audio element.
+        </audio>
       </div>
     </div>
   );
