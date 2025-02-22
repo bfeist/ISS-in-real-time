@@ -7,7 +7,7 @@ import { JSX, useEffect, useRef, useState } from "react";
 import { isValidTimestring } from "utils/params";
 import YouTube from "components/youtube";
 import { getCrewMembersOnboardByDate } from "utils/crew";
-import { useClockUpdate } from "context/clockContext";
+import { useClockContext } from "context/clockContext";
 import { appSecondsFromTimeStr } from "utils/time";
 import Globe from "components/globe";
 import Header from "components/header";
@@ -31,7 +31,7 @@ const DatePage = (): JSX.Element => {
   const searchParams = new URLSearchParams(location.search);
   const t = searchParams.get("t");
 
-  const setClock = useClockUpdate();
+  const { clockDispatch } = useClockContext();
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -52,26 +52,23 @@ const DatePage = (): JSX.Element => {
 
   useEffect(() => {
     if (isValidTimestring(t)) {
-      setClock((prev) => ({
-        ...prev,
-        appSeconds: appSecondsFromTimeStr(t),
-        isRunning: true,
-      }));
+      clockDispatch({ type: "start" });
+      clockDispatch({ type: "setAppSeconds", appSeconds: appSecondsFromTimeStr(t) });
     } else if (youtubeLiveRecording) {
-      setClock((prev) => ({
-        ...prev,
+      clockDispatch({ type: "start" });
+      clockDispatch({
+        type: "setAppSeconds",
         appSeconds: appSecondsFromTimeStr(youtubeLiveRecording.startTime.split("T")[1]),
-        isRunning: true,
-      }));
+      });
     } else if (transcriptItems.length > 0) {
       const firstTimeStr = transcriptItems[0].utteranceTime;
-      setClock((prev) => ({
-        ...prev,
+      clockDispatch({ type: "start" });
+      clockDispatch({
+        type: "setAppSeconds",
         appSeconds: appSecondsFromTimeStr(firstTimeStr) - 5,
-        isRunning: true,
-      }));
+      });
     }
-  }, [t, transcriptItems, date, setClock, youtubeLiveRecording]);
+  }, [t, transcriptItems, date, clockDispatch, youtubeLiveRecording]);
 
   return (
     <div className={styles.page}>

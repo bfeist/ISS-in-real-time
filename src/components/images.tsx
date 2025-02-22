@@ -1,17 +1,19 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./images.module.css";
-import { useClockState, useClockUpdate } from "context/clockContext";
+import { useClockContext } from "context/clockContext";
 import { appSecondsFromTimeStr } from "utils/time";
+import ClockInterval from "./clockInterval";
 
 const Images: FunctionComponent<{
   imageItems: ImageItem[];
 }> = ({ imageItems }) => {
   const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL;
 
-  const clock = useClockState();
-  const setClock = useClockUpdate();
+  const { clockDispatch } = useClockContext();
 
   const [visibleImages, setVisibleImages] = useState<number[]>([]);
+  const [appSeconds, setAppSeconds] = useState(0);
+
   const observer = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
@@ -37,7 +39,7 @@ const Images: FunctionComponent<{
   }, [imageItems]);
 
   useEffect(() => {
-    if (!clock.appSeconds) return;
+    if (!appSeconds) return;
 
     // Find the closest image to the current time (before the current time)
     let closestImageItem = imageItems[0] || null;
@@ -46,10 +48,10 @@ const Images: FunctionComponent<{
     let appSecondsDiff = null;
     for (const imageItem of imageItems) {
       const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
-      if (imageSeconds > clock.appSeconds) {
+      if (imageSeconds > appSeconds) {
         break;
       }
-      const diff = Math.abs(clock.appSeconds - imageSeconds);
+      const diff = Math.abs(appSeconds - imageSeconds);
       if (appSecondsDiff === null || diff < appSecondsDiff) {
         appSecondsDiff = diff;
         closestImageItem = imageItem;
@@ -60,10 +62,11 @@ const Images: FunctionComponent<{
 
     const targetElement = document.querySelector(`[data-time="${closestImageTimeStr}"]`);
     targetElement?.scrollIntoView({ behavior: "smooth" });
-  }, [clock.appSeconds, imageItems]);
+  }, [appSeconds, imageItems]);
 
   return (
     <div className={styles.imagesContainer}>
+      <ClockInterval setAppSeconds={setAppSeconds} />
       {imageItems.map((item, index) => (
         <div
           key={index}
@@ -76,17 +79,17 @@ const Images: FunctionComponent<{
             role="button"
             tabIndex={0}
             onClick={() => {
-              setClock((prev) => ({
-                ...prev,
+              clockDispatch({
+                type: "setAppSeconds",
                 appSeconds: appSecondsFromTimeStr(item.dateTaken.split("T")[1]),
-              }));
+              });
             }}
             onKeyUp={(e) => {
               if (e.key === "Enter" || e.key === " ") {
-                setClock((prev) => ({
-                  ...prev,
+                clockDispatch({
+                  type: "setAppSeconds",
                   appSeconds: appSecondsFromTimeStr(item.dateTaken.split("T")[1]),
-                }));
+                });
               }
             }}
           >

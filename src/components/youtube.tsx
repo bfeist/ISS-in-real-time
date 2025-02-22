@@ -1,15 +1,18 @@
-import { FunctionComponent, useEffect, useRef } from "react";
+import { FunctionComponent, useEffect, useRef, useState } from "react";
 import YouTube, { YouTubePlayer, YouTubeEvent } from "react-youtube";
 import styles from "./youtube.module.css";
-import { useClockState } from "context/clockContext";
+import { useClockContext } from "context/clockContext";
 import { appSecondsFromTimeStr } from "utils/time";
+import ClockInterval from "./clockInterval";
 
 const YouTubeComponent: FunctionComponent<{
   youtubeLiveRecording: YoutubeLiveRecording;
 }> = ({ youtubeLiveRecording }) => {
   const playerRef = useRef<YouTubePlayer | null>(null);
 
-  const clock = useClockState();
+  const [appSeconds, setAppSeconds] = useState(0);
+
+  const { clock } = useClockContext();
 
   const onPlayerReady = (event: YouTubeEvent) => {
     playerRef.current = event.target;
@@ -34,16 +37,17 @@ const YouTubeComponent: FunctionComponent<{
       const playerAppSeconds = Math.round(
         ytStartSeconds + (await playerRef.current.getCurrentTime())
       );
-      if (playerAppSeconds !== clock.appSeconds) {
+      if (playerAppSeconds !== appSeconds) {
         // set the player time to the clock time
-        playerRef.current.seekTo(clock.appSeconds - ytStartSeconds, true);
+        playerRef.current.seekTo(appSeconds - ytStartSeconds, true);
       }
     };
     syncTime();
-  }, [clock, youtubeLiveRecording]);
+  }, [clock, youtubeLiveRecording, appSeconds]);
 
   return (
     <>
+      <ClockInterval setAppSeconds={setAppSeconds} />
       {youtubeLiveRecording ? (
         <YouTube
           className={styles.yt}

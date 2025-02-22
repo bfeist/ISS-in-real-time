@@ -7,7 +7,8 @@ interface ClockContextType {
 }
 
 type Clock = {
-  appSeconds: number;
+  startStopTimestamp: string; // the timestamp the play/pause button was clicked
+  appSecondsAtStartStop: number; // the value of the play/pause button at the time it was clicked
   isRunning: boolean;
 };
 
@@ -19,3 +20,8 @@ interface HoverContextType {
 type Hover = {
   hoverSeconds: number;
 };
+
+interface Telemetry {
+  velocity: number;
+  altitude: number;
+}

@@ -1,8 +1,9 @@
 import { extractChannelnumFromFilename } from "utils/transcript";
 import { FunctionComponent, useEffect, useState } from "react";
 import styles from "./transcript.module.css";
-import { useClockState, useClockUpdate } from "context/clockContext";
+import { useClockContext } from "context/clockContext";
 import { appSecondsFromTimeStr } from "utils/time";
+import ClockInterval from "./clockInterval";
 
 const Transcript: FunctionComponent<{
   viewDate: string;
@@ -10,9 +11,9 @@ const Transcript: FunctionComponent<{
   audioRef: React.RefObject<HTMLAudioElement>;
 }> = ({ viewDate, transcriptItems, audioRef }) => {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
-  const clock = useClockState();
-  const setClock = useClockUpdate();
+  const { clock, clockDispatch } = useClockContext();
   const [lastScrolledToTimeStr, setLastScrolledToTimeStr] = useState<string | null>(null);
+  const [appSeconds, setAppSeconds] = useState(0);
 
   const getClosestTranscriptItem = () => {
     // Find the closest transcript item to the current time
@@ -20,10 +21,10 @@ const Transcript: FunctionComponent<{
     let appSecondsDiff = null;
     for (const item of transcriptItems) {
       const itemSeconds = appSecondsFromTimeStr(item.utteranceTime);
-      if (itemSeconds > clock.appSeconds) {
+      if (itemSeconds > appSeconds) {
         break;
       }
-      const diff = Math.abs(clock.appSeconds - itemSeconds);
+      const diff = Math.abs(appSeconds - itemSeconds);
       if (appSecondsDiff === null || diff < appSecondsDiff) {
         appSecondsDiff = diff;
         closestTranscript = item;
@@ -36,7 +37,7 @@ const Transcript: FunctionComponent<{
    * Effect to scroll to the closest transcript item when the clock changes
    */
   useEffect(() => {
-    if (!clock.appSeconds || transcriptItems.length === 0) return;
+    if (!appSeconds || transcriptItems.length === 0) return;
 
     // If the clock isn't running, stop the audio
     if (!clock.isRunning && audioRef.current) {
@@ -54,17 +55,17 @@ const Transcript: FunctionComponent<{
     targetElement?.scrollIntoView({ behavior: "smooth" });
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clock, transcriptItems, audioRef, setLastScrolledToTimeStr, lastScrolledToTimeStr]);
+  }, [appSeconds, transcriptItems, audioRef, setLastScrolledToTimeStr, lastScrolledToTimeStr]);
 
   /**
-   *  effect to play audio if clock.appSeconds === one of the transcriptItems
+   *  effect to play audio if appSeconds === one of the transcriptItems
    */
   useEffect(() => {
-    if (!clock.appSeconds || transcriptItems.length === 0) return;
+    if (!appSeconds || transcriptItems.length === 0) return;
 
     // Find a transcript item that matches the current time
     const transcriptItem = transcriptItems.find(
-      (item) => appSecondsFromTimeStr(item.utteranceTime) === clock.appSeconds
+      (item) => appSecondsFromTimeStr(item.utteranceTime) === appSeconds
     );
 
     if (transcriptItem) {
@@ -76,33 +77,40 @@ const Transcript: FunctionComponent<{
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clock, transcriptItems, audioRef, viewDate]);
+  }, [appSeconds, transcriptItems, audioRef, viewDate]);
 
   return (
     <div className={styles.transcript}>
+      <ClockInterval setAppSeconds={setAppSeconds} />
       {transcriptItems.map((item, index) => {
         const channelnum = extractChannelnumFromFilename(item.filename);
+
+        let backgroundColor = "transparent";
+        if (appSecondsFromTimeStr(item.utteranceTime) === appSeconds) {
+          backgroundColor = "rgba(255, 255, 255, 0.2)";
+        }
 
         return (
           <div
             key={index}
             className={styles.transcriptItem}
+            style={{ backgroundColor }}
             data-time={item.utteranceTime}
             role="button"
             tabIndex={0}
             onClick={() => {
               setLastScrolledToTimeStr(null);
-              setClock((prev) => ({
-                ...prev,
+              clockDispatch({
+                type: "setAppSeconds",
                 appSeconds: appSecondsFromTimeStr(item.utteranceTime),
-              }));
+              });
             }}
             onKeyDown={() => {
               setLastScrolledToTimeStr(null);
-              setClock((prev) => ({
-                ...prev,
+              clockDispatch({
+                type: "setAppSeconds",
                 appSeconds: appSecondsFromTimeStr(item.utteranceTime),
-              }));
+              });
             }}
           >
             <div className={styles.utteranceTime}>{item.utteranceTime}</div>

@@ -1,57 +1,69 @@
-import { createContext, JSX, ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { createContext, JSX, ReactNode, useContext, useReducer } from "react";
 
-// Define Clock type interface as before
-// ...existing code...
+// Define ClockAction union and reducer function
+type ClockAction =
+  | { type: "start" }
+  | { type: "stop" }
+  | { type: "setAppSeconds"; appSeconds: number };
 
-// Split into two contexts:
-const ClockStateCtx = createContext<Clock | undefined>(undefined);
-const ClockUpdateCtx = createContext<React.Dispatch<React.SetStateAction<Clock>> | undefined>(
-  undefined
-);
+// Define combined context type:
+interface ClockContextValue {
+  clock: Clock;
+  clockDispatch: React.Dispatch<ClockAction>;
+}
 
-// Provider component
-export const ClockContextProvider = ({ children }: { children: ReactNode }): JSX.Element => {
-  const [clock, setClock] = useState<Clock>({
-    appSeconds: 28800, // 08:00:00Z
-    isRunning: false,
-  });
+const ClockCtx = createContext<ClockContextValue | undefined>(undefined);
 
-  const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (clock.isRunning) {
-      clockIntervalRef.current = setInterval(() => {
-        setClock((prev) => ({
-          ...prev,
-          appSeconds: prev.appSeconds + 1,
-        }));
-      }, 1000);
-    } else {
-      clearInterval(clockIntervalRef.current);
-    }
-    return () => clearInterval(clockIntervalRef.current);
-  }, [clock.isRunning]);
-
-  return (
-    <ClockStateCtx.Provider value={clock}>
-      <ClockUpdateCtx.Provider value={setClock}>{children}</ClockUpdateCtx.Provider>
-    </ClockStateCtx.Provider>
-  );
-};
-
-// New hooks for separate usage:
-export const useClockState = (): Clock => {
-  const context = useContext(ClockStateCtx);
-  if (context === undefined) {
-    throw new Error("useClockState must be used within a ClockContextProvider");
+const clockReducer = (state: Clock, action: ClockAction): Clock => {
+  switch (action.type) {
+    case "start":
+      return {
+        ...state,
+        startStopTimestamp: new Date().toISOString(),
+        isRunning: true,
+        // Optionally reset or update appSecondsAtStartStop as needed
+      };
+    case "stop":
+      const appSeconds = Math.floor(
+        state.appSecondsAtStartStop + (Date.now() - Date.parse(state.startStopTimestamp)) / 1000
+      );
+      return {
+        ...state,
+        startStopTimestamp: new Date().toISOString(),
+        appSecondsAtStartStop: appSeconds,
+        isRunning: false,
+        // Optionally update appSecondsAtStartStop as needed
+      };
+    case "setAppSeconds":
+      return {
+        ...state,
+        appSecondsAtStartStop: action.appSeconds,
+        startStopTimestamp: new Date().toISOString(),
+      };
+    default:
+      return state;
   }
-  return context;
 };
 
-export const useClockUpdate = (): React.Dispatch<React.SetStateAction<Clock>> => {
-  const context = useContext(ClockUpdateCtx);
+// Provider component using reducer:
+export const ClockContextProvider = ({ children }: { children: ReactNode }): JSX.Element => {
+  // ...existing code for initial clock state...
+  const initialClock: Clock = {
+    startStopTimestamp: new Date().toISOString(),
+    appSecondsAtStartStop: 0,
+    isRunning: false,
+  };
+
+  const [clock, clockDispatch] = useReducer(clockReducer, initialClock);
+
+  return <ClockCtx.Provider value={{ clock, clockDispatch }}>{children}</ClockCtx.Provider>;
+};
+
+// New hook to consume combined clock context:
+export const useClockContext = (): ClockContextValue => {
+  const context = useContext(ClockCtx);
   if (context === undefined) {
-    throw new Error("useClockUpdate must be used within a ClockContextProvider");
+    throw new Error("useClockContext must be used within a ClockContextProvider");
   }
   return context;
 };

@@ -1,4 +1,4 @@
-import { FunctionComponent, useRef, useEffect } from "react";
+import { FunctionComponent, useRef, useEffect, useState } from "react";
 import { findClosestEphemeraItem, updateOrbitLine } from "utils/map";
 import { getLatLngObj } from "tle.js";
 import "ol/ol.css";
@@ -18,8 +18,8 @@ import VectorSourceOL from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import Terminator from "utils/terminator";
 import { containsCoordinate } from "ol/extent";
-import { useClockState } from "context/clockContext";
 import { timeStrFromAppSeconds } from "utils/time";
+import ClockInterval from "./clockInterval";
 
 const MapComponent: FunctionComponent<{
   viewDate: string;
@@ -33,7 +33,7 @@ const MapComponent: FunctionComponent<{
   const markerFeatureRef = useRef<Feature | null>(null);
   const orbitLayerRef = useRef<VectorLayer | null>(null);
 
-  const clock = useClockState();
+  const [appSeconds, setAppSeconds] = useState(0);
 
   useEffect(() => {
     const labelLayer = new TileLayer({
@@ -121,10 +121,10 @@ const MapComponent: FunctionComponent<{
    * Update the marker position and re-center the map if the marker is out of view
    */
   useEffect(() => {
-    if (!olMapRef.current || !ephemeraItems || !viewDate || !clock) return;
+    if (!olMapRef.current || !ephemeraItems || !viewDate) return;
 
     const ephemeris = findClosestEphemeraItem(
-      new Date(`${viewDate}T${timeStrFromAppSeconds(clock.appSeconds)}Z`),
+      new Date(`${viewDate}T${timeStrFromAppSeconds(appSeconds)}Z`),
       ephemeraItems
     );
     if (ephemeris) {
@@ -132,7 +132,7 @@ const MapComponent: FunctionComponent<{
         ${ephemeris.tle_line2}`;
       const { lat, lng } = getLatLngObj(
         tle,
-        new Date(`${viewDate}T${timeStrFromAppSeconds(clock.appSeconds)}Z`).getTime()
+        new Date(`${viewDate}T${timeStrFromAppSeconds(appSeconds)}Z`).getTime()
       );
 
       if (markerFeatureRef.current) {
@@ -150,7 +150,7 @@ const MapComponent: FunctionComponent<{
         }
       }
     }
-  }, [ephemeraItems, viewDate, clock]);
+  }, [ephemeraItems, viewDate, appSeconds]);
 
   /**
    * Add a terminator layer to the map
@@ -194,7 +194,7 @@ const MapComponent: FunctionComponent<{
 
     const { coordinates1, coordinates2 } = updateOrbitLine(
       viewDate,
-      timeStrFromAppSeconds(clock.appSeconds),
+      timeStrFromAppSeconds(appSeconds),
       ephemeraItems
     );
 
@@ -216,9 +216,14 @@ const MapComponent: FunctionComponent<{
         orbitSource.addFeature(orbitFeature2);
       }
     }
-  }, [viewDate, ephemeraItems, clock]);
+  }, [viewDate, ephemeraItems, appSeconds]);
 
-  return <div ref={mapRef} style={{ width: "100%", height: "100%" }}></div>;
+  return (
+    <>
+      <ClockInterval setAppSeconds={setAppSeconds} />
+      <div ref={mapRef} style={{ width: "100%", height: "100%" }}></div>
+    </>
+  );
 };
 
 export default MapComponent;

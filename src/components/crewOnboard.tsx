@@ -1,23 +1,26 @@
 import { FunctionComponent, useEffect, useState } from "react";
 import styles from "./crewOnboard.module.css"; // ensure this CSS file exists or adjust accordingly
-import { useClockState } from "context/clockContext";
+import { useClockContext } from "context/clockContext";
 import { ddhhmmssBetweenDateStrings, timeStrFromDateAppSeconds } from "utils/time";
+import ClockInterval from "./clockInterval";
 
 const CrewOnboard: FunctionComponent<{
   dateStr: string;
   crewOnboard: CrewArrDepItem[];
   nationalityFlags: NationalityFlags;
 }> = ({ dateStr, crewOnboard, nationalityFlags }) => {
-  const clock = useClockState();
+  const { clock } = useClockContext();
 
   const [currentTimeStr, setCurrentTimeStr] = useState("");
+  const [appSeconds, setAppSeconds] = useState(0);
 
   useEffect(() => {
-    setCurrentTimeStr(timeStrFromDateAppSeconds({ dateStr, appSeconds: clock.appSeconds }));
-  }, [clock, dateStr]);
+    setCurrentTimeStr(timeStrFromDateAppSeconds({ dateStr, appSeconds: appSeconds }));
+  }, [clock, dateStr, appSeconds]);
 
   return (
     <div className={styles.crewOnboard}>
+      <ClockInterval setAppSeconds={setAppSeconds} />
       {crewOnboard.map((crewItem) => (
         <div key={`${crewItem.arrivalDate}_${crewItem.name}`} className={styles.crewMember}>
           <div className={styles.crewInfo}>
