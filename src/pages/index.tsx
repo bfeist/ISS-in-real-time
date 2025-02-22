@@ -1,7 +1,7 @@
 import styles from "./index.module.css";
 import { useLoaderData, useNavigate } from "react-router-dom";
 import "react-day-picker/style.css";
-import { FunctionComponent, useEffect, useState } from "react";
+import { FunctionComponent, JSX, useEffect, useState } from "react";
 
 const Home = (): JSX.Element => {
   const availableDateItems = useLoaderData() as AvailableDate[];

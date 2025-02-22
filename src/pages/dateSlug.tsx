@@ -3,7 +3,7 @@ import Images from "components/images";
 import styles from "./dateSlug.module.css";
 import Transcript from "components/transcript";
 import Map from "components/map";
-import { useEffect, useRef, useState } from "react";
+import { JSX, useEffect, useRef, useState } from "react";
 import { isValidTimestring } from "utils/params";
 import YouTube from "components/youtube";
 import { getCrewMembersOnboardByDate } from "utils/crew";

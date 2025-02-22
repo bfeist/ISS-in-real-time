@@ -11,7 +11,7 @@ import {
 } from "cesium";
 import * as Cesium from "cesium";
 import { Clock, Scene, Camera, CesiumComponentRef } from "resium";
-import { FunctionComponent, useState, useRef, useEffect } from "react";
+import { FunctionComponent, useState, useRef, useEffect, JSX } from "react";
 import { useLoaderData } from "react-router-dom";
 import { Viewer, Entity } from "resium";
 import { findClosestEphemeraItem } from "utils/map";

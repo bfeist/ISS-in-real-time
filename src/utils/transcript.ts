@@ -17,7 +17,10 @@ export function processTranscriptCsv(data: string): TranscriptItem[] {
         textOriginalLang,
       });
     } else {
-      console.error(`Unexpected number of fields in transcript csv on line ${i}: ${fields.length}`);
+      if (fields.length > 1)
+        console.error(
+          `Unexpected number of fields in transcript csv on line ${i}: ${fields.length}`
+        );
     }
   }
   return transcriptItems;

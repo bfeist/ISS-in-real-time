@@ -82,15 +82,6 @@ test("Multiple crew onboard on 2001-12-10", async () => {
 
   const expected: CrewArrDepItem[] = [
     {
-      name: "Frank L. Culbertson Jr.",
-      nationality: "United States",
-      arrivalDate: "2001-08-10T21:10:00Z",
-      arrivalFlight: "STS-105",
-      departureDate: "2001-12-17T17:56:00Z",
-      departureFlight: "STS-108",
-      durationDays: "128.86",
-    },
-    {
       name: "Mikhail Tyurin",
       nationality: "Russia",
       arrivalDate: "2001-08-10T21:10:00Z",
@@ -116,6 +107,15 @@ test("Multiple crew onboard on 2001-12-10", async () => {
       departureDate: "2002-06-19T09:57:00Z",
       departureFlight: "STS-111",
       durationDays: "195.82",
+    },
+    {
+      name: "Frank L. Culbertson Jr.",
+      nationality: "United States",
+      arrivalDate: "2001-08-10T21:10:00Z",
+      arrivalFlight: "STS-105",
+      departureDate: "2001-12-17T17:56:00Z",
+      departureFlight: "STS-108",
+      durationDays: "128.86",
     },
   ];
 

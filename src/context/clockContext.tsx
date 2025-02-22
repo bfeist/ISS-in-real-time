@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { createContext, JSX, ReactNode, useContext, useEffect, useRef, useState } from "react";
 
 // Define Clock type interface as before
 // ...existing code...
