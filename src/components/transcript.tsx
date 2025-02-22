@@ -1,7 +1,7 @@
 import { extractChannelnumFromFilename } from "utils/transcript";
 import { FunctionComponent, useEffect, useState } from "react";
 import styles from "./transcript.module.css";
-import { useClockContext } from "context/clockContext";
+import { useClockState, useClockUpdate } from "context/clockContext";
 import { appSecondsFromTimeStr } from "utils/time";
 
 const Transcript: FunctionComponent<{
@@ -10,7 +10,8 @@ const Transcript: FunctionComponent<{
   audioRef: React.RefObject<HTMLAudioElement>;
 }> = ({ viewDate, transcriptItems, audioRef }) => {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
-  const { clock, setClock } = useClockContext();
+  const clock = useClockState();
+  const setClock = useClockUpdate();
   const [lastScrolledToTimeStr, setLastScrolledToTimeStr] = useState<string | null>(null);
 
   const getClosestTranscriptItem = () => {

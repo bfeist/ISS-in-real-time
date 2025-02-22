@@ -8,12 +8,6 @@
   flex-direction: column;
 }
 
-.header {
-  flex: 0;
-  background-color: #707070;
-  display: flex;
-}
-
 .upper {
   flex: 1;
   display: flex;

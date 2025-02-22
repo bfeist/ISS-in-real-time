@@ -18,7 +18,7 @@ import VectorSourceOL from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import Terminator from "utils/terminator";
 import { containsCoordinate } from "ol/extent";
-import { useClockContext } from "context/clockContext";
+import { useClockState } from "context/clockContext";
 import { timeStrFromAppSeconds } from "utils/time";
 
 const MapComponent: FunctionComponent<{
@@ -33,7 +33,7 @@ const MapComponent: FunctionComponent<{
   const markerFeatureRef = useRef<Feature | null>(null);
   const orbitLayerRef = useRef<VectorLayer | null>(null);
 
-  const { clock } = useClockContext();
+  const clock = useClockState();
 
   useEffect(() => {
     const labelLayer = new TileLayer({

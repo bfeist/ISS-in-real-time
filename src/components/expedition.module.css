@@ -1,0 +1,42 @@
+.expeditions {
+  /* display: flex;
+  flex-direction: column; */
+}
+
+.expedition {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+}
+
+.patchImg {
+  flex: 0 0 70px;
+  width: 70px;
+  height: 70px;
+  align-self: center;
+  padding: 0 10px 0 0;
+}
+
+.expeditionRight {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.expeditionTitle {
+  font-size: 1.2em;
+  font-weight: 600;
+}
+
+.expeditionBlurb {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.expedition:hover .expeditionBlurb {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}

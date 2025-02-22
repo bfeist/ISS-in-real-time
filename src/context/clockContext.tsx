@@ -1,7 +1,13 @@
 import { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
 
-// Create the context
-const ClockCtx = createContext<ClockContextType | undefined>(undefined);
+// Define Clock type interface as before
+// ...existing code...
+
+// Split into two contexts:
+const ClockStateCtx = createContext<Clock | undefined>(undefined);
+const ClockUpdateCtx = createContext<React.Dispatch<React.SetStateAction<Clock>> | undefined>(
+  undefined
+);
 
 // Provider component
 export const ClockContextProvider = ({ children }: { children: ReactNode }): JSX.Element => {
@@ -12,7 +18,6 @@ export const ClockContextProvider = ({ children }: { children: ReactNode }): JSX
 
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // setup the interval to update the clock if the clock is running
   useEffect(() => {
     if (clock.isRunning) {
       clockIntervalRef.current = setInterval(() => {
@@ -25,16 +30,28 @@ export const ClockContextProvider = ({ children }: { children: ReactNode }): JSX
       clearInterval(clockIntervalRef.current);
     }
     return () => clearInterval(clockIntervalRef.current);
-  }, [clock.isRunning, clockIntervalRef]);
+  }, [clock.isRunning]);
 
-  return <ClockCtx.Provider value={{ clock, setClock }}>{children}</ClockCtx.Provider>;
+  return (
+    <ClockStateCtx.Provider value={clock}>
+      <ClockUpdateCtx.Provider value={setClock}>{children}</ClockUpdateCtx.Provider>
+    </ClockStateCtx.Provider>
+  );
 };
 
-// Custom hook for consuming the context
-export const useClockContext = (): ClockContextType => {
-  const context = useContext(ClockCtx);
-  if (!context) {
-    throw new Error("useClockContext must be used within a ClockContextProvider");
+// New hooks for separate usage:
+export const useClockState = (): Clock => {
+  const context = useContext(ClockStateCtx);
+  if (context === undefined) {
+    throw new Error("useClockState must be used within a ClockContextProvider");
+  }
+  return context;
+};
+
+export const useClockUpdate = (): React.Dispatch<React.SetStateAction<Clock>> => {
+  const context = useContext(ClockUpdateCtx);
+  if (context === undefined) {
+    throw new Error("useClockUpdate must be used within a ClockContextProvider");
   }
   return context;
 };

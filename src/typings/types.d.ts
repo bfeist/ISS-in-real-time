@@ -62,7 +62,7 @@ type ExpeditionInfo = {
   expedition: number;
   start: string;
   end: string;
-  expeditionblurb: string;
+  expeditionBlurb: string;
   patchUrl: string;
 };
 

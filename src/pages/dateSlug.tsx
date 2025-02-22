@@ -1,4 +1,4 @@
-import { useLoaderData, useParams, useLocation, useNavigate } from "react-router-dom";
+import { useLoaderData, useParams, useLocation } from "react-router-dom";
 import Images from "components/images";
 import styles from "./dateSlug.module.css";
 import Transcript from "components/transcript";
@@ -7,9 +7,11 @@ import { useEffect, useRef, useState } from "react";
 import { isValidTimestring } from "utils/params";
 import YouTube from "components/youtube";
 import { getCrewMembersOnboardByDate } from "utils/crew";
-import { useClockContext } from "context/clockContext";
-import { appSecondsFromTimeStr, timeStrFromAppSeconds } from "utils/time";
+import { useClockUpdate } from "context/clockContext";
+import { appSecondsFromTimeStr } from "utils/time";
 import Globe from "components/globe";
+import Header from "components/header";
+import Expeditions from "components/expedition";
 
 const DatePage = (): JSX.Element => {
   const { date } = useParams();
@@ -23,13 +25,11 @@ const DatePage = (): JSX.Element => {
     expeditionInfo,
   } = useLoaderData() as GetDatePageDataResponse;
 
-  const navigate = useNavigate();
-
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const t = searchParams.get("t");
 
-  const { clock, setClock } = useClockContext();
+  const setClock = useClockUpdate();
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -40,11 +40,15 @@ const DatePage = (): JSX.Element => {
     youtubeLiveRecordings.filter((recording) => recording.startTime.startsWith(date))[0] || null;
 
   const crewOnboard = getCrewMembersOnboardByDate({ crewArrDep, dateStr: date });
-  const expedition = expeditionInfo.find((exp) => exp.start <= date && exp.end >= date);
+
+  const dateObj = new Date(date);
+  const expeditions = expeditionInfo.filter(
+    (exp) => new Date(exp.start) <= dateObj && new Date(exp.end) >= dateObj
+  );
 
   console.log("evaDetailsForDate", evaDetailsForDate);
   console.log("crewOnboard", crewOnboard);
-  console.log("expedition", expedition);
+  console.log("expeditions", expeditions);
 
   useEffect(() => {
     if (isValidTimestring(t)) {
@@ -71,22 +75,7 @@ const DatePage = (): JSX.Element => {
 
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
-        <button onClick={() => navigate("/")}>Back</button>
-        <div>
-          Date: {date} Time: {timeStrFromAppSeconds(clock.appSeconds)}
-        </div>
-        <button
-          onClick={() => {
-            setClock((prev) => ({ ...prev, isRunning: !prev.isRunning }));
-          }}
-        >
-          {clock.isRunning ? "Pause" : "Play"}
-        </button>
-        <button onClick={() => setShowGlobe(!showGlobe)}>
-          Show {showGlobe ? "Map" : "Globe"}{" "}
-        </button>
-      </div>
+      <Header date={date} showGlobe={showGlobe} setShowGlobe={setShowGlobe} />
       <div className={styles.upper}>
         <div className={styles.transcriptsContainer}>
           <Transcript
@@ -132,7 +121,9 @@ const DatePage = (): JSX.Element => {
         </div>
       </div>
 
-      <div className={styles.lower}></div>
+      <div className={styles.lower}>
+        <Expeditions expeditions={expeditions} />
+      </div>
       <div className={styles.audioPlayer}>
         <audio ref={audioRef} controls>
           <track src="" kind="captions" label="English" />

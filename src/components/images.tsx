@@ -1,6 +1,6 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./images.module.css";
-import { useClockContext } from "context/clockContext";
+import { useClockState, useClockUpdate } from "context/clockContext";
 import { appSecondsFromTimeStr } from "utils/time";
 
 const Images: FunctionComponent<{
@@ -8,7 +8,8 @@ const Images: FunctionComponent<{
 }> = ({ imageItems }) => {
   const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL;
 
-  const { clock, setClock } = useClockContext();
+  const clock = useClockState();
+  const setClock = useClockUpdate();
 
   const [visibleImages, setVisibleImages] = useState<number[]>([]);
   const observer = useRef<IntersectionObserver | null>(null);
