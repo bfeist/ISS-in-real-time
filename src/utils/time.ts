@@ -27,3 +27,27 @@ export function timeStrFromAppSeconds(appSeconds: number): string {
     .toString()
     .padStart(2, "0")}`;
 }
+
+export const timeStrFromDateAppSeconds = ({
+  dateStr,
+  appSeconds,
+}: {
+  dateStr: string;
+  appSeconds: number;
+}): string => {
+  const hours = Math.floor(appSeconds / 3600);
+  const minutes = Math.floor((appSeconds % 3600) / 60);
+  const seconds = Math.floor(appSeconds % 60);
+  return `${dateStr}T${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds
+    .toString()
+    .padStart(2, "0")}`;
+};
+
+export const ddhhmmssBetweenDateStrings = (date1: string, date2: string): string => {
+  const diff = new Date(date2).getTime() - new Date(date1).getTime();
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h ${minutes % 60}m ${seconds % 60}s`;
+};

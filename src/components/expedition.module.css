@@ -1,4 +1,5 @@
 .expeditions {
+  flex: 0 1 400px;
   /* display: flex;
   flex-direction: column; */
 }
@@ -30,13 +31,15 @@
 
 .expeditionBlurb {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  /* line-clamp: 3;
+  -webkit-line-clamp: 3; */
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.expedition:hover .expeditionBlurb {
+/* .expedition:hover .expeditionBlurb {
   display: block;
+  line-clamp: unset;
   -webkit-line-clamp: unset;
   overflow: visible;
-}
+} */

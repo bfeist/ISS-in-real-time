@@ -12,6 +12,7 @@ import { appSecondsFromTimeStr } from "utils/time";
 import Globe from "components/globe";
 import Header from "components/header";
 import Expeditions from "components/expedition";
+import CrewOnboard from "components/crewOnboard";
 
 const DatePage = (): JSX.Element => {
   const { date } = useParams();
@@ -23,6 +24,7 @@ const DatePage = (): JSX.Element => {
     youtubeLiveRecordings,
     crewArrDep,
     expeditionInfo,
+    nationalityFlags,
   } = useLoaderData() as GetDatePageDataResponse;
 
   const location = useLocation();
@@ -48,7 +50,6 @@ const DatePage = (): JSX.Element => {
 
   console.log("evaDetailsForDate", evaDetailsForDate);
   console.log("crewOnboard", crewOnboard);
-  console.log("expeditions", expeditions);
 
   useEffect(() => {
     if (isValidTimestring(t)) {
@@ -123,9 +124,10 @@ const DatePage = (): JSX.Element => {
 
       <div className={styles.lower}>
         <Expeditions expeditions={expeditions} />
+        <CrewOnboard dateStr={date} crewOnboard={crewOnboard} nationalityFlags={nationalityFlags} />
       </div>
       <div className={styles.audioPlayer}>
-        <audio ref={audioRef} controls>
+        <audio ref={audioRef} controls muted={true}>
           <track src="" kind="captions" label="English" />
           Your browser does not support the audio element.
         </audio>

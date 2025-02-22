@@ -36,6 +36,7 @@ type GetDatePageDataResponse = {
   youtubeLiveRecordings: YoutubeLiveRecording[];
   crewArrDep: CrewArrDepItem[];
   expeditionInfo: ExpeditionInfo[];
+  nationalityFlags: NationalityFlags;
 };
 
 type GetCesiumPageDataResponse = {
@@ -64,6 +65,10 @@ type ExpeditionInfo = {
   end: string;
   expeditionBlurb: string;
   patchUrl: string;
+};
+
+type NationalityFlags = {
+  [key: string]: string;
 };
 
 type EvaDetail = {

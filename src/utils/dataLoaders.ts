@@ -18,6 +18,7 @@ export async function getDatePageData({
   const youtubeManualStartTimesUrl = `${baseStaticUrl}/youtube_manual_start_times.json`;
   const crewArrDepUrl = `${baseStaticUrl}/iss_crew_arr_dep.json`;
   const expeditionInfoUrl = `${baseStaticUrl}/expeditions.json`;
+  const nationalityFlagsUrl = `${baseStaticUrl}/nationality_flags.json`;
 
   try {
     const results = await Promise.allSettled([
@@ -30,6 +31,7 @@ export async function getDatePageData({
       fetch(youtubeManualStartTimesUrl),
       fetch(crewArrDepUrl),
       fetch(expeditionInfoUrl),
+      fetch(nationalityFlagsUrl),
     ]);
 
     const [
@@ -42,6 +44,7 @@ export async function getDatePageData({
       youtubeManualStartTimesResult,
       crewArrDepResult,
       expeditionInfoResult,
+      nationalityFlagsResult,
     ] = results;
 
     const transcriptItems: TranscriptItem[] =
@@ -83,6 +86,11 @@ export async function getDatePageData({
         ? await expeditionInfoResult.value.json()
         : [];
 
+    const nationalityFlags: NationalityFlags =
+      nationalityFlagsResult.status === "fulfilled" && nationalityFlagsResult.value.ok
+        ? await nationalityFlagsResult.value.json()
+        : {};
+
     const youtubeLiveRecordings = youtubeApplyManualStartTimes({
       youtubeLiveRecordings: youtubeLiveRecordingsUncorrected,
       youtubeManualStartTimes,
@@ -97,6 +105,7 @@ export async function getDatePageData({
       youtubeLiveRecordings,
       crewArrDep,
       expeditionInfo,
+      nationalityFlags,
     };
   } catch (error) {
     return {
@@ -108,6 +117,7 @@ export async function getDatePageData({
       youtubeLiveRecordings: [],
       crewArrDep: [],
       expeditionInfo: [],
+      nationalityFlags: {},
     };
   }
 }
