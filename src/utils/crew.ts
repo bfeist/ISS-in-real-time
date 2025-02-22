@@ -26,5 +26,8 @@ export const getCrewMembersOnboardByDate = ({
       new Date(crewMember.departureDate) >= queryDate
   );
 
+  // sort crew members by nationality
+  crewOnboard.sort((a, b) => a.nationality.localeCompare(b.nationality));
+
   return crewOnboard;
 };

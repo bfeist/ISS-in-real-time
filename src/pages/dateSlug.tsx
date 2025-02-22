@@ -49,7 +49,6 @@ const DatePage = (): JSX.Element => {
   );
 
   console.log("evaDetailsForDate", evaDetailsForDate);
-  console.log("crewOnboard", crewOnboard);
 
   useEffect(() => {
     if (isValidTimestring(t)) {
