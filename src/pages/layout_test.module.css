@@ -1,0 +1,79 @@
+.outerWrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.layoutTest {
+  flex: 0 0 21px;
+}
+
+.page {
+  flex: 1 1 auto;
+  background-color: #797979;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  flex: 0 0 200px;
+  background-color: blue;
+  display: flex;
+  flex-direction: column;
+}
+
+.headerTop {
+  flex: 0 0 150px;
+}
+
+.headerBottom {
+  flex: 0 0 50px;
+  background-color: red;
+}
+
+.body {
+  flex: 1 1 auto;
+  background-color: black;
+  display: flex;
+  flex-direction: row;
+}
+
+.bodyLeft {
+  flex: 0 0 45%;
+  background-color: aqua;
+  display: flex;
+  flex-direction: column;
+}
+
+.bodyLeftTop {
+  flex: 0 0 60%;
+}
+
+.bodyLeftBottom {
+  flex: 0 0 40%;
+  background-color: darkmagenta;
+}
+
+.bodyCenter {
+  flex: 0 0 30%;
+  background-color: green;
+  display: flex;
+  flex-direction: column;
+}
+
+.bodyCenterTop {
+  flex: 0 0 50%;
+}
+
+.bodyCenterBottom {
+  flex: 0 0 50%;
+  background-color: darkorange;
+}
+
+.bodyRight {
+  flex: 0 0 25%;
+  background-color: blueviolet;
+}
