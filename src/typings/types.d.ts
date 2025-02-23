@@ -97,3 +97,10 @@ type YoutubeManualStartTime = {
   youtubeTime: string;
   youtubeTimeIsoTimestamp: string;
 };
+
+type Telemetry = {
+  velocity: number;
+  altitude: number;
+  lat: number;
+  lng: number;
+};

@@ -3,3 +3,17 @@
   background-color: #707070;
   display: flex;
 }
+
+.left {
+  display: flex;
+}
+
+.right {
+  display: flex;
+  margin-left: auto;
+}
+
+.telemetry {
+  font-family: "Courier New", Courier, monospace;
+  margin: 0 10px 0 0;
+}

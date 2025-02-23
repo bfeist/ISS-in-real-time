@@ -34,8 +34,7 @@ const ClockInterval: FunctionComponent<{
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [intervalRef, clock]);
+  }, [intervalRef, clock, setAppSeconds]);
 
   return <></>;
 };

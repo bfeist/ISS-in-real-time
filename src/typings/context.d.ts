@@ -20,8 +20,3 @@ interface HoverContextType {
 type Hover = {
   hoverSeconds: number;
 };
-
-interface Telemetry {
-  velocity: number;
-  altitude: number;
-}

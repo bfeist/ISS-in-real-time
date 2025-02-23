@@ -5,7 +5,6 @@ import {
   Math as CesiumMath,
   JulianDate,
   Color,
-  CallbackProperty,
   SampledPositionProperty,
   ClockRange,
 } from "cesium";
@@ -17,6 +16,7 @@ import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
 import { useClockContext } from "context/clockContext";
 import { timeStrFromAppSeconds } from "utils/time";
+import { globalTelemetry } from "utils/global";
 
 // Set Cesium Ion access token
 Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
@@ -50,34 +50,6 @@ const Globe: FunctionComponent<{
     }, 100);
     return () => clearInterval(interval);
   }, []);
-
-  // Create a CallbackProperty for the label's text to display velocity and height:
-  const labelProperty = new CallbackProperty((currentTime, _result) => {
-    if (!tle || tle.length === 0) {
-      return "ISS";
-    }
-    const jsDate = JulianDate.toDate(currentTime);
-    const satrec = satellite.twoline2satrec(tle[0], tle[1]);
-    const positionAndVelocity = satellite.propagate(satrec, jsDate);
-    const velocityVector = positionAndVelocity.velocity as satellite.EciVec3<number>;
-    const positionEci = positionAndVelocity.position as satellite.EciVec3<number>;
-
-    if (!velocityVector || !positionEci) {
-      return "ISS";
-    }
-
-    const gmst = satellite.gstime(jsDate);
-    const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-    const heightKm = positionGd.height; // Height in kilometers
-
-    const speed =
-      Math.sqrt(velocityVector.x ** 2 + velocityVector.y ** 2 + velocityVector.z ** 2) * 3600; // Convert km/s to km/h
-
-    // Format the current date and time
-    const dateTimeStr = jsDate.toISOString().split("T")[1].split(".")[0];
-
-    return `ISS - ${dateTimeStr}\nVelocity: ${speed.toFixed(2)} km/h - Height: ${heightKm.toFixed(2)} km`;
-  }, false);
 
   const computeSampledPositions = () => {
     if (!tle || tle.length === 0) {
@@ -162,6 +134,34 @@ const Globe: FunctionComponent<{
     setInitialView();
   }, [cesiumReady]);
 
+  // Update tick callback function to accept clock object rather than JulianDate directly
+  const handleTick = (clockObj: Cesium.Clock) => {
+    const currentTime: JulianDate = clockObj.currentTime;
+    if (!tle || tle.length === 0) return;
+
+    const jsDate = JulianDate.toDate(currentTime);
+    const satrec = satellite.twoline2satrec(tle[0], tle[1]);
+    const positionAndVelocity = satellite.propagate(satrec, jsDate);
+    const velocityVector = positionAndVelocity.velocity as satellite.EciVec3<number>;
+    const positionEci = positionAndVelocity.position as satellite.EciVec3<number>;
+    if (!velocityVector || !positionEci) return;
+    const gmst = satellite.gstime(jsDate);
+    const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+    const altitude = positionGd.height;
+    const velocity =
+      Math.sqrt(velocityVector.x ** 2 + velocityVector.y ** 2 + velocityVector.z ** 2) * 3600;
+
+    // New: compute lat and lng in degrees from positionGd
+    const latitude = CesiumMath.toDegrees(positionGd.latitude);
+    const longitude = CesiumMath.toDegrees(positionGd.longitude);
+
+    // Update global telemetry with full precision values for velocity, altitude, lat, and lng
+    if (globalTelemetry.velocity !== velocity) globalTelemetry.velocity = velocity;
+    if (globalTelemetry.altitude !== altitude) globalTelemetry.altitude = altitude;
+    if (globalTelemetry.lat !== latitude) globalTelemetry.lat = latitude;
+    if (globalTelemetry.lng !== longitude) globalTelemetry.lng = longitude;
+  };
+
   const startOfDay = new Date(startTime);
   startOfDay.setUTCHours(0, 0, 0, 0);
   const endOfDay = new Date(startOfDay);
@@ -173,11 +173,9 @@ const Globe: FunctionComponent<{
     <Viewer
       style={{ width: "100%", height: "100%" }}
       ref={viewerRef}
-      // full
       terrainProvider={terrainProvider}
       timeline={false}
       animation={false}
-      // Disable individual toolbar components
       navigationHelpButton={false}
       homeButton={false}
       fullscreenButton={false}
@@ -197,7 +195,7 @@ const Globe: FunctionComponent<{
         position={sampledPositionProperty}
         point={{ pixelSize: 10, color: Color.RED }}
         label={{
-          text: labelProperty,
+          text: "ISS", // changed to static "ISS"
           font: "14pt sans-serif",
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
           outlineWidth: 2,
@@ -219,6 +217,7 @@ const Globe: FunctionComponent<{
         clockRange={ClockRange.LOOP_STOP}
         multiplier={1}
         shouldAnimate={clock.isRunning}
+        onTick={handleTick} // pass tick callback via Clock
       />
     </Viewer>
   );
