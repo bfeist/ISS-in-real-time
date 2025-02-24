@@ -6,7 +6,22 @@ on:
       - "**"
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code for tests
+        uses: actions/checkout@v3
+      - name: Setup Node.js for tests
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm run test
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
