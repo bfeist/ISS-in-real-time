@@ -123,7 +123,7 @@ const Globe: FunctionComponent<{
         // Define an adjusted offset to control zoom level
         const offset = new Cesium.HeadingPitchRange(
           CesiumMath.toRadians(45), // Heading
-          CesiumMath.toRadians(-60), // Pitch
+          CesiumMath.toRadians(-89), // Pitch
           7000000 // Increased range to reduce zoom
         );
 
@@ -194,14 +194,14 @@ const Globe: FunctionComponent<{
         name="ISS"
         position={sampledPositionProperty}
         point={{ pixelSize: 10, color: Color.RED }}
-        label={{
-          text: "ISS", // changed to static "ISS"
-          font: "14pt sans-serif",
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          outlineWidth: 2,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          pixelOffset: new Cesium.Cartesian2(0, -9),
-        }}
+        // label={{
+        //   text: "ISS", // changed to static "ISS"
+        //   font: "14pt sans-serif",
+        //   style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        //   outlineWidth: 2,
+        //   verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        //   pixelOffset: new Cesium.Cartesian2(0, -9),
+        // }}
         path={{
           material: Color.YELLOW,
           width: 2,
