@@ -18,9 +18,12 @@
   flex-direction: column;
 }
 
+.fakeSection {
+  height: 100%;
+}
+
 .header {
   flex: 0 0 200px;
-  background-color: blue;
   display: flex;
   flex-direction: column;
 }
@@ -31,19 +34,16 @@
 
 .headerBottom {
   flex: 0 0 50px;
-  background-color: red;
 }
 
 .body {
   flex: 1 1 auto;
-  background-color: black;
   display: flex;
   flex-direction: row;
 }
 
 .bodyLeft {
   flex: 0 0 45%;
-  background-color: aqua;
   display: flex;
   flex-direction: column;
 }
@@ -54,12 +54,10 @@
 
 .bodyLeftBottom {
   flex: 0 0 40%;
-  background-color: darkmagenta;
 }
 
 .bodyCenter {
   flex: 0 0 30%;
-  background-color: green;
   display: flex;
   flex-direction: column;
 }
@@ -70,10 +68,8 @@
 
 .bodyCenterBottom {
   flex: 0 0 50%;
-  background-color: darkorange;
 }
 
 .bodyRight {
   flex: 0 0 25%;
-  background-color: blueviolet;
 }
