@@ -184,8 +184,10 @@ const Globe: FunctionComponent<{
       sceneModePicker={false}
       selectionIndicator={false}
       infoBox={false}
+      skyBox={false}
+      // contextOptions={{ webgl: { alpha: true } }}
     >
-      <Scene ref={sceneRef}>
+      <Scene ref={sceneRef} backgroundColor={Color.TRANSPARENT}>
         <Camera ref={cameraRef} />
       </Scene>
       <Entity

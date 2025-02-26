@@ -426,6 +426,9 @@ def parse_wav_filename(filename, downlink_number=None):
                 date_time = f"{date_part}T{hour}{minute}{second}"
                 sg_channel_descriptor = f"1_SG_{sg_channel}"
                 return date_time, sg_channel_descriptor
+
+                # skip the rest of the patterns
+                break
     except Exception as e:
         logger.error(f"Error parsing filename: {e}")
     logger.warning(f"Unable to parse filename '{filename}'. Skipping.")
@@ -433,13 +436,9 @@ def parse_wav_filename(filename, downlink_number=None):
 
 
 def unzipSGZipWavs(zip_path, destination_dir):
-    # get date in zip path. will contain something like 1-9-23Space-to-Grounds_wavs which m-d-y
-    # if there are two underscores
-    if zip_path.split("\\")[1].count("_") == 1:
-        parts = zip_path.split("\\")[1].split("_")[0].split("-")
-    else:
-        # Get parts by splitting on "Space" and then splitting on "-" for files like 06-18-16Space-to-Grounds.zip
-        parts = zip_path.split("\\")[1].split("Space")[0].split("-")
+    # get date in zip path. will contain something like 1-9-23Space-to-Grounds_wavs or 06-18-16Space-to-Grounds.zip or 10-18-18_Space-to-Grounds.zip
+    filename = zip_path.split("\\")[1]
+    parts = [filename[0:2], filename[3:5], filename[6:8]]
 
     zipDate = f"20{parts[2]}-{parts[0].zfill(2)}-{parts[1].zfill(2)}"
 
@@ -758,6 +757,7 @@ if __name__ == "__main__":
                 f"Skipping {zip_file} because it has already been processed or is in progress"
             )
             continue
+        # if
 
         process_zip_file(zip_file)
 

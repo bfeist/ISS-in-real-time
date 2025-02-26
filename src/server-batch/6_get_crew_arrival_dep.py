@@ -240,11 +240,19 @@ for table in tables:
 # loop through expeditions to make a json output that shows when each crewmember arrived and departed
 
 
-# Dictionary to track crew members onboard
-crew_tracker: Dict[str, Dict[str, Any]] = {}
+# Change crew_tracker to store a list of entries per crew member
+crew_tracker: Dict[str, List[Dict[str, Any]]] = {}
 
 # Iterate through each crew arrival/departure record
+expedition: str = ""
+missionPatchUrl: str = ""
 for item in expeditions:
+    tmp_expedition = item.get("expedition")
+    expedition = tmp_expedition if tmp_expedition != None else expedition
+    tmp_missionPatchUrl = item.get("missionPatchUrl")
+    missionPatchUrl = (
+        tmp_missionPatchUrl if tmp_missionPatchUrl != None else missionPatchUrl
+    )
     crew = item.get("crew", [])
     arrivalDate = item.get("arrivalDate", "")
     arrivalFlight = item.get("arrivalFlight", "")
@@ -256,35 +264,51 @@ for item in expeditions:
         name = crew_member.get("name")
         nationality = crew_member.get("nationality", "Unknown")
 
+        new_entry = {
+            "name": name,
+            "expedition": expedition,
+            "missionPatchUrl": missionPatchUrl,
+            "nationality": nationality,
+            "arrivalDate": arrivalDate,
+            "arrivalFlight": arrivalFlight,
+            "departureDate": departureDate,
+            "departureFlight": departureFlight,
+            "durationDays": durationDays,
+        }
+
         if name in crew_tracker:
-            # Update existing entry if necessary
-            existing = crew_tracker[name]
-            existing["arrivalDate"] = existing.get("arrivalDate") or arrivalDate
-            existing["arrivalFlight"] = existing.get("arrivalFlight") or arrivalFlight
-            existing["departureDate"] = existing.get("departureDate") or departureDate
-            existing["departureFlight"] = (
-                existing.get("departureFlight") or departureFlight
-            )
-            existing["durationDays"] = existing.get("durationDays") or durationDays
+            last_entry = crew_tracker[name][-1]
+            if last_entry.get("departureDate"):
+                # Previous trip completed, add new entry
+                crew_tracker[name].append(new_entry)
+            else:
+                # Merge details into the existing trip if they are missing
+                last_entry["arrivalDate"] = last_entry.get("arrivalDate") or arrivalDate
+                last_entry["arrivalFlight"] = (
+                    last_entry.get("arrivalFlight") or arrivalFlight
+                )
+                last_entry["departureDate"] = (
+                    last_entry.get("departureDate") or departureDate
+                )
+                last_entry["departureFlight"] = (
+                    last_entry.get("departureFlight") or departureFlight
+                )
+                last_entry["durationDays"] = (
+                    last_entry.get("durationDays") or durationDays
+                )
         else:
-            # Add new crew member to tracker
-            crew_tracker[name] = {
-                "name": name,
-                "nationality": nationality,
-                "arrivalDate": arrivalDate,
-                "arrivalFlight": arrivalFlight,
-                "departureDate": departureDate,
-                "departureFlight": departureFlight,
-                "durationDays": durationDays,
-            }
+            crew_tracker[name] = [new_entry]
 
+# Flatten the crew_tracker dictionary into a list of entries
+onboard_crew: List[Dict[str, Any]] = [
+    entry for entries in crew_tracker.values() for entry in entries
+]
 
-# Convert the crew_tracker dictionary to a list of crew members onboard
-onboard_crew: List[Dict[str, Any]] = list(crew_tracker.values())
-
+# Sort onboard_crew by expedition
+onboard_crew.sort(key=lambda entry: entry.get("expedition") or "")
 
 # Write the data to a JSON file
-with open(f"{S3_FOLDER}iss_crew_arr_dep_temp.json", "w", encoding="utf-8") as jsonfile:
+with open(f"{S3_FOLDER}iss_crew_arr_dep.json", "w", encoding="utf-8") as jsonfile:
     json.dump(onboard_crew, jsonfile, ensure_ascii=False, indent=4)
 
 print(

@@ -1,10 +1,14 @@
 import datetime
+from dotenv import load_dotenv
 import requests
 from bs4 import BeautifulSoup
 import json
 import os
 
-SG_RAW_FOLDER = os.getenv("SG_RAW_FOLDER")
+# Load environment variables from .env file
+load_dotenv(dotenv_path="../../.env")
+
+S3_FOLDER = os.getenv("S3_FOLDER")
 AVAILABLE_DATES_S3 = os.getenv("S3_FOLDER") + "/available_dates.json"
 
 
@@ -20,8 +24,8 @@ def get_iss_activities(url):
 
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # The main content is usually within a div with class="entry-content"
-    main_div = soup.find("div", class_="entry-content")
+    # The main content is now within a div with class="single-blog-content"
+    main_div = soup.find("div", class_="single-blog-content")
     if not main_div:
         return {}  # If we can't find the main content, return empty
 
@@ -29,12 +33,11 @@ def get_iss_activities(url):
     category_headings = {
         "Payloads": "Payloads",
         "Systems": "Systems",
-        "Tasklist": "Completed Task List Activities",
-        "Tasklist": "Completed Planned Activities",
-        "Tasklist": "Today’s Planned Activities",
-        "Tasklist": "Today’s Planned ActivitiesAll activities were completed unless otherwise noted.",
-        "Ground": "Today’s Ground Activities",
-        "Ground": "Today’s Ground Activities:All activities are complete unless otherwise noted.",
+        "Completed Task List Activities": "Tasklist",
+        "Completed Planned Activities": "Tasklist",
+        "Today’s Planned Activities": "Tasklist",
+        "Today’s Ground Activities": "Ground",
+        "Ground Activities": "Ground",
     }
 
     # Iterate over all child elements in the main content
@@ -47,13 +50,14 @@ def get_iss_activities(url):
             text = elem.get_text(strip=True)
             raw_category_text = text[:-1].strip() if text.endswith(":") else text
 
-            # Check if this paragraph text is exactly one of our known category headings
-            # (strip punctuation or tweak matching logic if needed)
-            if raw_category_text in category_headings.values():
+            # Check if this paragraph text starts with one of our known category headings
+            if any(
+                raw_category_text.startswith(key) for key in category_headings.keys()
+            ):
                 current_category = next(
-                    key
+                    value
                     for key, value in category_headings.items()
-                    if value == raw_category_text
+                    if raw_category_text.startswith(key)
                 )
                 categories[current_category] = []
             else:
@@ -98,10 +102,27 @@ def get_iss_activities(url):
     return categories
 
 
+def get_blog_url(landing_url):
+    try:
+        response = requests.get(landing_url)
+        response.raise_for_status()
+    except requests.RequestException:
+        return None
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Find the <a> tag with aria-label="A link to open the full blog post"
+    a_tag = soup.find("a", {"aria-label": "A link to open the full blog post"})
+    if a_tag and "href" in a_tag.attrs:
+        return a_tag["href"]
+
+    return None
+
+
 def main():
     # Configuration
-    # blog_url = "https://blogs.nasa.gov/stationreport/2023/12/04/"
-    # blog_url = "https://blogs.nasa.gov/stationreport/2023/12/06/"
+    # blog_url = "https://blogs.nasa.gov/stationreport/2015/05/26/iss-daily-summary-report-05-26-2015/"
+    # categorized_activities = get_iss_activities(blog_url)
 
     # get dates available json in S3 root. Array of strings in format 2022-09-27
     available_dates = []
@@ -114,7 +135,7 @@ def main():
         year, month, day = available_date.split("-")
 
         summary_path = os.path.join(
-            SG_RAW_FOLDER,
+            S3_FOLDER,
             "activity_summaries",
             year,
             month,
@@ -122,11 +143,24 @@ def main():
         )
 
         if os.path.exists(summary_path):
-            print(f"Summary already exists for {available_date}. Skipping...")
-            continue
+            # check if the json has a "Ground" category. If it does, skip
+            with open(summary_path, "r") as f:
+                data = json.load(f)
+                if "Ground" in data:
+                    print(f"Summary already exists for {available_date}. Skipping...")
+                    continue
+                else:
+                    print(
+                        f"Summary already exists for {available_date}. But no 'Ground' category. Re-fetching..."
+                    )
 
         available_date_urlformat = available_date.replace("-", "/")
-        blog_url = f"https://blogs.nasa.gov/stationreport/{available_date_urlformat}/"
+        landing_url = f"https://blogs.nasa.gov/stationreport/{available_date_urlformat}"
+
+        blog_url = get_blog_url(landing_url)
+        if not blog_url:
+            print(f"No blog URL found for {available_date}. Skipping...")
+            continue
 
         categorized_activities = get_iss_activities(blog_url)
 
@@ -137,6 +171,10 @@ def main():
         ):
             print(f"No activities found for {available_date}. Skipping...")
             continue
+
+        # Check if there is a "Ground" category
+        if "Ground" not in categorized_activities:
+            print(f"No 'Ground' activities found for {available_date}.")
 
         os.makedirs(os.path.dirname(summary_path), exist_ok=True)
         with open(summary_path, "w") as f:
