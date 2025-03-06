@@ -8,8 +8,7 @@ import os
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../.env")
 
-S3_FOLDER = os.getenv("S3_FOLDER")
-AVAILABLE_DATES_S3 = os.getenv("S3_FOLDER") + "/available_dates.json"
+SG_RAW_FOLDER = os.getenv("SG_RAW_FOLDER")
 
 
 def get_iss_activities(url):
@@ -124,62 +123,50 @@ def main():
     # blog_url = "https://blogs.nasa.gov/stationreport/2015/05/26/iss-daily-summary-report-05-26-2015/"
     # categorized_activities = get_iss_activities(blog_url)
 
-    # get dates available json in S3 root. Array of strings in format 2022-09-27
-    available_dates = []
-    if os.path.exists(AVAILABLE_DATES_S3):
-        with open(AVAILABLE_DATES_S3, "r") as f:
-            available_dates = json.load(f)
-
-    for item in available_dates:
-        available_date = item["date"]
+    # Generate dates from 2013-03-08 to today instead of reading available_dates from file
+    start_date = datetime.date(2013, 3, 8)
+    end_date = datetime.date(2024, 8, 1)
+    delta = datetime.timedelta(days=1)
+    current_date = start_date
+    while current_date <= end_date:
+        available_date = current_date.strftime("%Y-%m-%d")
         year, month, day = available_date.split("-")
 
         summary_path = os.path.join(
-            S3_FOLDER,
-            "activity_summaries",
+            SG_RAW_FOLDER,
+            "all_activity_summaries",
             year,
             month,
             f"activity_summary_{year}-{month}-{day}.json",
         )
 
         if os.path.exists(summary_path):
-            # check if the json has a "Ground" category. If it does, skip
-            with open(summary_path, "r") as f:
-                data = json.load(f)
-                if "Ground" in data:
-                    print(f"Summary already exists for {available_date}. Skipping...")
-                    continue
-                else:
-                    print(
-                        f"Summary already exists for {available_date}. But no 'Ground' category. Re-fetching..."
-                    )
+            print(f"Summary for {available_date} already exists. Skipping...")
+            current_date += delta
+            continue
 
-        available_date_urlformat = available_date.replace("-", "/")
-        landing_url = f"https://blogs.nasa.gov/stationreport/{available_date_urlformat}"
-
+        landing_url = f"https://blogs.nasa.gov/stationreport/{year}/{month}/{day}"
         blog_url = get_blog_url(landing_url)
         if not blog_url:
             print(f"No blog URL found for {available_date}. Skipping...")
+            current_date += delta
             continue
 
         categorized_activities = get_iss_activities(blog_url)
-
-        # if the only activity is "General" with no activities, skip
         if (
             len(categorized_activities) == 1
             and len(categorized_activities["General"]) == 0
         ):
             print(f"No activities found for {available_date}. Skipping...")
+            current_date += delta
             continue
-
-        # Check if there is a "Ground" category
-        if "Ground" not in categorized_activities:
-            print(f"No 'Ground' activities found for {available_date}.")
 
         os.makedirs(os.path.dirname(summary_path), exist_ok=True)
         with open(summary_path, "w") as f:
             json.dump(categorized_activities, f, indent=4)
             print(f"Summary saved to {summary_path}")
+
+        current_date += delta
 
 
 if __name__ == "__main__":
