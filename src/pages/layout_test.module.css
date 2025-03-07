@@ -20,7 +20,10 @@
 
 .fakeSection {
   height: 100%;
+  width: 100%;
 }
+
+/* Section specific styles - removed general rule */
 
 .header {
   flex: 0 0 200px;
@@ -72,4 +75,60 @@
 
 .bodyRight {
   flex: 0 0 25%;
+}
+
+/* Mobile styles - no media query needed since React controls when these components render */
+.mobileBody {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* Allow vertical scrolling */
+}
+
+.tabs {
+  display: flex;
+  overflow-x: auto;
+  background-color: #f1f1f1;
+  border-bottom: 1px solid #ccc;
+}
+
+.tab {
+  background-color: inherit;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 10px 16px;
+  font-size: 16px;
+  transition: 0.3s;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  background-color: #ddd;
+}
+
+.activeTab {
+  background-color: #ccc;
+  font-weight: bold;
+}
+
+.tabContent {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 200px;
+  overflow: auto; /* Allow scrolling if content exceeds space */
+}
+
+/* Mobile section specific styles - only apply minimum height in tab content */
+.tabContent .fakeSection[data-section="video"],
+.tabContent .fakeSection[data-section="photos"],
+.tabContent .fakeSection[data-section="globe"],
+.tabContent .fakeSection[data-section="transcript"] {
+  min-height: 600px;
+}
+
+.mobileDetails {
+  flex: 0 1 auto;
+  min-height: 100px; /* Minimum height but can grow */
 }
