@@ -16,8 +16,10 @@ LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
 API_BASE_URL = "https://www.space-track.org/basicspacedata/query"
 NORAD_ID = 25544  # ISS NORAD ID
 
-EPHEMERA_S3 = os.getenv("S3_FOLDER") + "ephemera/"
-AVAILABLE_DATES_S3 = os.getenv("S3_FOLDER") + "/available_dates.json"
+RAW_EPHEMERA = os.getenv("SG_RAW_FOLDER") + "ephemera/"
+
+START_DATE = "2000-10-01"
+END_DATE = datetime.now().strftime("%Y-%m-%d")
 
 
 # Function to create an authenticated session
@@ -183,6 +185,36 @@ def save_monthly_tle(tle_df, output_file):
     print(f"Saved TLE data to {output_file}")
 
 
+# Function to generate a list of all months between start_date and end_date
+def get_all_months(start_date, end_date):
+    """
+    Generate a list of all months between start_date and end_date.
+
+    Parameters:
+        start_date (str): Start date in YYYY-MM-DD format.
+        end_date (str): End date in YYYY-MM-DD format.
+
+    Returns:
+        list: List of month strings in YYYY-MM format.
+    """
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+
+    months = []
+    current_dt = datetime(start_dt.year, start_dt.month, 1)
+
+    while current_dt <= end_dt:
+        month_str = current_dt.strftime("%Y-%m")
+        months.append(month_str)
+        # Move to the next month
+        if current_dt.month == 12:
+            current_dt = datetime(current_dt.year + 1, 1, 1)
+        else:
+            current_dt = datetime(current_dt.year, current_dt.month + 1, 1)
+
+    return months
+
+
 # Main function
 def main():
     print("Space-Track.org ISS TLE Data Retriever")
@@ -192,18 +224,8 @@ def main():
     username = os.getenv("SPACETRACK_USERNAME")
     password = os.getenv("SPACETRACK_PASSWORD")
 
-    available_dates = []
-    if os.path.exists(AVAILABLE_DATES_S3):
-        with open(AVAILABLE_DATES_S3, "r") as f:
-            available_dates = json.load(f)
-
-    required_months = set()
-    for available_date in available_dates:
-        date_str = available_date["date"]
-        year, month, day = date_str.split("-")
-        required_months.add(f"{year}-{month}")
-
-    required_months = sorted(required_months)
+    # Get all months between START_DATE and END_DATE
+    required_months = get_all_months(START_DATE, END_DATE)
 
     try:
         # Create an authenticated session
@@ -212,7 +234,7 @@ def main():
         # Fetch TLE data for required months
         for month_str in required_months:
             year, month = month_str.split("-")
-            output_file = os.path.join(EPHEMERA_S3, year, f"{year}-{month}.json")
+            output_file = os.path.join(RAW_EPHEMERA, year, f"{year}-{month}.json")
             if os.path.exists(output_file):
                 print(
                     f"Ephemera file for {year}-{month} already exists. Skipping API call."
@@ -235,7 +257,7 @@ def main():
 
             tle_df = pd.DataFrame(tle_batch)
             save_monthly_tle(tle_df, output_file)
-            time.sleep(1)  # Respect API rate limits
+            time.sleep(2)  # Respect API rate limits
 
     except Exception as e:
         print(f"An error occurred: {e}")
