@@ -62,7 +62,7 @@ IA_ZIPS_ERRORS_TRACKING_FILE = str(
 
 INPUT_IA_ZIPS_PATH = os.path.join(os.getenv("IA_ZIP_WAVS_WORKING_FOLDER"))
 CURRENT_IA_ZIP_WAVS_ROOT = Path("F:/tempF/iss_working/current_ia_zip_wavs")
-COMM_TRANSCRIPTS_AACS = Path(os.getenv("SG_RAW_FOLDER") + "comm_transcripts_aacs/")
+COMM_SG_RAW = Path(os.getenv("RAW_FOLDER") + "comm_sg_transcripts_aacs/")
 
 # Thread lock for file operations
 file_lock = threading.RLock()
@@ -316,7 +316,7 @@ class AudioSegmenter(object):
         # Create utterance time string
         utteranceTime = self.lastCaptureStartTime
         # Create the dated directory path
-        dated_directory = COMM_TRANSCRIPTS_AACS / year / month / day
+        dated_directory = COMM_SG_RAW / year / month / day
         # Ensure the directory exists
         dated_directory.mkdir(parents=True, exist_ok=True)
         aacFullPath = dated_directory / fileName
@@ -702,7 +702,7 @@ if __name__ == "__main__":
     logger.critical("Starting ISS transcription process...")
 
     # Ensure the directories exist
-    COMM_TRANSCRIPTS_AACS.mkdir(parents=True, exist_ok=True)
+    COMM_SG_RAW.mkdir(parents=True, exist_ok=True)
 
     # Create the model with suppressed output
     with suppress_stdout_stderr():

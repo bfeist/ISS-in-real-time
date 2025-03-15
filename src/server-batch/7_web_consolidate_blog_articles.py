@@ -6,22 +6,11 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../.env")
 
-S3_FOLDER = os.getenv("S3_FOLDER")
-SG_RAW_FOLDER = os.getenv("SG_RAW_FOLDER")
+WEB_ASSETS_FOLDER = os.getenv("S3_WEB_ASSETS_FOLDERFOLDER")
+RAW_FOLDER = os.getenv("RAW_FOLDER")
 
-available_dates_path = os.path.join(S3_FOLDER, "available_dates.json")
-blog_articles_folder = os.path.join(SG_RAW_FOLDER, "blog_articles")
-s3_blog_articles_folder = os.path.join(S3_FOLDER, "blog_articles")
-
-
-def load_available_dates():
-    """Load the available dates from the JSON file"""
-    try:
-        with open(available_dates_path, "r") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading available dates: {e}")
-        return []
+blog_articles_folder = os.path.join(RAW_FOLDER, "blog_articles")
+web_blog_articles_folder = os.path.join(WEB_ASSETS_FOLDER, "blog_articles")
 
 
 def copy_blog_article_for_date(date_str):
@@ -72,7 +61,7 @@ def copy_blog_article_for_date(date_str):
             return
 
         # Now create the destination directory and copy files
-        dest_dir = os.path.join(s3_blog_articles_folder, year, month, day)
+        dest_dir = os.path.join(web_blog_articles_folder, year, month, day)
         os.makedirs(dest_dir, exist_ok=True)
 
         # Copy all collected images
@@ -96,10 +85,61 @@ def copy_blog_article_for_date(date_str):
         print(f"Error processing date {date_str}: {e}")
 
 
+def load_available_dates():
+    """Scans the blog article folder structure to find all available dates"""
+    available_dates = []
+
+    # Ensure the blog articles folder exists
+    if not os.path.exists(blog_articles_folder):
+        print(f"Blog articles folder not found: {blog_articles_folder}")
+        return available_dates
+
+    try:
+        # Scan for year folders
+        for year in sorted(os.listdir(blog_articles_folder)):
+            year_folder = os.path.join(blog_articles_folder, year)
+
+            if not os.path.isdir(year_folder):
+                continue
+
+            # Scan for month folders
+            for month in sorted(os.listdir(year_folder)):
+                month_folder = os.path.join(year_folder, month)
+
+                if not os.path.isdir(month_folder):
+                    continue
+
+                # Find all day folders
+                day_set = set()  # Use a set to avoid duplicates
+
+                for folder_name in os.listdir(month_folder):
+                    # Day folders start with the day number followed by hyphen
+                    if "-" in folder_name:
+                        parts = folder_name.split("-", 1)
+                        if len(parts) > 1:
+                            try:
+                                day = parts[0]
+                                # Ensure the day is properly formatted (e.g., "01" instead of "1")
+                                day = day.zfill(2)
+                                day_set.add(day)
+                            except (ValueError, IndexError):
+                                continue
+
+                # Create date entries for each day found
+                for day in sorted(day_set):
+                    date_str = f"{year}-{month.zfill(2)}-{day}"
+                    available_dates.append({"date": date_str})
+
+    except Exception as e:
+        print(f"Error scanning for available dates: {e}")
+
+    return available_dates
+
+
 def main():
     """Main function to copy all blog articles for available dates"""
     # Ensure the destination directory exists
-    os.makedirs(s3_blog_articles_folder, exist_ok=True)
+    os.makedirs(web_blog_articles_folder, exist_ok=True)
 
     # Load available dates
     available_dates = load_available_dates()

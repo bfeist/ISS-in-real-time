@@ -5,7 +5,7 @@ import json
 API_KEY = os.getenv("YOUTUBE_API_KEY")
 CHANNEL_ID = "UCLA_DiR1FfKNvjuUpBHmylQ"  # NASA's official YouTube Channel ID
 YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3"
-S3_FOLDER = os.getenv("S3_FOLDER")
+WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
 
 def seconds_from_duration_str(duration):
@@ -146,7 +146,9 @@ def main():
             .get("actualStartTime", None)
         )
 
-    with open(f"{S3_FOLDER}/youtube_live_recordings.json", "w", encoding="utf-8") as f:
+    with open(
+        f"{WEB_ASSETS_FOLDER}/youtube_live_recordings.json", "w", encoding="utf-8"
+    ) as f:
         json.dump(filtered_videos, f, ensure_ascii=False, indent=4)
 
 

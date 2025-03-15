@@ -12,10 +12,10 @@ import shutil
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../.env")
 
-SG_RAW_FOLDER = os.getenv("SG_RAW_FOLDER")
+RAW_FOLDER = os.getenv("RAW_FOLDER")
 
-blog_urls_folder = os.path.join(SG_RAW_FOLDER, "blog_urls")
-blog_articles_folder = os.path.join(SG_RAW_FOLDER, "blog_articles")
+blog_urls_folder = os.path.join(RAW_FOLDER, "blog_urls")
+blog_articles_folder = os.path.join(RAW_FOLDER, "blog_articles")
 
 # Create articles folder if it doesn't exist
 os.makedirs(blog_articles_folder, exist_ok=True)

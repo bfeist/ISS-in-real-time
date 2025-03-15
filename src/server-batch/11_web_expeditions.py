@@ -4,7 +4,7 @@ import json
 import re, os
 import datetime  # Added import
 
-S3_FOLDER = os.getenv("S3_FOLDER")
+WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
 
 def parse_date(date_str):
@@ -152,5 +152,5 @@ if __name__ == "__main__":
         expeditions.append(data)
 
     # Save the data to a JSON file
-    with open(f"{S3_FOLDER}/expeditions.json", "w") as f:
+    with open(f"{WEB_ASSETS_FOLDER}/expeditions.json", "w") as f:
         json.dump(expeditions, f, indent=4)

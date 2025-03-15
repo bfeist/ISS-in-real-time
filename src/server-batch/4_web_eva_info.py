@@ -5,7 +5,7 @@ from itertools import count
 import os
 import datetime  # ...existing code...
 
-S3_FOLDER = os.getenv("S3_FOLDER")
+WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
 # URL of the Wikipedia page
 url = "https://en.wikipedia.org/wiki/List_of_International_Space_Station_spacewalks"
@@ -187,6 +187,6 @@ eva_details = [
 eva_json = json.dumps(eva_details, indent=4)
 
 # Write the JSON object to a file in S3_FOLDER
-output_path = os.path.join(S3_FOLDER, "eva_details.json")
+output_path = os.path.join(WEB_ASSETS_FOLDER, "eva_details.json")
 with open(output_path, "w") as f:
     f.write(eva_json)

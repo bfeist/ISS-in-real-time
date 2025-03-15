@@ -16,7 +16,7 @@ LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
 API_BASE_URL = "https://www.space-track.org/basicspacedata/query"
 NORAD_ID = 25544  # ISS NORAD ID
 
-RAW_EPHEMERA = os.getenv("SG_RAW_FOLDER") + "ephemera/"
+WEB_EPHEMERA = os.getenv("WEB_ASSETS_FOLDER") + "ephemera/"
 
 START_DATE = "2000-10-01"
 END_DATE = datetime.now().strftime("%Y-%m-%d")
@@ -234,7 +234,7 @@ def main():
         # Fetch TLE data for required months
         for month_str in required_months:
             year, month = month_str.split("-")
-            output_file = os.path.join(RAW_EPHEMERA, year, f"{year}-{month}.json")
+            output_file = os.path.join(WEB_EPHEMERA, year, f"{year}-{month}.json")
             if os.path.exists(output_file):
                 print(
                     f"Ephemera file for {year}-{month} already exists. Skipping API call."

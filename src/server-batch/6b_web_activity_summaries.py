@@ -8,7 +8,7 @@ import os
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../.env")
 
-SG_RAW_FOLDER = os.getenv("SG_RAW_FOLDER")
+WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
 
 def get_iss_activities(url):
@@ -133,8 +133,8 @@ def main():
         year, month, day = available_date.split("-")
 
         summary_path = os.path.join(
-            SG_RAW_FOLDER,
-            "all_activity_summaries",
+            WEB_ASSETS_FOLDER,
+            "activity_summaries",
             year,
             month,
             f"activity_summary_{year}-{month}-{day}.json",

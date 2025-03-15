@@ -9,7 +9,7 @@ import time
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../.env")
 
-SG_RAW_FOLDER = os.getenv("SG_RAW_FOLDER")
+RAW_FOLDER = os.getenv("RAW_FOLDER")
 
 
 def get_blog_urls_for_month(year, month):
@@ -84,7 +84,7 @@ def save_urls_for_month(year, month, urls):
     Saves the list of URLs for a specific month to a text file in the blog_urls folder.
     """
     month_str = f"{month:02d}"
-    blog_urls_folder = os.path.join(SG_RAW_FOLDER, "blog_urls")
+    blog_urls_folder = os.path.join(RAW_FOLDER, "blog_urls")
     os.makedirs(blog_urls_folder, exist_ok=True)
     filename = f"{blog_urls_folder}/{year}_{month_str}_blog_urls.txt"
 
@@ -110,7 +110,7 @@ def main():
         f"Starting to scrape NASA ISS blog posts from {start_year}/{start_month:02d} to {end_date.year}/{end_date.month:02d}"
     )
 
-    blog_urls_folder = os.path.join(SG_RAW_FOLDER, "blog_urls")
+    blog_urls_folder = os.path.join(RAW_FOLDER, "blog_urls")
     os.makedirs(blog_urls_folder, exist_ok=True)
 
     # Loop through each year and month

@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 import json
 import os
 
-S3_FOLDER = os.getenv("S3_FOLDER")
+WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
 
 # URL of the Wikipedia page containing ISS expeditions data
@@ -308,9 +308,36 @@ onboard_crew: List[Dict[str, Any]] = [
 onboard_crew.sort(key=lambda entry: entry.get("expedition") or "")
 
 # Write the data to a JSON file
-with open(f"{S3_FOLDER}iss_crew_arr_dep.json", "w", encoding="utf-8") as jsonfile:
+with open(
+    f"{WEB_ASSETS_FOLDER}iss_crew_arr_dep.json", "w", encoding="utf-8"
+) as jsonfile:
     json.dump(onboard_crew, jsonfile, ensure_ascii=False, indent=4)
 
 print(
     "Expedition data has been successfully extracted to json. Requires manual review to fix some of the time values."
 )
+
+# Collect unique nationalities
+nationalities = {record["nationality"] for record in onboard_crew}
+
+flag_svg_urls = {}
+
+for nationality in nationalities:
+    try:
+        response = requests.get(
+            f"https://restcountries.com/v3.1/name/{nationality}", timeout=10
+        )
+        if response.status_code == 200:
+            data = response.json()
+            if data and isinstance(data, list):
+                flag_svg_urls[nationality] = data[0]["flags"]["svg"]
+    except Exception as e:
+        print(f"Error fetching flag for {nationality}: {e}")
+
+# output the flag urls to a json file in the S3 folder called nationality_flags.json
+with open(
+    f"{WEB_ASSETS_FOLDER}nationality_flags.json", "w", encoding="utf-8"
+) as jsonfile:
+    json.dump(flag_svg_urls, jsonfile, ensure_ascii=False, indent=4)
+
+print("Flag data has been successfully extracted to json.")

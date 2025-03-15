@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 import requests
 import json
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta  # Add timedelta import
 from collections import defaultdict
 import sys
 import os  # Add import for os
@@ -15,8 +15,10 @@ API_ENDPOINT = (
     "https://eol.jsc.nasa.gov/SearchPhotos/PhotosDatabaseAPI/PhotosDatabaseAPI.pl"
 )
 BASE_URL = "https://eol.jsc.nasa.gov/DatabaseImages"
-IMAGES_S3 = os.getenv("S3_FOLDER") + "images/"
-AVAILABLE_DATES_S3 = os.getenv("S3_FOLDER") + "/available_dates.json"
+IMAGES_FOLDER = os.getenv("WEB_ASSETS_FOLDER") + "earth_photography/"
+
+START_DATE = "2000-10-01"
+END_DATE = datetime.now().strftime("%Y-%m-%d")
 
 # Load .env file from two directories up
 env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
@@ -175,28 +177,31 @@ def save_manifest(manifest, output_filename):
 
 
 def main():
+    images_root = IMAGES_FOLDER
 
-    images_root = IMAGES_S3  # Define images_root
+    # Generate a list of dates between START_DATE and END_DATE
+    start_date = datetime.strptime(START_DATE, "%Y-%m-%d")
+    end_date = datetime.strptime(END_DATE, "%Y-%m-%d")
 
-    # get dates available json in S3 root. Array of strings in format 2022-09-27
-    available_dates = []
-    if os.path.exists(AVAILABLE_DATES_S3):
-        with open(AVAILABLE_DATES_S3, "r") as f:
-            available_dates = json.load(f)
-
-    for item in available_dates:
-        available_date = item["date"]
+    current_date = start_date
+    while current_date <= end_date:
+        available_date = current_date.strftime("%Y-%m-%d")
+        formatted_date = current_date.strftime("%Y%m%d")
         no_data = False
-        # print(f"Processing date: {available_date}")
-        [year, month, day] = available_date.split("-")
-        formatted_date = f"{year}{month}{day}"
+
+        year = current_date.strftime("%Y")
+        month = current_date.strftime("%m")
+        day = current_date.strftime("%d")
 
         # check if the json file for this date already exists
+        output_folder = os.path.join(images_root, year, month)
         output_file = os.path.join(
-            images_root, year, month, f"images-manifest_{year}-{month}-{day}.json"
+            output_folder, f"images-manifest_{year}-{month}-{day}.json"
         )
+
         if os.path.exists(output_file):
             print(f"Manifest for {available_date} already exists. Skipping API call.")
+            current_date += timedelta(days=1)
             continue
 
         data = fetch_api_data(formatted_date)  # Fetch data for the day
@@ -220,19 +225,17 @@ def main():
                 no_data = True
 
         # Define output folder with nested month directory
-        output_folder = os.path.join(images_root, year, month)
         os.makedirs(output_folder, exist_ok=True)
 
-        output_file = os.path.join(
-            output_folder,
-            f"images-manifest_{year}-{month}-{day}.json",  # Use hyphens for the date
-        )
         if no_data:
             print(f"No data available for {available_date}. Writing empty manifest.")
             with open(output_file, "w") as f:
                 f.write("[]")
         else:
             save_manifest(manifest, output_file)
+
+        # Move to the next day
+        current_date += timedelta(days=1)
 
 
 if __name__ == "__main__":
