@@ -63,39 +63,17 @@ This script builds the application. The result is put in `.local/vite/dist`.
 
 ## Server Batch script details
 
+All data is available at `data.issinrealtime.org/ISSiRT_assets`. If that website goes down for some reason, continue below.
+
 ### Setup
 
 - Setup paths in `.env` to specify where downloading and processing will take place
   - `NASA_EOL_API_KEY` - Get a NASA Earth Obs API key here: https://eol.jsc.nasa.gov/SearchPhotos/PhotosDatabaseAPI/
   - `SPACETRACK_USERNAME` and `SPACETRACK_PASSWORD` - Create an account here: https://www.space-track.org/
   - `YOUTUBE_API_KEY` - Create one in the google apps console
-- Note that the S3 output folder is a local folder on disk. To push this content to an S3 bucket is outside of the scope of these scripts.
+  - `OPENAI_API_KEY` - Unneeded. This was for experimentation
+- Note that the `# Data processing paths` section in the `.env` are all local paths. Pushing this content to an S3 bucket is outside of the scope of these scripts.
 
-### The below scripts should be executed in order.
+To generate all of the data this website needs, run the server_batch scripts in order. These pull from various publicly available locations into structured data that can be consumed by the ISS in Real Time website.
 
-- `download_IA_sg_zips.py`
-  This script downloads all of the space-to-ground zip files from internet archive uploaded by John Stoll in Building 2. Current size of this batch is 750GB and takes many days to run.
-
-- `process_transcribe_ia_zips.py`
-  Processes the downloaded Internet Archive zip files by extracting WAV audio files, converting them to the required format, segmenting the audio using Voice Activity Detection (VAD), transcribing the segments using WhisperX, and generating JSON transcription files. It also manages tracking of processed and in-progress zip files. Takes many months to run on a RTX 4090 currently resulting in over 3M files.
-
-- `make_s3_comm.py`
-  Processes JSON transcript files made in step 2 and converts them into one pipe-delimited CSV file per day and places these in the 'comm' directory on S3. It also copies corresponding AAC audio files to each day's S3 folder.
-
-- `make_s3_dates_available.py`
-  Maintains and updates a list of available dates for which data exists in S3. This allows other scripts or services to reference which dates have associated data.
-
-- `make_s3_image_manifest.py`
-  Generates astronaut photography image manifests for S3 storage by fetching data from the NASA EOL PhotosDatabaseAPI, and places these manifests into a nested folder structure in S3. Note that these images are served directly from the NASA EOL servers to the browser.
-
-- `make_s3_ephemera.py`
-  Downloads ephemera "TLE" data from space-track.org for every month available in S3's comm folder structure and organizes them into the 'ephemera' directory on S3.
-
-- `make_s3_eva_info.py`
-  Scrapes wikipedia at https://en.wikipedia.org/wiki/List_of_International_Space_Station_spacewalks and generates a Extra-Vehicular Activity (EVA) related information json and stores it in the root of S3.
-
-- `get_youtube_live_recordings.py`
-  Retrieves recorded live stream videos from YouTube that pertain to "station", "spacewalk", or "ISS" keywords. It filters and saves relevant video information to the root of S3 as a pipe-delimited csv file.
-
-- `get_crew_arrival_dep.py`
-  Scrapes the table at https://en.wikipedia.org/wiki/List_of_International_Space_Station_expeditions#Completed_expeditions into a json file and stores it at the root of S3.
+This is a very large amount of data and the source systems are constantly changing. Depending how far in the future you are reading this, your mileage may vary.

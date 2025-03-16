@@ -2,6 +2,9 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from internetarchive import search_items, download
 from tqdm import tqdm  # Install via `pip install tqdm`
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path="../../.env")
 
 # issAudioBasePath = r"O:/ISS/Internet_Archive/space_to_grounds/"
 issSpaceToGroundsBasePath = r"F:/ISSiRT_assets/_raw/InternetArchive_space_to_grounds/"

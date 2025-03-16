@@ -3,6 +3,10 @@ from bs4 import BeautifulSoup
 import json
 import re, os
 import datetime  # Added import
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path="../../.env")
 
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
@@ -130,7 +134,14 @@ def scrape_expedition(num):
         end_label = search_div.find("p", string=re.compile(r"^(end|END|Landing)$"))
         if end_label:
             raw_end = end_label.find_parent("div").find_next_sibling("div").text.strip()
-            mission_info["end"] = parse_date(raw_end)
+            parsed_date = parse_date(raw_end)
+            if (
+                re.fullmatch(r"landing", end_label.get_text().strip(), re.IGNORECASE)
+                and parsed_date == raw_end
+            ):
+                mission_info["end"] = None
+            else:
+                mission_info["end"] = parsed_date
 
     # Extract mission highlights
     highlights_section = soup.find("div", class_="tag-mission")
@@ -144,7 +155,7 @@ def scrape_expedition(num):
 
 if __name__ == "__main__":
     expeditions = []
-    for i in range(1, 72):
+    for i in range(1, 73):
         data = scrape_expedition(i)
         # get patch image url
         data["patchUrl"] = get_expedition_patch_url(i)

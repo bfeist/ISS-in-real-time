@@ -14,8 +14,8 @@ load_dotenv(dotenv_path="../../.env")
 # CSV file in the 'comm' directory. It also copies the corresponding AAC files to the 'comm' directory.
 
 
-COMM_SG_RAW = os.getenv("RAW_FOLDER") + "comm_sg_transcripts_aacs/"
-COMM_SG_WEB = os.getenv("WEB_ASSETS_FOLDER") + "comm_sg/"
+COMM_RAW = os.getenv("RAW_FOLDER") + "comm_transcripts_aacs/"
+COMM_WEB = os.getenv("WEB_ASSETS_FOLDER") + "comm/"
 
 
 def is_invalid_utterance(text):
@@ -27,6 +27,17 @@ def is_invalid_utterance(text):
         "Thank you for watching.",
         "Thank you for watching!",
         "This video is a derivative work of the Touhou Project",
+        "Mmm.",
+        "Hmm.",
+        "BOOOOOM",
+        "BOOOOOM!",
+        "BEEEEEP",
+        "BELL RINGS",
+        "Beeping.",
+        "BEEP",
+        "Beep.",
+        "Mmmmmmmm.",
+        "MMMMMMMM",
     ]
     return text in textStringsIndicateInvalidUtterance
 
@@ -132,6 +143,17 @@ def create_daily_transcript(root_dir, date_str, output_dir):
     return date_str
 
 
+def has_sg_dg_files(dir_path):
+    """
+    Check if the directory contains any JSON files with 'SG' or 'DG' in the filename.
+    """
+    if os.path.isdir(dir_path):
+        for filename in os.listdir(dir_path):
+            if filename.endswith(".json") and ("SG" in filename or "DG" in filename):
+                return True
+    return False
+
+
 def process_all_transcripts(root_dir, output_dir):
     processed_dates = []
     for year in os.listdir(root_dir):
@@ -144,8 +166,7 @@ def process_all_transcripts(root_dir, output_dir):
                         day_path = os.path.join(month_path, day)
                         if os.path.isdir(day_path):
                             date_str = f"{year}-{month}-{day}"
-                            # if transcriptions for the date already exist, skip
-                            if os.path.exists(
+                            transcript_exists = os.path.exists(
                                 os.path.join(
                                     output_dir,
                                     year,
@@ -153,12 +174,24 @@ def process_all_transcripts(root_dir, output_dir):
                                     day,
                                     f"_transcript_{date_str}.csv",
                                 )
-                            ):
+                            )
+
+                            # Check for SG or DG files
+                            contains_sg_dg = has_sg_dg_files(day_path)
+
+                            # Skip only if transcript exists AND there are no SG/DG files
+                            if transcript_exists and not contains_sg_dg:
                                 print(
-                                    f"Transcript for {date_str} already exists. Skipping."
+                                    f"Transcript for {date_str} already exists and no SG/DG files found. Skipping."
                                 )
                                 continue
-                            print(f"Processing date: {date_str}")
+                            elif transcript_exists and contains_sg_dg:
+                                print(
+                                    f"Transcript for {date_str} exists but SG/DG files found. Reprocessing."
+                                )
+                            else:
+                                print(f"Processing date: {date_str}")
+
                             processed_date = create_daily_transcript(
                                 root_dir, date_str, output_dir
                             )
@@ -167,7 +200,7 @@ def process_all_transcripts(root_dir, output_dir):
 
 
 if __name__ == "__main__":
-    processed_dates = process_all_transcripts(COMM_SG_RAW, COMM_SG_WEB)
+    processed_dates = process_all_transcripts(COMM_RAW, COMM_WEB)
     # Save processed dates to a file for use in make_tles.py
     # with open("processed_dates.json", "w") as f:
     #     json.dump(processed_dates, f)

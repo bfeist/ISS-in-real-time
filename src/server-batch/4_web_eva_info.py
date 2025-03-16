@@ -186,7 +186,7 @@ eva_details = [
 # Convert the list to a JSON object
 eva_json = json.dumps(eva_details, indent=4)
 
-# Write the JSON object to a file in S3_FOLDER
+# Write the JSON object to a file in WEB_ASSETS_FOLDER
 output_path = os.path.join(WEB_ASSETS_FOLDER, "eva_details.json")
 with open(output_path, "w") as f:
     f.write(eva_json)

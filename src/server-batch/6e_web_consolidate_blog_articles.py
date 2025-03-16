@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../.env")
 
-WEB_ASSETS_FOLDER = os.getenv("S3_WEB_ASSETS_FOLDERFOLDER")
+WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 RAW_FOLDER = os.getenv("RAW_FOLDER")
 
 blog_articles_folder = os.path.join(RAW_FOLDER, "blog_articles")
@@ -63,12 +63,17 @@ def copy_blog_article_for_date(date_str):
         # Now create the destination directory and copy files
         dest_dir = os.path.join(web_blog_articles_folder, year, month, day)
         os.makedirs(dest_dir, exist_ok=True)
+        # Added check: skip if consolidated articles.json already exists
+        merged_json_path = os.path.join(dest_dir, "articles.json")
+        if os.path.exists(merged_json_path):
+            print(f"Consolidated json file already exists for {date_str}. Skipping.")
+            return
 
         # Copy all collected images
         for src_file, file_name in article_images:
             dst_file = os.path.join(dest_dir, file_name)
             shutil.copy2(src_file, dst_file)
-            print(f"Copied image {file_name} to {dest_dir}")
+            # print(f"Copied image {file_name} to {dest_dir}")
 
         # Write merged articles.json file
         merged_json_path = os.path.join(dest_dir, "articles.json")
@@ -148,7 +153,7 @@ def main():
     # Process each date entry
     for date_entry in available_dates:
         date_str = date_entry["date"]
-        print(f"Processing blog articles for date: {date_str}")
+        # print(f"Processing blog articles for date: {date_str}")
         copy_blog_article_for_date(date_str)
 
     print("Blog articles processing complete.")

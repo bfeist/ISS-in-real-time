@@ -1,5 +1,6 @@
 import os
 import json
+import csv  # new import
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
@@ -56,6 +57,19 @@ def check_activity_summary(date):
     return os.path.exists(path)
 
 
+def check_earth_photography(date):
+    # Check if the earth photography manifest exists for the given date
+    year, month, day = date.split("-")
+    path = os.path.join(
+        WEB_ASSETS_FOLDER,
+        "earth_photography",
+        year,
+        month,
+        f"images-manifest_{year}-{month}-{day}.json",
+    )
+    return os.path.exists(path)
+
+
 if __name__ == "__main__":
     available_dates = collect_available_dates(START_DATE, END_DATE)
 
@@ -84,9 +98,17 @@ if __name__ == "__main__":
         has_eva = date in eva_dates
         has_blog = check_blog_articles(date)
         has_activity_summary = check_activity_summary(date)
+        has_earth = check_earth_photography(date)
 
         # Only include dates that have at least one data type available
-        if has_comm or has_youtube or has_eva or has_blog or has_activity_summary:
+        if (
+            has_comm
+            or has_youtube
+            or has_eva
+            or has_blog
+            or has_activity_summary
+            or has_earth
+        ):
             date_record = {
                 "date": date,
                 "comm": has_comm,
@@ -94,10 +116,37 @@ if __name__ == "__main__":
                 "eva": has_eva,
                 "blog": has_blog,
                 "activitySummary": has_activity_summary,
+                "earthPhotography": has_earth,
             }
             date_records.append(date_record)
 
-    outputPath = os.path.join(WEB_ASSETS_FOLDER, "data_availability.json")
-    with open(outputPath, "w") as f:
-        json.dump(date_records, f, indent=4)
+    # Change output to CSV
+    outputPath = os.path.join(WEB_ASSETS_FOLDER, "data_availability.csv")
+    with open(outputPath, "w", newline="") as f:
+        writer = csv.writer(f, delimiter="|")
+        # Write header
+        writer.writerow(
+            [
+                "date",
+                "comm",
+                "youtube",
+                "eva",
+                "blog",
+                "activitySummary",
+                "earthPhotography",
+            ]
+        )
+        # Write data rows with booleans converted to integers
+        for record in date_records:
+            writer.writerow(
+                [
+                    record["date"],
+                    int(record["comm"]),
+                    int(record["youtube"]),
+                    int(record["eva"]),
+                    int(record["blog"]),
+                    int(record["activitySummary"]),
+                    int(record["earthPhotography"]),
+                ]
+            )
     print(f"Available dates have been saved to {outputPath}")

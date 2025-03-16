@@ -17,7 +17,7 @@ API_ENDPOINT = (
 BASE_URL = "https://eol.jsc.nasa.gov/DatabaseImages"
 IMAGES_FOLDER = os.getenv("WEB_ASSETS_FOLDER") + "earth_photography/"
 
-START_DATE = "2000-10-01"
+START_DATE = "2000-12-01"
 END_DATE = datetime.now().strftime("%Y-%m-%d")
 
 # Load .env file from two directories up
@@ -52,7 +52,7 @@ def validate_and_format_date(date_str):
         sys.exit(1)
 
 
-def fetch_api_data(formatted_date):
+def fetch_nadir_api_data(formatted_date):
     query = f"nadir|pdate|eq|{formatted_date}"
     return_fields = "images|directory|images|filename|nadir|pdate|nadir|ptime|nadir|mission|nadir|roll|nadir|frame|images|filesize"
 
@@ -75,7 +75,30 @@ def fetch_api_data(formatted_date):
         sys.exit(1)
 
 
-def process_data(data):
+def fetch_frames_api_data(formatted_date):
+    query = f"frames|pdate|eq|{formatted_date}"
+    return_fields = "images|directory|images|filename|frames|pdate|frames|ptime|frames|mission|frames|roll|frames|frame|images|filesize"
+
+    params = {"query": query, "return": return_fields, "key": api_key}
+
+    try:
+        response = requests.get(API_ENDPOINT, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+        # if data is not an array, return an empty array. This happens when 'result' = 'SQL found no records that match the specified criteria'
+        if not isinstance(data, list):
+            return None
+        return data
+    except requests.RequestException as e:
+        print(f"Error fetching data from API: {e}")
+        sys.exit(1)
+    except json.JSONDecodeError:
+        print("Error: Failed to parse JSON response from API.")
+        sys.exit(1)
+
+
+def process_nadir_data(data):
     # Group records by (mission, roll, frame)
     grouped = defaultdict(dict)
 
@@ -121,7 +144,47 @@ def process_data(data):
             grouped[key]["ptime"] = ptime
             grouped[key]["mission"] = mission
             grouped[key]["roll"] = roll
+            # Set identifier as missionrollframe
+            grouped[key]["ID"] = f"{mission}{roll}{frame}"
 
+    return grouped
+
+
+# New function to process frames data using "frames." keys
+def process_frames_data(data):
+    grouped = defaultdict(dict)
+    if not data:
+        return grouped
+    for record in data:
+        mission = record.get("frames.mission")
+        roll = record.get("frames.roll")
+        frame = record.get("frames.frame")
+        pdate = record.get("frames.pdate")
+        ptime = record.get("frames.ptime")
+        directory = record.get("images.directory")
+        filename = record.get("images.filename")
+        if not all([mission, roll, frame, pdate, ptime, directory, filename]):
+            continue
+        key = (mission, roll, frame)
+        if "/large/" in directory:
+            size_type = "large"
+        elif "/small/" in directory:
+            size_type = "small"
+        else:
+            continue
+        url = f"{directory}/{filename}"
+        if size_type in grouped[key]:
+            print(
+                f"Warning: Duplicate size type '{size_type}' for photo {key} from frames data. Overwriting previous entry."
+            )
+        grouped[key][size_type] = url
+        if "pdate" not in grouped[key]:
+            grouped[key]["pdate"] = pdate
+            grouped[key]["ptime"] = ptime
+            grouped[key]["mission"] = mission
+            grouped[key]["roll"] = roll
+            # Set identifier as missionrollframe
+            grouped[key]["ID"] = f"{mission}{roll}{frame}"
     return grouped
 
 
@@ -141,8 +204,8 @@ def generate_manifest(grouped_data):
             # If ptime is not complete, handle accordingly
             date_taken = f"{pdate}"
 
-        # Construct ID
-        ID = f"{mission}-{roll}-{frame}"
+        # Use the stored identifier field if present
+        ID = value.get("ID", f"{key[0]}{key[1]}{key[2]}")
 
         # Get URLs
         small_url = value.get("small")
@@ -162,6 +225,9 @@ def generate_manifest(grouped_data):
         }
 
         manifest.append(manifest_entry)
+
+    # Sort entries by time (dateTaken)
+    manifest.sort(key=lambda entry: entry["dateTaken"])
 
     return manifest
 
@@ -204,34 +270,61 @@ def main():
             current_date += timedelta(days=1)
             continue
 
-        data = fetch_api_data(formatted_date)  # Fetch data for the day
+        nadir_data = fetch_nadir_api_data(formatted_date)  # Fetch data for the day
+        frames_data = fetch_frames_api_data(formatted_date)  # Fetch data for the day
 
-        if not data:
-            print(f"No data returned from API for {available_date}.")
+        if not nadir_data and not frames_data:
+            print(f"No data returned from APIs for {available_date}.")
             no_data = True
 
         if not no_data:
-            grouped_data = process_data(data)
+            grouped_nadir = process_nadir_data(nadir_data)
+            grouped_frames = process_frames_data(frames_data)
+            # Create a new merged object instead of updating grouped_nadir directly
+            merged = {}
+            all_keys = set(grouped_nadir.keys()).union(grouped_frames.keys())
+            for key in all_keys:
+                entry_nadir = grouped_nadir.get(key, {})
+                entry_frames = grouped_frames.get(key, {})
+                merged_entry = {}
+                # Merge size types with nadir taking precedence
+                for size in ["small", "large"]:
+                    if size in entry_nadir:
+                        if (
+                            size in entry_frames
+                            and entry_frames[size] != entry_nadir[size]
+                        ):
+                            print(
+                                f"Warning: Conflicting {size} URL for photo {entry_nadir.get('ID', f'{key[0]}-{key[1]}-{key[2]}')}. Using nadir value."
+                            )
+                        merged_entry[size] = entry_nadir[size]
+                    elif size in entry_frames:
+                        merged_entry[size] = entry_frames[size]
+                # Merge common fields (pdate, ptime, mission, roll, ID)
+                for field in ["pdate", "ptime", "mission", "roll", "ID"]:
+                    merged_entry[field] = entry_nadir.get(
+                        field, entry_frames.get(field)
+                    )
+                merged[key] = merged_entry
 
-            if not grouped_data:
+            if not merged:
                 print(f"No valid photo records found for {available_date}.")
                 no_data = True
 
         if not no_data:
-            manifest = generate_manifest(grouped_data)
+            manifest = generate_manifest(merged)
 
             if not manifest:
                 print(f"No manifest entries to save for {available_date}.")
                 no_data = True
 
-        # Define output folder with nested month directory
-        os.makedirs(output_folder, exist_ok=True)
-
         if no_data:
-            print(f"No data available for {available_date}. Writing empty manifest.")
-            with open(output_file, "w") as f:
-                f.write("[]")
+            print(
+                f"No data available for {available_date}. Skipping manifest generation."
+            )
         else:
+            # Instead of creating the folder earlier, create destination folder now
+            os.makedirs(output_folder, exist_ok=True)
             save_manifest(manifest, output_file)
 
         # Move to the next day
