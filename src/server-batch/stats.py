@@ -11,82 +11,83 @@ import pycountry
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../.env")
 
-COMM_S3 = os.getenv("S3_FOLDER") + "comm/"
-AVAILABLE_DATES_S3 = os.getenv("S3_FOLDER") + "/available_dates.json"
+WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
+COMM_FOLDER = WEB_ASSETS_FOLDER + "comm/"
 
 # Remove LANGUAGE_CODES mapping
 
 if __name__ == "__main__":
-    # get dates available json in S3 root. Array of strings in format 2022-09-27
-    available_dates = []
-    if os.path.exists(AVAILABLE_DATES_S3):
-        with open(AVAILABLE_DATES_S3, "r") as f:
-            available_dates = json.load(f)
+    # loop through the nested folder structure
 
     total_words = 0
-    days = 0
+    comm_days = 0
     languages = set()
     word_counts = {}
     channel_word_counts = {}
-    for available_date in available_dates:
-        no_data = False
-        # print(f"Processing date: {available_date}")
-        [year, month, day] = available_date.split("-")
-        formatted_date = f"{year}-{month}-{day}"
+    vv_days_set = set()  # Track unique days with AG or DG files
 
-        # transcript csv path
-        transcriptPath = os.path.join(
-            COMM_S3,
-            year,
-            month,
-            day,
-            f"_transcript_{formatted_date}.csv",
-        )
+    for root, dirs, files in os.walk(COMM_FOLDER):
+        for file in files:
+            if file.endswith(".csv"):
+                comm_days += 1
 
-        if not os.path.exists(transcriptPath):
-            print(
-                f"Transcript for {available_date} does not exist. Skipping reading it call."
-            )
-            continue
+                # Extract date from file path (assumes directory structure contains date)
+                date_match = re.search(r"(\d{4}-\d{2}-\d{2})", root)
+                file_date = date_match.group(1) if date_match else None
 
-        days += 1
-        with open(transcriptPath, "r", encoding="utf-8") as f:
-            rows = f.readlines()
-            for row in rows:
-                time, filename, start, end, language, text, textOriginalLang = (
-                    row.strip().split("|")
-                )
+                # Check if this file contains VV communications before reading its content
+                vv_file = False
+                with open(os.path.join(root, file), "r", encoding="utf-8") as f:
+                    rows = f.readlines()
+                    for row in rows:
+                        time, filename, start, end, language, text, textOriginalLang = (
+                            row.strip().split("|")
+                        )
 
-                if language == "en":
-                    word_count = len(text.split())
-                else:
-                    word_count = len(textOriginalLang.split())
-                total_words += word_count
+                        # Check if file contains AG or DG and extract date if needed
+                        if "_AG_" in filename or "_DG_" in filename:
+                            if not file_date:
+                                # Extract date from filename if not already found in directory
+                                date_match = re.search(r"(\d{4}-\d{2}-\d{2})", filename)
+                                if date_match:
+                                    vv_days_set.add(date_match.group(1))
+                            else:
+                                vv_days_set.add(file_date)
 
-                # look for strings like 1_SG_1 or 1_SG_2 in the filename, the last digit is the channel number
-                # filename format is 2019-01-29T020513-1_SG_1_IA.aac
-                # use regex to match 1_SG_? and get the last digit
-                pattern = re.compile(r"\d+_SG_(\d+)")
-                match = pattern.search(filename)
-                channel = match.group(1) if match else "unknown"
+                        # Continue with normal word counting
+                        if language == "en":
+                            word_count = len(text.split())
+                        else:
+                            word_count = len(textOriginalLang.split())
+                        total_words += word_count
 
-                if channel in channel_word_counts:
-                    channel_word_counts[channel] += word_count
-                else:
-                    channel_word_counts[channel] = word_count
+                        # look for strings like 1_SG_1 or 1_DG_2 in the filename, the last digit is the channel number
+                        # use regex to match 1_XG_? and get the last digit, where X can be any letter
+                        pattern = re.compile(r"\d+_\w+G_(\d+)")
+                        match = pattern.search(filename)
+                        channel = match.group(1) if match else "unknown"
 
-                languages.add(language)
-                if language in word_counts:
-                    word_counts[language] += word_count
-                else:
-                    word_counts[language] = word_count
+                        if channel in channel_word_counts:
+                            channel_word_counts[channel] += word_count
+                        else:
+                            channel_word_counts[channel] = word_count
+
+                        languages.add(language)
+                        if language in word_counts:
+                            word_counts[language] += word_count
+                        else:
+                            word_counts[language] = word_count
+
+    # Update vv_days count from the set
+    vv_days = len(vv_days_set)
 
     # sort languages by word count
     word_counts = dict(
         sorted(word_counts.items(), key=lambda item: item[1], reverse=True)
     )
 
-    print(f"Total days with transcripts: {days:,}")
+    print(f"Total days with transcripts: {comm_days:,}")
+    print(f"Total days with visiting vehicle transcripts: {vv_days:,}")
     print(f"Channel word counts:")
     for channel, count in channel_word_counts.items():
         print(f"{channel}: {count:,}")

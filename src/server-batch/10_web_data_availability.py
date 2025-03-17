@@ -45,7 +45,7 @@ def check_visiting_vehicle_comm_data(date):
 
     # Look for JSON files containing "AG" or "DG" in the filename
     for filename in os.listdir(path):
-        if filename.endswith(".json") and ("AG" in filename or "DG" in filename):
+        if filename.endswith(".aac") and ("AG" in filename or "DG" in filename):
             return True
 
     return False
