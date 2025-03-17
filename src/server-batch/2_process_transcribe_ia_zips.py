@@ -123,8 +123,30 @@ def ensure_mono_wav(input_wav_path):
             n_channels = wf.getnchannels()
             frame_rate = wf.getframerate()
     except Exception as e:
-        logger.error(f"Failed to open WAV file '{input_wav_path}': {e}")
-        return None  # Indicate failure
+        logger.warning(
+            f"Failed to open WAV file with wave module: '{input_wav_path}': {e}"
+        )
+        # Try using pydub directly instead
+        try:
+            logger.info(f"Attempting to convert '{input_wav_path}' using pydub...")
+            audio_segment = AudioSegment.from_file(str(input_wav_path), format="wav")
+            audio_segment = audio_segment.set_channels(1)
+            audio_segment = audio_segment.set_frame_rate(MONO_WAV_FRAME_RATE)
+
+            # Rename the original file
+            orig_file = input_wav_path.parent / (input_wav_path.stem + "_orig.wav")
+            input_wav_path.rename(orig_file)
+
+            # Save to a file with the same name
+            wav_path = input_wav_path.parent / (input_wav_path.stem + ".wav")
+            audio_segment.export(str(wav_path), format="wav")
+            logger.info(
+                f"Successfully converted problematic WAV file: {input_wav_path.name}"
+            )
+            return wav_path
+        except Exception as pydub_error:
+            logger.error(f"Failed to convert WAV file with pydub: {pydub_error}")
+            return None  # Indicate failure
 
     need_conversion = False
     if n_channels != 1:
@@ -407,6 +429,8 @@ def parse_wav_filename(filename, downlink_number=None):
         r"^\d+_(?:CST_)?(AG-\d+)__(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
         # Pattern 10: Handle any other AG/DG patterns with multiple underscores
         r"^\d+_(?:CST_)?([AD]G-\d+)_{1,10}(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        # Pattern 11: 0000000000_DG2_2020-05-27_07_52_42_by_ui_startdate_desc.wav
+        r"^\d+_(DG\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
     ]
     try:
         for pattern in patterns:
@@ -423,6 +447,19 @@ def parse_wav_filename(filename, downlink_number=None):
                         sg_channel = str(downlink_number) if downlink_number else "0"
                         sg_channel_descriptor = f"1_SG_{sg_channel}"
                         return date_time, sg_channel_descriptor
+
+                # Handle DG patterns with number directly attached (pattern 11)
+                if pattern.find("DG\\d+") > 0:
+                    # For DG pattern with number directly attached (e.g., DG2)
+                    # Convert to the format with underscore (e.g., DG_2)
+                    channel_str = match.group(1)
+                    channel_type = re.sub(r"(DG)(\d+)", r"1_\1_\2", channel_str)
+                    date_part = match.group(2)
+                    hour = match.group(3)
+                    minute = match.group(4)
+                    second = match.group(5)
+                    date_time = f"{date_part}T{hour}{minute}{second}"
+                    return date_time, channel_type
 
                 # Handle AG/DG patterns with double underscores (pattern 9 or 10)
                 if pattern.find("__") > 0 or pattern.find("_{1,10}") > 0:
@@ -453,7 +490,7 @@ def parse_wav_filename(filename, downlink_number=None):
                     second = match.group(5)
                     date_time = f"{date_part}T{hour}{minute}{second}"
                     return date_time, channel_type
-                elif pattern.find("_DG_") > 0:
+                elif pattern.find("_(DG)_") > 0:
                     # For DG pattern without dashes
                     # Prepend "1_" to the channel type
                     channel_type = f"1_{match.group(1)}_{match.group(2)}"

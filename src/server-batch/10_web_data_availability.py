@@ -35,6 +35,22 @@ def check_comm_data(date):
     return os.path.isdir(path)
 
 
+def check_visiting_vehicle_comm_data(date):
+    """Check if there's AG/DG comm data available for the given date"""
+    year, month, day = date.split("-")
+    path = os.path.join(COMM_FOLDER, year, month, day)
+
+    if not os.path.isdir(path):
+        return False
+
+    # Look for JSON files containing "AG" or "DG" in the filename
+    for filename in os.listdir(path):
+        if filename.endswith(".json") and ("AG" in filename or "DG" in filename):
+            return True
+
+    return False
+
+
 def check_blog_articles(date):
     """Check if there are blog articles available for the given date"""
     year, month, day = date.split("-")
@@ -94,6 +110,7 @@ if __name__ == "__main__":
     for date in available_dates:
         # Check availability of each data type
         has_comm = check_comm_data(date)
+        has_vv_comm = check_visiting_vehicle_comm_data(date)
         has_youtube = date in youtube_dates
         has_eva = date in eva_dates
         has_blog = check_blog_articles(date)
@@ -103,6 +120,7 @@ if __name__ == "__main__":
         # Only include dates that have at least one data type available
         if (
             has_comm
+            or has_vv_comm
             or has_youtube
             or has_eva
             or has_blog
@@ -112,6 +130,7 @@ if __name__ == "__main__":
             date_record = {
                 "date": date,
                 "comm": has_comm,
+                "vvComm": has_vv_comm,
                 "youtube": has_youtube,
                 "eva": has_eva,
                 "blog": has_blog,
@@ -129,6 +148,7 @@ if __name__ == "__main__":
             [
                 "date",
                 "comm",
+                "vvComm",
                 "youtube",
                 "eva",
                 "blog",
@@ -142,6 +162,7 @@ if __name__ == "__main__":
                 [
                     record["date"],
                     int(record["comm"]),
+                    int(record["vvComm"]),
                     int(record["youtube"]),
                     int(record["eva"]),
                     int(record["blog"]),

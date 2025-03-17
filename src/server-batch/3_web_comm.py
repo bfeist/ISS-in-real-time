@@ -143,13 +143,13 @@ def create_daily_transcript(root_dir, date_str, output_dir):
     return date_str
 
 
-def has_sg_dg_files(dir_path):
+def has_ag_dg_files(dir_path):
     """
     Check if the directory contains any JSON files with 'SG' or 'DG' in the filename.
     """
     if os.path.isdir(dir_path):
         for filename in os.listdir(dir_path):
-            if filename.endswith(".json") and ("SG" in filename or "DG" in filename):
+            if filename.endswith(".json") and ("AG" in filename or "DG" in filename):
                 return True
     return False
 
@@ -177,17 +177,17 @@ def process_all_transcripts(root_dir, output_dir):
                             )
 
                             # Check for SG or DG files
-                            contains_sg_dg = has_sg_dg_files(day_path)
+                            contains_ag_dg = has_ag_dg_files(day_path)
 
                             # Skip only if transcript exists AND there are no SG/DG files
-                            if transcript_exists and not contains_sg_dg:
+                            if transcript_exists and not contains_ag_dg:
                                 print(
-                                    f"Transcript for {date_str} already exists and no SG/DG files found. Skipping."
+                                    f"Transcript for {date_str} already exists and no AG/DG files found. Skipping."
                                 )
                                 continue
-                            elif transcript_exists and contains_sg_dg:
+                            elif transcript_exists and contains_ag_dg:
                                 print(
-                                    f"Transcript for {date_str} exists but SG/DG files found. Reprocessing."
+                                    f"Transcript for {date_str} exists but AG/DG files found. Reprocessing."
                                 )
                             else:
                                 print(f"Processing date: {date_str}")

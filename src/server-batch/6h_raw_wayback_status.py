@@ -50,6 +50,9 @@ def save_html(url, content):
     filename = re.sub(r"[^\w\-_\. ]", "_", filename)  # Replace invalid characters
     filename = f"{filename}"
 
+    if not filename.endswith(".html") and not filename.endswith(".htm"):
+        filename += ".html"
+
     os.makedirs(os.path.join(RAW_FOLDER, "early_status_rawhtml"), exist_ok=True)
     filepath = os.path.join(RAW_FOLDER, "early_status_rawhtml", filename)
 
@@ -118,23 +121,57 @@ def fetch_incremental_wayback(session, url):
     entry_number = int(match.group(1))
     suffix = match.group(2)
 
-    while True:
-        curr_url = f"{base_part}-{entry_number:02d}{suffix}"
-        parsed_url = urlparse(curr_url)
-        filename = parsed_url.path.strip("/").replace(
-            "/", "_"
-        ) or parsed_url.netloc.replace(".", "_")
-        filename = re.sub(r"[^\w\-_\. ]", "_", filename)  # Replace invalid characters
-        filename = f"{filename}"
-        filepath = os.path.join(RAW_FOLDER, "early_status_rawhtml", filename)
+    # Try with zero-padded numbers first
+    use_padding = True
 
-        if os.path.exists(filepath):
-            print(f"File already exists: {filepath}")
+    while True:
+        # Check both padded and non-padded file patterns before making any requests
+        padded_url = f"{base_part}-{entry_number:02d}{suffix}"
+        non_padded_url = f"{base_part}-{entry_number}{suffix}"
+
+        # Generate filenames for both patterns
+        parsed_padded = urlparse(padded_url)
+        padded_filename = parsed_padded.path.strip("/").replace(
+            "/", "_"
+        ) or parsed_padded.netloc.replace(".", "_")
+        padded_filename = re.sub(r"[^\w\-_\. ]", "_", padded_filename)
+        padded_filepath = os.path.join(
+            RAW_FOLDER, "early_status_rawhtml", padded_filename
+        )
+
+        parsed_non_padded = urlparse(non_padded_url)
+        non_padded_filename = parsed_non_padded.path.strip("/").replace(
+            "/", "_"
+        ) or parsed_non_padded.netloc.replace(".", "_")
+        non_padded_filename = re.sub(r"[^\w\-_\. ]", "_", non_padded_filename)
+        non_padded_filepath = os.path.join(
+            RAW_FOLDER, "early_status_rawhtml", non_padded_filename
+        )
+
+        # Check if either file already exists
+        if os.path.exists(padded_filepath):
+            print(f"File for padded URL already exists: {padded_filepath}")
+            entry_number += 1
+            continue
+        elif os.path.exists(non_padded_filepath):
+            print(f"File for non-padded URL already exists: {non_padded_filepath}")
+            use_padding = False  # Switch to non-padded format for future iterations
             entry_number += 1
             continue
 
+        # Neither file exists, proceed with fetching
+        curr_url = padded_url if use_padding else non_padded_url
         print(f"Requesting snapshot for {curr_url}...")
         wayback_url = get_wayback_url(session, curr_url)
+
+        # If padded format fails at entry 1, try non-padded
+        if not wayback_url and entry_number == 1 and use_padding:
+            print(f"No snapshot found for {curr_url}, trying without zero padding...")
+            use_padding = False
+            curr_url = non_padded_url
+            print(f"Requesting snapshot for {curr_url}...")
+            wayback_url = get_wayback_url(session, curr_url)
+
         if not wayback_url:
             print(f"No snapshot found for {curr_url}")
             break

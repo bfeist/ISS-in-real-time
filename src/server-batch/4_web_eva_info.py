@@ -172,17 +172,6 @@ for eva in eva_details:
     except:
         eva["endTime"] = None
 
-# Define the cutoff date with Zulu time
-cutoff_date = datetime.datetime(2015, 1, 1, tzinfo=datetime.timezone.utc)
-
-# Filter out EVAs before the cutoff date
-eva_details = [
-    eva
-    for eva in eva_details
-    if not eva["startTime"] == None
-    and datetime.datetime.fromisoformat(eva["startTime"]) >= cutoff_date
-]
-
 # Convert the list to a JSON object
 eva_json = json.dumps(eva_details, indent=4)
 

@@ -123,7 +123,7 @@ def main():
     # blog_url = "https://blogs.nasa.gov/stationreport/2015/05/26/iss-daily-summary-report-05-26-2015/"
     # categorized_activities = get_iss_activities(blog_url)
 
-    # Generate dates from 2013-03-08 to today instead of reading available_dates from file
+    # Generate dates from 2013-03-08 to today. These are all the status reports available on the nasa website
     start_date = datetime.date(2013, 3, 8)
     end_date = datetime.date(2024, 8, 1)
     delta = datetime.timedelta(days=1)
