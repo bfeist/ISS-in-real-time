@@ -17,7 +17,7 @@ const Home = (): JSX.Element => {
 
   const availableYears: number[] = [];
   availableDateItems.forEach((item) => {
-    const year = parseInt(item.date.split("-")[0]);
+    const year = parseInt(item?.date.split("-")[0]);
     if (!availableYears.includes(year)) {
       availableYears.push(year);
     }

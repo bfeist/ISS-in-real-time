@@ -136,9 +136,10 @@ export async function getDataAvailabilities(): Promise<DataAvailability[]> {
   try {
     const dataAvailabilityResult = await fetch(dataAvailabilityUrl);
     const dataAvailabilitiesRaw = await dataAvailabilityResult.text();
-    return processDataAvailabilities({
+    const dataAvailabilities = processDataAvailabilities({
       dataAvailabilitiesRaw,
     });
+    return dataAvailabilities;
   } catch (error) {
     return [];
   }
@@ -167,7 +168,10 @@ export function processDataAvailabilities({
 }: {
   dataAvailabilitiesRaw: string;
 }): DataAvailability[] {
-  const dataAvailabilities = dataAvailabilitiesRaw.split("\r\n").map((line) => {
+  const lines = dataAvailabilitiesRaw.split("\n").filter((line) => line.trim() !== ""); // Skip blank lines
+  // Skip header row
+  const dataLines = lines.slice(1);
+  const dataAvailabilities = dataLines.map((line) => {
     const [date, comm, vvComm, youtube, eva, blog, activitySummary, earthPhotography] =
       line.split("|");
     return {
@@ -181,6 +185,5 @@ export function processDataAvailabilities({
       earthPhotography: earthPhotography === "1",
     };
   });
-
   return dataAvailabilities;
 }
