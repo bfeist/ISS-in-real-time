@@ -1,7 +1,12 @@
-type AvailableDate = {
+type DataAvailability = {
   date: string;
+  comm: boolean;
+  vvComm: boolean;
   youtube: boolean;
   eva: boolean;
+  blog: boolean;
+  activitySummary: boolean;
+  earthPhotography: boolean;
 };
 
 type TranscriptItem = {
@@ -14,7 +19,7 @@ type TranscriptItem = {
   textOriginalLang: string;
 };
 
-type ImageItem = {
+type earthPhotographyItem = {
   ID: string;
   dateTaken: string;
   smallUrl: string;
@@ -29,10 +34,10 @@ type EphemeraItem = {
 
 type GetDatePageDataResponse = {
   transcriptItems: TranscriptItem[];
-  imageItems: ImageItem[];
+  earthPhotographyItems: earthPhotographyItem[];
   ephemeraItems: EphemeraItem[];
   evaDetails: EvaDetail[];
-  availableDates: AvailableDate[];
+  dataAvailability: DataAvailability;
   youtubeLiveRecordings: YoutubeLiveRecording[];
   crewArrDep: CrewArrDepItem[];
   expeditionInfo: ExpeditionInfo[];

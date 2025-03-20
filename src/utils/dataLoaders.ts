@@ -10,10 +10,10 @@ export async function getDatePageData({
   const [year, month, day] = date!.split("-");
 
   const transcriptUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/_transcript_${date}.csv`;
-  const imagesUrl = `${baseStaticUrl}/images/${year}/${month}/images-manifest_${date}.json`;
+  const earthPhotographyUrl = `${baseStaticUrl}/earth_photography/${year}/${month}/images-manifest_${date}.json`;
   const ephemeraUrl = `${baseStaticUrl}/ephemera/${year}/${year}-${month}.json`;
   const evaDetailsUrl = `${baseStaticUrl}/eva_details.json`;
-  const availableDatesUrl = `${baseStaticUrl}/available_dates.json`;
+  const dataAvailabilityUrl = `${baseStaticUrl}/data_availability.csv`;
   const youtubeLiveRecordingsUrl = `${baseStaticUrl}/youtube_live_recordings.json`;
   const youtubeManualStartTimesUrl = `${baseStaticUrl}/youtube_manual_start_times.json`;
   const crewArrDepUrl = `${baseStaticUrl}/iss_crew_arr_dep.json`;
@@ -23,10 +23,10 @@ export async function getDatePageData({
   try {
     const results = await Promise.allSettled([
       fetch(transcriptUrl),
-      fetch(imagesUrl),
+      fetch(earthPhotographyUrl),
       fetch(ephemeraUrl),
       fetch(evaDetailsUrl),
-      fetch(availableDatesUrl),
+      fetch(dataAvailabilityUrl),
       fetch(youtubeLiveRecordingsUrl),
       fetch(youtubeManualStartTimesUrl),
       fetch(crewArrDepUrl),
@@ -36,10 +36,10 @@ export async function getDatePageData({
 
     const [
       transcriptResult,
-      imagesResult,
+      earthPhotographyResult,
       ephemeraResult,
       evaDetailsResult,
-      availableDatesResult,
+      dataAvailabilityResult,
       youtubeLiveRecordingsResult,
       youtubeManualStartTimesResult,
       crewArrDepResult,
@@ -51,12 +51,13 @@ export async function getDatePageData({
       transcriptResult.status === "fulfilled" && transcriptResult.value.ok
         ? processTranscriptCsv(await transcriptResult.value.text())
         : [];
-    const imageItems: ImageItem[] =
-      imagesResult.status === "fulfilled" && imagesResult.value.ok
-        ? await imagesResult.value.json()
+    const earthPhotographyItems: earthPhotographyItem[] =
+      earthPhotographyResult.status === "fulfilled" && earthPhotographyResult.value.ok
+        ? await earthPhotographyResult.value.json()
         : [];
-    imageItems.sort((a, b) => a.dateTaken.localeCompare(b.dateTaken));
-
+    if (earthPhotographyItems.length > 0) {
+      earthPhotographyItems.sort((a, b) => a.dateTaken.localeCompare(b.dateTaken));
+    }
     const ephemeraItems: EphemeraItem[] =
       ephemeraResult.status === "fulfilled" && ephemeraResult.value.ok
         ? await ephemeraResult.value.json()
@@ -65,10 +66,10 @@ export async function getDatePageData({
       evaDetailsResult.status === "fulfilled" && evaDetailsResult.value.ok
         ? await evaDetailsResult.value.json()
         : [];
-    const availableDates: AvailableDate[] =
-      availableDatesResult.status === "fulfilled" && availableDatesResult.value.ok
-        ? await availableDatesResult.value.json()
-        : [];
+    const dataAvailabilitiesRaw: string =
+      dataAvailabilityResult.status === "fulfilled" && dataAvailabilityResult.value.ok
+        ? await dataAvailabilityResult.value.text()
+        : "";
     const youtubeLiveRecordingsUncorrected: YoutubeLiveRecording[] =
       youtubeLiveRecordingsResult.status === "fulfilled" && youtubeLiveRecordingsResult.value.ok
         ? await youtubeLiveRecordingsResult.value.json()
@@ -96,24 +97,30 @@ export async function getDatePageData({
       youtubeManualStartTimes,
     });
 
+    const dataAvailabilities = processDataAvailabilities({
+      dataAvailabilitiesRaw,
+    });
+    const dataAvailability = dataAvailabilities.find((da) => da.date === date);
+
     return {
       transcriptItems,
-      imageItems,
+      earthPhotographyItems,
       ephemeraItems,
       evaDetails,
-      availableDates,
+      dataAvailability,
       youtubeLiveRecordings,
       crewArrDep,
       expeditionInfo,
       nationalityFlags,
     };
   } catch (error) {
+    console.error(error);
     return {
       transcriptItems: [],
-      imageItems: [],
+      earthPhotographyItems: [],
       ephemeraItems: [],
       evaDetails: [],
-      availableDates: [],
+      dataAvailability: null,
       youtubeLiveRecordings: [],
       crewArrDep: [],
       expeditionInfo: [],
@@ -122,15 +129,16 @@ export async function getDatePageData({
   }
 }
 
-export async function getAvailableDates(): Promise<AvailableDate[]> {
+export async function getDataAvailabilities(): Promise<DataAvailability[]> {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
+  const dataAvailabilityUrl = `${baseStaticUrl}/data_availability.csv`;
+
   try {
-    const response = await fetch(`${baseStaticUrl}/available_dates.json`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch available dates");
-    }
-    const data = await response.json();
-    return data;
+    const dataAvailabilityResult = await fetch(dataAvailabilityUrl);
+    const dataAvailabilitiesRaw = await dataAvailabilityResult.text();
+    return processDataAvailabilities({
+      dataAvailabilitiesRaw,
+    });
   } catch (error) {
     return [];
   }
@@ -152,4 +160,27 @@ export async function getCesiumPageData(): Promise<GetCesiumPageDataResponse> {
       ephemeraItems: [],
     };
   }
+}
+
+export function processDataAvailabilities({
+  dataAvailabilitiesRaw,
+}: {
+  dataAvailabilitiesRaw: string;
+}): DataAvailability[] {
+  const dataAvailabilities = dataAvailabilitiesRaw.split("\r\n").map((line) => {
+    const [date, comm, vvComm, youtube, eva, blog, activitySummary, earthPhotography] =
+      line.split("|");
+    return {
+      date,
+      comm: comm === "1",
+      vvComm: vvComm === "1",
+      youtube: youtube === "1",
+      eva: eva === "1",
+      blog: blog === "1",
+      activitySummary: activitySummary === "1",
+      earthPhotography: earthPhotography === "1",
+    };
+  });
+
+  return dataAvailabilities;
 }

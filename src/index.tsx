@@ -10,7 +10,7 @@ import {
 import App from "./App.tsx";
 import Home from "pages/index";
 import DatePage from "pages/dateSlug";
-import { getDatePageData, getAvailableDates, getCesiumPageData } from "utils/dataLoaders";
+import { getDatePageData, getDataAvailabilities, getCesiumPageData } from "utils/dataLoaders";
 import Cesium from "pages/cesium_demo.tsx";
 import CombinedProviders from "context/_CombinedProviders.tsx";
 import LayoutTest from "pages/layout_test.tsx";
@@ -18,7 +18,7 @@ import LayoutTest from "pages/layout_test.tsx";
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<App />}>
-      <Route index element={<Home />} loader={getAvailableDates} />
+      <Route index element={<Home />} loader={getDataAvailabilities} />
       <Route path="date/:date" element={<DatePage />} loader={getDatePageData} />
       <Route path="/cesium_demo" element={<Cesium />} loader={getCesiumPageData} />
       <Route path="layout_test" element={<LayoutTest />} />

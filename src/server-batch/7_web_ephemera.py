@@ -235,7 +235,10 @@ def main():
         for month_str in required_months:
             year, month = month_str.split("-")
             output_file = os.path.join(WEB_EPHEMERA, year, f"{year}-{month}.json")
-            if os.path.exists(output_file):
+
+            # Check if the month is the current month
+            current_month = datetime.now().strftime("%Y-%m")
+            if os.path.exists(output_file) and month_str != current_month:
                 print(
                     f"Ephemera file for {year}-{month} already exists. Skipping API call."
                 )

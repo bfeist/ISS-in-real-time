@@ -249,8 +249,8 @@ def main():
     start_date = datetime.strptime(START_DATE, "%Y-%m-%d")
     end_date = datetime.strptime(END_DATE, "%Y-%m-%d")
 
-    current_date = start_date
-    while current_date <= end_date:
+    current_date = end_date  # start at current date and loop backwards
+    while current_date >= start_date:
         available_date = current_date.strftime("%Y-%m-%d")
         formatted_date = current_date.strftime("%Y%m%d")
         no_data = False
@@ -267,7 +267,7 @@ def main():
 
         if os.path.exists(output_file):
             print(f"Manifest for {available_date} already exists. Skipping API call.")
-            current_date += timedelta(days=1)
+            current_date -= timedelta(days=1)
             continue
 
         nadir_data = fetch_nadir_api_data(formatted_date)  # Fetch data for the day
@@ -327,8 +327,8 @@ def main():
             os.makedirs(output_folder, exist_ok=True)
             save_manifest(manifest, output_file)
 
-        # Move to the next day
-        current_date += timedelta(days=1)
+        # Move to the previous day
+        current_date -= timedelta(days=1)
 
 
 if __name__ == "__main__":

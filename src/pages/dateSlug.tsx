@@ -1,5 +1,5 @@
 import { useLoaderData, useParams, useLocation } from "react-router-dom";
-import Images from "components/images";
+import EarthPhotography from "components/earthPhotography";
 import styles from "./dateSlug.module.css";
 import Transcript from "components/transcript";
 import Map from "components/map";
@@ -18,9 +18,10 @@ const DatePage = (): JSX.Element => {
   const { date } = useParams();
   const {
     transcriptItems,
-    imageItems,
+    earthPhotographyItems,
     ephemeraItems,
     evaDetails,
+    dataAvailability,
     youtubeLiveRecordings,
     crewArrDep,
     expeditionInfo,
@@ -72,43 +73,21 @@ const DatePage = (): JSX.Element => {
 
   return (
     <div className={styles.page}>
-      <Header date={date} showGlobe={showGlobe} setShowGlobe={setShowGlobe} />
+      <Header
+        date={date}
+        showGlobe={showGlobe}
+        setShowGlobe={setShowGlobe}
+        dataAvailability={dataAvailability}
+      />
       <div className={styles.upper}>
         <div className={styles.transcriptsContainer}>
-          <Transcript
-            audioRef={audioRef}
-            transcriptItems={transcriptItems.filter((transcriptItem) =>
-              transcriptItem.filename.includes("_SG_1")
-            )}
-            viewDate={date}
-          />
-          <Transcript
-            audioRef={audioRef}
-            transcriptItems={transcriptItems.filter((transcriptItem) =>
-              transcriptItem.filename.includes("_SG_2")
-            )}
-            viewDate={date}
-          />
-          <Transcript
-            audioRef={audioRef}
-            transcriptItems={transcriptItems.filter((transcriptItem) =>
-              transcriptItem.filename.includes("_SG_3")
-            )}
-            viewDate={date}
-          />
-          <Transcript
-            audioRef={audioRef}
-            transcriptItems={transcriptItems.filter((transcriptItem) =>
-              transcriptItem.filename.includes("_SG_4")
-            )}
-            viewDate={date}
-          />
+          <Transcript audioRef={audioRef} transcriptItems={transcriptItems} viewDate={date} />
         </div>
         <div className={styles.videoContainer}>
           <YouTube youtubeLiveRecording={youtubeLiveRecording} />
         </div>
 
-        <Images imageItems={imageItems} />
+        <EarthPhotography imageItems={earthPhotographyItems} />
         <div className={styles.mapContainer}>
           {showGlobe ? (
             <Globe ephemeraItems={ephemeraItems} viewDate={date} />

@@ -173,6 +173,9 @@ for table in tables:
         # Extract data from the cells based on the indexes
         if expedition_index is not None:
             expedition_number = cells[expedition_index].get_text(strip=True)
+            # Stop processing if expedition number is greater than 72
+            if expedition_number.isdigit() and int(expedition_number) > 72:
+                break
         if expedition_patch_img is not None:
             img_tag = cells[expedition_patch_img].find("img")
             mission_patch_url = img_tag.get("src")

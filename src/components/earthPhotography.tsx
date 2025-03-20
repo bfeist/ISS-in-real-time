@@ -1,11 +1,11 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
-import styles from "./images.module.css";
+import styles from "./earthPhotography.module.css";
 import { useClockContext } from "context/clockContext";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 
-const Images: FunctionComponent<{
-  imageItems: ImageItem[];
+const EarthPhotography: FunctionComponent<{
+  imageItems: earthPhotographyItem[];
 }> = ({ imageItems }) => {
   const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL;
 
@@ -115,4 +115,4 @@ const Images: FunctionComponent<{
   );
 };
 
-export default Images;
+export default EarthPhotography;

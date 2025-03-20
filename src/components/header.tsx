@@ -10,7 +10,8 @@ const Header: FunctionComponent<{
   date: string;
   showGlobe: boolean;
   setShowGlobe: (showGlobe: boolean) => void;
-}> = ({ date, showGlobe, setShowGlobe }) => {
+  dataAvailability: DataAvailability;
+}> = ({ date, showGlobe, setShowGlobe, dataAvailability }) => {
   const velocityRef = useRef<HTMLSpanElement>(null);
   const altitudeRef = useRef<HTMLSpanElement>(null);
   const latRef = useRef<HTMLSpanElement>(null);
@@ -74,6 +75,13 @@ const Header: FunctionComponent<{
         <button onClick={() => setShowGlobe(!showGlobe)}>
           Show {showGlobe ? "Map" : "Globe"}{" "}
         </button>
+        <div style={{ marginLeft: "10px" }}>
+          Comm: {dataAvailability.comm ? "1" : "0"} | vvComm: {dataAvailability.vvComm ? "1" : "0"}{" "}
+          | YouTube: {dataAvailability.youtube ? "1" : "0"} | EVA:{" "}
+          {dataAvailability.eva ? "1" : "0"} | Blog: {dataAvailability.blog ? "1" : "0"} | Activity
+          Summary: {dataAvailability.activitySummary ? "1" : "0"} | Earth Photography:{" "}
+          {dataAvailability.earthPhotography ? "1" : "0"}
+        </div>
       </div>
       <div className={styles.right}>
         <div className={styles.telemetry}>

@@ -3,7 +3,7 @@ import { useLoaderData, useNavigate } from "react-router-dom";
 import { FunctionComponent, JSX, useEffect, useState } from "react";
 
 const Home = (): JSX.Element => {
-  const availableDateItems = useLoaderData() as AvailableDate[];
+  const availableDateItems = useLoaderData() as DataAvailability[];
   const navigate = useNavigate();
   const [selected, setSelected] = useState<Date>();
 
@@ -33,17 +33,17 @@ const Home = (): JSX.Element => {
       </p>
       <div className={styles.yearsContainer}>
         {availableYears.map((year) => {
-          const availableDateItemsThisYear: AvailableDate[] = [];
+          const availableDataItemsThisYear: DataAvailability[] = [];
           availableDateItems.forEach((item) => {
             if (parseInt(item.date.split("-")[0]) === year) {
-              availableDateItemsThisYear.push(item);
+              availableDataItemsThisYear.push(item);
             }
           });
 
           return (
             <>
               <YearPicker
-                availableDateItemsThisYear={availableDateItemsThisYear}
+                availableDataItemsThisYear={availableDataItemsThisYear}
                 year={year}
                 setSelected={setSelected}
               />
@@ -58,12 +58,12 @@ const Home = (): JSX.Element => {
 export default Home;
 
 const YearPicker: FunctionComponent<{
-  availableDateItemsThisYear: AvailableDate[];
+  availableDataItemsThisYear: DataAvailability[];
   year: number;
   setSelected: Function;
-}> = ({ availableDateItemsThisYear, year, setSelected }) => {
+}> = ({ availableDataItemsThisYear, year, setSelected }) => {
   const availableMonthsThisYear: number[] = [];
-  availableDateItemsThisYear.forEach((item) => {
+  availableDataItemsThisYear.forEach((item) => {
     const month = parseInt(item.date.split("-")[1]);
     if (!availableMonthsThisYear.includes(month)) {
       availableMonthsThisYear.push(month);
@@ -77,15 +77,15 @@ const YearPicker: FunctionComponent<{
       <div className={styles.yearTitle}>{year}</div>
       <div className={styles.yearContainer}>
         {availableMonthsThisYear.map((month) => {
-          const availableDateItemsThisMonth: AvailableDate[] = [];
-          availableDateItemsThisYear.forEach((item) => {
+          const availableDataItemsThisMonth: DataAvailability[] = [];
+          availableDataItemsThisYear.forEach((item) => {
             if (parseInt(item.date.split("-")[1]) === month) {
-              availableDateItemsThisMonth.push(item);
+              availableDataItemsThisMonth.push(item);
             }
           });
           return (
             <MonthPicker
-              availableDateItemsThisMonth={availableDateItemsThisMonth}
+              availableDataItemsThisMonth={availableDataItemsThisMonth}
               month={month}
               setSelected={setSelected}
             />
@@ -97,13 +97,13 @@ const YearPicker: FunctionComponent<{
 };
 
 const MonthPicker: FunctionComponent<{
-  availableDateItemsThisMonth: AvailableDate[];
+  availableDataItemsThisMonth: DataAvailability[];
 
   month: number;
   setSelected: Function;
-}> = ({ availableDateItemsThisMonth, month, setSelected }) => {
+}> = ({ availableDataItemsThisMonth, month, setSelected }) => {
   const availableDaysThisMonth: Date[] = [];
-  availableDateItemsThisMonth.forEach((item) => {
+  availableDataItemsThisMonth.forEach((item) => {
     const parts = item.date.split("-");
     const dateObj: Date = new Date(
       Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
@@ -118,7 +118,7 @@ const MonthPicker: FunctionComponent<{
       <div className={styles.monthTitle}>{month}</div>
       <div>
         {availableDaysThisMonth.map((date) => {
-          const dayItem = availableDateItemsThisMonth.find(
+          const dayItem = availableDataItemsThisMonth.find(
             (item) => item.date === date.toISOString().split("T")[0]
           );
 
