@@ -2,8 +2,18 @@ import styles from "./index.module.css";
 import { useLoaderData, useNavigate } from "react-router-dom";
 import { FunctionComponent, JSX, useEffect, useState } from "react";
 
+type TotalsObject = {
+  comm: number;
+  vvComm: number;
+  youtube: number;
+  eva: number;
+  blog: number;
+  activitySummary: number;
+  earthPhotography: number;
+};
+
 const Home = (): JSX.Element => {
-  const availableDateItems = useLoaderData() as DataAvailability[];
+  const dataAvailabilityItems = useLoaderData() as DataAvailability[];
   const navigate = useNavigate();
   const [selected, setSelected] = useState<Date>();
 
@@ -15,8 +25,32 @@ const Home = (): JSX.Element => {
     }
   }, [selected, navigate]);
 
+  const calculateTotals = (dataAvailabilityItems: DataAvailability[]): TotalsObject => {
+    const totalsObject = {
+      comm: 0,
+      vvComm: 0,
+      youtube: 0,
+      eva: 0,
+      blog: 0,
+      activitySummary: 0,
+      earthPhotography: 0,
+    };
+    dataAvailabilityItems.forEach((item) => {
+      totalsObject.comm += item.comm ? 1 : 0;
+      totalsObject.vvComm += item.vvComm ? 1 : 0;
+      totalsObject.youtube += item.youtube ? 1 : 0;
+      totalsObject.eva += item.eva ? 1 : 0;
+      totalsObject.blog += item.blog ? 1 : 0;
+      totalsObject.activitySummary += item.activitySummary ? 1 : 0;
+      totalsObject.earthPhotography += item.earthPhotography ? 1 : 0;
+    });
+    return totalsObject;
+  };
+
+  const totalsObject: TotalsObject = calculateTotals(dataAvailabilityItems);
+
   const availableYears: number[] = [];
-  availableDateItems.forEach((item) => {
+  dataAvailabilityItems.forEach((item) => {
     const year = parseInt(item?.date.split("-")[0]);
     if (!availableYears.includes(year)) {
       availableYears.push(year);
@@ -31,10 +65,19 @@ const Home = (): JSX.Element => {
         <span className={styles.dayYoutube}>Blue</span> means youtube coverage.
         <span className={styles.dayEva}>Bold</span> means EVA that day.
       </p>
+      <p>
+        <div style={{ marginLeft: "10px" }}>
+          Total Days:
+          <br /> Comm: {totalsObject.comm} | Visiting Vehicle Comm: {totalsObject.vvComm} | YouTube:{" "}
+          {totalsObject.youtube} | EVA: {totalsObject.eva} | Blog: {totalsObject.blog} | Activity
+          Summary: {totalsObject.activitySummary} | Earth Photography:{" "}
+          {totalsObject.earthPhotography}
+        </div>
+      </p>
       <div className={styles.yearsContainer}>
         {availableYears.map((year) => {
           const availableDataItemsThisYear: DataAvailability[] = [];
-          availableDateItems.forEach((item) => {
+          dataAvailabilityItems.forEach((item) => {
             if (parseInt(item.date.split("-")[0]) === year) {
               availableDataItemsThisYear.push(item);
             }
