@@ -1,5 +1,5 @@
 import { LoaderFunctionArgs } from "react-router-dom";
-import { processTranscriptCsv } from "utils/transcript";
+import { processCommCsv } from "utils/comm";
 import { youtubeApplyManualStartTimes } from "./youtubeVideos";
 
 export async function getDatePageData({
@@ -25,7 +25,7 @@ export async function getDatePageData({
     const dataAvailability = dataAvailabilities.find((da) => da.date === date);
 
     // Default empty values for all possible data
-    let transcriptItems: TranscriptItem[] = [];
+    let commItems: CommItem[] = [];
     let earthPhotographyItems: earthPhotographyItem[] = [];
     let ephemeraItems: EphemeraItem[] = [];
     let evaDetails: EvaDetail[] = [];
@@ -40,8 +40,10 @@ export async function getDatePageData({
     // Always fetch common data
     fetchPromises.push(
       fetch(`${baseStaticUrl}/eva_details.json`)
-        .then((response) => (response.ok ? response.json() : []))
-        .then((data) => {
+        .then(
+          (response): Promise<EvaDetail[]> => (response.ok ? response.json() : Promise.resolve([]))
+        )
+        .then((data: EvaDetail[]): void => {
           evaDetails = data;
         })
         .catch(() => {})
@@ -49,8 +51,11 @@ export async function getDatePageData({
 
     fetchPromises.push(
       fetch(`${baseStaticUrl}/iss_crew_arr_dep.json`)
-        .then((response) => (response.ok ? response.json() : []))
-        .then((data) => {
+        .then(
+          (response): Promise<CrewArrDepItem[]> =>
+            response.ok ? response.json() : Promise.resolve([])
+        )
+        .then((data: CrewArrDepItem[]): void => {
           crewArrDep = data;
         })
         .catch(() => {})
@@ -58,8 +63,11 @@ export async function getDatePageData({
 
     fetchPromises.push(
       fetch(`${baseStaticUrl}/expeditions.json`)
-        .then((response) => (response.ok ? response.json() : []))
-        .then((data) => {
+        .then(
+          (response): Promise<ExpeditionInfo[]> =>
+            response.ok ? response.json() : Promise.resolve([])
+        )
+        .then((data: ExpeditionInfo[]): void => {
           expeditionInfo = data;
         })
         .catch(() => {})
@@ -67,8 +75,11 @@ export async function getDatePageData({
 
     fetchPromises.push(
       fetch(`${baseStaticUrl}/nationality_flags.json`)
-        .then((response) => (response.ok ? response.json() : {}))
-        .then((data) => {
+        .then(
+          (response): Promise<NationalityFlags> =>
+            response.ok ? response.json() : Promise.resolve({})
+        )
+        .then((data: NationalityFlags): void => {
           nationalityFlags = data;
         })
         .catch(() => {})
@@ -78,9 +89,11 @@ export async function getDatePageData({
     if (dataAvailability?.comm) {
       fetchPromises.push(
         fetch(`${baseStaticUrl}/comm/${year}/${month}/${day}/_transcript_${date}.csv`)
-          .then((response) => (response.ok ? response.text() : ""))
-          .then((text) => {
-            if (text) transcriptItems = processTranscriptCsv(text);
+          .then(
+            (response): Promise<string> => (response.ok ? response.text() : Promise.resolve(""))
+          )
+          .then((text: string): void => {
+            if (text) commItems = processCommCsv(text);
           })
           .catch(() => {})
       );
@@ -89,8 +102,11 @@ export async function getDatePageData({
     // Ephemera is month-based, so we always fetch it
     fetchPromises.push(
       fetch(`${baseStaticUrl}/ephemera/${year}/${year}-${month}.json`)
-        .then((response) => (response.ok ? response.json() : []))
-        .then((data) => {
+        .then(
+          (response): Promise<EphemeraItem[]> =>
+            response.ok ? response.json() : Promise.resolve([])
+        )
+        .then((data: EphemeraItem[]): void => {
           ephemeraItems = data;
         })
         .catch(() => {})
@@ -100,8 +116,11 @@ export async function getDatePageData({
     if (dataAvailability?.earthPhotography) {
       fetchPromises.push(
         fetch(`${baseStaticUrl}/earth_photography/${year}/${month}/images-manifest_${date}.json`)
-          .then((response) => (response.ok ? response.json() : []))
-          .then((data) => {
+          .then(
+            (response): Promise<earthPhotographyItem[]> =>
+              response.ok ? response.json() : Promise.resolve([])
+          )
+          .then((data: earthPhotographyItem[]): void => {
             earthPhotographyItems = data;
             if (earthPhotographyItems.length > 0) {
               earthPhotographyItems.sort((a, b) => a.dateTaken.localeCompare(b.dateTaken));
@@ -115,16 +134,22 @@ export async function getDatePageData({
     if (dataAvailability?.youtube) {
       // For YouTube, we need both resources to process together
       const youtubeLivePromise = fetch(`${baseStaticUrl}/youtube_live_recordings.json`)
-        .then((response) => (response.ok ? response.json() : []))
-        .catch(() => []);
+        .then(
+          (response): Promise<YoutubeLiveRecording[]> =>
+            response.ok ? response.json() : Promise.resolve([])
+        )
+        .catch((): YoutubeLiveRecording[] => []);
 
       const youtubeManualPromise = fetch(`${baseStaticUrl}/youtube_manual_start_times.json`)
-        .then((response) => (response.ok ? response.json() : []))
-        .catch(() => []);
+        .then(
+          (response): Promise<YoutubeManualStartTime[]> =>
+            response.ok ? response.json() : Promise.resolve([])
+        )
+        .catch((): YoutubeManualStartTime[] => []);
 
       fetchPromises.push(
         Promise.all([youtubeLivePromise, youtubeManualPromise]).then(
-          ([recordings, manualTimes]) => {
+          ([recordings, manualTimes]): void => {
             youtubeLiveRecordings = youtubeApplyManualStartTimes({
               youtubeLiveRecordings: recordings,
               youtubeManualStartTimes: manualTimes,
@@ -138,7 +163,7 @@ export async function getDatePageData({
     await Promise.all(fetchPromises);
 
     return {
-      transcriptItems,
+      transcriptItems: commItems,
       earthPhotographyItems,
       ephemeraItems,
       evaDetails,

@@ -9,7 +9,7 @@ type DataAvailability = {
   earthPhotography: boolean;
 };
 
-type TranscriptItem = {
+type CommItem = {
   utteranceTime: string;
   filename: string;
   start: string;
@@ -33,7 +33,7 @@ type EphemeraItem = {
 };
 
 type GetDatePageDataResponse = {
-  transcriptItems: TranscriptItem[];
+  transcriptItems: CommItem[];
   earthPhotographyItems: earthPhotographyItem[];
   ephemeraItems: EphemeraItem[];
   evaDetails: EvaDetail[];

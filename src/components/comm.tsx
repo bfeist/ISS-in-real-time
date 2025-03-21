@@ -1,25 +1,25 @@
-import { extractChannelnumFromFilename } from "utils/transcript";
+import { extractChannelInfoFromFilename } from "utils/comm";
 import { FunctionComponent, useEffect, useState } from "react";
-import styles from "./transcript.module.css";
+import styles from "./comm.module.css";
 import { useClockContext } from "context/clockContext";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 
-const Transcript: FunctionComponent<{
+const Comm: FunctionComponent<{
   viewDate: string;
-  transcriptItems: TranscriptItem[];
+  commItems: CommItem[];
   audioRef: React.RefObject<HTMLAudioElement>;
-}> = ({ viewDate, transcriptItems, audioRef }) => {
+}> = ({ viewDate, commItems, audioRef }) => {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
   const { clock, clockDispatch } = useClockContext();
   const [lastScrolledToTimeStr, setLastScrolledToTimeStr] = useState<string | null>(null);
   const [appSeconds, setAppSeconds] = useState(0);
 
-  const getClosestTranscriptItem = () => {
-    // Find the closest transcript item to the current time
-    let closestTranscript = transcriptItems[0];
+  const getClosestCommItem = () => {
+    // Find the closest comm item to the current time
+    let closestComm = commItems[0];
     let appSecondsDiff = null;
-    for (const item of transcriptItems) {
+    for (const item of commItems) {
       const itemSeconds = appSecondsFromTimeStr(item.utteranceTime);
       if (itemSeconds > appSeconds) {
         break;
@@ -27,63 +27,63 @@ const Transcript: FunctionComponent<{
       const diff = Math.abs(appSeconds - itemSeconds);
       if (appSecondsDiff === null || diff < appSecondsDiff) {
         appSecondsDiff = diff;
-        closestTranscript = item;
+        closestComm = item;
       }
     }
-    return closestTranscript;
+    return closestComm;
   };
 
   /**
-   * Effect to scroll to the closest transcript item when the clock changes
+   * Effect to scroll to the closest comm item when the clock changes
    */
   useEffect(() => {
-    if (!appSeconds || transcriptItems.length === 0) return;
+    if (!appSeconds || commItems.length === 0) return;
 
     // If the clock isn't running, stop the audio
     if (!clock.isRunning && audioRef.current) {
       audioRef.current.pause();
     }
 
-    const closestTranscript = getClosestTranscriptItem();
+    const closestComm = getClosestCommItem();
 
-    const closestTranscriptTimeStr = closestTranscript.utteranceTime;
+    const closestCommTimeStr = closestComm.utteranceTime;
 
-    if (lastScrolledToTimeStr === closestTranscriptTimeStr) return;
-    setLastScrolledToTimeStr(closestTranscriptTimeStr);
+    if (lastScrolledToTimeStr === closestCommTimeStr) return;
+    setLastScrolledToTimeStr(closestCommTimeStr);
 
-    const targetElement = document.querySelector(`[data-time="${closestTranscriptTimeStr}"]`);
+    const targetElement = document.querySelector(`[data-time="${closestCommTimeStr}"]`);
     targetElement?.scrollIntoView({ behavior: "smooth" });
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appSeconds, transcriptItems, audioRef, setLastScrolledToTimeStr, lastScrolledToTimeStr]);
+  }, [appSeconds, commItems, audioRef, setLastScrolledToTimeStr, lastScrolledToTimeStr]);
 
   /**
-   *  effect to play audio if appSeconds === one of the transcriptItems
+   *  effect to play audio if appSeconds === one of the commItems
    */
   useEffect(() => {
-    if (!appSeconds || transcriptItems.length === 0) return;
+    if (!appSeconds || commItems.length === 0) return;
 
-    // Find a transcript item that matches the current time
-    const transcriptItem = transcriptItems.find(
+    // Find a comm item that matches the current time
+    const commItem = commItems.find(
       (item) => appSecondsFromTimeStr(item.utteranceTime) === appSeconds
     );
 
-    if (transcriptItem) {
+    if (commItem) {
       const [year, month, day] = viewDate.split("-");
-      const aacFileUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/${transcriptItem.filename}`;
+      const aacFileUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/${commItem.filename}`;
       if (audioRef.current && clock.isRunning) {
         audioRef.current.src = aacFileUrl;
         audioRef.current.play();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appSeconds, transcriptItems, audioRef, viewDate]);
+  }, [appSeconds, commItems, audioRef, viewDate]);
 
   return (
-    <div className={styles.transcript}>
+    <div className={styles.comm}>
       <ClockInterval setAppSeconds={setAppSeconds} />
-      {transcriptItems.map((item, index) => {
-        const channelnum = extractChannelnumFromFilename(item.filename);
+      {commItems.map((item, index) => {
+        const channelInfo = extractChannelInfoFromFilename(item.filename);
 
         let backgroundColor = "transparent";
         if (appSecondsFromTimeStr(item.utteranceTime) === appSeconds) {
@@ -93,7 +93,7 @@ const Transcript: FunctionComponent<{
         return (
           <div
             key={index}
-            className={styles.transcriptItem}
+            className={styles.commItem}
             style={{ backgroundColor }}
             data-time={item.utteranceTime}
             role="button"
@@ -114,7 +114,9 @@ const Transcript: FunctionComponent<{
             }}
           >
             <div className={styles.utteranceTime}>{item.utteranceTime}</div>
-            <div className={styles.channelnum}>SG-{channelnum}</div>
+            <div className={styles.channelnum}>
+              {channelInfo.type}-{channelInfo.number}
+            </div>
             <div className={styles.textContainer}>
               <div className={styles.text}>{item.text}</div>
               {item.textOriginalLang && (
@@ -128,4 +130,4 @@ const Transcript: FunctionComponent<{
   );
 };
 
-export default Transcript;
+export default Comm;

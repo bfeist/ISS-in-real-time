@@ -1,4 +1,4 @@
-.transcript {
+.comm {
   display: flex;
   flex-direction: column;
   background-color: #797979;
@@ -8,7 +8,7 @@
   overflow-y: auto;
 }
 
-.transcriptItem {
+.commItem {
   display: flex;
   flex-direction: row;
   gap: 10px;

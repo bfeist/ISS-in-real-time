@@ -1,7 +1,7 @@
 import { useLoaderData, useParams, useLocation } from "react-router-dom";
 import EarthPhotography from "components/earthPhotography";
 import styles from "./dateSlug.module.css";
-import Transcript from "components/transcript";
+import Transcript from "components/comm";
 import Map from "components/map";
 import { JSX, useEffect, useRef, useState } from "react";
 import { isValidTimestring } from "utils/params";
@@ -81,7 +81,7 @@ const DatePage = (): JSX.Element => {
       />
       <div className={styles.upper}>
         <div className={styles.transcriptsContainer}>
-          <Transcript audioRef={audioRef} transcriptItems={transcriptItems} viewDate={date} />
+          <Transcript audioRef={audioRef} commItems={transcriptItems} viewDate={date} />
         </div>
         <div className={styles.videoContainer}>
           <YouTube youtubeLiveRecording={youtubeLiveRecording} />
