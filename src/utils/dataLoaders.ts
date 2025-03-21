@@ -9,98 +9,133 @@ export async function getDatePageData({
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
   const [year, month, day] = date!.split("-");
 
-  const transcriptUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/_transcript_${date}.csv`;
-  const earthPhotographyUrl = `${baseStaticUrl}/earth_photography/${year}/${month}/images-manifest_${date}.json`;
-  const ephemeraUrl = `${baseStaticUrl}/ephemera/${year}/${year}-${month}.json`;
-  const evaDetailsUrl = `${baseStaticUrl}/eva_details.json`;
   const dataAvailabilityUrl = `${baseStaticUrl}/data_availability.csv`;
-  const youtubeLiveRecordingsUrl = `${baseStaticUrl}/youtube_live_recordings.json`;
-  const youtubeManualStartTimesUrl = `${baseStaticUrl}/youtube_manual_start_times.json`;
-  const crewArrDepUrl = `${baseStaticUrl}/iss_crew_arr_dep.json`;
-  const expeditionInfoUrl = `${baseStaticUrl}/expeditions.json`;
-  const nationalityFlagsUrl = `${baseStaticUrl}/nationality_flags.json`;
 
   try {
-    const results = await Promise.allSettled([
-      fetch(transcriptUrl),
-      fetch(earthPhotographyUrl),
-      fetch(ephemeraUrl),
-      fetch(evaDetailsUrl),
-      fetch(dataAvailabilityUrl),
-      fetch(youtubeLiveRecordingsUrl),
-      fetch(youtubeManualStartTimesUrl),
-      fetch(crewArrDepUrl),
-      fetch(expeditionInfoUrl),
-      fetch(nationalityFlagsUrl),
-    ]);
-
-    const [
-      transcriptResult,
-      earthPhotographyResult,
-      ephemeraResult,
-      evaDetailsResult,
-      dataAvailabilityResult,
-      youtubeLiveRecordingsResult,
-      youtubeManualStartTimesResult,
-      crewArrDepResult,
-      expeditionInfoResult,
-      nationalityFlagsResult,
-    ] = results;
-
-    const transcriptItems: TranscriptItem[] =
-      transcriptResult.status === "fulfilled" && transcriptResult.value.ok
-        ? processTranscriptCsv(await transcriptResult.value.text())
-        : [];
-    const earthPhotographyItems: earthPhotographyItem[] =
-      earthPhotographyResult.status === "fulfilled" && earthPhotographyResult.value.ok
-        ? await earthPhotographyResult.value.json()
-        : [];
-    if (earthPhotographyItems.length > 0) {
-      earthPhotographyItems.sort((a, b) => a.dateTaken.localeCompare(b.dateTaken));
+    // First fetch the data availability
+    const dataAvailabilityResponse = await fetch(dataAvailabilityUrl);
+    if (!dataAvailabilityResponse.ok) {
+      throw new Error("Failed to fetch data availability");
     }
-    const ephemeraItems: EphemeraItem[] =
-      ephemeraResult.status === "fulfilled" && ephemeraResult.value.ok
-        ? await ephemeraResult.value.json()
-        : [];
-    const evaDetails: EvaDetail[] =
-      evaDetailsResult.status === "fulfilled" && evaDetailsResult.value.ok
-        ? await evaDetailsResult.value.json()
-        : [];
-    const dataAvailabilitiesRaw: string =
-      dataAvailabilityResult.status === "fulfilled" && dataAvailabilityResult.value.ok
-        ? await dataAvailabilityResult.value.text()
-        : "";
-    const youtubeLiveRecordingsUncorrected: YoutubeLiveRecording[] =
-      youtubeLiveRecordingsResult.status === "fulfilled" && youtubeLiveRecordingsResult.value.ok
-        ? await youtubeLiveRecordingsResult.value.json()
-        : [];
-    const youtubeManualStartTimes: YoutubeManualStartTime[] =
-      youtubeManualStartTimesResult.status === "fulfilled" && youtubeManualStartTimesResult.value.ok
-        ? await youtubeManualStartTimesResult.value.json()
-        : [];
-    const crewArrDep: CrewArrDepItem[] =
-      crewArrDepResult.status === "fulfilled" && crewArrDepResult.value.ok
-        ? await crewArrDepResult.value.json()
-        : [];
-    const expeditionInfo: ExpeditionInfo[] =
-      expeditionInfoResult.status === "fulfilled" && expeditionInfoResult.value.ok
-        ? await expeditionInfoResult.value.json()
-        : [];
 
-    const nationalityFlags: NationalityFlags =
-      nationalityFlagsResult.status === "fulfilled" && nationalityFlagsResult.value.ok
-        ? await nationalityFlagsResult.value.json()
-        : {};
-
-    const youtubeLiveRecordings = youtubeApplyManualStartTimes({
-      youtubeLiveRecordings: youtubeLiveRecordingsUncorrected,
-      youtubeManualStartTimes,
-    });
-
+    const dataAvailabilitiesRaw = await dataAvailabilityResponse.text();
     const dataAvailabilities = processDataAvailabilities({
       dataAvailabilitiesRaw,
     });
     const dataAvailability = dataAvailabilities.find((da) => da.date === date);
+
+    // Default empty values for all possible data
+    let transcriptItems: TranscriptItem[] = [];
+    let earthPhotographyItems: earthPhotographyItem[] = [];
+    let ephemeraItems: EphemeraItem[] = [];
+    let evaDetails: EvaDetail[] = [];
+    let youtubeLiveRecordings: YoutubeLiveRecording[] = [];
+    let crewArrDep: CrewArrDepItem[] = [];
+    let expeditionInfo: ExpeditionInfo[] = [];
+    let nationalityFlags: NationalityFlags = {};
+
+    // Create fetch promises based on data availability
+    const fetchPromises = [];
+
+    // Always fetch common data
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/eva_details.json`)
+        .then((response) => (response.ok ? response.json() : []))
+        .then((data) => {
+          evaDetails = data;
+        })
+        .catch(() => {})
+    );
+
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/iss_crew_arr_dep.json`)
+        .then((response) => (response.ok ? response.json() : []))
+        .then((data) => {
+          crewArrDep = data;
+        })
+        .catch(() => {})
+    );
+
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/expeditions.json`)
+        .then((response) => (response.ok ? response.json() : []))
+        .then((data) => {
+          expeditionInfo = data;
+        })
+        .catch(() => {})
+    );
+
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/nationality_flags.json`)
+        .then((response) => (response.ok ? response.json() : {}))
+        .then((data) => {
+          nationalityFlags = data;
+        })
+        .catch(() => {})
+    );
+
+    // Fetch transcript if available
+    if (dataAvailability?.comm) {
+      fetchPromises.push(
+        fetch(`${baseStaticUrl}/comm/${year}/${month}/${day}/_transcript_${date}.csv`)
+          .then((response) => (response.ok ? response.text() : ""))
+          .then((text) => {
+            if (text) transcriptItems = processTranscriptCsv(text);
+          })
+          .catch(() => {})
+      );
+    }
+
+    // Ephemera is month-based, so we always fetch it
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/ephemera/${year}/${year}-${month}.json`)
+        .then((response) => (response.ok ? response.json() : []))
+        .then((data) => {
+          ephemeraItems = data;
+        })
+        .catch(() => {})
+    );
+
+    // Fetch earth photography if available
+    if (dataAvailability?.earthPhotography) {
+      fetchPromises.push(
+        fetch(`${baseStaticUrl}/earth_photography/${year}/${month}/images-manifest_${date}.json`)
+          .then((response) => (response.ok ? response.json() : []))
+          .then((data) => {
+            earthPhotographyItems = data;
+            if (earthPhotographyItems.length > 0) {
+              earthPhotographyItems.sort((a, b) => a.dateTaken.localeCompare(b.dateTaken));
+            }
+          })
+          .catch(() => {})
+      );
+    }
+
+    // Fetch YouTube data if available
+    if (dataAvailability?.youtube) {
+      // For YouTube, we need both resources to process together
+      const youtubeLivePromise = fetch(`${baseStaticUrl}/youtube_live_recordings.json`)
+        .then((response) => (response.ok ? response.json() : []))
+        .catch(() => []);
+
+      const youtubeManualPromise = fetch(`${baseStaticUrl}/youtube_manual_start_times.json`)
+        .then((response) => (response.ok ? response.json() : []))
+        .catch(() => []);
+
+      fetchPromises.push(
+        Promise.all([youtubeLivePromise, youtubeManualPromise]).then(
+          ([recordings, manualTimes]) => {
+            youtubeLiveRecordings = youtubeApplyManualStartTimes({
+              youtubeLiveRecordings: recordings,
+              youtubeManualStartTimes: manualTimes,
+            });
+          }
+        )
+      );
+    }
+
+    // Wait for all fetches to complete
+    await Promise.all(fetchPromises);
 
     return {
       transcriptItems,
