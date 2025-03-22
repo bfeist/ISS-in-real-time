@@ -52,18 +52,16 @@ const DatePage = (): JSX.Element => {
   console.log("evaDetailsForDate", evaDetailsForDate);
 
   useEffect(() => {
+    clockDispatch({ type: "start" });
     if (isValidTimestring(t)) {
-      clockDispatch({ type: "start" });
       clockDispatch({ type: "setAppSeconds", appSeconds: appSecondsFromTimeStr(t) });
     } else if (youtubeLiveRecording) {
-      clockDispatch({ type: "start" });
       clockDispatch({
         type: "setAppSeconds",
         appSeconds: appSecondsFromTimeStr(youtubeLiveRecording.startTime.split("T")[1]),
       });
     } else if (transcriptItems.length > 0) {
       const firstTimeStr = transcriptItems[0].utteranceTime;
-      clockDispatch({ type: "start" });
       clockDispatch({
         type: "setAppSeconds",
         appSeconds: appSecondsFromTimeStr(firstTimeStr) - 5,

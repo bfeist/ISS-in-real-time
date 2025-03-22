@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -5,6 +6,7 @@ from itertools import count
 import os
 import datetime  # ...existing code...
 
+load_dotenv(dotenv_path="../../.env")
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
 # URL of the Wikipedia page

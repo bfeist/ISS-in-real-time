@@ -34,7 +34,11 @@ const CrewOnboard: FunctionComponent<{
             </div>
             <div>Onboard: {ddhhmmssBetweenDateStrings(crewItem.arrivalDate, currentTimeStr)}</div>
             <div>
-              Departing in: {ddhhmmssBetweenDateStrings(currentTimeStr, crewItem.departureDate)}
+              {crewItem.departureDate !== null && (
+                <>
+                  Departing in: {ddhhmmssBetweenDateStrings(currentTimeStr, crewItem.departureDate)}
+                </>
+              )}
             </div>
           </div>
         </div>
