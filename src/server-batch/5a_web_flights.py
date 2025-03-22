@@ -174,7 +174,7 @@ fields_map = {
 # Second pass: for each entry, scrape additional fields from the mission page infobox
 for entry in data:
     mission_url = entry.get("mission_name_url", "")
-    # mission_url = "https://en.wikipedia.org/wiki/Soyuz_MS-26"  # For testing
+    # mission_url = "https://en.wikipedia.org/wiki/STS-113"  # For testing
     if mission_url:
         # Build full URL if necessary
         if mission_url.startswith("/"):
@@ -231,6 +231,15 @@ for entry in data:
                                 ):
                                     # if value contains brackets, use the value in the brackets
                                     value = value.replace("(planned)", "").strip()
+
+                                    # For docking date, only take the first one if multiple exist
+                                    if (
+                                        field == "docking_date_utc"
+                                        and entry[field] != ""
+                                    ):
+
+                                        continue
+
                                     if "(" in value:
                                         temp = value.split("(")[1].split(")")[0].strip()
                                         temp = temp.replace("UTC", "T").strip()
@@ -350,6 +359,18 @@ for entry in data:
                             print(f"No crew launching found on {mission_url}")
                         if not entry["crew_landing"]:
                             print(f"No crew landing found on {mission_url}")
+
+                        # if crew nationality is not available, print an error
+                        for crew in entry["crew_launching"]:
+                            if not crew["nationality"]:
+                                print(
+                                    f"Nationality not found for {crew['name']} in {mission_url}"
+                                )
+                        for crew in entry["crew_landing"]:
+                            if not crew["nationality"]:
+                                print(
+                                    f"Nationality not found for {crew['name']} in {mission_url}"
+                                )
 
             # Pause briefly between requests to be polite to the server
             time.sleep(0.5)

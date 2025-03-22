@@ -5,7 +5,7 @@ import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 
 const EarthPhotography: FunctionComponent<{
-  imageItems: earthPhotographyItem[];
+  imageItems: EarthPhotographyItem[];
 }> = ({ imageItems }) => {
   const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL;
 

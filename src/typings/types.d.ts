@@ -19,7 +19,7 @@ type CommItem = {
   textOriginalLang: string;
 };
 
-type earthPhotographyItem = {
+type EarthPhotographyItem = {
   ID: string;
   dateTaken: string;
   smallUrl: string;
@@ -34,7 +34,7 @@ type EphemeraItem = {
 
 type GetDatePageDataResponse = {
   transcriptItems: CommItem[];
-  earthPhotographyItems: earthPhotographyItem[];
+  earthPhotographyItems: EarthPhotographyItem[];
   ephemeraItems: EphemeraItem[];
   evaDetails: EvaDetail[];
   dataAvailability: DataAvailability;
@@ -42,6 +42,7 @@ type GetDatePageDataResponse = {
   crewArrDep: CrewArrDepItem[];
   expeditionInfo: ExpeditionInfo[];
   nationalityFlags: NationalityFlags;
+  flights: Flight[];
 };
 
 type GetCesiumPageDataResponse = {
@@ -101,6 +102,44 @@ type YoutubeManualStartTime = {
   videoId: string;
   youtubeTime: string;
   youtubeTimeIsoTimestamp: string;
+};
+
+type FlightCrewMember = {
+  name: string;
+  position: string;
+  nationality: string;
+};
+
+type Flight = {
+  number: string;
+  iss_flight: string;
+  mission_name: string;
+  mission_name_url: string;
+  mission_patch_url: string;
+  vehicle_name: string;
+  launch_date: string;
+  time_docked: string;
+  crew_photo_url: string;
+  notes: string;
+  mission_duration: string;
+  spacecraft: string;
+  spacecraft_type: string;
+  manufacturer: string;
+  crew_launching: FlightCrewMember[];
+  crew_landing: FlightCrewMember[];
+  launch_mass: string;
+  landing_mass: string;
+  launch_date_utc: string;
+  rocket: string;
+  launch_site: string;
+  recovered_by: string;
+  landing_date_utc: string;
+  landing_site: string;
+  docking_port: string;
+  docking_date_utc: string;
+  undocking_date_utc: string;
+  time_docked_detail: string;
+  infobox_image_url: string;
 };
 
 type Telemetry = {

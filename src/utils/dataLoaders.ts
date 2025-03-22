@@ -26,13 +26,14 @@ export async function getDatePageData({
 
     // Default empty values for all possible data
     let commItems: CommItem[] = [];
-    let earthPhotographyItems: earthPhotographyItem[] = [];
+    let earthPhotographyItems: EarthPhotographyItem[] = [];
     let ephemeraItems: EphemeraItem[] = [];
     let evaDetails: EvaDetail[] = [];
     let youtubeLiveRecordings: YoutubeLiveRecording[] = [];
     let crewArrDep: CrewArrDepItem[] = [];
     let expeditionInfo: ExpeditionInfo[] = [];
     let nationalityFlags: NationalityFlags = {};
+    let flights: Flight[] = [];
 
     // Create fetch promises based on data availability
     const fetchPromises = [];
@@ -50,7 +51,7 @@ export async function getDatePageData({
     );
 
     fetchPromises.push(
-      fetch(`${baseStaticUrl}/iss_crew_arr_dep.json`)
+      fetch(`${baseStaticUrl}/crew_arr_dep.json`)
         .then(
           (response): Promise<CrewArrDepItem[]> =>
             response.ok ? response.json() : Promise.resolve([])
@@ -81,6 +82,17 @@ export async function getDatePageData({
         )
         .then((data: NationalityFlags): void => {
           nationalityFlags = data;
+        })
+        .catch(() => {})
+    );
+
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/flights.json`)
+        .then(
+          (response): Promise<Flight[]> => (response.ok ? response.json() : Promise.resolve([]))
+        )
+        .then((data: Flight[]): void => {
+          flights = data;
         })
         .catch(() => {})
     );
@@ -117,10 +129,10 @@ export async function getDatePageData({
       fetchPromises.push(
         fetch(`${baseStaticUrl}/earth_photography/${year}/${month}/images-manifest_${date}.json`)
           .then(
-            (response): Promise<earthPhotographyItem[]> =>
+            (response): Promise<EarthPhotographyItem[]> =>
               response.ok ? response.json() : Promise.resolve([])
           )
-          .then((data: earthPhotographyItem[]): void => {
+          .then((data: EarthPhotographyItem[]): void => {
             earthPhotographyItems = data;
             if (earthPhotographyItems.length > 0) {
               earthPhotographyItems.sort((a, b) => a.dateTaken.localeCompare(b.dateTaken));
@@ -172,6 +184,7 @@ export async function getDatePageData({
       crewArrDep,
       expeditionInfo,
       nationalityFlags,
+      flights,
     };
   } catch (error) {
     console.error(error);
@@ -185,6 +198,7 @@ export async function getDatePageData({
       crewArrDep: [],
       expeditionInfo: [],
       nationalityFlags: {},
+      flights: [],
     };
   }
 }
