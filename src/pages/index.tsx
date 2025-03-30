@@ -64,7 +64,10 @@ const Home = (): JSX.Element => {
         <span className={styles.dayYoutube}>Blue</span> means youtube coverage.
         <br />
         <span className={styles.dayEva}>Bold</span> means EVA that day.
-        <span className={styles.dayNoComm}>This grey</span> means no comm but has other data like
+        <br />
+        <span className={styles.dayComm}>Black</span> means space-to-ground comm coverage.
+        <br />
+        <span className={styles.dayOtherData}>This grey</span> means no comm but has other data like
         blogs, statuses, or earth photography.
         <br />
         <span className={styles.dayNoData}>This grey</span> means no data at all.
@@ -166,13 +169,14 @@ const MonthPicker: FunctionComponent<{
             (item) => item.date === date.toISOString().split("T")[0]
           );
 
+          const commStyle = dayItem?.comm || dayItem?.vvComm ? styles.dayComm : "";
           const evaStyle = dayItem?.eva ? styles.dayEva : "";
           const youtubeStyle = dayItem?.youtube ? styles.dayYoutube : "";
-          const noCommStyle =
+          const otherDataStyle =
             dayItem &&
             !dayItem.comm &&
             (dayItem.blog || dayItem.activitySummary || dayItem.earthPhotography)
-              ? styles.dayNoComm
+              ? styles.dayOtherData
               : "";
           const noDataStyle =
             !dayItem ||
@@ -180,8 +184,6 @@ const MonthPicker: FunctionComponent<{
               !dayItem.blog &&
               !dayItem.activitySummary &&
               !dayItem.earthPhotography &&
-              !dayItem.eva &&
-              !dayItem.youtube &&
               !dayItem.vvComm)
               ? styles.dayNoData
               : "";
@@ -189,7 +191,7 @@ const MonthPicker: FunctionComponent<{
           return (
             <div
               key={date.toISOString()}
-              className={`${styles.day} ${evaStyle} ${youtubeStyle} ${noCommStyle} ${noDataStyle}`}
+              className={`${styles.day} ${commStyle} ${evaStyle} ${youtubeStyle} ${otherDataStyle} ${noDataStyle}`}
               role="button"
               tabIndex={0}
               onClick={() => setSelected(date)}
