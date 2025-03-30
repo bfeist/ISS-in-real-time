@@ -25,6 +25,7 @@ if __name__ == "__main__":
     word_counts = {}
     channel_word_counts = {}
     vv_days_set = set()  # Track unique days with AG or DG files
+    total_utterances = 0  # Track total number of utterances
 
     for root, dirs, files in os.walk(COMM_FOLDER):
         for file in files:
@@ -40,6 +41,7 @@ if __name__ == "__main__":
                 with open(os.path.join(root, file), "r", encoding="utf-8") as f:
                     rows = f.readlines()
                     for row in rows:
+                        total_utterances += 1  # Count each row as one utterance
                         time, filename, start, end, language, text, textOriginalLang = (
                             row.strip().split("|")
                         )
@@ -81,6 +83,9 @@ if __name__ == "__main__":
     # Update vv_days count from the set
     vv_days = len(vv_days_set)
 
+    # Calculate average utterances per day
+    avg_utterances_per_day = total_utterances / comm_days if comm_days > 0 else 0
+
     # sort languages by word count
     word_counts = dict(
         sorted(word_counts.items(), key=lambda item: item[1], reverse=True)
@@ -88,6 +93,8 @@ if __name__ == "__main__":
 
     print(f"Total days with transcripts: {comm_days:,}")
     print(f"Total days with visiting vehicle transcripts: {vv_days:,}")
+    print(f"Total utterances: {total_utterances:,}")
+    print(f"Average utterances per day: {avg_utterances_per_day:.2f}")
     print(f"Channel word counts:")
     for channel, count in channel_word_counts.items():
         print(f"{channel}: {count:,}")
