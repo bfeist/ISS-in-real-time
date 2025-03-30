@@ -1,0 +1,62 @@
+.blogContainer {
+  flex: 1;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.blogEntries {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.blogEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.blogEntry h3 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.imageContainer {
+  width: 100%;
+  margin: 12px 0;
+}
+
+.imageContainer img {
+  width: 400px;
+  max-width: 100%;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.clickableImage:hover {
+  opacity: 0.9;
+  box-shadow: 0 0 10px rgba(124, 180, 255, 0.5);
+  transition: all 0.2s ease-in-out;
+}
+
+.imageCaption {
+  font-size: 0.9rem;
+  font-style: italic;
+  margin-top: 6px;
+  color: #ccc;
+}
+
+.content p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.content p a {
+  color: black;
+  text-decoration: underline;
+}
+
+.content p a:hover {
+  text-decoration: underline;
+}

@@ -33,6 +33,8 @@ export async function getDatePageData({
     let crewArrDep: CrewArrDepItem[] = [];
     let expeditionInfo: ExpeditionInfo[] = [];
     let flights: Flight[] = [];
+    let activitySummary: ActivitySummary = {};
+    let blogArticles: BlogArticle[] = [];
 
     // Create fetch promises based on data availability
     const fetchPromises = [];
@@ -158,6 +160,34 @@ export async function getDatePageData({
       );
     }
 
+    if (dataAvailability?.activitySummary) {
+      fetchPromises.push(
+        fetch(`${baseStaticUrl}/activity_summaries/${year}/${month}/activity_summary_${date}.json`)
+          .then(
+            (response): Promise<ActivitySummary> =>
+              response.ok ? response.json() : Promise.resolve(null)
+          )
+          .then((data: ActivitySummary): void => {
+            activitySummary = data;
+          })
+          .catch(() => {})
+      );
+    }
+
+    if (dataAvailability?.blog) {
+      fetchPromises.push(
+        fetch(`${baseStaticUrl}/blog_articles/${year}/${month}/${day}/articles.json`)
+          .then(
+            (response): Promise<BlogArticle[]> =>
+              response.ok ? response.json() : Promise.resolve([])
+          )
+          .then((data: BlogArticle[]): void => {
+            blogArticles = data;
+          })
+          .catch(() => {})
+      );
+    }
+
     // Wait for all fetches to complete
     await Promise.all(fetchPromises);
 
@@ -171,6 +201,8 @@ export async function getDatePageData({
       crewArrDep,
       expeditionInfo,
       flights,
+      activitySummary,
+      blogArticles,
     };
   } catch (error) {
     console.error(error);
@@ -184,6 +216,8 @@ export async function getDatePageData({
       crewArrDep: [],
       expeditionInfo: [],
       flights: [],
+      activitySummary: {},
+      blogArticles: [],
     };
   }
 }

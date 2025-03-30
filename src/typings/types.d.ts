@@ -42,6 +42,8 @@ type GetDatePageDataResponse = {
   crewArrDep: CrewArrDepItem[];
   expeditionInfo: ExpeditionInfo[];
   flights: Flight[];
+  activitySummary: ActivitySummary;
+  blogArticles: BlogArticle[];
 };
 
 type GetCesiumPageDataResponse = {
@@ -135,6 +137,32 @@ type Flight = {
   undocking_date_utc: string;
   time_docked_detail: string;
   infobox_image_url: string;
+};
+
+type ActivitySummaryGeneral = {
+  name: string;
+  description: string;
+};
+
+type ActivitySummaryTasklist = {
+  name: string;
+};
+
+type ActivitySummaryGround = {
+  name: string;
+};
+
+type ActivitySummary = {
+  general?: ActivitySummaryGeneral[];
+  tasklist?: ActivitySummaryTasklist[];
+  ground?: ActivitySummaryGround[];
+};
+
+type BlogArticle = {
+  title: string;
+  paragraphs: string[];
+  image_caption?: string;
+  image_filename?: string;
 };
 
 type Telemetry = {

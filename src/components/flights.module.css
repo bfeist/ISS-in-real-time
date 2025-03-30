@@ -1,4 +1,5 @@
 .flightsContainer {
+  flex: 0 1 300px;
   padding: 1em;
   overflow-y: auto;
 }

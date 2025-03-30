@@ -12,8 +12,8 @@ WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
 
 def get_iss_activities(url):
-    categories = {"General": []}
-    current_category = "General"
+    categories = {"general": []}  # Changed from "General" to "general"
+    current_category = "general"  # Changed from "General" to "general"
 
     try:
         response = requests.get(url)
@@ -32,11 +32,11 @@ def get_iss_activities(url):
     category_headings = {
         "Payloads": "Payloads",
         "Systems": "Systems",
-        "Completed Task List Activities": "Tasklist",
-        "Completed Planned Activities": "Tasklist",
-        "Today’s Planned Activities": "Tasklist",
-        "Today’s Ground Activities": "Ground",
-        "Ground Activities": "Ground",
+        "Completed Task List Activities": "tasklist",  # Changed from "Tasklist" to "tasklist"
+        "Completed Planned Activities": "tasklist",  # Changed from "Tasklist" to "tasklist"
+        "Today’s Planned Activities": "tasklist",  # Changed from "Tasklist" to "tasklist"
+        "Today’s Ground Activities": "ground",  # Changed from "Ground" to "ground"
+        "Ground Activities": "ground",  # Changed from "Ground" to "ground"
     }
 
     # Iterate over all child elements in the main content
@@ -62,7 +62,9 @@ def get_iss_activities(url):
             else:
                 # If we are inside a known category, extract the activity name and description
                 if current_category:
-                    if current_category == "Tasklist" or current_category == "Ground":
+                    if (
+                        current_category == "tasklist" or current_category == "ground"
+                    ):  # Updated to lowercase
                         ul = elem.find_next_sibling("ul")
                         if ul:
                             for li in ul.find_all("li"):
@@ -92,7 +94,10 @@ def get_iss_activities(url):
                             categories[current_category].append(
                                 {"name": activity_name, "description": description}
                             )
-        elif elem.name == "ul" and current_category in ["Tasklist", "Ground"]:
+        elif elem.name == "ul" and current_category in [
+            "tasklist",
+            "ground",
+        ]:  # Updated to lowercase
             for li in elem.find_all("li"):
                 text = li.get_text(strip=True)
                 activity_name = text.split(":", 1)[0].strip()
@@ -140,10 +145,10 @@ def main():
             f"activity_summary_{year}-{month}-{day}.json",
         )
 
-        if os.path.exists(summary_path):
-            print(f"Summary for {available_date} already exists. Skipping...")
-            current_date += delta
-            continue
+        # if os.path.exists(summary_path):
+        #     print(f"Summary for {available_date} already exists. Skipping...")
+        #     current_date += delta
+        #     continue
 
         landing_url = f"https://blogs.nasa.gov/stationreport/{year}/{month}/{day}"
         blog_url = get_blog_url(landing_url)
@@ -155,7 +160,7 @@ def main():
         categorized_activities = get_iss_activities(blog_url)
         if (
             len(categorized_activities) == 1
-            and len(categorized_activities["General"]) == 0
+            and len(categorized_activities["general"]) == 0
         ):
             print(f"No activities found for {available_date}. Skipping...")
             current_date += delta

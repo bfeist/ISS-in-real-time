@@ -74,13 +74,15 @@ def load_wayback_articles():
                                                         "title", ""
                                                     ),
                                                     "date": formatted_date,
-                                                    "content": article_data.get(
-                                                        "content", ""
+                                                    "paragraphs": article_data.get(
+                                                        "paragraphs", []
                                                     )
-                                                    or "\n\n".join(
+                                                    or (
                                                         article_data.get(
-                                                            "paragraphs", []
-                                                        )
+                                                            "content", ""
+                                                        ).split("\n\n")
+                                                        if article_data.get("content")
+                                                        else []
                                                     ),
                                                     "source": "wayback",
                                                     "original_file": article_data.get(
@@ -88,6 +90,17 @@ def load_wayback_articles():
                                                     )
                                                     or file_path,
                                                 }
+
+                                                # Add image data if available
+                                                if "image_caption" in article_data:
+                                                    transformed_article[
+                                                        "image_caption"
+                                                    ] = article_data["image_caption"]
+
+                                                if "image_filename" in article_data:
+                                                    transformed_article[
+                                                        "image_filename"
+                                                    ] = article_data["image_filename"]
 
                                                 # Add to the dictionary by date
                                                 if (

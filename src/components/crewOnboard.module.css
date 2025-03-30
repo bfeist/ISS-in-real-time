@@ -1,4 +1,5 @@
 .crewOnboard {
+  flex: 0 1 220px;
   display: flex;
   flex-direction: column;
   align-items: left;
@@ -6,7 +7,6 @@
   border-bottom: 1px solid #e0e0e0;
   overflow-y: auto;
   gap: 10px;
-  width: 270px;
 }
 
 .crewOnboardTitle {

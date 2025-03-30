@@ -15,6 +15,7 @@ import Expeditions from "components/expedition";
 import CrewOnboard from "components/crewOnboard";
 import EvaInfo from "components/evaInfo";
 import Flights from "components/flights";
+import Blog from "components/blog";
 
 const DatePage = (): JSX.Element => {
   const { date } = useParams();
@@ -28,6 +29,7 @@ const DatePage = (): JSX.Element => {
     crewArrDep,
     expeditionInfo,
     flights,
+    blogArticles,
   } = useLoaderData() as GetDatePageDataResponse;
 
   const location = useLocation();
@@ -102,6 +104,7 @@ const DatePage = (): JSX.Element => {
         <CrewOnboard dateStr={date} crewOnboard={crewOnboard} />
         {evaDetailsForDate.length > 0 && <EvaInfo evaDetails={evaDetailsForDate} />}
         <Flights date={date} flights={flights} />
+        <Blog date={date} blogArticles={blogArticles} />
         <div className={styles.audioPlayer}>
           <audio ref={audioRef} controls muted={true}>
             <track src="" kind="captions" label="English" />
