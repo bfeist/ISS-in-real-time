@@ -7,6 +7,14 @@
   flex-direction: column;
 }
 
+.pageTitle {
+  font-size: 30px;
+  font-weight: 600;
+  margin: 0;
+  padding: 10px;
+  text-align: center;
+}
+
 .home {
   display: flex;
   flex-direction: column;
@@ -55,6 +63,7 @@
 
 .day {
   cursor: pointer;
+  color: black;
 }
 
 .dayEva {
@@ -63,6 +72,14 @@
 
 .dayYoutube {
   color: blue;
+}
+
+.dayNoComm {
+  color: #535353;
+}
+
+.dayNoData {
+  color: #999999;
 }
 
 .pickMonth {

@@ -3,6 +3,11 @@ body {
   padding: 0;
 }
 
+p {
+  margin: 5px;
+  padding: 0;
+}
+
 .cesium-viewer-bottom {
   display: none !important;
 }

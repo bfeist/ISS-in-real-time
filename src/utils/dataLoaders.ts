@@ -242,7 +242,10 @@ export function processDataAvailabilities({
 }: {
   dataAvailabilitiesRaw: string;
 }): DataAvailability[] {
-  const lines = dataAvailabilitiesRaw.split("\n").filter((line) => line.trim() !== ""); // Skip blank lines
+  const lines = dataAvailabilitiesRaw
+    .split("\n")
+    .map((line) => line.replace(/\r/g, ""))
+    .filter((line) => line.trim() !== ""); // Skip blank lines
   // Skip header row
   const dataLines = lines.slice(1);
   const dataAvailabilities = dataLines.map((line) => {

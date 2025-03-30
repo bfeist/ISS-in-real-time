@@ -49,48 +49,45 @@ const Home = (): JSX.Element => {
 
   const totalsObject: TotalsObject = calculateTotals(dataAvailabilityItems);
 
-  const availableYears: number[] = [];
-  dataAvailabilityItems.forEach((item) => {
-    const year = parseInt(item?.date.split("-")[0]);
-    if (!availableYears.includes(year)) {
-      availableYears.push(year);
-    }
-  });
-  availableYears.sort((a, b) => b - a);
+  const startDate = new Date(Date.UTC(2000, 9, 1)); // 2000-10-01
+  const endDate = new Date();
+  const allYears: number[] = [];
+
+  for (let year = endDate.getUTCFullYear(); year >= startDate.getUTCFullYear(); year--) {
+    allYears.push(year);
+  }
 
   return (
     <div className={styles.page}>
-      <h1>Available Dates</h1>
+      <div className={styles.pageTitle}>Available Dates</div>
       <p>
         <span className={styles.dayYoutube}>Blue</span> means youtube coverage.
+        <br />
         <span className={styles.dayEva}>Bold</span> means EVA that day.
+        <span className={styles.dayNoComm}>This grey</span> means no comm but has other data like
+        blogs, statuses, or earth photography.
+        <br />
+        <span className={styles.dayNoData}>This grey</span> means no data at all.
       </p>
       <p>
-        <div style={{ marginLeft: "10px" }}>
-          Total Days:
-          <br /> Comm: {totalsObject.comm} | Visiting Vehicle Comm: {totalsObject.vvComm} | YouTube:{" "}
-          {totalsObject.youtube} | EVA: {totalsObject.eva} | Blog: {totalsObject.blog} | Activity
-          Summary: {totalsObject.activitySummary} | Earth Photography:{" "}
-          {totalsObject.earthPhotography}
-        </div>
+        Day Totals:
+        <br /> Comm: {totalsObject.comm} | Visiting Vehicle Comm: {totalsObject.vvComm} | YouTube:{" "}
+        {totalsObject.youtube} | EVA: {totalsObject.eva} | Blog: {totalsObject.blog} | Activity
+        Summary: {totalsObject.activitySummary} | Earth Photography: {totalsObject.earthPhotography}
       </p>
       <div className={styles.yearsContainer}>
-        {availableYears.map((year) => {
-          const availableDataItemsThisYear: DataAvailability[] = [];
-          dataAvailabilityItems.forEach((item) => {
-            if (parseInt(item.date.split("-")[0]) === year) {
-              availableDataItemsThisYear.push(item);
-            }
-          });
+        {allYears.map((year) => {
+          const dataItemsThisYear = dataAvailabilityItems.filter(
+            (item) => parseInt(item.date.split("-")[0]) === year
+          );
 
           return (
-            <>
-              <YearPicker
-                availableDataItemsThisYear={availableDataItemsThisYear}
-                year={year}
-                setSelected={setSelected}
-              />
-            </>
+            <YearPicker
+              key={year}
+              availableDataItemsThisYear={dataItemsThisYear}
+              year={year}
+              setSelected={setSelected}
+            />
           );
         })}
       </div>
@@ -141,37 +138,58 @@ const YearPicker: FunctionComponent<{
 
 const MonthPicker: FunctionComponent<{
   availableDataItemsThisMonth: DataAvailability[];
-
   month: number;
   setSelected: Function;
 }> = ({ availableDataItemsThisMonth, month, setSelected }) => {
-  const availableDaysThisMonth: Date[] = [];
-  availableDataItemsThisMonth.forEach((item) => {
-    const parts = item.date.split("-");
-    const dateObj: Date = new Date(
-      Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
-    );
-    if (!availableDaysThisMonth.includes(dateObj)) {
-      availableDaysThisMonth.push(dateObj);
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(Date.UTC(year, month, 0)).getUTCDate();
+  };
+
+  const year =
+    availableDataItemsThisMonth[0]?.date.split("-")[0] || new Date().getUTCFullYear().toString();
+  const daysInMonth = getDaysInMonth(parseInt(year), month);
+  const allDays: Date[] = [];
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(Date.UTC(parseInt(year), month - 1, day));
+    if (date >= new Date(Date.UTC(2000, 9, 1)) && date <= new Date()) {
+      allDays.push(date);
     }
-  });
+  }
 
   return (
     <div>
       <div className={styles.monthTitle}>{month}</div>
       <div>
-        {availableDaysThisMonth.map((date) => {
+        {allDays.map((date) => {
           const dayItem = availableDataItemsThisMonth.find(
             (item) => item.date === date.toISOString().split("T")[0]
           );
 
           const evaStyle = dayItem?.eva ? styles.dayEva : "";
           const youtubeStyle = dayItem?.youtube ? styles.dayYoutube : "";
+          const noCommStyle =
+            dayItem &&
+            !dayItem.comm &&
+            (dayItem.blog || dayItem.activitySummary || dayItem.earthPhotography)
+              ? styles.dayNoComm
+              : "";
+          const noDataStyle =
+            !dayItem ||
+            (!dayItem.comm &&
+              !dayItem.blog &&
+              !dayItem.activitySummary &&
+              !dayItem.earthPhotography &&
+              !dayItem.eva &&
+              !dayItem.youtube &&
+              !dayItem.vvComm)
+              ? styles.dayNoData
+              : "";
 
           return (
             <div
               key={date.toISOString()}
-              className={`${styles.day} ${evaStyle} ${youtubeStyle} `}
+              className={`${styles.day} ${evaStyle} ${youtubeStyle} ${noCommStyle} ${noDataStyle}`}
               role="button"
               tabIndex={0}
               onClick={() => setSelected(date)}
