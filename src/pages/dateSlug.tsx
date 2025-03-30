@@ -14,6 +14,7 @@ import Header from "components/header";
 import Expeditions from "components/expedition";
 import CrewOnboard from "components/crewOnboard";
 import EvaInfo from "components/evaInfo";
+import Flights from "components/flights";
 
 const DatePage = (): JSX.Element => {
   const { date } = useParams();
@@ -26,7 +27,7 @@ const DatePage = (): JSX.Element => {
     youtubeLiveRecordings,
     crewArrDep,
     expeditionInfo,
-    nationalityFlags,
+    flights,
   } = useLoaderData() as GetDatePageDataResponse;
 
   const location = useLocation();
@@ -98,10 +99,9 @@ const DatePage = (): JSX.Element => {
 
       <div className={styles.lower}>
         <Expeditions expeditions={expeditions} />
-        <CrewOnboard dateStr={date} crewOnboard={crewOnboard} nationalityFlags={nationalityFlags} />
-        {evaDetailsForDate.length > 0 && (
-          <EvaInfo evaDetails={evaDetailsForDate} nationalityFlags={nationalityFlags} />
-        )}
+        <CrewOnboard dateStr={date} crewOnboard={crewOnboard} />
+        {evaDetailsForDate.length > 0 && <EvaInfo evaDetails={evaDetailsForDate} />}
+        <Flights date={date} flights={flights} />
         <div className={styles.audioPlayer}>
           <audio ref={audioRef} controls muted={true}>
             <track src="" kind="captions" label="English" />

@@ -23,5 +23,10 @@
     "editor.tabSize": 4,
     "editor.formatOnSave": true
   },
-  "typescript.tsdk": "node_modules\\typescript\\lib"
+  "typescript.tsdk": "node_modules\\typescript\\lib",
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.tsx": "${basename}.module.css, ${basename}.module.scss, ${basename}.spec.ts"
+  },
+  "explorer.fileNesting.expand": false
 }

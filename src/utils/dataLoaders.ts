@@ -32,7 +32,6 @@ export async function getDatePageData({
     let youtubeLiveRecordings: YoutubeLiveRecording[] = [];
     let crewArrDep: CrewArrDepItem[] = [];
     let expeditionInfo: ExpeditionInfo[] = [];
-    let nationalityFlags: NationalityFlags = {};
     let flights: Flight[] = [];
 
     // Create fetch promises based on data availability
@@ -70,18 +69,6 @@ export async function getDatePageData({
         )
         .then((data: ExpeditionInfo[]): void => {
           expeditionInfo = data;
-        })
-        .catch(() => {})
-    );
-
-    fetchPromises.push(
-      fetch(`${baseStaticUrl}/nationality_flags.json`)
-        .then(
-          (response): Promise<NationalityFlags> =>
-            response.ok ? response.json() : Promise.resolve({})
-        )
-        .then((data: NationalityFlags): void => {
-          nationalityFlags = data;
         })
         .catch(() => {})
     );
@@ -183,7 +170,6 @@ export async function getDatePageData({
       youtubeLiveRecordings,
       crewArrDep,
       expeditionInfo,
-      nationalityFlags,
       flights,
     };
   } catch (error) {
@@ -197,7 +183,6 @@ export async function getDatePageData({
       youtubeLiveRecordings: [],
       crewArrDep: [],
       expeditionInfo: [],
-      nationalityFlags: {},
       flights: [],
     };
   }

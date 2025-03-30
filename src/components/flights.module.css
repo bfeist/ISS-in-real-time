@@ -1,0 +1,65 @@
+.flightsContainer {
+  padding: 1em;
+  overflow-y: auto;
+}
+
+.flightsTitle {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.flight {
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  padding: 5px;
+}
+
+.missionHeader {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+}
+
+.missionPatch {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+}
+
+.missionInfo h3 {
+  margin: 0;
+}
+
+.missionInfo div {
+  margin: 0.25em 0;
+}
+
+.labelText {
+  display: inline-block;
+  width: 90px;
+  text-align: right;
+  margin-right: 0.5em;
+  font-weight: 600;
+}
+
+.crewList {
+  margin: 1em 0;
+}
+
+.crewMember {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0.5em 0;
+}
+
+.flag {
+  width: 25px;
+  height: auto;
+}
+
+.timeInfo {
+  margin-top: 1em;
+  font-style: italic;
+}

@@ -3,12 +3,12 @@ import styles from "./crewOnboard.module.css"; // ensure this CSS file exists or
 import { useClockContext } from "context/clockContext";
 import { ddhhmmssBetweenDateStrings, timeStrFromDateAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
+import { flagUrlByCountryName } from "utils/countries";
 
 const CrewOnboard: FunctionComponent<{
   dateStr: string;
   crewOnboard: CrewArrDepItem[];
-  nationalityFlags: NationalityFlags;
-}> = ({ dateStr, crewOnboard, nationalityFlags }) => {
+}> = ({ dateStr, crewOnboard }) => {
   const { clock } = useClockContext();
 
   const [currentTimeStr, setCurrentTimeStr] = useState("");
@@ -20,6 +20,7 @@ const CrewOnboard: FunctionComponent<{
 
   return (
     <div className={styles.crewOnboard}>
+      <div className={styles.crewOnboardTitle}>Crew Onboard:</div>
       <ClockInterval setAppSeconds={setAppSeconds} />
       {crewOnboard.map((crewItem) => (
         <div key={`${crewItem.arrivalDate}_${crewItem.name}`} className={styles.crewMember}>
@@ -27,7 +28,7 @@ const CrewOnboard: FunctionComponent<{
             <div className={styles.crewName}>
               <img
                 className={styles.flag}
-                src={nationalityFlags[crewItem.nationality]}
+                src={flagUrlByCountryName[crewItem.nationality]}
                 alt={crewItem.nationality}
               />
               {crewItem.name}

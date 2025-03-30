@@ -1,14 +1,14 @@
+import { flagUrlByCountryName } from "utils/countries";
 import styles from "./evaInfo.module.css";
 
 type Props = {
   evaDetails: EvaDetail[];
-  nationalityFlags: NationalityFlags;
 };
 
-const EvaInfo = ({ evaDetails, nationalityFlags }: Props): JSX.Element => {
+const EvaInfo = ({ evaDetails }: Props): JSX.Element => {
   const renderCrewMember = (c: { name: string; nationality: string; ev?: number }) => (
     <div key={c.name} className={styles.crewMember}>
-      <img className={styles.flag} src={nationalityFlags[c.nationality]} alt={c.nationality} />
+      <img className={styles.flag} src={flagUrlByCountryName[c.nationality]} alt={c.nationality} />
       {c.ev ? `EV${c.ev}: ${c.name}` : c.name}
     </div>
   );
