@@ -5,6 +5,14 @@
   overflow-y: auto;
 }
 
+.sectionTitle {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 8px;
+}
+
 .blogEntries {
   display: flex;
   flex-direction: column;
@@ -59,4 +67,37 @@
 
 .content p a:hover {
   text-decoration: underline;
+}
+
+/* Activity Summary Styles */
+.activitySummary {
+  margin-bottom: 30px;
+}
+
+.activityCategory {
+  margin-bottom: 20px;
+}
+
+.activityCategory h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+}
+
+.activityList {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.activityItem {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.activityName {
+  font-weight: 600;
+}
+
+.activityDescription {
 }

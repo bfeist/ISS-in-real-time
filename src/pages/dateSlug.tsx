@@ -30,6 +30,7 @@ const DatePage = (): JSX.Element => {
     expeditionInfo,
     flights,
     blogArticles,
+    activitySummary,
   } = useLoaderData() as GetDatePageDataResponse;
 
   const location = useLocation();
@@ -52,8 +53,6 @@ const DatePage = (): JSX.Element => {
   const expeditions = expeditionInfo.filter(
     (exp) => new Date(exp.start) <= dateObj && new Date(exp.end) >= dateObj
   );
-
-  console.log("evaDetailsForDate", evaDetailsForDate);
 
   useEffect(() => {
     clockDispatch({ type: "start" });
@@ -104,7 +103,7 @@ const DatePage = (): JSX.Element => {
         <CrewOnboard dateStr={date} crewOnboard={crewOnboard} />
         {evaDetailsForDate.length > 0 && <EvaInfo evaDetails={evaDetailsForDate} />}
         <Flights date={date} flights={flights} />
-        <Blog date={date} blogArticles={blogArticles} />
+        <Blog date={date} blogArticles={blogArticles} activitySummary={activitySummary} />
         <div className={styles.audioPlayer}>
           <audio ref={audioRef} controls muted={true}>
             <track src="" kind="captions" label="English" />
