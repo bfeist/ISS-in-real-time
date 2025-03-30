@@ -148,6 +148,19 @@ const MonthPicker: FunctionComponent<{
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
   };
 
+  const getTooltipText = (dayItem: DataAvailability | undefined): string => {
+    if (!dayItem) return "No data available";
+    const available = [];
+    if (dayItem.comm) available.push("Space-to-Ground Comm");
+    if (dayItem.vvComm) available.push("Visiting Vehicle Comm");
+    if (dayItem.youtube) available.push("YouTube Coverage");
+    if (dayItem.eva) available.push("EVA");
+    if (dayItem.blog) available.push("Blog");
+    if (dayItem.activitySummary) available.push("Activity Summary");
+    if (dayItem.earthPhotography) available.push("Earth Photography");
+    return available.length ? `Available: ${available.join(", ")}` : "No data available";
+  };
+
   const year =
     availableDataItemsThisMonth[0]?.date.split("-")[0] || new Date().getUTCFullYear().toString();
   const daysInMonth = getDaysInMonth(parseInt(year), month);
@@ -196,6 +209,7 @@ const MonthPicker: FunctionComponent<{
               tabIndex={0}
               onClick={() => setSelected(date)}
               onKeyDown={() => setSelected(date)}
+              title={getTooltipText(dayItem)}
             >
               {date.toISOString().split("T")[0].split("-")[2]}
             </div>

@@ -76,11 +76,13 @@ const Header: FunctionComponent<{
           Show {showGlobe ? "Map" : "Globe"}{" "}
         </button>
         <div style={{ marginLeft: "10px" }}>
-          Comm: {dataAvailability.comm ? "1" : "0"} | vvComm: {dataAvailability.vvComm ? "1" : "0"}{" "}
-          | YouTube: {dataAvailability.youtube ? "1" : "0"} | EVA:{" "}
-          {dataAvailability.eva ? "1" : "0"} | Blog: {dataAvailability.blog ? "1" : "0"} | Activity
-          Summary: {dataAvailability.activitySummary ? "1" : "0"} | Earth Photography:{" "}
-          {dataAvailability.earthPhotography ? "1" : "0"}
+          Comm: {(dataAvailability?.comm ?? false) ? "1" : "0"} | vvComm:{" "}
+          {(dataAvailability?.vvComm ?? false) ? "1" : "0"} | YouTube:{" "}
+          {(dataAvailability?.youtube ?? false) ? "1" : "0"} | EVA:{" "}
+          {(dataAvailability?.eva ?? false) ? "1" : "0"} | Blog:{" "}
+          {(dataAvailability?.blog ?? false) ? "1" : "0"} | Activity Summary:{" "}
+          {(dataAvailability?.activitySummary ?? false) ? "1" : "0"} | Earth Photography:{" "}
+          {(dataAvailability?.earthPhotography ?? false) ? "1" : "0"}
         </div>
       </div>
       <div className={styles.right}>

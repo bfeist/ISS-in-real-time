@@ -15,7 +15,7 @@ const CrewOnboard: FunctionComponent<{
   const [appSeconds, setAppSeconds] = useState(0);
 
   useEffect(() => {
-    setCurrentTimeStr(timeStrFromDateAppSeconds({ dateStr, appSeconds: appSeconds }));
+    setCurrentTimeStr(timeStrFromDateAppSeconds({ dateStr, appSeconds }));
   }, [clock, dateStr, appSeconds]);
 
   return (

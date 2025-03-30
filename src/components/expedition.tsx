@@ -16,6 +16,10 @@ const Expeditions: FunctionComponent<{
           <div className={styles.expeditionRight}>
             <div className={styles.expeditionTitle}>Expedition {expedition.expedition}</div>
             <div className={styles.expeditionBlurb}>{expedition.expeditionBlurb}</div>
+            <div className={styles.expeditionDates}>
+              {new Date(expedition.start).toISOString().split("T")[0]} -{" "}
+              {new Date(expedition.end).toISOString().split("T")[0]}
+            </div>
           </div>
         </div>
       ))}

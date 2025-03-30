@@ -1,0 +1,51 @@
+.evaDetails {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.evaDetail {
+  border: 1px solid #444;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.evaTitle {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.evaCrew,
+.evaGroundCrew {
+  margin: 5px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.crewMember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 20px;
+}
+
+.flag {
+  width: 25px;
+  height: auto;
+}
+
+.evaDescription {
+  margin: 10px 0;
+}
+
+.evaDescription a {
+  color: black;
+  text-decoration: underline;
+}
+
+.evaTimes {
+  font-size: 0.9em;
+  border-top: 1px solid #444;
+  padding-top: 5px;
+}

@@ -1,11 +1,11 @@
 .crewOnboard {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   align-items: left;
   padding: 1em;
   border-bottom: 1px solid #e0e0e0;
   overflow-y: auto;
+  gap: 10px;
 }
 
 .crewName {
