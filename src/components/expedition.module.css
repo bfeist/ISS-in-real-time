@@ -1,7 +1,7 @@
 .expeditions {
-  flex: 0 1 400px;
-  /* display: flex;
-  flex-direction: column; */
+  flex: 0 1 300px;
+  overflow-y: auto;
+  padding: 1em;
 }
 
 .expedition {
@@ -18,7 +18,7 @@
 }
 
 .expeditionRight {
-  flex: 0 0 300px;
+  flex: 1;
   display: flex;
   flex-direction: column;
 }

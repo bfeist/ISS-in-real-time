@@ -2,11 +2,6 @@ import { useMemo } from "react";
 import styles from "./flights.module.css";
 import { flagUrlByCountryName } from "utils/countries";
 
-type Props = {
-  date: string;
-  flights: Flight[];
-};
-
 const isSameDay = (date1: Date | null, date2: Date): boolean => {
   if (!date1) return false;
   return (
@@ -16,34 +11,84 @@ const isSameDay = (date1: Date | null, date2: Date): boolean => {
   );
 };
 
-const Flights = ({ date, flights }: Props): JSX.Element | null => {
+// Check if any docking event is active on the given date
+const hasActiveDockingEvent = (
+  dockingEvents: FlightDockingEvent[] | undefined,
+  currentDate: Date
+): boolean => {
+  if (!dockingEvents || dockingEvents.length === 0) return false;
+
+  return dockingEvents.some((event) => {
+    const dockingDate = event.docking_date ? new Date(event.docking_date) : null;
+    const undockingDate = event.undocking_date ? new Date(event.undocking_date) : null;
+
+    return (
+      dockingDate && dockingDate <= currentDate && (!undockingDate || currentDate <= undockingDate)
+    );
+  });
+};
+
+// Get the current active docking event if any
+const getActiveDockingEvent = (
+  dockingEvents: FlightDockingEvent[] | undefined,
+  currentDate: Date
+): FlightDockingEvent | null => {
+  if (!dockingEvents || dockingEvents.length === 0) return null;
+
+  return (
+    dockingEvents.find((event) => {
+      const dockingDate = event.docking_date ? new Date(event.docking_date) : null;
+      const undockingDate = event.undocking_date ? new Date(event.undocking_date) : null;
+
+      return (
+        dockingDate &&
+        dockingDate <= currentDate &&
+        (!undockingDate || currentDate <= undockingDate)
+      );
+    }) || null
+  );
+};
+
+// Check if the date is a docking or undocking day for any event
+const isDockingOrUndockingDay = (
+  dockingEvents: FlightDockingEvent[] | undefined,
+  currentDate: Date
+): boolean => {
+  if (!dockingEvents || dockingEvents.length === 0) return false;
+
+  return dockingEvents.some((event) => {
+    const dockingDate = event.docking_date ? new Date(event.docking_date) : null;
+    const undockingDate = event.undocking_date ? new Date(event.undocking_date) : null;
+
+    return isSameDay(dockingDate, currentDate) || isSameDay(undockingDate, currentDate);
+  });
+};
+
+const Flights = ({ date, flights }: { date: string; flights: Flight[] }): JSX.Element | null => {
   const activeFlights = useMemo(() => {
     const currentDate = new Date(date);
 
     return flights.filter((flight) => {
       const launchDate = new Date(flight.launch_date_utc);
       const landingDate = flight.landing_date_utc ? new Date(flight.landing_date_utc) : null;
-      const dockingDate = flight.docking_date_utc ? new Date(flight.docking_date_utc) : null;
-      const undockingDate = flight.undocking_date_utc ? new Date(flight.undocking_date_utc) : null;
 
       // Check if flight is active on the given date
       const isLaunchDay = isSameDay(launchDate, currentDate);
       const isLandingDay = isSameDay(landingDate, currentDate);
-      const isDockingDay = isSameDay(dockingDate, currentDate);
-      const isUndockingDay = isSameDay(undockingDate, currentDate);
 
-      // Also include if flight is in transit (between launch and docking)
-      const isInTransit = launchDate <= currentDate && (!dockingDate || currentDate <= dockingDate);
+      // Check if any docking event is active or happens on this day
+      const hasDockingEvent = isDockingOrUndockingDay(flight.docking_events, currentDate);
+      const isDockedNow = hasActiveDockingEvent(flight.docking_events, currentDate);
 
-      // Also include if flight is between docked and undocked
-      const isDocked =
-        dockingDate &&
-        dockingDate <= currentDate &&
-        (!undockingDate || currentDate <= undockingDate);
+      // Also include if flight is in transit (between launch and first docking or between undocking and landing)
+      const firstDockingDate = flight.docking_events?.[0]?.docking_date
+        ? new Date(flight.docking_events[0].docking_date)
+        : null;
 
-      return (
-        isLaunchDay || isLandingDay || isDockingDay || isUndockingDay || isInTransit || isDocked
-      );
+      const isInTransit =
+        launchDate <= currentDate && (!firstDockingDate || currentDate <= firstDockingDate);
+
+      return isLaunchDay || isLandingDay || hasDockingEvent || isDockedNow || isInTransit;
     });
   }, [date, flights]);
 
@@ -68,20 +113,20 @@ const Flights = ({ date, flights }: Props): JSX.Element | null => {
 
   // Determine if a flight is currently docked based on the current date
   const isFlightCurrentlyDocked = (flight: Flight, currentDate: Date) => {
-    const dockingDate = flight.docking_date_utc ? new Date(flight.docking_date_utc) : null;
-    const undockingDate = flight.undocking_date_utc ? new Date(flight.undocking_date_utc) : null;
+    return hasActiveDockingEvent(flight.docking_events, currentDate);
+  };
 
-    return (
-      dockingDate && dockingDate <= currentDate && (!undockingDate || currentDate <= undockingDate)
-    );
+  // Get active docking event information
+  const getActiveDockingInfo = (flight: Flight, currentDate: Date) => {
+    return getActiveDockingEvent(flight.docking_events, currentDate);
   };
 
   return (
     <div className={styles.flightsContainer}>
-      <div className={styles.flightsTitle}>Flights:</div>
       {activeFlights.map((flight) => {
         const currentDate = new Date(date);
         const flightIsDocked = isFlightCurrentlyDocked(flight, currentDate);
+        const activeDockingEvent = getActiveDockingInfo(flight, currentDate);
 
         return (
           <div key={flight.number} className={styles.flight}>
@@ -98,46 +143,59 @@ const Flights = ({ date, flights }: Props): JSX.Element | null => {
                 <div>
                   <span className={styles.labelText}>Flight:</span> {flight.iss_flight}
                 </div>
-                <div>
-                  <span className={styles.labelText}>Mission:</span> {flight.mission_name}
-                </div>
-                <div>
-                  <span className={styles.labelText}>Spacecraft:</span> {flight.spacecraft}
-                </div>
-                {flight.notes && (
+                {flight.spacecraft && (
                   <div>
-                    <span className={styles.labelText}>Notes:</span> {flight.notes}
+                    <span className={styles.labelText}>Spacecraft:</span> {flight.spacecraft}
                   </div>
                 )}
               </div>
             </div>
 
-            {flightIsDocked ? (
+            {flight.notes && (
+              <div>
+                <span className={styles.labelText}>Notes:</span>
+                {flight.notes}
+              </div>
+            )}
+
+            {flightIsDocked && activeDockingEvent ? (
               <>
-                <div>Currently docked to ISS</div>
+                <div>
+                  <b>Currently docked to {activeDockingEvent.target}</b>
+                </div>
+                <div>
+                  <span className={styles.labelText}>Port:</span> {activeDockingEvent.port}
+                </div>
                 <div className={styles.timeInfo}>
-                  Docked since: {new Date(flight.docking_date_utc as string).toLocaleString()}
-                  {flight.undocking_date_utc &&
-                    ` • Scheduled undocking: ${new Date(flight.undocking_date_utc).toLocaleString()}`}
+                  {activeDockingEvent.type === "relocation" ? "Relocated" : "Docked"} since:{" "}
+                  {new Date(activeDockingEvent.docking_date).toLocaleString()}
+                  {activeDockingEvent.undocking_date &&
+                    ` • Scheduled undocking: ${new Date(activeDockingEvent.undocking_date).toLocaleString()}`}
                 </div>
               </>
             ) : new Date(flight.launch_date_utc) > new Date(date) ? (
               <>
-                <div>Launching Crew:</div>
+                <div>
+                  <b>Launching Crew:</b>
+                </div>
                 {renderCrew(flight.crew_launching)}
                 <div className={styles.timeInfo}>
                   Launch: {new Date(flight.launch_date_utc).toLocaleString()}
-                  {flight.docking_date_utc &&
-                    ` • Docking: ${new Date(flight.docking_date_utc).toLocaleString()}`}
+                  {flight.docking_events?.[0]?.docking_date &&
+                    ` • First Docking: ${new Date(flight.docking_events[0].docking_date).toLocaleString()}`}
                 </div>
               </>
             ) : (
               <>
-                <div>Landing Crew:</div>
+                <div>
+                  <b>Landing Crew:</b>
+                </div>
                 {renderCrew(flight.crew_landing)}
                 <div className={styles.timeInfo}>
-                  {flight.undocking_date_utc &&
-                    `Undocking: ${new Date(flight.undocking_date_utc).toLocaleString()} • `}
+                  {flight.docking_events &&
+                    flight.docking_events.length > 0 &&
+                    flight.docking_events[flight.docking_events.length - 1].undocking_date &&
+                    `Final Undocking: ${new Date(flight.docking_events[flight.docking_events.length - 1].undocking_date).toLocaleString()} • `}
                   Landing: {new Date(flight.landing_date_utc).toLocaleString()}
                 </div>
               </>

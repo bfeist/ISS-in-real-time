@@ -90,10 +90,12 @@ def main():
 
         # Determine arrival crew using crew_launching list
         if flight.get("crew_launching"):
-            # Use docking_date_utc with fallback to launch_date_utc
-            arrival_date = flight.get(
-                "docking_date_utc", flight.get("launch_date_utc", "")
-            )
+            # Get arrival date from docking_events
+            arrival_date = ""
+            if flight.get("docking_events") and len(flight["docking_events"]) > 0:
+                # Use the first docking event's docking_date
+                arrival_date = flight["docking_events"][0].get("docking_date", "")
+
             dt_arrival = iso_to_datetime(arrival_date)
 
             for member in flight["crew_launching"]:
@@ -113,10 +115,12 @@ def main():
 
         # Determine departure crew using crew_landing list
         if flight.get("crew_landing"):
-            # Use undocking_date_utc with fallback to landing_date_utc
-            departure_date = flight.get(
-                "undocking_date_utc", flight.get("landing_date_utc", "")
-            )
+            # Get departure date from docking_events
+            departure_date = ""
+            if flight.get("docking_events") and len(flight["docking_events"]) > 0:
+                # Use the last docking event's undocking_date
+                departure_date = flight["docking_events"][-1].get("undocking_date", "")
+
             dt_departure = iso_to_datetime(departure_date)
 
             for member in flight["crew_landing"]:

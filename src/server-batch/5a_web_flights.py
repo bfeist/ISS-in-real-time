@@ -143,15 +143,12 @@ for table in tables:
             "recovered_by": "",
             "landing_date_utc": "",
             "landing_site": "",
-            "docking_port": "",
-            "docking_date_utc": "",
-            "undocking_date_utc": "",
-            "time_docked_detail": "",
             "infobox_image_url": "",
+            "docking_events": [],  # New field to track multiple docking events
         }
         data.append(entry)
 
-# Updated fields_map dictionary with the new "mission duration" field
+# Updated fields_map dictionary - remove docking-related fields
 fields_map = {
     "mission duration": "mission_duration",
     "spacecraft": "spacecraft",
@@ -165,32 +162,26 @@ fields_map = {
     "recovered by": "recovered_by",
     "landing date": "landing_date_utc",
     "landing site": "landing_site",
-    "docking port": "docking_port",
-    "docking date": "docking_date_utc",
-    "undocking date": "undocking_date_utc",
-    "time docked": "time_docked_detail",
 }
 
 # Second pass: for each entry, scrape additional fields from the mission page infobox
 for entry in data:
     mission_url = entry.get("mission_name_url", "")
-    # mission_url = "https://en.wikipedia.org/wiki/STS-113"  # For testing
+    print(f"Processing mission URL: {mission_url}")
+    # mission_url = "https://en.wikipedia.org/wiki/SpaceX_Crew-9"  # For testing
     if mission_url:
         # Build full URL if necessary
         if mission_url.startswith("/"):
             mission_url = "https://en.wikipedia.org" + mission_url
         try:
-            print(f"Fetching {mission_url}")
             resp = requests.get(mission_url)
             if resp.status_code != 200:
-                print(f"Failed to fetch {mission_url}")
                 continue
             mission_html = resp.text
             mission_soup = BeautifulSoup(mission_html, "html.parser")
             # Look for the infobox table – using a lambda to check if 'infobox' is in its class list
             infobox = mission_soup.find("table", class_=lambda c: c and "infobox" in c)
             if not infobox:
-                print(f"No infobox found on {mission_url}")
                 continue
 
             # Extract the image URL from the <span typeof="mw:File..."> element, if available
@@ -202,55 +193,130 @@ for entry in data:
                 if img_tag and img_tag.get("src"):
                     entry["infobox_image_url"] = convert_wikimedia_url(img_tag["src"])
 
-            # Loop over rows in the infobox and capture the desired fields
-            for row in infobox.find_all("tr"):
-                th = row.find("th")
-                td = row.find("td")
-                if th and td:
-                    label = th.get_text(separator=" ", strip=True).lower()
-                    for key in sorted(fields_map, key=len, reverse=True):
-                        if label.startswith(key):
-                            field = fields_map[key]
-                            # For crew names (members), extract as list of names
-                            if key in ("launching", "landing", "members"):
-                                links = td.find_all("a")
-                                if links:
-                                    entry[field] = [
-                                        a.get_text(strip=True) for a in links
-                                    ]
-                                else:
-                                    entry[field] = []
-                            else:
-                                value = td.get_text(separator=" ", strip=True)
-                                # Process date fields with the helper function
-                                if field in (
-                                    "launch_date_utc",
-                                    "landing_date_utc",
-                                    "docking_date_utc",
-                                    "undocking_date_utc",
-                                ):
-                                    # if value contains brackets, use the value in the brackets
-                                    value = value.replace("(planned)", "").strip()
+            # Improved docking events extraction
+            docking_events = []
 
-                                    # For docking date, only take the first one if multiple exist
-                                    if (
-                                        field == "docking_date_utc"
-                                        and entry[field] != ""
-                                    ):
+            # Find all infobox headers in the table
+            all_headers = infobox.find_all("th", class_="infobox-header")
 
-                                        continue
+            # Find the indices of docking-related headers
+            docking_indices = []
+            next_header_indices = []
+            for i, header in enumerate(all_headers):
+                header_text = header.get_text(strip=True)
+                if "Docking" in header_text:
+                    docking_indices.append(i)
 
+            # Process each docking section
+            for idx in docking_indices:
+                current_event = {}
+
+                # Get the section title (might contain info like "relocation")
+                section_title = all_headers[idx].get_text(strip=True)
+                if "(relocation)" in section_title.lower():
+                    current_event["type"] = "relocation"
+                else:
+                    current_event["type"] = "docking"
+
+                # Find all rows that belong to this section
+                section_rows = []
+                header_row = all_headers[idx].parent
+                current_row = header_row.next_sibling
+
+                # Continue until we reach the next header or end of table
+                while current_row:
+                    if hasattr(current_row, "find") and current_row.find(
+                        "th", class_="infobox-header"
+                    ):
+                        break
+                    if hasattr(current_row, "find"):
+                        section_rows.append(current_row)
+                    current_row = current_row.next_sibling
+
+                # Process the rows for this section
+                for row in section_rows:
+                    if hasattr(row, "find"):  # Make sure it's a tag, not a string
+                        row_header = row.find("th", class_="infobox-label")
+                        row_data = row.find("td", class_="infobox-data")
+
+                        if row_header and row_data:
+                            label = row_header.get_text(strip=True).lower()
+
+                            if "port" in label:
+                                current_event["port"] = row_data.get_text(
+                                    separator=" ", strip=True
+                                )
+
+                            elif "docking date" in label and "undocking" not in label:
+                                value = row_data.get_text(separator=" ", strip=True)
+                                value = value.replace("(planned)", "").strip()
+
+                                # Improve date extraction
+                                try:
                                     if "(" in value:
                                         temp = value.split("(")[1].split(")")[0].strip()
-                                        temp = temp.replace("UTC", "T").strip()
-                                        value = extract_date(temp)
+                                        if "UTC" in temp:
+                                            temp = temp.replace("UTC", "T").strip()
+                                            value = extract_date(temp)
+                                        else:
+                                            temp = (
+                                                value.split("UTC")[0].strip() + " UTC"
+                                            )
+                                            value = extract_date(temp)
                                     else:
-                                        # strip note references
                                         value = extract_date(
                                             value.split("[")[0].strip()
                                         )
-                                entry[field] = value
-                            break
+
+                                    current_event["docking_date"] = value
+                                except Exception as e:
+                                    print(f"Error parsing docking date '{value}': {e}")
+
+                            elif (
+                                "undocking date" in label or "undocking" in label
+                            ):  # Broaden the match
+                                value = row_data.get_text(separator=" ", strip=True)
+                                value = value.replace("(planned)", "").strip()
+
+                                # Improve date extraction
+                                try:
+                                    if "(" in value:
+                                        temp = value.split("(")[1].split(")")[0].strip()
+                                        if "UTC" in temp:
+                                            temp = temp.replace("UTC", "T").strip()
+                                            value = extract_date(temp)
+                                        else:
+                                            temp = (
+                                                value.split("UTC")[0].strip() + " UTC"
+                                            )
+                                            value = extract_date(temp)
+                                    else:
+                                        value = extract_date(
+                                            value.split("[")[0].strip()
+                                        )
+
+                                    current_event["undocking_date"] = value
+                                except Exception as e:
+                                    print(
+                                        f"Error parsing undocking date '{value}': {e}"
+                                    )
+
+                            elif "time docked" in label:
+                                current_event["time_docked"] = row_data.get_text(
+                                    separator=" ", strip=True
+                                )
+
+                # If we have meaningful docking data, add this event
+                if current_event.get("docking_date") or current_event.get(
+                    "undocking_date"
+                ):
+                    # Add event target as ISS if not specified
+                    if "target" not in current_event:
+                        current_event["target"] = "ISS"
+                    docking_events.append(current_event)
+
+            # Add docking events to the entry
+            entry["docking_events"] = docking_events
 
             # Additional extraction: crew launching and landing info from the Crew section
             crew_header = mission_soup.find(
@@ -288,14 +354,24 @@ for entry in data:
                                             .find("img")
                                             .get("alt", "")
                                         )
-                                    if name and name.lower() != "none":
-                                        launching_entries.append(
-                                            {
-                                                "name": name,
-                                                "position": position,
-                                                "nationality": nationality,
-                                            }
-                                        )
+
+                                elif len(launching_links) == 1:
+                                    # this is a mission with no flags. If the lcase of the mission_name contains "soyuz", assum everyone is russian. otherwise, assume everyone is american
+                                    name = crew_links[0].get_text(strip=True)
+                                    nationality = (
+                                        "Russia"
+                                        if "soyuz" in entry["mission_name"].lower()
+                                        else "United States"
+                                    )
+                                if name and name.lower() != "none":
+                                    launching_entries.append(
+                                        {
+                                            "name": name,
+                                            "position": position,
+                                            "nationality": nationality,
+                                        }
+                                    )
+
                                 if len(landing_links) >= 2:
                                     name = landing_links[1].get_text(strip=True)
                                     nationality = ""
@@ -303,14 +379,23 @@ for entry in data:
                                         nationality = (
                                             landing_links[0].find("img").get("alt", "")
                                         )
-                                    if name and name.lower() != "none":
-                                        landing_entries.append(
-                                            {
-                                                "name": name,
-                                                "position": position,
-                                                "nationality": nationality,
-                                            }
-                                        )
+                                elif len(landing_links) == 1:
+                                    # this is a mission with no flags. If the lcase of the mission_name contains "soyuz", assum everyone is russian. otherwise, assume everyone is american
+                                    name = crew_links[0].get_text(strip=True)
+                                    nationality = (
+                                        "Russia"
+                                        if "soyuz" in entry["mission_name"].lower()
+                                        else "United States"
+                                    )
+                                if name and name.lower() != "none":
+                                    landing_entries.append(
+                                        {
+                                            "name": name,
+                                            "position": position,
+                                            "nationality": nationality,
+                                        }
+                                    )
+
                             # Process rows with 2 cells: [position, crew] -> same for launching and landing
                             elif len(cells) == 2:
                                 position = cells[0].get_text(
@@ -325,21 +410,31 @@ for entry in data:
                                         nationality = (
                                             crew_links[0].find("img").get("alt", "")
                                         )
-                                    if name and name.lower() != "none":
-                                        launching_entries.append(
-                                            {
-                                                "name": name,
-                                                "position": position,
-                                                "nationality": nationality,
-                                            }
-                                        )
-                                        landing_entries.append(
-                                            {
-                                                "name": name,
-                                                "position": position,
-                                                "nationality": nationality,
-                                            }
-                                        )
+
+                                elif len(crew_links) == 1:
+                                    # this is a mission with no flags. If the lcase of the mission_name contains "soyuz", assum everyone is russian. otherwise, assume everyone is american
+                                    name = crew_links[0].get_text(strip=True)
+                                    nationality = (
+                                        "Russia"
+                                        if "soyuz" in entry["mission_name"].lower()
+                                        else "United States"
+                                    )
+
+                                if name and name.lower() != "none":
+                                    launching_entries.append(
+                                        {
+                                            "name": name,
+                                            "position": position,
+                                            "nationality": nationality,
+                                        }
+                                    )
+                                    landing_entries.append(
+                                        {
+                                            "name": name,
+                                            "position": position,
+                                            "nationality": nationality,
+                                        }
+                                    )
 
                         # Deduplicate entries while preserving order
                         def dedupe(entries):
@@ -356,35 +451,37 @@ for entry in data:
                         entry["crew_landing"] = dedupe(landing_entries)
 
                         if not entry["crew_launching"]:
-                            print(f"No crew launching found on {mission_url}")
+                            pass
                         if not entry["crew_landing"]:
-                            print(f"No crew landing found on {mission_url}")
+                            pass
 
                         # if crew nationality is not available, print an error
                         for crew in entry["crew_launching"]:
                             if not crew["nationality"]:
-                                print(
-                                    f"Nationality not found for {crew['name']} in {mission_url}"
-                                )
+                                pass
                         for crew in entry["crew_landing"]:
                             if not crew["nationality"]:
-                                print(
-                                    f"Nationality not found for {crew['name']} in {mission_url}"
-                                )
+                                pass
 
             # Pause briefly between requests to be polite to the server
             time.sleep(0.5)
         except Exception as e:
-            print(f"Error processing {mission_url}: {e}")
+            pass
+    # print(f"Processed entry {entry['number']}")
 
 # Sort the data by launch_date ascending
 data.sort(key=lambda x: x["launch_date"])
 
 
-# New: Recursively replace non-breaking spaces with regular spaces.
+# New: Recursively clean the data values
 def clean_data(x):
     if isinstance(x, str):
-        return x.replace("\u00a0", " ")
+        # Clean both non-breaking spaces and citation references like [1], [ 2 ], etc.
+        cleaned = x.replace("\xa0", " ")  # Explicitly replace \xa0 character
+        cleaned = cleaned.replace("\u00a0", " ")  # Also try Unicode representation
+        # More flexible regex that handles spaces around the digits
+        cleaned = re.sub(r"\s*\[\s*\d+\s*\]\s*", " ", cleaned).strip()
+        return cleaned
     elif isinstance(x, dict):
         return {k: clean_data(v) for k, v in x.items()}
     elif isinstance(x, list):

@@ -107,6 +107,15 @@ type FlightCrewMember = {
   nationality: string;
 };
 
+type FlightDockingEvent = {
+  type: string;
+  port: string;
+  docking_date: string;
+  undocking_date: string;
+  time_docked: string;
+  target: string;
+};
+
 type Flight = {
   number: string;
   iss_flight: string;
@@ -132,10 +141,7 @@ type Flight = {
   recovered_by: string;
   landing_date_utc: string;
   landing_site: string;
-  docking_port: string;
-  docking_date_utc: string;
-  undocking_date_utc: string;
-  time_docked_detail: string;
+  docking_events: FlightDockingEvent[];
   infobox_image_url: string;
 };
 

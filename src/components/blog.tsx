@@ -63,9 +63,7 @@ const Blog: FC<{
                 {activitySummary.general.map((activity, index) => (
                   <li key={index} className={styles.activityItem}>
                     <span className={styles.activityName}>{activity.name}</span>
-                    {activity.description && (
-                      <span className={styles.activityDescription}>: {activity.description}</span>
-                    )}
+                    {activity.description && <span>: {activity.description}</span>}
                   </li>
                 ))}
               </ul>
@@ -78,7 +76,7 @@ const Blog: FC<{
               <ul className={styles.activityList}>
                 {activitySummary.tasklist.map((activity, index) => (
                   <li key={index} className={styles.activityItem}>
-                    <span className={styles.activityDescription}>{activity.name}</span>
+                    <span>{activity.name}</span>
                   </li>
                 ))}
               </ul>
@@ -91,7 +89,7 @@ const Blog: FC<{
               <ul className={styles.activityList}>
                 {activitySummary.ground.map((activity, index) => (
                   <li key={index} className={styles.activityItem}>
-                    <span className={styles.activityDescription}>{activity.name}</span>
+                    <span>{activity.name}</span>
                   </li>
                 ))}
               </ul>

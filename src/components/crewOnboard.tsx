@@ -20,7 +20,6 @@ const CrewOnboard: FunctionComponent<{
 
   return (
     <div className={styles.crewOnboard}>
-      <div className={styles.crewOnboardTitle}>Crew Onboard:</div>
       <ClockInterval setAppSeconds={setAppSeconds} />
       {crewOnboard.map((crewItem) => (
         <div key={`${crewItem.arrivalDate}_${crewItem.name}`} className={styles.crewMember}>

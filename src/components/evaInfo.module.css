@@ -1,12 +1,10 @@
 .evaDetails {
-  flex: 1;
-  padding: 10px;
+  flex: 0 1 300px;
+  padding: 1em;
   overflow-y: auto;
 }
 
 .evaDetail {
-  border: 1px solid #444;
-  padding: 10px;
   margin-bottom: 10px;
 }
 
