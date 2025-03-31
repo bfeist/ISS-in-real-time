@@ -151,6 +151,16 @@ const Flights = ({ date, flights }: { date: string; flights: Flight[] }): JSX.El
               </div>
             </div>
 
+            <div className={styles.flightImage}>
+              {flight.infobox_image_url && (
+                <img
+                  className={styles.flightImage}
+                  src={flight.infobox_image_url}
+                  alt={`${flight.mission_name} flight`}
+                />
+              )}
+            </div>
+
             {flight.notes && (
               <div>
                 <span className={styles.labelText}>Notes:</span>

@@ -9,6 +9,12 @@
   margin-bottom: 20px;
 }
 
+.flightImage {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
 .missionHeader {
   display: flex;
   align-items: center;
