@@ -16,6 +16,7 @@ const Home = (): JSX.Element => {
   const dataAvailabilityItems = useLoaderData() as DataAvailability[];
   const navigate = useNavigate();
   const [selected, setSelected] = useState<Date>();
+  const [propertyToHighlight, setPropertyToHighlight] = useState<string>("");
 
   useEffect(() => {
     if (selected) {
@@ -24,6 +25,10 @@ const Home = (): JSX.Element => {
       navigate(`/date/${date}`);
     }
   }, [selected, navigate]);
+
+  const handlePropertyHighlight = (property: string) => {
+    setPropertyToHighlight(property);
+  };
 
   const calculateTotals = (dataAvailabilityItems: DataAvailability[]): TotalsObject => {
     const totalsObject = {
@@ -74,9 +79,59 @@ const Home = (): JSX.Element => {
       </p>
       <p>
         Day Totals:
-        <br /> Comm: {totalsObject.comm} | Visiting Vehicle Comm: {totalsObject.vvComm} | YouTube:{" "}
-        {totalsObject.youtube} | EVA: {totalsObject.eva} | Blog: {totalsObject.blog} | Activity
-        Summary: {totalsObject.activitySummary} | Earth Photography: {totalsObject.earthPhotography}
+        <br />
+        <button
+          className={`${styles.totalButton} ${propertyToHighlight === "comm" ? styles.highlightedTotal : ""}`}
+          onClick={() => handlePropertyHighlight(propertyToHighlight === "comm" ? "" : "comm")}
+        >
+          Comm: {totalsObject.comm}
+        </button>{" "}
+        <button
+          className={`${styles.totalButton} ${propertyToHighlight === "vvComm" ? styles.highlightedTotal : ""}`}
+          onClick={() => handlePropertyHighlight(propertyToHighlight === "vvComm" ? "" : "vvComm")}
+        >
+          Visiting Vehicle Comm: {totalsObject.vvComm}
+        </button>{" "}
+        <button
+          className={`${styles.totalButton} ${propertyToHighlight === "youtube" ? styles.highlightedTotal : ""}`}
+          onClick={() =>
+            handlePropertyHighlight(propertyToHighlight === "youtube" ? "" : "youtube")
+          }
+        >
+          YouTube: {totalsObject.youtube}
+        </button>{" "}
+        <button
+          className={`${styles.totalButton} ${propertyToHighlight === "eva" ? styles.highlightedTotal : ""}`}
+          onClick={() => handlePropertyHighlight(propertyToHighlight === "eva" ? "" : "eva")}
+        >
+          EVA: {totalsObject.eva}
+        </button>{" "}
+        <button
+          className={`${styles.totalButton} ${propertyToHighlight === "blog" ? styles.highlightedTotal : ""}`}
+          onClick={() => handlePropertyHighlight(propertyToHighlight === "blog" ? "" : "blog")}
+        >
+          Blog: {totalsObject.blog}
+        </button>{" "}
+        <button
+          className={`${styles.totalButton} ${propertyToHighlight === "activitySummary" ? styles.highlightedTotal : ""}`}
+          onClick={() =>
+            handlePropertyHighlight(
+              propertyToHighlight === "activitySummary" ? "" : "activitySummary"
+            )
+          }
+        >
+          Activity Summary: {totalsObject.activitySummary}
+        </button>{" "}
+        <button
+          className={`${styles.totalButton} ${propertyToHighlight === "earthPhotography" ? styles.highlightedTotal : ""}`}
+          onClick={() =>
+            handlePropertyHighlight(
+              propertyToHighlight === "earthPhotography" ? "" : "earthPhotography"
+            )
+          }
+        >
+          Earth Photography: {totalsObject.earthPhotography}
+        </button>
       </p>
       <div className={styles.yearsContainer}>
         {allYears.map((year) => {
@@ -90,6 +145,7 @@ const Home = (): JSX.Element => {
               availableDataItemsThisYear={dataItemsThisYear}
               year={year}
               setSelected={setSelected}
+              propertyToHighlight={propertyToHighlight}
             />
           );
         })}
@@ -104,7 +160,8 @@ const YearPicker: FunctionComponent<{
   availableDataItemsThisYear: DataAvailability[];
   year: number;
   setSelected: Function;
-}> = ({ availableDataItemsThisYear, year, setSelected }) => {
+  propertyToHighlight: string;
+}> = ({ availableDataItemsThisYear, year, setSelected, propertyToHighlight }) => {
   const availableMonthsThisYear: number[] = [];
   availableDataItemsThisYear.forEach((item) => {
     const month = parseInt(item.date.split("-")[1]);
@@ -131,6 +188,7 @@ const YearPicker: FunctionComponent<{
               availableDataItemsThisMonth={availableDataItemsThisMonth}
               month={month}
               setSelected={setSelected}
+              propertyToHighlight={propertyToHighlight}
             />
           );
         })}
@@ -143,7 +201,8 @@ const MonthPicker: FunctionComponent<{
   availableDataItemsThisMonth: DataAvailability[];
   month: number;
   setSelected: Function;
-}> = ({ availableDataItemsThisMonth, month, setSelected }) => {
+  propertyToHighlight: string;
+}> = ({ availableDataItemsThisMonth, month, setSelected, propertyToHighlight }) => {
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
   };
@@ -201,10 +260,27 @@ const MonthPicker: FunctionComponent<{
               ? styles.dayNoData
               : "";
 
+          let highlightToday = false;
+          if (propertyToHighlight === "comm" && dayItem?.comm) {
+            highlightToday = true;
+          } else if (propertyToHighlight === "vvComm" && dayItem?.vvComm) {
+            highlightToday = true;
+          } else if (propertyToHighlight === "activitySummary" && dayItem?.activitySummary) {
+            highlightToday = true;
+          } else if (propertyToHighlight === "earthPhotography" && dayItem?.earthPhotography) {
+            highlightToday = true;
+          } else if (propertyToHighlight === "eva" && dayItem?.eva) {
+            highlightToday = true;
+          } else if (propertyToHighlight === "youtube" && dayItem?.youtube) {
+            highlightToday = true;
+          } else if (propertyToHighlight === "blog" && dayItem?.blog) {
+            highlightToday = true;
+          }
+
           return (
             <div
               key={date.toISOString()}
-              className={`${styles.day} ${commStyle} ${evaStyle} ${youtubeStyle} ${otherDataStyle} ${noDataStyle}`}
+              className={`${styles.day}  ${commStyle} ${evaStyle} ${youtubeStyle} ${otherDataStyle} ${noDataStyle} ${highlightToday && styles.dayHighlighted}`}
               role="button"
               tabIndex={0}
               onClick={() => setSelected(date)}
