@@ -52,21 +52,25 @@
 }
 
 .bodyLeftTop {
-  flex: 0 0 60%;
+  flex: 0 0 50%;
 }
 
 .bodyLeftBottom {
-  flex: 0 0 40%;
+  flex: 0 0 50%;
+  display: flex;
+  flex-direction: row;
 }
 
 .bodyCenter {
-  flex: 0 0 30%;
+  flex: 1 1 30%;
   display: flex;
   flex-direction: column;
 }
 
 .bodyCenterTop {
   flex: 0 0 50%;
+  display: flex;
+  flex-direction: row;
 }
 
 .bodyCenterBottom {
@@ -110,7 +114,9 @@
 
 .activeTab {
   background-color: #ccc;
-  font-weight: bold;
+}
+.activeTab:hover {
+  background-color: #ccc;
 }
 
 .tabContent {

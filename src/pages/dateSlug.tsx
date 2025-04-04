@@ -3,7 +3,7 @@ import EarthPhotography from "components/earthPhotography";
 import styles from "./dateSlug.module.css";
 import Transcript from "components/comm";
 import Map from "components/map";
-import { JSX, useEffect, useRef, useState } from "react";
+import { JSX, useEffect, useRef, useState, useMemo } from "react";
 import { isValidTimestring } from "utils/params";
 import YouTube from "components/youtube";
 import { getCrewMembersOnboardByDate } from "utils/crew";
@@ -52,7 +52,7 @@ const DatePage = (): JSX.Element => {
 
   const dateObj = new Date(date);
   const expeditions = expeditionInfo.filter(
-    (exp) => new Date(exp.start) <= dateObj && new Date(exp.end) >= dateObj
+    (exp) => new Date(exp.start) <= dateObj && (exp.end === null || new Date(exp.end) >= dateObj)
   );
 
   useEffect(() => {
@@ -72,6 +72,15 @@ const DatePage = (): JSX.Element => {
       });
     }
   }, [t, transcriptItems, date, clockDispatch, youtubeLiveRecording]);
+
+  // Memoize the Globe component's props to prevent unnecessary re-renders
+  const globeProps = useMemo(
+    () => ({
+      ephemeraItems,
+      viewDate: date,
+    }),
+    [ephemeraItems, date]
+  );
 
   return (
     <div className={styles.page}>
@@ -94,7 +103,7 @@ const DatePage = (): JSX.Element => {
         <EarthPhotography imageItems={earthPhotographyItems} />
         <div className={styles.mapContainer}>
           {showGlobe ? (
-            <Globe ephemeraItems={ephemeraItems} viewDate={date} />
+            <Globe {...globeProps} />
           ) : (
             <Map ephemeraItems={ephemeraItems} viewDate={date} />
           )}
@@ -102,8 +111,10 @@ const DatePage = (): JSX.Element => {
       </div>
 
       <div className={styles.lower}>
-        <Expeditions expeditions={expeditions} />
-        <CrewOnboard dateStr={date} crewOnboard={crewOnboard} />
+        <div className={styles.lowerLeft}>
+          <Expeditions expeditions={expeditions} />
+          <CrewOnboard dateStr={date} crewOnboard={crewOnboard} />
+        </div>
         {evaDetailsForDate.length > 0 && <EvaInfo evaDetails={evaDetailsForDate} />}
         <Flights date={date} flights={flights} />
         <Blog date={date} blogArticles={blogArticles} activitySummary={activitySummary} />

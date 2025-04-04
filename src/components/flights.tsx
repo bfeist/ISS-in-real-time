@@ -128,6 +128,13 @@ const Flights = ({ date, flights }: { date: string; flights: Flight[] }): JSX.El
         const flightIsDocked = isFlightCurrentlyDocked(flight, currentDate);
         const activeDockingEvent = getActiveDockingInfo(flight, currentDate);
 
+        let flightImgUrl = null;
+        if (flight.infobox_image_url && !flight.infobox_image_url.includes("icon_edit")) {
+          flightImgUrl = flight.infobox_image_url;
+        } else {
+          flightImgUrl = flight.crew_photo_url || flight.mission_patch_url;
+        }
+
         return (
           <div key={flight.number} className={styles.flight}>
             <div className={styles.missionHeader}>
@@ -152,10 +159,10 @@ const Flights = ({ date, flights }: { date: string; flights: Flight[] }): JSX.El
             </div>
 
             <div className={styles.flightImage}>
-              {flight.infobox_image_url && (
+              {flightImgUrl && (
                 <img
                   className={styles.flightImage}
-                  src={flight.infobox_image_url}
+                  src={flightImgUrl}
                   alt={`${flight.mission_name} flight`}
                 />
               )}

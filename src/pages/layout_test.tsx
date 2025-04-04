@@ -19,9 +19,26 @@ const useViewport = () => {
 const LayoutTestControls: FunctionComponent<{
   showVideo: boolean;
   showPhotos: boolean;
+  showArticles: boolean;
+  showEVA: boolean;
+  showComm: boolean;
   onToggleVideo: (state: boolean) => void;
   onTogglePhotos: (state: boolean) => void;
-}> = ({ showVideo, showPhotos, onToggleVideo, onTogglePhotos }) => {
+  onToggleArticles: (state: boolean) => void;
+  onToggleEVA: (state: boolean) => void;
+  onToggleComm: (state: boolean) => void;
+}> = ({
+  showVideo,
+  showPhotos,
+  showArticles,
+  showEVA,
+  showComm,
+  onToggleVideo,
+  onTogglePhotos,
+  onToggleArticles,
+  onToggleEVA,
+  onToggleComm,
+}) => {
   const navigate = useNavigate();
   return (
     <div className={styles.layoutTest}>
@@ -30,22 +47,40 @@ const LayoutTestControls: FunctionComponent<{
       <button onClick={() => onTogglePhotos(!showPhotos)}>
         Photos: {showPhotos ? "ON" : "OFF"}
       </button>
+      <button onClick={() => onToggleArticles(!showArticles)}>
+        Articles: {showArticles ? "ON" : "OFF"}
+      </button>
+      <button onClick={() => onToggleEVA(!showEVA)}>EVA: {showEVA ? "ON" : "OFF"}</button>
+      <button onClick={() => onToggleComm(!showComm)}>Comm: {showComm ? "ON" : "OFF"}</button>
     </div>
   );
 };
 
 // Add the new type definition for section names
-type SectionName = "header" | "timeline" | "globe" | "transcript" | "video" | "photos" | "details";
+type SectionName =
+  | "header"
+  | "timeline"
+  | "globe"
+  | "comm"
+  | "video"
+  | "photos"
+  | "articles"
+  | "flights"
+  | "exp/onboard"
+  | "eva";
 
 const FakeSection: FunctionComponent<{ name: SectionName }> = ({ name }) => {
   const sectionColor: Record<SectionName, string> = {
     header: "lightblue",
     timeline: "red",
     globe: "lightgreen",
-    transcript: "lightyellow",
+    comm: "lightgrey",
     video: "lightcoral",
     photos: "lightcyan",
-    details: "lightpink",
+    articles: "lightpink",
+    flights: "#ffcc99",
+    "exp/onboard": "lightgoldenrodyellow",
+    eva: "lightblue",
   };
   return (
     <div
@@ -61,31 +96,51 @@ const FakeSection: FunctionComponent<{ name: SectionName }> = ({ name }) => {
 };
 
 // Mobile layout with tabs
-type TabName = "video" | "photos" | "globe" | "transcript";
+type TabName =
+  | "video"
+  | "photos"
+  | "globe"
+  | "comm"
+  | "articles"
+  | "flights"
+  | "exp/onboard"
+  | "eva";
 
-const MobileLayout: FunctionComponent<{ showVideo: boolean; showPhotos: boolean }> = ({
-  showVideo,
-  showPhotos,
-}) => {
+const MobileLayout: FunctionComponent<{
+  showVideo: boolean;
+  showPhotos: boolean;
+  showArticles: boolean;
+  showEVA: boolean;
+  showComm: boolean;
+}> = ({ showVideo, showPhotos, showArticles, showEVA, showComm }) => {
   const [activeTab, setActiveTab] = useState<TabName>(
     showVideo ? "video" : showPhotos ? "photos" : "globe"
   );
 
   // Filter available tabs based on what should be shown
-
   const availableTabs: TabName[] = [];
   if (showVideo) availableTabs.push("video");
   if (showPhotos) availableTabs.push("photos");
   availableTabs.push("globe");
-  availableTabs.push("transcript");
+  if (showComm) availableTabs.push("comm");
+  if (showArticles) availableTabs.push("articles");
+  availableTabs.push("flights");
+  availableTabs.push("exp/onboard");
+  if (showEVA) availableTabs.push("eva");
 
   // If active tab is not available anymore, select the first available tab
   useEffect(() => {
-    if ((activeTab === "video" && !showVideo) || (activeTab === "photos" && !showPhotos)) {
+    if (
+      (activeTab === "video" && !showVideo) ||
+      (activeTab === "photos" && !showPhotos) ||
+      (activeTab === "articles" && !showArticles) ||
+      (activeTab === "eva" && !showEVA) ||
+      (activeTab === "comm" && !showComm)
+    ) {
       setActiveTab(availableTabs[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showVideo, showPhotos, activeTab]);
+  }, [showVideo, showPhotos, showArticles, showEVA, showComm, activeTab]);
 
   return (
     <div className={styles.page}>
@@ -113,17 +168,21 @@ const MobileLayout: FunctionComponent<{ showVideo: boolean; showPhotos: boolean 
           {activeTab === "video" && showVideo && <FakeSection name="video" />}
           {activeTab === "photos" && showPhotos && <FakeSection name="photos" />}
           {activeTab === "globe" && <FakeSection name="globe" />}
-          {activeTab === "transcript" && <FakeSection name="transcript" />}
-        </div>
-        <div className={styles.mobileDetails}>
-          <FakeSection name="details" />
+          {activeTab === "comm" && showComm && <FakeSection name="comm" />}
+          {activeTab === "articles" && showArticles && <FakeSection name="articles" />}
+          {activeTab === "flights" && <FakeSection name="flights" />}
+          {activeTab === "exp/onboard" && <FakeSection name="exp/onboard" />}
+          {activeTab === "eva" && showEVA && <FakeSection name="eva" />}
         </div>
       </div>
     </div>
   );
 };
 
-const VideoPhotos: FunctionComponent = () => {
+const VideoPhotos: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = ({
+  showEVA,
+  showComm,
+}) => {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -140,7 +199,10 @@ const VideoPhotos: FunctionComponent = () => {
             <FakeSection name="video" />
           </div>
           <div className={styles.bodyLeftBottom}>
-            <FakeSection name="details" />
+            <FakeSection name="articles" />
+            <FakeSection name="flights" />
+            <FakeSection name="exp/onboard" />
+            {showEVA && <FakeSection name="eva" />}
           </div>
         </div>
         <div className={styles.bodyCenter}>
@@ -151,15 +213,20 @@ const VideoPhotos: FunctionComponent = () => {
             <FakeSection name="globe" />
           </div>
         </div>
-        <div className={styles.bodyRight}>
-          <FakeSection name="transcript" />
-        </div>
+        {showComm && (
+          <div className={styles.bodyRight}>
+            <FakeSection name="comm" />
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-const VideoOnly: FunctionComponent = () => {
+const VideoOnly: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = ({
+  showEVA,
+  showComm,
+}) => {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -176,21 +243,33 @@ const VideoOnly: FunctionComponent = () => {
             <FakeSection name="video" />
           </div>
           <div className={styles.bodyLeftBottom}>
-            <FakeSection name="details" />
+            <FakeSection name="flights" />
+            <FakeSection name="exp/onboard" />
+            {showEVA && <FakeSection name="eva" />}
           </div>
         </div>
         <div className={styles.bodyCenter}>
-          <FakeSection name="globe" />
+          <div className={styles.bodyCenterTop}>
+            <FakeSection name="articles" />
+          </div>
+          <div className={styles.bodyCenterBottom}>
+            <FakeSection name="globe" />
+          </div>
         </div>
-        <div className={styles.bodyRight}>
-          <FakeSection name="transcript" />
-        </div>
+        {showComm && (
+          <div className={styles.bodyRight}>
+            <FakeSection name="comm" />
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-const PhotosOnly: FunctionComponent = () => {
+const PhotosOnly: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = ({
+  showEVA,
+  showComm,
+}) => {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -207,21 +286,33 @@ const PhotosOnly: FunctionComponent = () => {
             <FakeSection name="photos" />
           </div>
           <div className={styles.bodyLeftBottom}>
-            <FakeSection name="details" />
+            <FakeSection name="flights" />
+            <FakeSection name="exp/onboard" />
+            {showEVA && <FakeSection name="eva" />}
           </div>
         </div>
         <div className={styles.bodyCenter}>
-          <FakeSection name="globe" />
+          <div className={styles.bodyCenterTop}>
+            <FakeSection name="articles" />
+          </div>
+          <div className={styles.bodyCenterBottom}>
+            <FakeSection name="globe" />
+          </div>
         </div>
-        <div className={styles.bodyRight}>
-          <FakeSection name="transcript" />
-        </div>
+        {showComm && (
+          <div className={styles.bodyRight}>
+            <FakeSection name="comm" />
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-const NoPhotosOrVideo: FunctionComponent = () => {
+const NoPhotosOrVideo: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = ({
+  showEVA,
+  showComm,
+}) => {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -234,40 +325,60 @@ const NoPhotosOrVideo: FunctionComponent = () => {
       </div>
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
-          <FakeSection name="details" />
+          <FakeSection name="articles" />
         </div>
         <div className={styles.bodyCenter}>
-          <FakeSection name="globe" />
+          <div className={styles.bodyCenterTop}>
+            <FakeSection name="flights" />
+            <FakeSection name="exp/onboard" />
+            {showEVA && <FakeSection name="eva" />}
+          </div>
+          <div className={styles.bodyCenterBottom}>
+            <FakeSection name="globe" />
+          </div>
         </div>
-        <div className={styles.bodyRight}>
-          <FakeSection name="transcript" />
-        </div>
+        {showComm && (
+          <div className={styles.bodyRight}>
+            <FakeSection name="comm" />
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 const LayoutTest: FunctionComponent = () => {
-  // Two independent toggles
+  // Independent toggles for all sections
   const [showVideo, setShowVideo] = useState(true);
   const [showPhotos, setShowPhotos] = useState(true);
+  const [showArticles, setShowArticles] = useState(true);
+  const [showEVA, setShowEVA] = useState(true);
+  const [showComm, setShowComm] = useState(true);
   const { width } = useViewport();
   const isMobile = width <= 1000;
 
   let content = null;
   if (isMobile) {
     // Use mobile tabbed layout
-    content = <MobileLayout showVideo={showVideo} showPhotos={showPhotos} />;
+    content = (
+      <MobileLayout
+        showVideo={showVideo}
+        showPhotos={showPhotos}
+        showArticles={showArticles}
+        showEVA={showEVA}
+        showComm={showComm}
+      />
+    );
   } else {
     // Use desktop layouts
     if (showVideo && showPhotos) {
-      content = <VideoPhotos />;
+      content = <VideoPhotos showEVA={showEVA} showComm={showComm} />;
     } else if (showVideo) {
-      content = <VideoOnly />;
+      content = <VideoOnly showEVA={showEVA} showComm={showComm} />;
     } else if (showPhotos) {
-      content = <PhotosOnly />;
+      content = <PhotosOnly showEVA={showEVA} showComm={showComm} />;
     } else {
-      content = <NoPhotosOrVideo />;
+      content = <NoPhotosOrVideo showEVA={showEVA} showComm={showComm} />;
     }
   }
 
@@ -276,8 +387,14 @@ const LayoutTest: FunctionComponent = () => {
       <LayoutTestControls
         showVideo={showVideo}
         showPhotos={showPhotos}
+        showArticles={showArticles}
+        showEVA={showEVA}
+        showComm={showComm}
         onToggleVideo={setShowVideo}
         onTogglePhotos={setShowPhotos}
+        onToggleArticles={setShowArticles}
+        onToggleEVA={setShowEVA}
+        onToggleComm={setShowComm}
       />
       {content}
     </div>
