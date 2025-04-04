@@ -85,16 +85,17 @@ const Comm: FunctionComponent<{
       {commItems.map((item, index) => {
         const channelInfo = extractChannelInfoFromFilename(item.filename);
 
-        let backgroundColor = "transparent";
-        if (appSecondsFromTimeStr(item.utteranceTime) === appSeconds) {
-          backgroundColor = "rgba(255, 255, 255, 0.2)";
+        let commItemActive = null;
+        const startAppSeconds = appSecondsFromTimeStr(item.utteranceTime);
+        const endAppSeconds = appSecondsFromTimeStr(item.utteranceTime) + parseFloat(item.end);
+        if (appSeconds >= startAppSeconds && appSeconds <= endAppSeconds) {
+          commItemActive = styles.commItemActive;
         }
 
         return (
           <div
             key={index}
-            className={styles.commItem}
-            style={{ backgroundColor }}
+            className={`${styles.commItem} ${commItemActive}`}
             data-time={item.utteranceTime}
             role="button"
             tabIndex={0}

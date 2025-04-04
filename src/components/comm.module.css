@@ -16,6 +16,11 @@
   cursor: pointer;
 }
 
+.commItemActive {
+  background-color: #e7e7e7;
+  transition: background-color 0.5s ease-in-out;
+}
+
 .channelnum {
   white-space: nowrap;
 }

@@ -11,7 +11,9 @@ const Header: FunctionComponent<{
   showGlobe: boolean;
   setShowGlobe: (showGlobe: boolean) => void;
   dataAvailability: DataAvailability;
-}> = ({ date, showGlobe, setShowGlobe, dataAvailability }) => {
+  muted: boolean;
+  setMuted: (muted: boolean) => void;
+}> = ({ date, showGlobe, setShowGlobe, dataAvailability, muted, setMuted }) => {
   const velocityRef = useRef<HTMLSpanElement>(null);
   const altitudeRef = useRef<HTMLSpanElement>(null);
   const latRef = useRef<HTMLSpanElement>(null);
@@ -65,12 +67,21 @@ const Header: FunctionComponent<{
           onClick={() => {
             if (clock.isRunning) {
               clockDispatch({ type: "stop" });
+              setMuted(true);
             } else {
               clockDispatch({ type: "start" });
+              setMuted(false);
             }
           }}
         >
           {clock.isRunning ? "Pause" : "Play"}
+        </button>
+        <button
+          onClick={() => {
+            setMuted(!muted);
+          }}
+        >
+          {muted ? "Unmute" : "Mute"}
         </button>
         <button onClick={() => setShowGlobe(!showGlobe)}>
           Show {showGlobe ? "Map" : "Globe"}{" "}

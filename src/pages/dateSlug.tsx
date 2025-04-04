@@ -42,6 +42,7 @@ const DatePage = (): JSX.Element => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const [showGlobe, setShowGlobe] = useState(true);
+  const [muted, setMuted] = useState(false);
 
   const evaDetailsForDate = evaDetails.filter((evaDetail) => evaDetail.startTime.startsWith(date));
   const youtubeLiveRecording =
@@ -79,6 +80,8 @@ const DatePage = (): JSX.Element => {
         showGlobe={showGlobe}
         setShowGlobe={setShowGlobe}
         dataAvailability={dataAvailability}
+        muted={muted}
+        setMuted={setMuted}
       />
       <div className={styles.upper}>
         <div className={styles.transcriptsContainer}>
@@ -105,7 +108,7 @@ const DatePage = (): JSX.Element => {
         <Flights date={date} flights={flights} />
         <Blog date={date} blogArticles={blogArticles} activitySummary={activitySummary} />
         <div className={styles.audioPlayer}>
-          <audio ref={audioRef} controls muted={true}>
+          <audio ref={audioRef} controls muted={muted}>
             <track src="" kind="captions" label="English" />
             Your browser does not support the audio element.
           </audio>
