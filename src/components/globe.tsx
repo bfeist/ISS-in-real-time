@@ -111,6 +111,26 @@ const Globe: FunctionComponent<{
 
     const viewer = viewerRef.current.cesiumElement;
     const camera = viewer.scene.camera;
+    const controller = viewer.scene.screenSpaceCameraController;
+
+    // Slow down the mouse wheel zoom speed
+    if (controller) {
+      // Set minimum and maximum zoom distances
+      controller.minimumZoomDistance = 100000; // Minimum distance in meters
+      controller.maximumZoomDistance = 25000000; // Maximum distance in meters
+
+      // Override the default zoom behavior
+      const originalZoomIn = camera.zoomIn;
+      const originalZoomOut = camera.zoomOut;
+
+      camera.zoomIn = function (amount?: number) {
+        return originalZoomIn.call(this, amount ? amount * 0.2 : undefined);
+      };
+
+      camera.zoomOut = function (amount?: number) {
+        return originalZoomOut.call(this, amount ? amount * 0.2 : undefined);
+      };
+    }
 
     const setInitialView = () => {
       const entity = issEntityRef.current?.cesiumElement;

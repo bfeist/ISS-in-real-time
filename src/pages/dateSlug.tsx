@@ -42,7 +42,7 @@ const DatePage = (): JSX.Element => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const [showGlobe, setShowGlobe] = useState(true);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
 
   const evaDetailsForDate = evaDetails.filter((evaDetail) => evaDetail.startTime.startsWith(date));
   const youtubeLiveRecording =
