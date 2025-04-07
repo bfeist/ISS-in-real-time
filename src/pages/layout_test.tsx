@@ -69,7 +69,10 @@ type SectionName =
   | "exp/onboard"
   | "eva";
 
-const FakeSection: FunctionComponent<{ name: SectionName }> = ({ name }) => {
+const FakeSection: FunctionComponent<{ name: SectionName; available?: boolean }> = ({
+  name,
+  available = true,
+}) => {
   const sectionColor: Record<SectionName, string> = {
     header: "lightblue",
     timeline: "red",
@@ -90,7 +93,7 @@ const FakeSection: FunctionComponent<{ name: SectionName }> = ({ name }) => {
         backgroundColor: sectionColor[name],
       }}
     >
-      {name}
+      {name} {available ? "" : " (not available)"}
     </div>
   );
 };
@@ -179,10 +182,11 @@ const MobileLayout: FunctionComponent<{
   );
 };
 
-const VideoPhotos: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = ({
-  showEVA,
-  showComm,
-}) => {
+const VideoPhotos: FunctionComponent<{
+  showEVA: boolean;
+  showComm: boolean;
+  showArticles: boolean;
+}> = ({ showEVA, showComm, showArticles }) => {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -199,7 +203,7 @@ const VideoPhotos: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = 
             <FakeSection name="video" />
           </div>
           <div className={styles.bodyLeftBottom}>
-            <FakeSection name="articles" />
+            <FakeSection name="articles" available={showArticles} />
             <FakeSection name="flights" />
             <FakeSection name="exp/onboard" />
             {showEVA && <FakeSection name="eva" />}
@@ -213,20 +217,19 @@ const VideoPhotos: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = 
             <FakeSection name="globe" />
           </div>
         </div>
-        {showComm && (
-          <div className={styles.bodyRight}>
-            <FakeSection name="comm" />
-          </div>
-        )}
+        <div className={styles.bodyRight}>
+          <FakeSection name="comm" available={showComm} />
+        </div>
       </div>
     </div>
   );
 };
 
-const VideoOnly: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = ({
-  showEVA,
-  showComm,
-}) => {
+const VideoOnly: FunctionComponent<{
+  showEVA: boolean;
+  showComm: boolean;
+  showArticles: boolean;
+}> = ({ showEVA, showComm, showArticles }) => {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -250,26 +253,25 @@ const VideoOnly: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = ({
         </div>
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
-            <FakeSection name="articles" />
+            <FakeSection name="articles" available={showArticles} />
           </div>
           <div className={styles.bodyCenterBottom}>
             <FakeSection name="globe" />
           </div>
         </div>
-        {showComm && (
-          <div className={styles.bodyRight}>
-            <FakeSection name="comm" />
-          </div>
-        )}
+        <div className={styles.bodyRight}>
+          <FakeSection name="comm" available={showComm} />
+        </div>
       </div>
     </div>
   );
 };
 
-const PhotosOnly: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = ({
-  showEVA,
-  showComm,
-}) => {
+const PhotosOnly: FunctionComponent<{
+  showEVA: boolean;
+  showComm: boolean;
+  showArticles: boolean;
+}> = ({ showEVA, showComm, showArticles }) => {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -293,26 +295,26 @@ const PhotosOnly: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = (
         </div>
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
-            <FakeSection name="articles" />
+            <FakeSection name="articles" available={showArticles} />
           </div>
           <div className={styles.bodyCenterBottom}>
             <FakeSection name="globe" />
           </div>
         </div>
-        {showComm && (
-          <div className={styles.bodyRight}>
-            <FakeSection name="comm" />
-          </div>
-        )}
+
+        <div className={styles.bodyRight}>
+          <FakeSection name="comm" available={showComm} />
+        </div>
       </div>
     </div>
   );
 };
 
-const NoPhotosOrVideo: FunctionComponent<{ showEVA: boolean; showComm: boolean }> = ({
-  showEVA,
-  showComm,
-}) => {
+const NoPhotosOrVideo: FunctionComponent<{
+  showEVA: boolean;
+  showComm: boolean;
+  showArticles: boolean;
+}> = ({ showEVA, showComm, showArticles }) => {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -325,7 +327,7 @@ const NoPhotosOrVideo: FunctionComponent<{ showEVA: boolean; showComm: boolean }
       </div>
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
-          <FakeSection name="articles" />
+          <FakeSection name="articles" available={showArticles} />
         </div>
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
@@ -337,11 +339,9 @@ const NoPhotosOrVideo: FunctionComponent<{ showEVA: boolean; showComm: boolean }
             <FakeSection name="globe" />
           </div>
         </div>
-        {showComm && (
-          <div className={styles.bodyRight}>
-            <FakeSection name="comm" />
-          </div>
-        )}
+        <div className={styles.bodyRight}>
+          <FakeSection name="comm" available={showComm} />
+        </div>
       </div>
     </div>
   );
@@ -372,13 +372,15 @@ const LayoutTest: FunctionComponent = () => {
   } else {
     // Use desktop layouts
     if (showVideo && showPhotos) {
-      content = <VideoPhotos showEVA={showEVA} showComm={showComm} />;
+      content = <VideoPhotos showEVA={showEVA} showComm={showComm} showArticles={showArticles} />;
     } else if (showVideo) {
-      content = <VideoOnly showEVA={showEVA} showComm={showComm} />;
+      content = <VideoOnly showEVA={showEVA} showComm={showComm} showArticles={showArticles} />;
     } else if (showPhotos) {
-      content = <PhotosOnly showEVA={showEVA} showComm={showComm} />;
+      content = <PhotosOnly showEVA={showEVA} showComm={showComm} showArticles={showArticles} />;
     } else {
-      content = <NoPhotosOrVideo showEVA={showEVA} showComm={showComm} />;
+      content = (
+        <NoPhotosOrVideo showEVA={showEVA} showComm={showComm} showArticles={showArticles} />
+      );
     }
   }
 
