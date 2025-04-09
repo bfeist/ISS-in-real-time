@@ -26,6 +26,23 @@ def extract_date(date_str):
         print(f"Date parsing error: {e} for string: {date_str}")
         return ""
 
+# Helper function to convert Wikimedia URLs
+def convert_wikimedia_url(url):
+    if url.startswith("//"):
+        url = "https:" + url
+    if "/thumb/" in url:
+        try:
+            base, rest = url.split("/thumb/", 1)
+            parts = rest.split("/")
+            if len(parts) >= 4:
+                if base.endswith("/commons"):
+                    return f"{base}/{parts[0]}/{parts[1]}/{parts[2]}"
+                else:
+                    return f"{base}/commons/{parts[0]}/{parts[1]}/{parts[2]}"
+        except Exception:
+            pass
+    return url
+
 # Helper function to extract country flag information
 def extract_flags(cell):
     flags = []
@@ -241,6 +258,89 @@ def clean_data(x):
         return x
 
 data = clean_data(data)
+
+# Second pass: Fetch additional information from each spacecraft's Wikipedia page
+for entry in data:
+    spacecraft_link = entry.get("spacecraft_link", "")
+    if spacecraft_link:
+        print(f"Processing spacecraft URL: {spacecraft_link}")
+        # Build full URL if necessary
+        if spacecraft_link.startswith("/"):
+            spacecraft_link = "https://en.wikipedia.org" + spacecraft_link
+            
+        try:
+            # Initialize the additional fields
+            entry["infobox_image_url"] = ""
+            entry["infobox_image_caption"] = ""
+            entry["spacecraft_details"] = {}
+            entry["berthing_port"] = ""
+            
+            resp = requests.get(spacecraft_link)
+            if resp.status_code != 200:
+                continue
+                
+            spacecraft_html = resp.text
+            spacecraft_soup = BeautifulSoup(spacecraft_html, "html.parser")
+            
+            # Look for the infobox table
+            infobox = spacecraft_soup.find("table", class_=lambda c: c and "infobox" in c)
+            if infobox:
+                # Extract the image URL from the infobox
+                img_span = infobox.find("span", attrs={"typeof": lambda x: x and x.startswith("mw:File")})
+                if img_span:
+                    img_tag = img_span.find("img")
+                    if img_tag and img_tag.get("src"):
+                        entry["infobox_image_url"] = convert_wikimedia_url(img_tag["src"])
+                    
+                    # Extract image caption
+                    caption_div = img_span.find_next("div", class_="infobox-caption")
+                    if caption_div:
+                        entry["infobox_image_caption"] = clean_text(caption_div.get_text())
+                
+                # Extract spacecraft details from infobox rows
+                rows = infobox.find_all("tr")
+                for row in rows:
+                    header = row.find("th")
+                    if header and header.get_text(strip=True):
+                        header_text = clean_text(header.get_text()).lower()
+                        value_cell = row.find("td")
+                        if value_cell:
+                            value_text = clean_text(value_cell.get_text())
+                            
+                            # Store all details in spacecraft_details dictionary
+                            entry["spacecraft_details"][header_text] = value_text
+                            
+                            # Also store specific fields directly in the entry
+                            if "spacecraft" in header_text and "type" not in header_text:
+                                entry["spacecraft"] = value_text
+                            elif "spacecraft type" in header_text:
+                                entry["spacecraft_type"] = value_text
+                
+                # Look for berthing port information in the docking section headers
+                all_headers = infobox.find_all("th", class_="infobox-header")
+                for header in all_headers:
+                    header_text = header.get_text(strip=True)
+                    if "Docking" in header_text or "Berthing" in header_text:
+                        # Look at the rows following this header until the next header
+                        current_row = header.parent.next_sibling
+                        while current_row:
+                            if hasattr(current_row, "find") and current_row.find("th", class_="infobox-header"):
+                                break
+                            if hasattr(current_row, "find"):
+                                row_header = current_row.find("th", class_="infobox-label")
+                                row_data = current_row.find("td", class_="infobox-data")
+                                if row_header and row_data:
+                                    label = row_header.get_text(strip=True).lower()
+                                    if "port" in label:
+                                        entry["berthing_port"] = clean_text(row_data.get_text())
+                                        break
+                            current_row = current_row.next_sibling
+            
+            # Pause briefly between requests to be polite to the server
+            time.sleep(0.5)
+            
+        except Exception as e:
+            print(f"Error processing {spacecraft_link}: {e}")
 
 # Sort the data by launch_date ascending
 data.sort(key=lambda x: x.get("launch_date", ""))
