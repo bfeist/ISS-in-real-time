@@ -17,9 +17,34 @@ allowed_headings = {"Completed", "Current", "Replacement/Rescue"}
 
 # New helper function for date extraction
 def extract_date(date_str):
-    extracted_date_iso = parser.parse(date_str).isoformat()
-    extracted_date_iso = extracted_date_iso.replace("+00:00", "Z")
-    return extracted_date_iso
+    """
+    Extract and parse date from various formats, including complex Wikipedia formats.
+    Returns an ISO 8601 formatted date string.
+    """
+    # Check for ISO format in parentheses like: ( 2022-04-27UTC07:52:55Z )
+    iso_match = re.search(
+        r"\(\s*(\d{4}-\d{2}-\d{2}UTC\d{2}:\d{2}:\d{2}Z)\s*\)", date_str
+    )
+    if iso_match:
+        # Extract the ISO-like format and standardize it
+        iso_date = iso_match.group(1)
+        iso_date = iso_date.replace("UTC", "T")
+        if not iso_date.endswith("Z"):
+            iso_date += "Z"
+        return iso_date
+
+    try:
+        # Remove extra information in parentheses to avoid confusion
+        cleaned_str = re.sub(r"\([^)]*\)", "", date_str)
+        cleaned_str = cleaned_str.replace("UTC", "").strip()
+        extracted_date_iso = parser.parse(cleaned_str).isoformat()
+        extracted_date_iso = extracted_date_iso.replace("+00:00", "Z")
+        if not extracted_date_iso.endswith("Z"):
+            extracted_date_iso += "Z"
+        return extracted_date_iso
+    except Exception as e:
+        print(f"Error parsing date '{date_str}': {e}")
+        return date_str
 
 
 # Helper function to convert Wikimedia URLs
@@ -38,6 +63,22 @@ def convert_wikimedia_url(url):
         except Exception:
             pass
     return url
+
+
+def clean_data(x):
+    if isinstance(x, str):
+        # Clean non-breaking spaces, unusual hyphen characters, and citation references
+        cleaned = x.replace("\xa0", " ")  # Explicitly replace \xa0 character
+        cleaned = cleaned.replace("\u00a0", " ")  # Also try Unicode representation
+        cleaned = cleaned.replace("‑", "-")  # Replace unusual hyphen with regular dash
+        cleaned = re.sub(r"\s*\[\s*\d+\s*\]\s*", " ", cleaned).strip()
+        return cleaned
+    elif isinstance(x, dict):
+        return {k: clean_data(v) for k, v in x.items()}
+    elif isinstance(x, list):
+        return [clean_data(i) for i in x]
+    else:
+        return x
 
 
 # First pass: scrape the flights list from Wikipedia
@@ -129,46 +170,24 @@ for table in tables:
             "crew_photo_url": crew_photo_url,
             "notes": notes,
             # placeholders for additional fields (to be filled in second pass)
-            "mission_duration": "",
+            "duration": "",
             "spacecraft": "",
             "spacecraft_type": "",
-            "manufacturer": "",
             "crew_launching": [],
             "crew_landing": [],
-            "launch_mass": "",
-            "landing_mass": "",
-            "launch_date_utc": "",
-            "rocket": "",
-            "launch_site": "",
-            "recovered_by": "",
-            "landing_date_utc": "",
-            "landing_site": "",
+            "launch_date": "",
+            "landing_date": "",
             "infobox_image_url": "",
             "docking_events": [],  # New field to track multiple docking events
+            "spacecraft_details": {},  # New field to store all spacecraft details
         }
         data.append(entry)
-
-# Updated fields_map dictionary - remove docking-related fields
-fields_map = {
-    "mission duration": "mission_duration",
-    "spacecraft": "spacecraft",
-    "spacecraft type": "spacecraft_type",
-    "manufacturer": "manufacturer",
-    "launch mass": "launch_mass",
-    "landing mass": "landing_mass",
-    "launch date": "launch_date_utc",
-    "rocket": "rocket",
-    "launch site": "launch_site",
-    "recovered by": "recovered_by",
-    "landing date": "landing_date_utc",
-    "landing site": "landing_site",
-}
 
 # Second pass: for each entry, scrape additional fields from the mission page infobox
 for entry in data:
     mission_url = entry.get("mission_name_url", "")
     print(f"Processing mission URL: {mission_url}")
-    # mission_url = "https://en.wikipedia.org/wiki/SpaceX_Crew-9"  # For testing
+    # mission_url = "https://en.wikipedia.org/wiki/SpaceX_Crew-4"  # For testing
     if mission_url:
         # Build full URL if necessary
         if mission_url.startswith("/"):
@@ -192,6 +211,38 @@ for entry in data:
                 img_tag = img_span.find("img")
                 if img_tag and img_tag.get("src"):
                     entry["infobox_image_url"] = convert_wikimedia_url(img_tag["src"])
+
+            # Extract all spacecraft details from infobox rows - more dynamic approach
+            rows = infobox.find_all("tr")
+            for row in rows:
+                header = row.find("th")
+                if header and header.get_text(strip=True):
+                    header_text = header.get_text(strip=True).lower()
+                    header_text = clean_data(
+                        header_text
+                    )  # Clean header key for Unicode artifacts
+                    value_cell = row.find("td")
+                    if value_cell:
+                        value_text = value_cell.get_text(separator=" ", strip=True)
+
+                        # Store all details in spacecraft_details dictionary
+                        entry["spacecraft_details"][header_text] = value_text
+
+                        # Also map specific fields directly to the entry
+                        if "mission duration" in header_text:
+                            entry["duration"] = value_text
+                        elif "spacecraft" in header_text and "type" not in header_text:
+                            entry["spacecraft_name"] = value_text
+                        elif "spacecraft type" in header_text:
+                            entry["spacecraft_type"] = value_text
+                        elif "launch date" in header_text:
+                            entry["launch_date"] = extract_date(
+                                value_text.split("[")[0].strip()
+                            )
+                        elif "landing date" in header_text:
+                            entry["landing_date"] = extract_date(
+                                value_text.split("[")[0].strip()
+                            )
 
             # Improved docking events extraction
             docking_events = []
@@ -463,6 +514,12 @@ for entry in data:
                             if not crew["nationality"]:
                                 pass
 
+                        # Print error if both crew_launching and crew_landing arrays are empty
+                        if not entry["crew_launching"] and not entry["crew_landing"]:
+                            print(
+                                f"Error: Flight {entry['number']} ({entry['mission_name']}) has no crew launching or landing information."
+                            )
+
             # Pause briefly between requests to be polite to the server
             time.sleep(0.5)
         except Exception as e:
@@ -473,28 +530,11 @@ for entry in data:
 data.sort(key=lambda x: x["launch_date"])
 
 
-# New: Recursively clean the data values
-def clean_data(x):
-    if isinstance(x, str):
-        # Clean both non-breaking spaces and citation references like [1], [ 2 ], etc.
-        cleaned = x.replace("\xa0", " ")  # Explicitly replace \xa0 character
-        cleaned = cleaned.replace("\u00a0", " ")  # Also try Unicode representation
-        # More flexible regex that handles spaces around the digits
-        cleaned = re.sub(r"\s*\[\s*\d+\s*\]\s*", " ", cleaned).strip()
-        return cleaned
-    elif isinstance(x, dict):
-        return {k: clean_data(v) for k, v in x.items()}
-    elif isinstance(x, list):
-        return [clean_data(i) for i in x]
-    else:
-        return x
-
-
 data = clean_data(data)
 
 # Write the enriched data to a new JSON file
 output_path = os.path.join(WEB_ASSETS_FOLDER, "flights.json")
 with open(output_path, "w", encoding="utf-8") as jsonfile:
-    json.dump(data, jsonfile, ensure_ascii=False, indent=4)
+    json.dump(data, jsonfile, ensure_ascii=False, indent=4, sort_keys=True)
 
 print("Flight data has been successfully enriched and extracted to flights.json")
