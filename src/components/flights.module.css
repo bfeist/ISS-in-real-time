@@ -4,9 +4,15 @@
   overflow-y: auto;
 }
 
-.flight {
+.flight,
+.supplyFlight {
   border-radius: 4px;
   margin-bottom: 20px;
+}
+
+.flightImageContainer {
+  width: 100%;
+  margin: 1em 0;
 }
 
 .flightImage {
@@ -60,4 +66,43 @@
 
 .timeInfo {
   font-style: italic;
+  margin: 0.5em 0;
+}
+
+.sectionHeader {
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 0.5em;
+  margin-top: 1em;
+}
+
+.spacecraftDetails {
+  margin: 0.5em 0;
+}
+
+.spacecraftDetails ul {
+  margin-top: 0.25em;
+  padding-left: 1.5em;
+}
+
+.statusTag,
+.moduleTag,
+.failureTag {
+  display: inline-block;
+  padding: 0.25em 0.5em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  margin-right: 0.5em;
+  color: white;
+}
+
+.statusTag {
+  background-color: #0078d4;
+}
+
+.moduleTag {
+  background-color: #107c10;
+}
+
+.failureTag {
+  background-color: #d13438;
 }
