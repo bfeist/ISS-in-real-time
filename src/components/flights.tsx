@@ -64,13 +64,29 @@ const isDockingOrUndockingDay = (
   });
 };
 
-const Flights = ({ date, flights }: { date: string; flights: Flight[] }): JSX.Element | null => {
+// Helper function to capitalize the first letter of each word
+const capitalizeWords = (str: string): string => {
+  return str
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+const Flights = ({
+  date,
+  flights,
+  flightsSupply,
+}: {
+  date: string;
+  flights: Flight[];
+  flightsSupply: FlightSupply[];
+}): JSX.Element | null => {
   const activeFlights = useMemo(() => {
     const currentDate = new Date(date);
 
     return flights.filter((flight) => {
-      const launchDate = new Date(flight.launch_date_utc);
-      const landingDate = flight.landing_date_utc ? new Date(flight.landing_date_utc) : null;
+      const launchDate = new Date(flight.launch_date);
+      const landingDate = flight.landing_date ? new Date(flight.landing_date) : null;
 
       // Check if flight is active on the given date
       const isLaunchDay = isSameDay(launchDate, currentDate);
@@ -92,7 +108,25 @@ const Flights = ({ date, flights }: { date: string; flights: Flight[] }): JSX.El
     });
   }, [date, flights]);
 
-  if (activeFlights.length === 0) return null;
+  const activeFlightsSupply = useMemo(() => {
+    const currentDate = new Date(date);
+
+    return flightsSupply.filter((supply) => {
+      if (supply.is_module) return false; // Skip module deliveries
+      if (supply.is_failure) return false; // Skip failed missions
+
+      const launchDate = new Date(supply.launch_date);
+      const undockingDate = supply.undocking_date ? new Date(supply.undocking_date) : null;
+
+      // Check if currently docked to the ISS
+      const isActive =
+        launchDate && launchDate <= currentDate && (!undockingDate || currentDate <= undockingDate);
+
+      return isActive;
+    });
+  }, [date, flightsSupply]);
+
+  if (activeFlights.length === 0 && activeFlightsSupply.length === 0) return null;
 
   const renderCrew = (crew: FlightCrewMember[]) => (
     <div className={styles.crewList}>
@@ -190,14 +224,14 @@ const Flights = ({ date, flights }: { date: string; flights: Flight[] }): JSX.El
                     ` • Scheduled undocking: ${new Date(activeDockingEvent.undocking_date).toLocaleString()}`}
                 </div>
               </>
-            ) : new Date(flight.launch_date_utc) > new Date(date) ? (
+            ) : new Date(flight.launch_date) > new Date(date) ? (
               <>
                 <div>
                   <b>Launching Crew:</b>
                 </div>
                 {renderCrew(flight.crew_launching)}
                 <div className={styles.timeInfo}>
-                  Launch: {new Date(flight.launch_date_utc).toLocaleString()}
+                  Launch: {new Date(flight.launch_date).toLocaleString()}
                   {flight.docking_events?.[0]?.docking_date &&
                     ` • First Docking: ${new Date(flight.docking_events[0].docking_date).toLocaleString()}`}
                 </div>
@@ -213,13 +247,120 @@ const Flights = ({ date, flights }: { date: string; flights: Flight[] }): JSX.El
                     flight.docking_events.length > 0 &&
                     flight.docking_events[flight.docking_events.length - 1].undocking_date &&
                     `Final Undocking: ${new Date(flight.docking_events[flight.docking_events.length - 1].undocking_date).toLocaleString()} • `}
-                  Landing: {new Date(flight.landing_date_utc).toLocaleString()}
+                  Landing: {new Date(flight.landing_date).toLocaleString()}
                 </div>
               </>
+            )}
+
+            {flight.spacecraft_details && Object.keys(flight.spacecraft_details).length > 0 && (
+              <div className={styles.spacecraftDetails}>
+                <span className={styles.labelText}>Spacecraft Details:</span>
+                <ul>
+                  {Object.entries(flight.spacecraft_details).map(([key, value]) => (
+                    <li key={key}>
+                      <strong>{capitalizeWords(key)}:</strong> {value}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         );
       })}
+
+      {/* Display Supply Flights */}
+      {activeFlightsSupply.length > 0 && (
+        <>
+          <h3 className={styles.sectionHeader}>Supply Missions</h3>
+          <div className={styles.supplyFlights}>
+            {activeFlightsSupply.map((supply) => {
+              const currentDate = new Date(date);
+              const launchDate = new Date(supply.launch_date);
+              const dockingDate = supply.docking_date ? new Date(supply.docking_date) : null;
+              const undockingDate = supply.undocking_date ? new Date(supply.undocking_date) : null;
+
+              // Determine the flight status for this date
+              let status = "";
+              if (isSameDay(launchDate, currentDate)) {
+                status = "Launching Today";
+              } else if (dockingDate && isSameDay(dockingDate, currentDate)) {
+                status = "Docking Today";
+              } else if (undockingDate && isSameDay(undockingDate, currentDate)) {
+                status = "Undocking Today";
+              }
+
+              return (
+                <div key={supply.number} className={styles.supplyFlight}>
+                  <div className={styles.missionHeader}>
+                    {supply.infobox_image_url &&
+                      !supply.infobox_image_url.includes("icon_edit") && (
+                        <img
+                          className={styles.flightImage}
+                          src={supply.infobox_image_url}
+                          alt={`${supply.mission} mission`}
+                        />
+                      )}
+                    <div className={styles.missionInfo}>
+                      <h3>{supply.mission}</h3>
+                      <div>
+                        <span className={styles.labelText}>Flight:</span> {supply.flight_no}
+                      </div>
+                      {supply.spacecraft && (
+                        <div>
+                          <span className={styles.labelText}>Spacecraft:</span> {supply.spacecraft}
+                        </div>
+                      )}
+                      {supply.is_module && <div className={styles.moduleTag}>Module Delivery</div>}
+                      {supply.is_failure && <div className={styles.failureTag}>Mission Failed</div>}
+                      <div>
+                        <span className={styles.statusTag}>{status}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.supplyDetails}>
+                    <div className={styles.timeInfo}>
+                      <div>Launch: {new Date(supply.launch_date).toLocaleString()}</div>
+                      {dockingDate && (
+                        <div>
+                          Docking: {dockingDate.toLocaleString()} ({supply.docking_port})
+                        </div>
+                      )}
+                      {undockingDate && <div>Undocking: {undockingDate.toLocaleString()}</div>}
+                      {supply.duration && (
+                        <div>
+                          <span className={styles.labelText}>Duration:</span> {supply.duration}
+                        </div>
+                      )}
+                    </div>
+
+                    {supply.spacecraft_details &&
+                      Object.keys(supply.spacecraft_details).length > 0 && (
+                        <div className={styles.spacecraftDetails}>
+                          <span className={styles.labelText}>Spacecraft Details:</span>
+                          <ul>
+                            {Object.entries(supply.spacecraft_details).map(([key, value]) => (
+                              <li key={key}>
+                                <strong>{capitalizeWords(key)}:</strong> {value}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                    {supply.countries && supply.countries.length > 0 && (
+                      <div>
+                        <span className={styles.labelText}>Countries:</span>{" "}
+                        {supply.countries.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -34,6 +34,7 @@ export async function getDatePageData({
     let crewArrDep: CrewArrDepItem[] = [];
     let expeditionInfo: ExpeditionInfo[] = [];
     let flights: Flight[] = [];
+    let flightsSupply: FlightSupply[] = [];
     let activitySummary: ActivitySummary = {};
     let blogArticles: BlogArticle[] = [];
 
@@ -83,6 +84,18 @@ export async function getDatePageData({
         )
         .then((data: Flight[]): void => {
           flights = data;
+        })
+        .catch(() => {})
+    );
+
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/flights_supply.json`)
+        .then(
+          (response): Promise<FlightSupply[]> =>
+            response.ok ? response.json() : Promise.resolve([])
+        )
+        .then((data: FlightSupply[]): void => {
+          flightsSupply = data;
         })
         .catch(() => {})
     );
@@ -202,6 +215,7 @@ export async function getDatePageData({
       crewArrDep,
       expeditionInfo,
       flights,
+      flightsSupply,
       activitySummary,
       blogArticles,
     };
@@ -217,6 +231,7 @@ export async function getDatePageData({
       crewArrDep: [],
       expeditionInfo: [],
       flights: [],
+      flightsSupply: [],
       activitySummary: {},
       blogArticles: [],
     };

@@ -42,6 +42,7 @@ type GetDatePageDataResponse = {
   crewArrDep: CrewArrDepItem[];
   expeditionInfo: ExpeditionInfo[];
   flights: Flight[];
+  flightsSupply: FlightSupply[];
   activitySummary: ActivitySummary;
   blogArticles: BlogArticle[];
 };
@@ -124,25 +125,41 @@ type Flight = {
   mission_patch_url: string;
   vehicle_name: string;
   launch_date: string;
+  landing_date?: string;
   time_docked: string;
   crew_photo_url: string;
   notes: string;
-  mission_duration: string;
+  duration: string;
   spacecraft: string;
+  spacecraft_name: string;
   spacecraft_type: string;
-  manufacturer: string;
   crew_launching: FlightCrewMember[];
   crew_landing: FlightCrewMember[];
-  launch_mass: string;
-  landing_mass: string;
-  launch_date_utc: string;
-  rocket: string;
-  launch_site: string;
-  recovered_by: string;
-  landing_date_utc: string;
-  landing_site: string;
   docking_events: FlightDockingEvent[];
   infobox_image_url: string;
+  spacecraft_details: Record<string, string>;
+};
+
+type FlightSupply = {
+  countries: string[];
+  docking_date: string;
+  docking_port: string;
+  duration: string;
+  flight_no: string;
+  infobox_image_caption: string;
+  infobox_image_url: string;
+  is_failure: boolean;
+  is_module: boolean;
+  launch_date: string;
+  launch_vehicle: string;
+  mission: string;
+  number: string;
+  spacecraft: string;
+  spacecraft_details: Record<string, string>;
+  spacecraft_link: string;
+  spacecraft_name: string;
+  spacecraft_type: string;
+  undocking_date: string;
 };
 
 type ActivitySummaryGeneral = {

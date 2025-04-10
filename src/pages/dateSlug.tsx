@@ -29,6 +29,7 @@ const DatePage = (): JSX.Element => {
     crewArrDep,
     expeditionInfo,
     flights,
+    flightsSupply,
     blogArticles,
     activitySummary,
   } = useLoaderData() as GetDatePageDataResponse;
@@ -116,7 +117,7 @@ const DatePage = (): JSX.Element => {
           <CrewOnboard dateStr={date} crewOnboard={crewOnboard} />
         </div>
         {evaDetailsForDate.length > 0 && <EvaInfo evaDetails={evaDetailsForDate} />}
-        <Flights date={date} flights={flights} />
+        <Flights date={date} flights={flights} flightsSupply={flightsSupply} />
         <Blog date={date} blogArticles={blogArticles} activitySummary={activitySummary} />
         <div className={styles.audioPlayer}>
           <audio ref={audioRef} controls muted={muted}>
