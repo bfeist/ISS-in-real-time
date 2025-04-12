@@ -48,7 +48,7 @@ def download_item(identifier, base_path):
 
 # Download space_to_grounds in parallel with a progress bar
 with ThreadPoolExecutor(
-    max_workers=5
+    max_workers=3
 ) as executor:  # Adjust max_workers based on your requirements
     # Initialize tqdm progress bar
     with tqdm(
@@ -71,7 +71,7 @@ with ThreadPoolExecutor(
 
 # Download dragon_to_grounds in parallel with a progress bar
 with ThreadPoolExecutor(
-    max_workers=5
+    max_workers=3
 ) as executor:  # Adjust max_workers based on your requirements
     # Initialize tqdm progress bar
     with tqdm(
