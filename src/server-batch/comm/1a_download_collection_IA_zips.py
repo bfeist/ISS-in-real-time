@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from tqdm import tqdm
 import re
 
-load_dotenv(dotenv_path="../../.env")
+load_dotenv(dotenv_path="../../../.env")
 
 # Base paths for files
 issSpaceToGroundsBasePath = r"F:/ISSiRT_assets/_raw/InternetArchive_space_to_grounds/"

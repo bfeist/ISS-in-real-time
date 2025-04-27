@@ -26,7 +26,7 @@ import threading  # Add threading for file locks
 import msvcrt  # For detecting key presses on Windows
 from threading import Event
 
-load_dotenv(dotenv_path="../../.env")
+load_dotenv(dotenv_path="../../../.env")
 
 # Constants
 SHORT_NORMALIZE = 1.0 / 32768.0
@@ -45,9 +45,8 @@ MIN_WAIT_BLOCKS = 10
 UPLOAD_TO_API = False  # Set to True to enable uploading
 TALKYBOT_API_URL = "http://talkybot-local.fit.nasa.gov:5000/"
 
-TRACKING_DIR = Path(
-    __file__
-).parent  # Tracking files reside in the same folder as this script
+# Tracking files reside in the folder above this script
+TRACKING_DIR = Path(__file__).parent.parent
 
 IA_ZIPS_PROCESSED_TRACKING_FILE = str(TRACKING_DIR / "ia_zips_processed.txt")
 IA_ZIPS_IN_PROGRESS_TRACKING_FILE = str(
