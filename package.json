@@ -33,7 +33,7 @@
     "react-router-dom": "^7.3.0",
     "react-youtube": "^10.1.0",
     "resium": "^1.18.3",
-    "satellite.js": "^5.0.0",
+    "satellite.js": "^6.0.0",
     "tle.js": "^4.9.0"
   },
   "devDependencies": {
