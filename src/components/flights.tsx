@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { JSX, useMemo } from "react";
 import styles from "./flights.module.css";
 import { flagUrlByCountryName } from "utils/countries";
 

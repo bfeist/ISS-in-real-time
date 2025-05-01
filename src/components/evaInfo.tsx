@@ -1,5 +1,6 @@
 import { flagUrlByCountryName } from "utils/countries";
 import styles from "./evaInfo.module.css";
+import { JSX } from "react";
 
 type Props = {
   evaDetails: EvaDetail[];
