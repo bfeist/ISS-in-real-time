@@ -25,6 +25,7 @@ collections_xml = [
     "expedition-67-acr-collection",
     "Expedition-71-ACR-Collection",
     "Expedition-72-ACR-Collection",
+    "Expedition-73-ACR-Collection",
 ]
 
 
