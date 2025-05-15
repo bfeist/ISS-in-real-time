@@ -156,21 +156,32 @@ eva_details = [
     and eva["duration"] not in ["TBC", "TBD"]
 ]
 
+
+def parse_time(time_str):
+    # Try first format: "01 May 2023 14:25"
+    fmt1 = "%d %B %Y%H:%M"
+    try:
+        return datetime.datetime.strptime(time_str, fmt1).isoformat() + "Z"
+    except ValueError:
+        pass
+
+    # Try second format: "1 May, 2025" (note comma and different separator)
+    fmt2 = "%d %B, %Y%H:%M"
+    try:
+        return datetime.datetime.strptime(time_str, fmt2).isoformat() + "Z"
+    except ValueError:
+        return None
+
+
 # convert the startTime and end_time to isoformat
 for eva in eva_details:
     try:
-        eva["startTime"] = (
-            datetime.datetime.strptime(eva["startTime"], "%d %B %Y%H:%M").isoformat()
-            + "Z"
-        )
+        eva["startTime"] = parse_time(eva["startTime"])
     except:
         eva["startTime"] = None
 
     try:
-        eva["endTime"] = (
-            datetime.datetime.strptime(eva["endTime"], "%d %B %Y%H:%M").isoformat()
-            + "Z"
-        )
+        eva["endTime"] = parse_time(eva["endTime"])
     except:
         eva["endTime"] = None
 

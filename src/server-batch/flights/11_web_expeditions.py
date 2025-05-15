@@ -1,3 +1,4 @@
+import time
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -143,25 +144,75 @@ def scrape_expedition(num):
             else:
                 mission_info["end"] = parsed_date
 
-    # Extract mission highlights
-    highlights_section = soup.find("div", class_="tag-mission")
-    if highlights_section:
-        highlights_text = highlights_section.find_next("p").text.strip()
-
-    mission_info["expeditionBlurb"] = highlights_text
+    # Extract mission highlights (og:description)
+    og_description = soup.find("meta", {"property": "og:description"})
+    if og_description:
+        mission_info["expeditionBlurb"] = og_description["content"].strip()
+    else:
+        mission_info["expeditionBlurb"] = ""
 
     return mission_info
 
 
+def load_and_parse_json(filename):
+    """Load and parse the JSON file containing expedition data."""
+    with open(filename, "r") as f:
+        return json.load(f)
+
+
+def save_json(data, filename):
+    """Save updated data to JSON file."""
+    with open(filename, "w") as f:
+        json.dump(data, f, indent=4)
+
+
 if __name__ == "__main__":
+    # Load existing data
+    loaded_data = load_and_parse_json(f"{WEB_ASSETS_FOLDER}/expeditions.json")
+
+    # Identify expeditions that need reprocessing (null or empty values)
+    needs_reprocessing = []
+    for exp in loaded_data:
+        if any(value is None or value == "" for value in exp.values()):
+            needs_reprocessing.append(exp["expedition"])
+
+    # Process only those that need reprocessing
     expeditions = []
-    for i in range(1, 73):
-        data = scrape_expedition(i)
-        # get patch image url
-        data["patchUrl"] = get_expedition_patch_url(i)
+    processed_numbers = set()
 
-        expeditions.append(data)
+    for i in range(1, 74):
+        # Skip already complete entries
+        if i in [e["expedition"] for e in loaded_data if e.get("patchUrl")]:
+            continue
 
-    # Save the data to a JSON file
-    with open(f"{WEB_ASSETS_FOLDER}/expeditions.json", "w") as f:
-        json.dump(expeditions, f, indent=4)
+        # If this expedition needs reprocessing or doesn't exist in loaded data
+        if i in needs_reprocessing or not any(
+            e["expedition"] == i for e in loaded_data
+        ):
+            try:
+                data = scrape_expedition(i)
+                # get patch image url
+                data["patchUrl"] = get_expedition_patch_url(i)
+
+                # If we have existing data, merge it
+                if i in needs_reprocessing:
+                    original_index = next(
+                        idx for idx, e in enumerate(loaded_data) if e["expedition"] == i
+                    )
+                    loaded_data[original_index] = data
+                else:
+                    expeditions.append(data)
+
+                processed_numbers.add(i)
+                time.sleep(1)
+            except Exception as e:
+                print(f"Error processing expedition {i}: {str(e)}")
+
+    # Combine new and updated data - include all original data plus any new entries
+    final_expeditions = loaded_data + [
+        e
+        for e in expeditions
+        if e["expedition"] not in [x["expedition"] for x in loaded_data]
+    ]
+
+    save_json(final_expeditions, f"{WEB_ASSETS_FOLDER}/expeditions.json")

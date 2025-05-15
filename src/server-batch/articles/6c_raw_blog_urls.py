@@ -99,12 +99,14 @@ def main():
     """
     Main function that orchestrates the scraping process.
     Scrapes NASA blog posts from October 2014 to current date.
-    Skip months that already have URL files.
+    Skip months that already have URL files, except for the current month.
     """
     # Define the range of years and months to scrape
     start_year = 2014
     start_month = 10  # October
     end_date = datetime.datetime.now()
+    current_year = end_date.year
+    current_month = end_date.month
 
     print(
         f"Starting to scrape NASA ISS blog posts from {start_year}/{start_month:02d} to {end_date.year}/{end_date.month:02d}"
@@ -132,13 +134,25 @@ def main():
             # Check if file for this month already exists
             filename = f"{blog_urls_folder}/{year}_{month_str}_blog_urls.txt"
 
-            if os.path.exists(filename):
+            # Skip if file exists and it's not the current month
+            if os.path.exists(filename) and not (
+                year == current_year and month == current_month
+            ):
                 print(
                     f"\n==== Skipping {year}/{month_str} - file already exists: {filename} ===="
                 )
                 continue
 
-            print(f"\n==== Scraping blog posts for {year}/{month_str} ====")
+            # If it's the current month and file exists, note that we're updating it
+            if (
+                os.path.exists(filename)
+                and year == current_year
+                and month == current_month
+            ):
+                print(f"\n==== Updating current month {year}/{month_str} data ====")
+            else:
+                print(f"\n==== Scraping blog posts for {year}/{month_str} ====")
+
             urls = get_blog_urls_for_month(year, month)
 
             if urls:
