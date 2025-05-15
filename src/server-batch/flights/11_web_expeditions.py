@@ -181,10 +181,6 @@ if __name__ == "__main__":
     processed_numbers = set()
 
     for i in range(1, 74):
-        # Skip already complete entries
-        if i in [e["expedition"] for e in loaded_data if e.get("patchUrl")]:
-            continue
-
         # If this expedition needs reprocessing or doesn't exist in loaded data
         if i in needs_reprocessing or not any(
             e["expedition"] == i for e in loaded_data
