@@ -12,6 +12,18 @@ type Clock = {
   isRunning: boolean;
 };
 
+// Define ClockAction union and reducer function
+type ClockAction =
+  | { type: "start" }
+  | { type: "stop" }
+  | { type: "setAppSeconds"; appSeconds: number };
+
+// Define combined context type:
+interface ClockContextValue {
+  clock: Clock;
+  clockDispatch: React.Dispatch<ClockAction>;
+}
+
 interface HoverContextType {
   hover: Hover;
   setHover: React.Dispatch<React.SetStateAction<Hover>>;

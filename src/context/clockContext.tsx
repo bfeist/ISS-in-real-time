@@ -1,17 +1,5 @@
 import { createContext, JSX, ReactNode, useContext, useReducer } from "react";
 
-// Define ClockAction union and reducer function
-type ClockAction =
-  | { type: "start" }
-  | { type: "stop" }
-  | { type: "setAppSeconds"; appSeconds: number };
-
-// Define combined context type:
-interface ClockContextValue {
-  clock: Clock;
-  clockDispatch: React.Dispatch<ClockAction>;
-}
-
 const ClockCtx = createContext<ClockContextValue | undefined>(undefined);
 
 const clockReducer = (state: Clock, action: ClockAction): Clock => {

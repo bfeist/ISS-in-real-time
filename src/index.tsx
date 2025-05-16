@@ -14,6 +14,7 @@ import { getDataAvailabilities } from "utils/dateLoaders/index.ts";
 import { getDatePageData } from "utils/dateLoaders/dateSlug.ts";
 import CombinedProviders from "context/_CombinedProviders.tsx";
 import LayoutTest from "pages/layout_test.tsx";
+import IndexSlider from "pages/index_slider.tsx";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -21,6 +22,7 @@ const router = createBrowserRouter(
       <Route index element={<Home />} loader={getDataAvailabilities} />
       <Route path="date/:date" element={<DatePage />} loader={getDatePageData} />
       <Route path="layout_test" element={<LayoutTest />} />
+      <Route path="index_slider" element={<IndexSlider />} />
     </Route>
   )
 );

@@ -1,7 +1,7 @@
 export { getDatePageData } from "./dateSlug";
 
 export async function getDataAvailabilities(): Promise<DataAvailability[]> {
-  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
+  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL.replace("\\x3a", ":");
   const dataAvailabilityUrl = `${baseStaticUrl}/data_availability.csv`;
 
   try {
