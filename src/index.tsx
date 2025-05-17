@@ -22,7 +22,7 @@ const router = createBrowserRouter(
       <Route index element={<Home />} loader={getDataAvailabilities} />
       <Route path="date/:date" element={<DatePage />} loader={getDatePageData} />
       <Route path="layout_test" element={<LayoutTest />} />
-      <Route path="index_slider" element={<IndexSlider />} />
+      <Route path="index_slider" element={<IndexSlider />} loader={getDataAvailabilities} />
     </Route>
   )
 );

@@ -2,8 +2,10 @@ import styles from "./index_slider.module.css";
 import { FunctionComponent, JSX, useEffect, useRef, useState, useCallback } from "react";
 import { initializePaperCanvas, clearPaperCanvas } from "../components/dateTimelineDraw";
 import { calculateMonthByX } from "../utils/indexSliderCalcs";
+import { useLoaderData } from "react-router";
 
 const SliderPage: FunctionComponent = (): JSX.Element => {
+  const dataAvailabilityItems = useLoaderData() as DataAvailability[];
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
   const [calculatedDate, setCalculatedDate] = useState<{ year: number; month: number } | null>(
@@ -29,20 +31,21 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
-      const { resizeHandler, cleanupInputHandlers } = initializePaperCanvas(
-        canvas,
-        handleCanvasCallback
-      );
+      const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
+        canvasElement: canvas,
+        onMouseMoveCallback: handleCanvasCallback,
+        dataAvailabilityItems,
+      });
 
-      window.addEventListener("resize", resizeHandler);
+      window.addEventListener("resize", drawPaperItems);
 
       return () => {
-        window.removeEventListener("resize", resizeHandler);
+        window.removeEventListener("resize", drawPaperItems);
         cleanupInputHandlers();
         clearPaperCanvas();
       };
     }
-  }, [handleCanvasCallback]);
+  }, [handleCanvasCallback, dataAvailabilityItems]);
 
   return (
     <div className={styles.page}>
