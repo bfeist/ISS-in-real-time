@@ -74,7 +74,6 @@ export const initializePaperCanvas = ({
       dataGroup.removeChildren();
       verticalLine = null;
 
-      drawCircle(uiGroup);
       drawMonthLines(dataGroup);
     }
   };
@@ -89,12 +88,6 @@ export const initializePaperCanvas = ({
   };
 
   return { drawPaperItems, cleanupInputHandlers };
-};
-
-const drawCircle = (group: paper.Group): void => {
-  const circle = new paper.Path.Circle(paper.view.center, 50);
-  circle.fillColor = new paper.Color("blue");
-  group.addChild(circle);
 };
 
 function drawMonthLines(group: paper.Group): void {
@@ -138,6 +131,24 @@ function drawMonthLines(group: paper.Group): void {
     // Calculate month start position
     const monthStartX = (month.startDay / totalDaysSinceEpoch) * paper.view.bounds.width;
 
+    // Set color based on month - January (month index 0) is black, others are dark grey
+    const isJanuary = month.date.getMonth() === 0;
+    const dayColor = isJanuary
+      ? new paper.Color(0, 0, 0, 0.7) // Black for January
+      : new paper.Color(0.3, 0.3, 0.3, 0.7); // Dark grey for other months
+
+    // Add year text for January
+    if (isJanuary) {
+      const yearText = new paper.PointText({
+        point: new paper.Point(monthStartX + 6, paper.view.bounds.top + 12),
+        content: month.date.getFullYear().toString(),
+        fillColor: new paper.Color(0, 0, 0),
+        fontSize: 10,
+        fontWeight: "bold",
+      });
+      group.addChild(yearText);
+    }
+
     // Draw day boxes within this month
     for (let day = 1; day <= maxDaysInMonth; day++) {
       // Y position - day 1 at top
@@ -151,7 +162,7 @@ function drawMonthLines(group: paper.Group): void {
         const dayBox = new paper.Path.Rectangle({
           point: new paper.Point(monthStartX + 2, dayY + (dayHeight - boxSideSize) / 2),
           size: new paper.Size(boxSideSize, boxSideSize),
-          fillColor: new paper.Color(0, 0, 0, 0.7),
+          fillColor: dayColor,
           strokeColor: null, // No stroke
         });
 
