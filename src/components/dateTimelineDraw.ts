@@ -5,19 +5,11 @@ const createInteractiveElements = (): void => {
   // The project associated with the current canvas will be active.
   const circle = new paper.Path.Circle(paper.view.center, 50);
   circle.fillColor = new paper.Color("blue");
-
-  // TODO: Initialize other Paper.js groups, items, and mouse event handlers here.
-  // Example:
-  // const myGroup = new paper.Group();
-  // myGroup.addChild(circle);
-  // myGroup.onMouseDown = (event: paper.MouseEvent) => { /* ... */ };
-
-  // Removed return
 };
 
 export const initializePaperCanvas = (
   canvasElement: HTMLCanvasElement, // Renamed for clarity
-  onMouseMoveCallback: (point: paper.Point | null) => void
+  onMouseMoveCallback: (content: CanvasCallbackContent) => void
 ): {
   resizeHandler: () => void;
   cleanupInputHandlers: () => void; // Added for specific cleanup
@@ -35,7 +27,6 @@ export const initializePaperCanvas = (
       isMouseCurrentlyOverCanvas = true;
       // First move over the canvas, Paper.js tool takes over for coords
     }
-    onMouseMoveCallback(event.point); // Update React state with current point
 
     if (verticalLine) {
       verticalLine.remove();
@@ -46,6 +37,12 @@ export const initializePaperCanvas = (
     );
     verticalLine.strokeColor = new paper.Color("red");
     verticalLine.strokeWidth = 1;
+
+    onMouseMoveCallback({
+      mouseX: event.point.x,
+      mouseY: event.point.y,
+      canvasWidth: paper.view.bounds.width,
+    });
   };
 
   tool.activate();
@@ -71,7 +68,7 @@ export const initializePaperCanvas = (
           verticalLine.remove();
           verticalLine = null;
         }
-        onMouseMoveCallback(null); // Signal mouse has left
+        onMouseMoveCallback({ mouseX: null, mouseY: null, canvasWidth: paper.view.bounds.width }); // Signal mouse has left, pass current canvas width
       }
     }
   };
