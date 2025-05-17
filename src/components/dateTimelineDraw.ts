@@ -74,7 +74,7 @@ export const initializePaperCanvas = ({
       dataGroup.removeChildren();
       verticalLine = null;
 
-      drawMonthLines(dataGroup);
+      drawCalendar(dataGroup, dataAvailabilityItems);
     }
   };
 
@@ -90,7 +90,7 @@ export const initializePaperCanvas = ({
   return { drawPaperItems, cleanupInputHandlers };
 };
 
-function drawMonthLines(group: paper.Group): void {
+function drawCalendar(group: paper.Group, dataAvailabilityItems: DataAvailability[]): void {
   // epoch is Nov 2, 2000.
   const epochYear = 2000;
   const epochMonth = 10; // November (0-indexed)
@@ -126,19 +126,19 @@ function drawMonthLines(group: paper.Group): void {
   const maxDaysInMonth = 31;
   const dayHeight = paper.view.bounds.height / maxDaysInMonth;
 
+  // Define colors based on data availability
+  const colorNoData = new paper.Color("#999999"); // Light grey for no data
+  const colorOtherData = new paper.Color("#535353"); // Dark grey for other data
+  const colorComm = new paper.Color("black"); // Black for comm
+  const colorYoutube = new paper.Color("blue"); // Blue for YouTube
+
   // Now draw the months and day ticks
   for (const month of allMonths) {
     // Calculate month start position
     const monthStartX = (month.startDay / totalDaysSinceEpoch) * paper.view.bounds.width;
 
-    // Set color based on month - January (month index 0) is black, others are dark grey
-    const isJanuary = month.date.getMonth() === 0;
-    const dayColor = isJanuary
-      ? new paper.Color(0, 0, 0, 0.7) // Black for January
-      : new paper.Color(0.3, 0.3, 0.3, 0.7); // Dark grey for other months
-
     // Add year text for January
-    if (isJanuary) {
+    if (month.date.getMonth() === 0) {
       const yearText = new paper.PointText({
         point: new paper.Point(monthStartX + 6, paper.view.bounds.top + 12),
         content: month.date.getFullYear().toString(),
@@ -156,14 +156,44 @@ function drawMonthLines(group: paper.Group): void {
 
       // Only add day marker if this month actually has this day
       if (day <= month.daysInMonth) {
-        // Create a small box for each day
-        const boxSideSize = 3;
+        // Create date string in ISO format (YYYY-MM-DD)
+        const currentDate = new Date(month.date);
+        currentDate.setDate(day);
+        const dateString = currentDate.toISOString().split("T")[0];
 
+        // Find if we have data for this date
+        const dayItem = dataAvailabilityItems.find((item) => item.date === dateString);
+
+        // Determine color based on data availability
+        let dayColor = null;
+        let boxSideSize = 3;
+
+        if (dayItem) {
+          if (dayItem.youtube) {
+            dayColor = colorYoutube;
+          } else if (dayItem.comm || dayItem.vvComm) {
+            dayColor = colorComm;
+          } else if (dayItem.blog || dayItem.activitySummary || dayItem.earthPhotography) {
+            dayColor = colorOtherData;
+          } else {
+            dayColor = colorNoData;
+          }
+
+          // Make EVA days bolder
+          if (dayItem.eva) {
+            boxSideSize = 4; // Make EVA days slightly larger
+          }
+        } else {
+          dayColor = colorNoData;
+        }
+
+        // Create a small box for each day
         const dayBox = new paper.Path.Rectangle({
           point: new paper.Point(monthStartX + 2, dayY + (dayHeight - boxSideSize) / 2),
           size: new paper.Size(boxSideSize, boxSideSize),
           fillColor: dayColor,
-          strokeColor: null, // No stroke
+          strokeColor: null,
+          strokeWidth: 0,
         });
 
         group.addChild(dayBox);
