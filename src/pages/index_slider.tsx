@@ -15,39 +15,50 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
     day: number | null;
   } | null>(null);
 
-  const handleCanvasCallback = useCallback((content: CanvasCallbackContent) => {
-    if (content.mouseX !== null && content.mouseY !== null) {
-      setMousePosition({ x: content.mouseX, y: content.mouseY });
-    } else {
-      setMousePosition(null);
-    }
+  const handleCanvasCallback = useCallback(
+    ({
+      mouseX,
+      mouseY,
+      canvasWidth,
+    }: {
+      mouseX: number | null;
+      mouseY: number | null;
+      canvasWidth: number | null;
+    }) => {
+      if (mouseX !== null && mouseY !== null) {
+        setMousePosition({ x: mouseX, y: mouseY });
+      } else {
+        setMousePosition(null);
+      }
 
-    // Calculate date here
-    if (content.mouseX !== null && content.mouseY !== null && content.canvasWidth !== null) {
-      const monthInfo = calculateMonthByX(content.mouseX, content.canvasWidth);
+      // Calculate date here
+      if (mouseX !== null && mouseY !== null && canvasWidth !== null) {
+        const monthInfo = calculateMonthByX(mouseX, canvasWidth);
 
-      if (monthInfo) {
-        const day = calculateDayByY(
-          content.mouseY,
-          paper.view?.bounds.height ?? null,
-          monthInfo.year,
-          monthInfo.month
-        );
-        setCalculatedDate({ ...monthInfo, day });
+        if (monthInfo) {
+          const day = calculateDayByY(
+            mouseY,
+            paper.view?.bounds.height ?? null,
+            monthInfo.year,
+            monthInfo.month
+          );
+          setCalculatedDate({ ...monthInfo, day });
+        } else {
+          setCalculatedDate(null);
+        }
       } else {
         setCalculatedDate(null);
       }
-    } else {
-      setCalculatedDate(null);
-    }
-  }, []);
+    },
+    []
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
       const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
         canvasElement: canvas,
-        onMouseMoveCallback: handleCanvasCallback,
+        handleCanvasCallback,
         dataAvailabilityItems,
       });
 

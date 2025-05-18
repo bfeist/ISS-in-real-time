@@ -2,11 +2,19 @@ import paper from "paper";
 
 export const initializePaperCanvas = ({
   canvasElement,
-  onMouseMoveCallback,
+  handleCanvasCallback,
   dataAvailabilityItems,
 }: {
   canvasElement: HTMLCanvasElement;
-  onMouseMoveCallback: (content: CanvasCallbackContent) => void;
+  handleCanvasCallback: ({
+    mouseX,
+    mouseY,
+    canvasWidth,
+  }: {
+    mouseX: number | null;
+    mouseY: number | null;
+    canvasWidth: number | null;
+  }) => void;
   dataAvailabilityItems: DataAvailability[];
 }): {
   drawPaperItems: () => void;
@@ -14,14 +22,53 @@ export const initializePaperCanvas = ({
 } => {
   paper.setup(canvasElement);
 
-  // Create groups and add them to the project
+  // Constants
+  const minCanvasWidth = 1500;
+  const MAX_SCROLL_SPEED = 20;
+  const hoverMargin = 50;
+
   const uiGroup = new paper.Group();
   const dataGroup = new paper.Group();
+
+  // Without this the groups children will be transformed by the group matrix
+  dataGroup.applyMatrix = false;
+
+  const dataMatrix = new paper.Matrix();
+  dataGroup.matrix = dataMatrix;
   paper.project.activeLayer.addChildren([uiGroup, dataGroup]);
 
   let verticalLine: paper.Path.Line | null = null;
   const tool = new paper.Tool();
+
+  let currentOffsetX = 0;
+  let currentScrollSpeed = 0;
+  let scrollDirection = 0; // -1 for left, 0 for none, 1 for right
+  let lastKnownPhysicalMouseX: number | null = null;
+  let lastKnownPhysicalMouseY: number | null = null;
+
   tool.onMouseMove = (event: paper.ToolEvent) => {
+    lastKnownPhysicalMouseX = event.point.x;
+    lastKnownPhysicalMouseY = event.point.y;
+    const viewWidth = canvasElement.clientWidth;
+
+    if (viewWidth < minCanvasWidth) {
+      if (event.point.x < hoverMargin) {
+        const distanceIntoMargin = hoverMargin - event.point.x;
+        currentScrollSpeed = Math.max(1, (distanceIntoMargin / hoverMargin) * MAX_SCROLL_SPEED);
+        scrollDirection = 1; // Scroll content left (offsetX increases towards 0)
+      } else if (event.point.x > viewWidth - hoverMargin) {
+        const distanceIntoMargin = event.point.x - (viewWidth - hoverMargin);
+        currentScrollSpeed = Math.max(1, (distanceIntoMargin / hoverMargin) * MAX_SCROLL_SPEED);
+        scrollDirection = -1; // Scroll content right (offsetX decreases)
+      } else {
+        currentScrollSpeed = 0;
+        scrollDirection = 0;
+      }
+    } else {
+      currentScrollSpeed = 0;
+      scrollDirection = 0;
+    }
+
     if (!verticalLine) {
       verticalLine = new paper.Path.Line(
         new paper.Point(event.point.x, paper.view.bounds.top),
@@ -31,17 +78,82 @@ export const initializePaperCanvas = ({
       verticalLine.strokeWidth = 1;
       uiGroup.addChild(verticalLine);
     } else {
-      // Update the position of the vertical line (this is faster than removing and re-adding)
-      verticalLine.position.x = event.point.x;
+      verticalLine.segments[0].point.x = event.point.x;
+      verticalLine.segments[1].point.x = event.point.x;
     }
 
-    onMouseMoveCallback({
-      mouseX: event.point.x,
+    const effectiveMouseX = event.point.x - currentOffsetX;
+    handleCanvasCallback({
+      mouseX: effectiveMouseX,
       mouseY: event.point.y,
-      canvasWidth: paper.view.bounds.width,
+      canvasWidth: Math.max(viewWidth, minCanvasWidth),
     });
   };
 
+  const onViewFrame = () => {
+    const viewWidth = canvasElement.clientWidth;
+    let needsCallbackUpdate = false;
+    const oldOffsetX = currentOffsetX;
+
+    if (scrollDirection !== 0 && currentScrollSpeed > 0 && viewWidth < minCanvasWidth) {
+      if (scrollDirection === 1) {
+        // Scroll content left (offsetX increases towards 0)
+        if (currentOffsetX < 0) {
+          currentOffsetX = Math.min(0, currentOffsetX + currentScrollSpeed);
+        }
+        if (currentOffsetX >= 0) {
+          // Reached or passed limit
+          currentOffsetX = 0; // Clamp
+          scrollDirection = 0; // Stop scrolling
+        }
+      } else if (scrollDirection === -1) {
+        // Scroll content right (offsetX decreases)
+        const minAllowedOffsetX = -(minCanvasWidth - viewWidth);
+        if (currentOffsetX > minAllowedOffsetX) {
+          currentOffsetX = Math.max(minAllowedOffsetX, currentOffsetX - currentScrollSpeed);
+        }
+        if (currentOffsetX <= minAllowedOffsetX) {
+          // Reached or passed limit
+          currentOffsetX = minAllowedOffsetX; // Clamp
+          scrollDirection = 0; // Stop scrolling
+        }
+      }
+
+      if (oldOffsetX !== currentOffsetX) {
+        const deltaX = currentOffsetX - oldOffsetX;
+        dataMatrix.translate(deltaX, 0);
+        dataGroup.matrix = dataMatrix;
+        needsCallbackUpdate = true;
+      } else if (scrollDirection !== 0) {
+        // If offset didn't change but we were trying to scroll, we're at a boundary.
+        scrollDirection = 0;
+      }
+    } else if (viewWidth >= minCanvasWidth && currentOffsetX !== 0) {
+      // Snap back if view is wide, offset is not zero, and not actively scrolling due to hover
+      currentOffsetX = 0;
+      const deltaX = currentOffsetX - oldOffsetX; // oldOffsetX is non-zero here
+      dataMatrix.translate(deltaX, 0);
+      dataGroup.matrix = dataMatrix;
+      needsCallbackUpdate = true;
+      scrollDirection = 0; // Ensure any lingering scroll intent is cleared
+      currentScrollSpeed = 0;
+    }
+
+    if (
+      needsCallbackUpdate &&
+      lastKnownPhysicalMouseX !== null &&
+      lastKnownPhysicalMouseY !== null
+    ) {
+      const effectiveMouseX = lastKnownPhysicalMouseX - currentOffsetX;
+      handleCanvasCallback({
+        mouseX: effectiveMouseX,
+        mouseY: lastKnownPhysicalMouseY,
+        canvasWidth: Math.max(viewWidth, minCanvasWidth),
+      });
+    }
+  };
+
+  paper.view.onFrame = onViewFrame;
   tool.activate();
 
   const handleDocumentMouseMove = (event: MouseEvent) => {
@@ -53,12 +165,22 @@ export const initializePaperCanvas = ({
       event.clientY <= rect.bottom;
 
     if (!isInside) {
-      // Mouse has left the canvas area
       if (verticalLine) {
         verticalLine.remove();
         verticalLine = null;
       }
-      onMouseMoveCallback({ mouseX: null, mouseY: null, canvasWidth: paper.view.bounds.width }); // Signal mouse has left, pass current canvas width
+      // Stop scrolling when mouse leaves canvas
+      scrollDirection = 0;
+      currentScrollSpeed = 0;
+
+      handleCanvasCallback({
+        mouseX: null,
+        mouseY: null,
+        canvasWidth: Math.max(canvasElement.clientWidth, minCanvasWidth),
+      });
+      // Reset last known positions after the "mouse out" callback
+      lastKnownPhysicalMouseX = null;
+      lastKnownPhysicalMouseY = null;
     }
   };
 
@@ -66,31 +188,56 @@ export const initializePaperCanvas = ({
 
   const drawPaperItems = () => {
     if (canvasElement && paper.view && paper.project) {
-      // Update view size
-      paper.view.viewSize = new paper.Size(canvasElement.clientWidth, canvasElement.clientHeight);
+      const clientWidth = canvasElement.clientWidth;
+      paper.view.viewSize = new paper.Size(clientWidth, canvasElement.clientHeight);
 
-      // Clear the groups instead of the entire project
+      const logicalOldOffsetXBeforeDraw = currentOffsetX;
+      dataMatrix.translate(-logicalOldOffsetXBeforeDraw, 0);
+      dataGroup.matrix = dataMatrix;
+
       uiGroup.removeChildren();
       dataGroup.removeChildren();
       verticalLine = null;
 
-      drawCalendar(dataGroup, dataAvailabilityItems);
+      const logicalCanvasWidth = Math.max(clientWidth, minCanvasWidth);
+      drawCalendar(dataGroup, dataAvailabilityItems, logicalCanvasWidth);
+
+      let newTargetOffsetX;
+      if (clientWidth < minCanvasWidth) {
+        newTargetOffsetX = Math.max(
+          -(logicalCanvasWidth - clientWidth),
+          Math.min(0, logicalOldOffsetXBeforeDraw)
+        );
+      } else {
+        newTargetOffsetX = 0;
+      }
+
+      dataMatrix.translate(newTargetOffsetX, 0);
+      dataGroup.matrix = dataMatrix;
+      currentOffsetX = newTargetOffsetX;
     }
   };
 
-  drawPaperItems(); // Call initially to set size and position elements correctly.
+  drawPaperItems();
 
   const cleanupInputHandlers = () => {
     document.removeEventListener("mousemove", handleDocumentMouseMove);
     if (tool) {
       tool.remove();
     }
+    if (paper.view) {
+      paper.view.onFrame = undefined; // Clean up onFrame handler
+    }
   };
 
   return { drawPaperItems, cleanupInputHandlers };
 };
 
-function drawCalendar(group: paper.Group, dataAvailabilityItems: DataAvailability[]): void {
+function drawCalendar(
+  group: paper.Group,
+  dataAvailabilityItems: DataAvailability[],
+  canvasLogicalWidth: number
+): void {
   // epoch is Nov 2, 2000.
   const epochYear = 2000;
   const epochMonth = 10; // November (0-indexed)
@@ -129,7 +276,7 @@ function drawCalendar(group: paper.Group, dataAvailabilityItems: DataAvailabilit
 
   // Draw months and days
   for (const month of allMonths) {
-    const monthStartX = (month.startDay / totalDaysSinceEpoch) * paper.view.bounds.width;
+    const monthStartX = (month.startDay / totalDaysSinceEpoch) * canvasLogicalWidth;
 
     // Draw month markers (like January lines with year)
     drawMonthMarker({
@@ -166,13 +313,13 @@ function drawMonthMarker({
   // Add background line for January with gradient
   if (month.date.getMonth() === 0) {
     // Create gradient for January line
-    const gradientWidth = 30; // Width of the gradient area
+    const gradientWidth = 30;
     const januaryLine = new paper.Path.Rectangle({
       point: new paper.Point(monthStartX, paper.view.bounds.top + dayMarkerTopOffset),
-      size: new paper.Size(gradientWidth, paper.view.bounds.height),
+      size: new paper.Size(gradientWidth, paper.view.bounds.height - dayMarkerTopOffset),
     });
 
-    // Create gradient fill - fixed syntax
+    // Create gradient fill
     const gradient = new paper.Gradient();
     gradient.stops = [
       new paper.GradientStop(new paper.Color(0, 0, 0, 0.2), 0),
