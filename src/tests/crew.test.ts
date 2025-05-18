@@ -1,4 +1,4 @@
-import { getCrewMembersOnboardByDate } from "utils/crew";
+import { getCrewMembersOnboardByDate } from "utils/onboard";
 import crewArrDepFile from "./mock_data/iss_crew_arr_dep.json";
 
 const crewArrDep: CrewArrDepItem[] = JSON.parse(JSON.stringify(crewArrDepFile));

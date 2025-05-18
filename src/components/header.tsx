@@ -58,7 +58,7 @@ const Header: FunctionComponent<{
     <div className={styles.header}>
       <ClockInterval setAppSeconds={setAppSeconds} />
       <div className={styles.left}>
-        <button onClick={() => navigate("/")}>Back</button>
+        <button onClick={() => navigate(-1)}>Back</button>
         <div className={styles.telemetry}>
           <div>Date: {date}</div>
           <div>Time: {timeStrFromAppSeconds(appSeconds)}</div>

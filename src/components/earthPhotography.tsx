@@ -7,7 +7,7 @@ import ClockInterval from "./clockInterval";
 const EarthPhotography: FunctionComponent<{
   imageItems: EarthPhotographyItem[];
 }> = ({ imageItems }) => {
-  const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL;
+  const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL.replace("\\x3a", ":");
 
   const { clockDispatch } = useClockContext();
 

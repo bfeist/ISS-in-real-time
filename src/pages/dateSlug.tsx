@@ -6,7 +6,7 @@ import Map from "components/map";
 import { JSX, useEffect, useRef, useState, useMemo } from "react";
 import { isValidTimestring } from "utils/params";
 import YouTube from "components/youtube";
-import { getCrewMembersOnboardByDate } from "utils/crew";
+import { getCrewMembersOnboardByDate } from "utils/onboard";
 import { useClockContext } from "context/clockContext";
 import { appSecondsFromTimeStr } from "utils/time";
 import Globe from "components/globe";

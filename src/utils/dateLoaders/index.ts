@@ -9,98 +9,96 @@ export async function getDataAvailabilities(): Promise<GetDataIndexPageDataRespo
   let flights: Flight[] = [];
   let flightsSupply: FlightSupply[] = [];
 
-  try {
-    const fetchPromises = [];
-    // fetch data_availability.csv
-    fetchPromises.push(
-      fetch(`${baseStaticUrl}/data_availability.csv`)
-        .then((response): Promise<string> => (response.ok ? response.text() : Promise.resolve("")))
-        .then((dataAvailabilitiesRaw: string): void => {
-          dataAvailabilityItems = processDataAvailabilities({
-            dataAvailabilitiesRaw,
-          });
-        })
-        .catch(() => {})
-    );
+  const fetchPromises = [];
+  // fetch data_availability.csv
+  fetchPromises.push(
+    fetch(`${baseStaticUrl}/data_availability.csv`)
+      .then((response): Promise<string> => (response.ok ? response.text() : Promise.resolve("")))
+      .then((dataAvailabilitiesRaw: string): void => {
+        dataAvailabilityItems = processDataAvailabilities({
+          dataAvailabilitiesRaw,
+        });
+      })
+      .catch(() => {
+        console.error("Failed to fetch data availability");
+      })
+  );
 
-    // Always fetch common data
-    fetchPromises.push(
-      fetch(`${baseStaticUrl}/eva_details.json`)
-        .then(
-          (response): Promise<EvaDetail[]> => (response.ok ? response.json() : Promise.resolve([]))
-        )
-        .then((data: EvaDetail[]): void => {
-          evaDetails = data;
-        })
-        .catch(() => {})
-    );
+  // Always fetch common data
+  fetchPromises.push(
+    fetch(`${baseStaticUrl}/eva_details.json`)
+      .then(
+        (response): Promise<EvaDetail[]> => (response.ok ? response.json() : Promise.resolve([]))
+      )
+      .then((data: EvaDetail[]): void => {
+        evaDetails = data;
+      })
+      .catch(() => {
+        console.error("Failed to fetch EVA details");
+      })
+  );
 
-    fetchPromises.push(
-      fetch(`${baseStaticUrl}/crew_arr_dep.json`)
-        .then(
-          (response): Promise<CrewArrDepItem[]> =>
-            response.ok ? response.json() : Promise.resolve([])
-        )
-        .then((data: CrewArrDepItem[]): void => {
-          crewArrDep = data;
-        })
-        .catch(() => {})
-    );
+  fetchPromises.push(
+    fetch(`${baseStaticUrl}/crew_arr_dep.json`)
+      .then(
+        (response): Promise<CrewArrDepItem[]> =>
+          response.ok ? response.json() : Promise.resolve([])
+      )
+      .then((data: CrewArrDepItem[]): void => {
+        crewArrDep = data;
+      })
+      .catch(() => {
+        console.error("Failed to fetch Crew Arrival/Departure data");
+      })
+  );
 
-    fetchPromises.push(
-      fetch(`${baseStaticUrl}/expeditions.json`)
-        .then(
-          (response): Promise<ExpeditionInfo[]> =>
-            response.ok ? response.json() : Promise.resolve([])
-        )
-        .then((data: ExpeditionInfo[]): void => {
-          expeditionInfo = data;
-        })
-        .catch(() => {})
-    );
+  fetchPromises.push(
+    fetch(`${baseStaticUrl}/expeditions.json`)
+      .then(
+        (response): Promise<ExpeditionInfo[]> =>
+          response.ok ? response.json() : Promise.resolve([])
+      )
+      .then((data: ExpeditionInfo[]): void => {
+        expeditionInfo = data;
+      })
+      .catch(() => {
+        console.error("Failed to fetch Expedition data");
+      })
+  );
 
-    fetchPromises.push(
-      fetch(`${baseStaticUrl}/flights.json`)
-        .then(
-          (response): Promise<Flight[]> => (response.ok ? response.json() : Promise.resolve([]))
-        )
-        .then((data: Flight[]): void => {
-          flights = data;
-        })
-        .catch(() => {})
-    );
+  fetchPromises.push(
+    fetch(`${baseStaticUrl}/flights.json`)
+      .then((response): Promise<Flight[]> => (response.ok ? response.json() : Promise.resolve([])))
+      .then((data: Flight[]): void => {
+        flights = data;
+      })
+      .catch(() => {
+        console.error("Failed to fetch Flight data");
+      })
+  );
 
-    fetchPromises.push(
-      fetch(`${baseStaticUrl}/flights_supply.json`)
-        .then(
-          (response): Promise<FlightSupply[]> =>
-            response.ok ? response.json() : Promise.resolve([])
-        )
-        .then((data: FlightSupply[]): void => {
-          flightsSupply = data;
-        })
-        .catch(() => {})
-    );
+  fetchPromises.push(
+    fetch(`${baseStaticUrl}/flights_supply.json`)
+      .then(
+        (response): Promise<FlightSupply[]> => (response.ok ? response.json() : Promise.resolve([]))
+      )
+      .then((data: FlightSupply[]): void => {
+        flightsSupply = data;
+      })
+      .catch(() => {
+        console.error("Failed to fetch Flight Supply data");
+      })
+  );
 
-    await Promise.all(fetchPromises);
-    return {
-      dataAvailabilityItems,
-      evaDetails,
-      crewArrDep,
-      expeditionInfo,
-      flights,
-      flightsSupply,
-    };
-  } catch (error) {
-    return {
-      dataAvailabilityItems: [],
-      evaDetails: [],
-      crewArrDep: [],
-      expeditionInfo: [],
-      flights: [],
-      flightsSupply: [],
-    };
-  }
+  await Promise.all(fetchPromises);
+  return {
+    dataAvailabilityItems,
+    evaDetails,
+    crewArrDep,
+    expeditionInfo,
+    flights,
+    flightsSupply,
+  };
 }
 
 export function processDataAvailabilities({

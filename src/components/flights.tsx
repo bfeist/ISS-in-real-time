@@ -1,7 +1,14 @@
 import { JSX, useMemo } from "react";
 import styles from "./flights.module.css";
 import { flagUrlByCountryName } from "utils/countries";
+import {
+  getActiveFlightsByDate,
+  getActiveSupplyFlightsByDate,
+  isFlightCurrentlyDocked,
+} from "utils/onboard";
+import { capitalizeWords } from "utils/string";
 
+// Keep only the functions that aren't moved to onboard.ts
 const isSameDay = (date1: Date | null, date2: Date): boolean => {
   if (!date1) return false;
   return (
@@ -9,23 +16,6 @@ const isSameDay = (date1: Date | null, date2: Date): boolean => {
     date1.getUTCMonth() === date2.getUTCMonth() &&
     date1.getUTCDate() === date2.getUTCDate()
   );
-};
-
-// Check if any docking event is active on the given date
-const hasActiveDockingEvent = (
-  dockingEvents: FlightDockingEvent[] | undefined,
-  currentDate: Date
-): boolean => {
-  if (!dockingEvents || dockingEvents.length === 0) return false;
-
-  return dockingEvents.some((event) => {
-    const dockingDate = event.docking_date ? new Date(event.docking_date) : null;
-    const undockingDate = event.undocking_date ? new Date(event.undocking_date) : null;
-
-    return (
-      dockingDate && dockingDate <= currentDate && (!undockingDate || currentDate <= undockingDate)
-    );
-  });
 };
 
 // Get the current active docking event if any
@@ -47,29 +37,6 @@ const getActiveDockingEvent = (
       );
     }) || null
   );
-};
-
-// Check if the date is a docking or undocking day for any event
-const isDockingOrUndockingDay = (
-  dockingEvents: FlightDockingEvent[] | undefined,
-  currentDate: Date
-): boolean => {
-  if (!dockingEvents || dockingEvents.length === 0) return false;
-
-  return dockingEvents.some((event) => {
-    const dockingDate = event.docking_date ? new Date(event.docking_date) : null;
-    const undockingDate = event.undocking_date ? new Date(event.undocking_date) : null;
-
-    return isSameDay(dockingDate, currentDate) || isSameDay(undockingDate, currentDate);
-  });
-};
-
-// Helper function to capitalize the first letter of each word
-const capitalizeWords = (str: string): string => {
-  return str
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
 };
 
 const CrewedFlights = ({
@@ -98,23 +65,13 @@ const CrewedFlights = ({
     </div>
   );
 
-  // Determine if a flight is currently docked based on the current date
-  const isFlightCurrentlyDocked = (flight: Flight, currentDate: Date) => {
-    return hasActiveDockingEvent(flight.docking_events, currentDate);
-  };
-
-  // Get active docking event information
-  const getActiveDockingInfo = (flight: Flight, currentDate: Date) => {
-    return getActiveDockingEvent(flight.docking_events, currentDate);
-  };
-
   return (
     <>
       <h3 className={styles.sectionHeader}>Active Crewed Missions</h3>
       {activeFlights.map((flight) => {
         const currentDate = new Date(date);
         const flightIsDocked = isFlightCurrentlyDocked(flight, currentDate);
-        const activeDockingEvent = getActiveDockingInfo(flight, currentDate);
+        const activeDockingEvent = getActiveDockingEvent(flight.docking_events, currentDate);
 
         let flightImgUrl = null;
         if (flight.infobox_image_url && !flight.infobox_image_url.includes("icon_edit")) {
@@ -341,40 +298,14 @@ const Flights = ({
   flights: Flight[];
   flightsSupply: FlightSupply[];
 }): JSX.Element | null => {
-  // Filter crewed flights once
+  // Use the imported utility functions to filter flights
   const activeFlights = useMemo(() => {
-    const currentDate = new Date(date);
-
-    return flights.filter((flight) => {
-      const launchDate = new Date(flight.launch_date);
-      const landingDate = flight.landing_date ? new Date(flight.landing_date) : null;
-      const firstDockingDate = flight.docking_events?.[0]?.docking_date
-        ? new Date(flight.docking_events[0].docking_date)
-        : null;
-
-      // Check if flight is active on the current date (any of these conditions make it active)
-      return (
-        isSameDay(launchDate, currentDate) ||
-        isSameDay(landingDate, currentDate) ||
-        isDockingOrUndockingDay(flight.docking_events, currentDate) ||
-        hasActiveDockingEvent(flight.docking_events, currentDate) ||
-        (launchDate <= currentDate && (!firstDockingDate || currentDate <= firstDockingDate))
-      );
-    });
+    return getActiveFlightsByDate({ dateStr: date, flights });
   }, [date, flights]);
 
-  // Filter supply flights once
+  // Use the imported utility function to filter supply flights
   const activeSupplyFlights = useMemo(() => {
-    const currentDate = new Date(date);
-
-    return flightsSupply.filter((supply) => {
-      if (supply.is_module || supply.is_failure) return false;
-
-      const launchDate = new Date(supply.launch_date);
-      const undockingDate = supply.undocking_date ? new Date(supply.undocking_date) : null;
-
-      return launchDate <= currentDate && (!undockingDate || currentDate <= undockingDate);
-    });
+    return getActiveSupplyFlightsByDate({ dateStr: date, flightsSupply });
   }, [date, flightsSupply]);
 
   // If nothing to display, return null

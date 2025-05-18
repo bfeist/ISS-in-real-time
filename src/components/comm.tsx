@@ -10,7 +10,7 @@ const Comm: FunctionComponent<{
   commItems: CommItem[];
   audioRef: React.RefObject<HTMLAudioElement>;
 }> = ({ viewDate, commItems, audioRef }) => {
-  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
+  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL.replace("\\x3a", ":");
   const { clock, clockDispatch } = useClockContext();
   const [lastScrolledToTimeStr, setLastScrolledToTimeStr] = useState<string | null>(null);
   const [appSeconds, setAppSeconds] = useState(0);

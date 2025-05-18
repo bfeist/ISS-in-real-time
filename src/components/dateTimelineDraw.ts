@@ -2,11 +2,14 @@ import paper from "paper";
 
 export const initializePaperCanvas = ({
   canvasElement,
-  handleCanvasCallback,
   dataAvailabilityItems,
+  hoverCallback,
+  clickCallback,
 }: {
   canvasElement: HTMLCanvasElement;
-  handleCanvasCallback: ({
+
+  dataAvailabilityItems: DataAvailability[];
+  hoverCallback: ({
     mouseX,
     mouseY,
     canvasWidth,
@@ -15,7 +18,15 @@ export const initializePaperCanvas = ({
     mouseY: number | null;
     canvasWidth: number | null;
   }) => void;
-  dataAvailabilityItems: DataAvailability[];
+  clickCallback: ({
+    mouseX,
+    mouseY,
+    canvasWidth,
+  }: {
+    mouseX: number | null;
+    mouseY: number | null;
+    canvasWidth: number | null;
+  }) => void;
 }): {
   drawPaperItems: () => void;
   cleanupInputHandlers: () => void;
@@ -83,7 +94,21 @@ export const initializePaperCanvas = ({
     }
 
     const effectiveMouseX = event.point.x - currentOffsetX;
-    handleCanvasCallback({
+    hoverCallback({
+      mouseX: effectiveMouseX,
+      mouseY: event.point.y,
+      canvasWidth: Math.max(viewWidth, minCanvasWidth),
+    });
+  };
+
+  tool.onMouseUp = (event: paper.ToolEvent) => {
+    lastKnownPhysicalMouseX = event.point.x;
+    lastKnownPhysicalMouseY = event.point.y;
+    const viewWidth = canvasElement.clientWidth;
+
+    // Calculate effective mouse position considering the offset (which is 0 for wide views anyway)
+    const effectiveMouseX = event.point.x - currentOffsetX;
+    clickCallback({
       mouseX: effectiveMouseX,
       mouseY: event.point.y,
       canvasWidth: Math.max(viewWidth, minCanvasWidth),
@@ -145,7 +170,7 @@ export const initializePaperCanvas = ({
       lastKnownPhysicalMouseY !== null
     ) {
       const effectiveMouseX = lastKnownPhysicalMouseX - currentOffsetX;
-      handleCanvasCallback({
+      hoverCallback({
         mouseX: effectiveMouseX,
         mouseY: lastKnownPhysicalMouseY,
         canvasWidth: Math.max(viewWidth, minCanvasWidth),
@@ -173,7 +198,7 @@ export const initializePaperCanvas = ({
       scrollDirection = 0;
       currentScrollSpeed = 0;
 
-      handleCanvasCallback({
+      hoverCallback({
         mouseX: null,
         mouseY: null,
         canvasWidth: Math.max(canvasElement.clientWidth, minCanvasWidth),
@@ -271,8 +296,8 @@ function drawCalendar(
 
   // Calculate day height based on maximum possible days in a month (31)
   const maxDaysInMonth = 31;
-  const dayHeight = paper.view.bounds.height / maxDaysInMonth;
   const dayMarkerTopOffset = 12;
+  const dayHeight = (paper.view.bounds.height - dayMarkerTopOffset) / maxDaysInMonth;
 
   // Draw months and days
   for (const month of allMonths) {

@@ -13,18 +13,8 @@ type TotalsObject = {
 };
 
 const Home = (): JSX.Element => {
-  const dataAvailabilityItems = useLoaderData() as DataAvailability[];
-  const navigate = useNavigate();
-  const [selected, setSelected] = useState<Date>();
+  const indexPageData = useLoaderData() as GetDataIndexPageDataResponse;
   const [propertyToHighlight, setPropertyToHighlight] = useState<string>("");
-
-  useEffect(() => {
-    if (selected) {
-      // open the selected date at /date/yyyy-mm-dd
-      const date = selected.toISOString().split("T")[0];
-      navigate(`/date/${date}`);
-    }
-  }, [selected, navigate]);
 
   const handlePropertyHighlight = (property: string) => {
     setPropertyToHighlight(property);
@@ -52,7 +42,7 @@ const Home = (): JSX.Element => {
     return totalsObject;
   };
 
-  const totalsObject: TotalsObject = calculateTotals(dataAvailabilityItems);
+  const totalsObject: TotalsObject = calculateTotals(indexPageData.dataAvailabilityItems);
 
   const startDate = new Date(Date.UTC(2000, 9, 1)); // 2000-10-01
   const endDate = new Date();
@@ -135,7 +125,7 @@ const Home = (): JSX.Element => {
       </p>
       <div className={styles.yearsContainer}>
         {allYears.map((year) => {
-          const dataItemsThisYear = dataAvailabilityItems.filter(
+          const dataItemsThisYear = indexPageData.dataAvailabilityItems.filter(
             (item) => parseInt(item.date.split("-")[0]) === year
           );
 
@@ -144,7 +134,6 @@ const Home = (): JSX.Element => {
               key={year}
               availableDataItemsThisYear={dataItemsThisYear}
               year={year}
-              setSelected={setSelected}
               propertyToHighlight={propertyToHighlight}
             />
           );
@@ -159,9 +148,8 @@ export default Home;
 const YearPicker: FunctionComponent<{
   availableDataItemsThisYear: DataAvailability[];
   year: number;
-  setSelected: Function;
   propertyToHighlight: string;
-}> = ({ availableDataItemsThisYear, year, setSelected, propertyToHighlight }) => {
+}> = ({ availableDataItemsThisYear, year, propertyToHighlight }) => {
   const availableMonthsThisYear: number[] = [];
   availableDataItemsThisYear.forEach((item) => {
     const month = parseInt(item.date.split("-")[1]);
@@ -187,7 +175,6 @@ const YearPicker: FunctionComponent<{
             <MonthPicker
               availableDataItemsThisMonth={availableDataItemsThisMonth}
               month={month}
-              setSelected={setSelected}
               propertyToHighlight={propertyToHighlight}
             />
           );
@@ -200,9 +187,18 @@ const YearPicker: FunctionComponent<{
 const MonthPicker: FunctionComponent<{
   availableDataItemsThisMonth: DataAvailability[];
   month: number;
-  setSelected: Function;
   propertyToHighlight: string;
-}> = ({ availableDataItemsThisMonth, month, setSelected, propertyToHighlight }) => {
+}> = ({ availableDataItemsThisMonth, month, propertyToHighlight }) => {
+  const navigate = useNavigate();
+  const [selected, setSelected] = useState<Date>();
+  useEffect(() => {
+    if (selected) {
+      // open the selected date at /date/yyyy-mm-dd
+      const date = selected.toISOString().split("T")[0];
+      navigate(`/date/${date}`);
+    }
+  }, [selected, navigate]);
+
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
   };

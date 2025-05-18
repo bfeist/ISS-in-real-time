@@ -1,6 +1,27 @@
 .paperCanvas {
   width: 100%;
   height: 150px;
-  border: 1px solid black;
   box-sizing: border-box;
+}
+
+.dataLists {
+  display: flex;
+  flex-direction: row;
+}
+
+.dataItem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  height: 100%;
+  width: 25%;
+}
+
+.selectedDateDisplay {
+  top: 10px;
+  left: 10px;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 5px;
+  z-index: 10;
 }
