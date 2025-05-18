@@ -6,9 +6,8 @@ import { useLoaderData } from "react-router";
 import paper from "paper";
 
 const SliderPage: FunctionComponent = (): JSX.Element => {
-  const dataAvailabilityItems = useLoaderData() as DataAvailability[];
+  const getDataIndexPageData = useLoaderData() as GetDataIndexPageDataResponse;
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
   const [calculatedDate, setCalculatedDate] = useState<{
     year: number;
     month: number;
@@ -25,12 +24,6 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
       mouseY: number | null;
       canvasWidth: number | null;
     }) => {
-      if (mouseX !== null && mouseY !== null) {
-        setMousePosition({ x: mouseX, y: mouseY });
-      } else {
-        setMousePosition(null);
-      }
-
       // Calculate date here
       if (mouseX !== null && mouseY !== null && canvasWidth !== null) {
         const monthInfo = calculateMonthByX(mouseX, canvasWidth);
@@ -59,7 +52,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
       const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
         canvasElement: canvas,
         handleCanvasCallback,
-        dataAvailabilityItems,
+        dataAvailabilityItems: getDataIndexPageData.dataAvailabilityItems,
       });
 
       window.addEventListener("resize", drawPaperItems);
@@ -70,12 +63,12 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
         clearPaperCanvas();
       };
     }
-  }, [handleCanvasCallback, dataAvailabilityItems]);
+  }, [handleCanvasCallback, getDataIndexPageData.dataAvailabilityItems]);
 
   return (
     <div className={styles.page}>
       <canvas ref={canvasRef} className={styles.paperCanvas} />
-      {mousePosition && (
+      {calculatedDate && (
         <div
           style={{
             position: "absolute",
@@ -87,14 +80,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
             zIndex: 10, // Ensure it's above the canvas
           }}
         >
-          Mouse X: {mousePosition.x.toFixed(2)}, Mouse Y: {mousePosition.y.toFixed(2)}
-          {calculatedDate && (
-            <>
-              <br />
-              Year: {calculatedDate.year}, Month: {calculatedDate.month + 1}, Day:{" "}
-              {calculatedDate.day}
-            </>
-          )}
+          Year: {calculatedDate.year}, Month: {calculatedDate.month + 1}, Day: {calculatedDate.day}
         </div>
       )}
     </div>

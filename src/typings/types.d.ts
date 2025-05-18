@@ -32,6 +32,15 @@ type EphemeraItem = {
   tle_line2: string;
 };
 
+type GetDataIndexPageDataResponse = {
+  dataAvailabilityItems: DataAvailability[];
+  evaDetails: EvaDetail[];
+  crewArrDep: CrewArrDepItem[];
+  expeditionInfo: ExpeditionInfo[];
+  flights: Flight[];
+  flightsSupply: FlightSupply[];
+};
+
 type GetDatePageDataResponse = {
   transcriptItems: CommItem[];
   earthPhotographyItems: EarthPhotographyItem[];

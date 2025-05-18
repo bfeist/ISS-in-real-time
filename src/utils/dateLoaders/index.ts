@@ -1,18 +1,105 @@
 export { getDatePageData } from "./dateSlug";
 
-export async function getDataAvailabilities(): Promise<DataAvailability[]> {
+export async function getDataAvailabilities(): Promise<GetDataIndexPageDataResponse> {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL.replace("\\x3a", ":");
-  const dataAvailabilityUrl = `${baseStaticUrl}/data_availability.csv`;
+  let dataAvailabilityItems: DataAvailability[] = [];
+  let evaDetails: EvaDetail[] = [];
+  let crewArrDep: CrewArrDepItem[] = [];
+  let expeditionInfo: ExpeditionInfo[] = [];
+  let flights: Flight[] = [];
+  let flightsSupply: FlightSupply[] = [];
 
   try {
-    const dataAvailabilityResult = await fetch(dataAvailabilityUrl);
-    const dataAvailabilitiesRaw = await dataAvailabilityResult.text();
-    const dataAvailabilities = processDataAvailabilities({
-      dataAvailabilitiesRaw,
-    });
-    return dataAvailabilities;
+    const fetchPromises = [];
+    // fetch data_availability.csv
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/data_availability.csv`)
+        .then((response): Promise<string> => (response.ok ? response.text() : Promise.resolve("")))
+        .then((dataAvailabilitiesRaw: string): void => {
+          dataAvailabilityItems = processDataAvailabilities({
+            dataAvailabilitiesRaw,
+          });
+        })
+        .catch(() => {})
+    );
+
+    // Always fetch common data
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/eva_details.json`)
+        .then(
+          (response): Promise<EvaDetail[]> => (response.ok ? response.json() : Promise.resolve([]))
+        )
+        .then((data: EvaDetail[]): void => {
+          evaDetails = data;
+        })
+        .catch(() => {})
+    );
+
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/crew_arr_dep.json`)
+        .then(
+          (response): Promise<CrewArrDepItem[]> =>
+            response.ok ? response.json() : Promise.resolve([])
+        )
+        .then((data: CrewArrDepItem[]): void => {
+          crewArrDep = data;
+        })
+        .catch(() => {})
+    );
+
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/expeditions.json`)
+        .then(
+          (response): Promise<ExpeditionInfo[]> =>
+            response.ok ? response.json() : Promise.resolve([])
+        )
+        .then((data: ExpeditionInfo[]): void => {
+          expeditionInfo = data;
+        })
+        .catch(() => {})
+    );
+
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/flights.json`)
+        .then(
+          (response): Promise<Flight[]> => (response.ok ? response.json() : Promise.resolve([]))
+        )
+        .then((data: Flight[]): void => {
+          flights = data;
+        })
+        .catch(() => {})
+    );
+
+    fetchPromises.push(
+      fetch(`${baseStaticUrl}/flights_supply.json`)
+        .then(
+          (response): Promise<FlightSupply[]> =>
+            response.ok ? response.json() : Promise.resolve([])
+        )
+        .then((data: FlightSupply[]): void => {
+          flightsSupply = data;
+        })
+        .catch(() => {})
+    );
+
+    await Promise.all(fetchPromises);
+    return {
+      dataAvailabilityItems,
+      evaDetails,
+      crewArrDep,
+      expeditionInfo,
+      flights,
+      flightsSupply,
+    };
   } catch (error) {
-    return [];
+    return {
+      dataAvailabilityItems: [],
+      evaDetails: [],
+      crewArrDep: [],
+      expeditionInfo: [],
+      flights: [],
+      flightsSupply: [],
+    };
   }
 }
 
