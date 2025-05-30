@@ -347,7 +347,7 @@ function drawMonthMarker({
     // Create gradient fill
     const gradient = new paper.Gradient();
     gradient.stops = [
-      new paper.GradientStop(new paper.Color(0, 0, 0, 0.2), 0),
+      new paper.GradientStop(new paper.Color(0, 0, 0, 0), 0),
       new paper.GradientStop(new paper.Color(0, 0, 0, 0), 1),
     ];
 
