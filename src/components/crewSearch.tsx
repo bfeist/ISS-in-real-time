@@ -1,42 +1,49 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, FunctionComponent, useMemo } from "react";
 import styles from "./crewSearch.module.css";
 
-// Sample data - replace with your actual data
-const crewMembers = [
-  "John Smith - Commander",
-  "Maria Rodriguez - Flight Engineer",
-  "Yuki Tanaka - Science Officer",
-  "David Chen - Medical Officer",
-  "Sarah Johnson - Communications",
-  "Ahmed Hassan - Navigation",
-  "Elena Petrov - Systems Specialist",
-  "James Wilson - Mission Specialist",
-  "Raj Patel - Payload Specialist",
-  "Olga Ivanova - Research Scientist",
-  "Miguel Sanchez - Robotics Engineer",
-  "Emma Clarke - Botanist",
-  "Liu Wei - Physicist",
-  "Nadia Cherny - Chemist",
-  "Oscar Martinez - Geologist",
-  "Aisha Kwame - Astronomer",
-  "Thomas Mueller - Meteorologist",
-  "Sophia Lee - Computer Specialist",
-  "Carlos Mendez - Structural Engineer",
-  "Fatima Al-Farsi - Biologist",
-];
+const CrewSearch: FunctionComponent<{
+  crewArrDep: CrewArrDepItem[];
+}> = ({ crewArrDep }) => {
+  // Generate unique crew list for display in the dropdown
+  const crewMembers = useMemo(() => {
+    // Create a map to track unique crew members by name
+    const uniqueCrewMap = new Map<string, CrewArrDepItem>();
 
-const CrewSearch: React.FC = () => {
+    // For each crew member, only keep the most recent visit (based on arrival date)
+    crewArrDep.forEach((crew) => {
+      const existingCrew = uniqueCrewMap.get(crew.name);
+
+      // If this is the first time we're seeing this name, or this visit is more recent
+      if (!existingCrew || new Date(crew.arrivalDate) > new Date(existingCrew.arrivalDate)) {
+        uniqueCrewMap.set(crew.name, crew);
+      }
+    });
+
+    // Convert the map back to an array and format for display
+    return Array.from(uniqueCrewMap.values())
+      .map((crew) => ({
+        id: crew.name, // Now we can just use name as ID since each name only appears once
+        displayName: `${crew.name} - ${crew.nationality}`,
+        data: crew,
+      }))
+      .sort((a, b) => a.data.name.localeCompare(b.data.name)); // Sort alphabetically by name
+  }, [crewArrDep]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredCrew, setFilteredCrew] = useState(crewMembers);
-  const [selectedCrewMember, setSelectedCrewMember] = useState<string | null>(null);
+  const [selectedCrewMember, setSelectedCrewMember] = useState<{
+    id: string;
+    displayName: string;
+    data: CrewArrDepItem;
+  } | null>(null);
 
   useEffect(() => {
-    // Filter the crew members based on search term
+    // Filter the crew members based on search term - search by name only
     const results = crewMembers.filter((member) =>
-      member.toLowerCase().includes(searchTerm.toLowerCase())
+      member.data.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredCrew(results);
-  }, [searchTerm]);
+  }, [searchTerm, crewMembers]);
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
@@ -46,9 +53,9 @@ const CrewSearch: React.FC = () => {
     setSearchTerm("");
   };
 
-  const handleSelectCrewMember = (member: string) => {
+  const handleSelectCrewMember = (member: (typeof crewMembers)[0]) => {
     // Toggle selection: if the clicked member is already selected, deselect it
-    if (selectedCrewMember === member) {
+    if (selectedCrewMember?.id === member.id) {
       setSelectedCrewMember(null);
     } else {
       setSelectedCrewMember(member);
@@ -56,13 +63,22 @@ const CrewSearch: React.FC = () => {
     // Additional actions when selecting a crew member can be added here
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent, member: string) => {
+  const handleKeyDown = (event: React.KeyboardEvent, member: (typeof crewMembers)[0]) => {
     // Select crew member when Enter or Space is pressed
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault(); // Prevent page scroll on space
       handleSelectCrewMember(member);
     }
   };
+
+  // Get all visits for the selected crew member
+  const selectedCrewVisits = useMemo(() => {
+    if (!selectedCrewMember) return [];
+
+    return crewArrDep
+      .filter((crew) => crew.name === selectedCrewMember.id)
+      .sort((a, b) => new Date(a.arrivalDate).getTime() - new Date(b.arrivalDate).getTime()); // Sort by arrival date, earliest first
+  }, [selectedCrewMember, crewArrDep]);
 
   return (
     <div className={styles.container}>
@@ -89,19 +105,19 @@ const CrewSearch: React.FC = () => {
       <div className={styles.listContainer}>
         {filteredCrew.length > 0 ? (
           <ul className={styles.list} role="listbox" aria-label="Crew members list">
-            {filteredCrew.map((member, index) => (
+            {filteredCrew.map((member) => (
               <li
-                key={index}
+                key={member.id}
                 className={`${styles.listItem} ${
-                  selectedCrewMember === member ? styles.selected : ""
+                  selectedCrewMember?.id === member.id ? styles.selected : ""
                 }`}
                 onClick={() => handleSelectCrewMember(member)}
                 onKeyDown={(e) => handleKeyDown(e, member)}
                 tabIndex={0}
                 role="option"
-                aria-selected={selectedCrewMember === member}
+                aria-selected={selectedCrewMember?.id === member.id}
               >
-                {member}
+                {member.displayName}
               </li>
             ))}
           </ul>
@@ -112,7 +128,19 @@ const CrewSearch: React.FC = () => {
       {selectedCrewMember && (
         <div className={styles.selectedCrewMember}>
           <h3>Selected Crew Member:</h3>
-          <div>{selectedCrewMember}</div>
+          <div>{selectedCrewMember.displayName}</div>
+
+          <h4>ISS Visits ({selectedCrewVisits.length}):</h4>
+          {selectedCrewVisits.map((visit, index) => (
+            <div key={`${visit.name}-${visit.arrivalDate}`} className={styles.crewDetails}>
+              <h5>Visit {index + 1}</h5>
+              <p>Arrival: {new Date(visit.arrivalDate).toLocaleDateString()}</p>
+              <p>Arrival Flight: {visit.arrivalFlight}</p>
+              <p>Departure: {new Date(visit.departureDate).toLocaleDateString()}</p>
+              <p>Departure Flight: {visit.departureFlight}</p>
+              <p>Duration: {visit.durationDays} days</p>
+            </div>
+          ))}
         </div>
       )}
     </div>

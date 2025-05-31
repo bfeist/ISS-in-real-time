@@ -96,3 +96,23 @@
   margin-bottom: 8px;
   font-size: 16px;
 }
+
+.crewDetails {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: #f8f8f8;
+  border-radius: 4px;
+  border-left: 3px solid #1890ff;
+  margin-bottom: 10px;
+}
+
+.crewDetails h5 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #333333;
+}
+
+.crewDetails p {
+  margin: 4px 0;
+  font-size: 14px;
+}

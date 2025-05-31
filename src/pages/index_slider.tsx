@@ -202,7 +202,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
             </div>
           )}
         </div>
-        <CrewSearch />
+        <CrewSearch crewArrDep={indexPageData.crewArrDep} />
       </div>
     </div>
   );
