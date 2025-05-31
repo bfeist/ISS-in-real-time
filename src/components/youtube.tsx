@@ -12,7 +12,7 @@ const YouTubeComponent: FunctionComponent<{
 
   const [appSeconds, setAppSeconds] = useState(0);
 
-  const { clock } = useClockState();
+  const { isRunning } = useClockState();
 
   const onPlayerReady = (event: YouTubeEvent) => {
     playerRef.current = event.target;
@@ -26,9 +26,9 @@ const YouTubeComponent: FunctionComponent<{
       const playerState = await playerRef.current.getPlayerState();
       const isPlaying = playerState === YouTube.PlayerState.PLAYING;
 
-      if (clock.isRunning && !isPlaying) {
+      if (isRunning && !isPlaying) {
         playerRef.current.playVideo();
-      } else if (!clock.isRunning && isPlaying) {
+      } else if (!isRunning && isPlaying) {
         playerRef.current.pauseVideo();
       }
 
@@ -43,7 +43,7 @@ const YouTubeComponent: FunctionComponent<{
       }
     };
     syncTime();
-  }, [clock, youtubeLiveRecording, appSeconds]);
+  }, [isRunning, youtubeLiveRecording, appSeconds]);
 
   return (
     <>

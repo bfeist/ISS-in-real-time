@@ -1,12 +1,7 @@
-// Define your store types
-interface Clock {
+interface ClockState {
   startStopTimestamp: string;
   appSecondsAtStartStop: number;
   isRunning: boolean;
-}
-
-interface ClockState {
-  clock: Clock;
 
   // Actions
   startClock: () => void;

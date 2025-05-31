@@ -4,46 +4,34 @@ import { useShallow } from "zustand/react/shallow";
 
 // Define the store creation function separately with proper types
 const createStore: StateCreator<AppState> = (set) => ({
-  // Clock initial state
-  clock: {
-    startStopTimestamp: new Date().toISOString(),
-    appSecondsAtStartStop: 0,
-    isRunning: false,
-  },
+  // Clock initial state - flattened
+  startStopTimestamp: new Date().toISOString(),
+  appSecondsAtStartStop: 0,
+  isRunning: false,
 
   // Clock actions
   startClock: () =>
-    set((state: AppState) => ({
-      clock: {
-        ...state.clock,
-        startStopTimestamp: new Date().toISOString(),
-        isRunning: true,
-      },
+    set(() => ({
+      startStopTimestamp: new Date().toISOString(),
+      isRunning: true,
     })),
 
   stopClock: () =>
     set((state: AppState) => {
       const appSeconds = Math.floor(
-        state.clock.appSecondsAtStartStop +
-          (Date.now() - Date.parse(state.clock.startStopTimestamp)) / 1000
+        state.appSecondsAtStartStop + (Date.now() - Date.parse(state.startStopTimestamp)) / 1000
       );
       return {
-        clock: {
-          ...state.clock,
-          startStopTimestamp: new Date().toISOString(),
-          appSecondsAtStartStop: appSeconds,
-          isRunning: false,
-        },
+        startStopTimestamp: new Date().toISOString(),
+        appSecondsAtStartStop: appSeconds,
+        isRunning: false,
       };
     }),
 
   setClock: (seconds: number) =>
-    set((state: AppState) => ({
-      clock: {
-        ...state.clock,
-        appSecondsAtStartStop: seconds,
-        startStopTimestamp: new Date().toISOString(),
-      },
+    set(() => ({
+      appSecondsAtStartStop: seconds,
+      startStopTimestamp: new Date().toISOString(),
     })),
 
   // Hover initial state
@@ -60,14 +48,18 @@ export const useAppStore = create<AppState>()(
 
 // Create selector hooks for better performance
 export const useClockState = (): {
-  clock: Clock;
+  startStopTimestamp: string;
+  appSecondsAtStartStop: number;
+  isRunning: boolean;
   startClock: () => void;
   stopClock: () => void;
   setClock: (seconds: number) => void;
 } =>
   useAppStore(
     useShallow((state) => ({
-      clock: state.clock,
+      startStopTimestamp: state.startStopTimestamp,
+      appSecondsAtStartStop: state.appSecondsAtStartStop,
+      isRunning: state.isRunning,
       startClock: state.startClock,
       stopClock: state.stopClock,
       setClock: state.setClock,

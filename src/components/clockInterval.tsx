@@ -7,22 +7,22 @@ import { FunctionComponent, useEffect, useRef } from "react";
 const ClockInterval: FunctionComponent<{
   setAppSeconds: Function;
 }> = ({ setAppSeconds }) => {
-  const { clock } = useClockState();
+  const { appSecondsAtStartStop, isRunning, startStopTimestamp } = useClockState();
 
   const intervalRef = useRef(null);
 
   useEffect(() => {
-    if (clock.isRunning) {
+    if (isRunning) {
       if (!intervalRef.current) {
         intervalRef.current = setInterval(() => {
-          const secondsSinceStarted = (Date.now() - Date.parse(clock.startStopTimestamp)) / 1000;
-          const newAppSeconds = Math.floor(clock.appSecondsAtStartStop + secondsSinceStarted);
+          const secondsSinceStarted = (Date.now() - Date.parse(startStopTimestamp)) / 1000;
+          const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);
           setAppSeconds(newAppSeconds);
         }, 100);
       }
     } else {
-      const secondsSinceStarted = (Date.now() - Date.parse(clock.startStopTimestamp)) / 1000;
-      const newAppSeconds = Math.floor(clock.appSecondsAtStartStop + secondsSinceStarted);
+      const secondsSinceStarted = (Date.now() - Date.parse(startStopTimestamp)) / 1000;
+      const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);
       setAppSeconds(newAppSeconds);
 
       clearInterval(intervalRef.current);
@@ -34,7 +34,7 @@ const ClockInterval: FunctionComponent<{
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     };
-  }, [intervalRef, clock, setAppSeconds]);
+  }, [intervalRef, appSecondsAtStartStop, isRunning, startStopTimestamp, setAppSeconds]);
 
   return <></>;
 };

@@ -161,7 +161,7 @@ const YearPicker: FunctionComponent<{
   availableMonthsThisYear.sort((a, b) => b - a);
 
   return (
-    <div className={styles.page}>
+    <div className={styles.yearPickerContainer}>
       <div className={styles.yearTitle}>{year}</div>
       <div className={styles.yearContainer}>
         {availableMonthsThisYear.map((month) => {
@@ -173,6 +173,7 @@ const YearPicker: FunctionComponent<{
           });
           return (
             <MonthPicker
+              key={month}
               availableDataItemsThisMonth={availableDataItemsThisMonth}
               month={month}
               propertyToHighlight={propertyToHighlight}

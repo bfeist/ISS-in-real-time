@@ -19,7 +19,7 @@ const Header: FunctionComponent<{
   const latRef = useRef<HTMLSpanElement>(null);
   const lngRef = useRef<HTMLSpanElement>(null);
 
-  const { clock, startClock, stopClock } = useClockState();
+  const { isRunning, startClock, stopClock } = useClockState();
   const navigate = useNavigate();
 
   const [appSeconds, setAppSeconds] = useState(0);
@@ -65,7 +65,7 @@ const Header: FunctionComponent<{
         </div>
         <button
           onClick={() => {
-            if (clock.isRunning) {
+            if (isRunning) {
               stopClock();
               setMuted(true);
             } else {
@@ -74,7 +74,7 @@ const Header: FunctionComponent<{
             }
           }}
         >
-          {clock.isRunning ? "Pause" : "Play"}
+          {isRunning ? "Pause" : "Play"}
         </button>
         <button
           onClick={() => {

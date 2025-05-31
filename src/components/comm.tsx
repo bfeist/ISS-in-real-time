@@ -11,7 +11,7 @@ const Comm: FunctionComponent<{
   audioRef: React.RefObject<HTMLAudioElement>;
 }> = ({ viewDate, commItems, audioRef }) => {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL.replace("\\x3a", ":");
-  const { clock, setClock } = useClockState();
+  const { isRunning, setClock } = useClockState();
   const [lastScrolledToTimeStr, setLastScrolledToTimeStr] = useState<string | null>(null);
   const [appSeconds, setAppSeconds] = useState(0);
 
@@ -40,7 +40,7 @@ const Comm: FunctionComponent<{
     if (!appSeconds || commItems.length === 0) return;
 
     // If the clock isn't running, stop the audio
-    if (!clock.isRunning && audioRef.current) {
+    if (!isRunning && audioRef.current) {
       audioRef.current.pause();
     }
 
@@ -71,7 +71,7 @@ const Comm: FunctionComponent<{
     if (commItem) {
       const [year, month, day] = viewDate.split("-");
       const aacFileUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/${commItem.filename}`;
-      if (audioRef.current && clock.isRunning) {
+      if (audioRef.current && isRunning) {
         audioRef.current.src = aacFileUrl;
         audioRef.current.play();
       }

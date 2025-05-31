@@ -19,8 +19,6 @@ p {
   --font-mono: "Roboto Mono", monospace;
   --font-sans: roboto, sans-serif;
   --radius: 4px;
-
-  height: 100%;
 }
 
 #root {

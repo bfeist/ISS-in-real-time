@@ -25,10 +25,10 @@ const Globe: FunctionComponent<{
   viewDate: string;
   ephemeraItems: EphemeraItem[];
 }> = ({ viewDate, ephemeraItems }) => {
-  const { clock } = useClockState();
+  const { isRunning, startStopTimestamp, appSecondsAtStartStop } = useClockState();
 
-  const startStopDate = new Date(clock.startStopTimestamp);
-  const appSeconds = clock.appSecondsAtStartStop + (Date.now() - startStopDate.getTime()) / 1000;
+  const startStopDate = new Date(startStopTimestamp);
+  const appSeconds = appSecondsAtStartStop + (Date.now() - startStopDate.getTime()) / 1000;
 
   const startTime = new Date(`${viewDate}T${timeStrFromAppSeconds(appSeconds)}Z`);
   const julianDate = JulianDate.fromDate(startTime);
@@ -238,7 +238,7 @@ const Globe: FunctionComponent<{
         stopTime={endJd}
         clockRange={ClockRange.LOOP_STOP}
         multiplier={1}
-        shouldAnimate={clock.isRunning}
+        shouldAnimate={isRunning}
         onTick={handleTick} // pass tick callback via Clock
       />
     </Viewer>
