@@ -114,12 +114,12 @@ const Comm: FunctionComponent<{
               });
             }}
           >
-            <div className={styles.utteranceTime}>{item.utteranceTime}</div>
+            <div>{item.utteranceTime}</div>
             <div className={styles.channelnum}>
               {channelInfo.type}-{channelInfo.number}
             </div>
             <div className={styles.textContainer}>
-              <div className={styles.text}>{item.text}</div>
+              <div>{item.text}</div>
               {item.textOriginalLang && (
                 <div className={styles.textOriginalLang}>{item.textOriginalLang}</div>
               )}

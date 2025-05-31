@@ -15,7 +15,7 @@ p {
 
 :root {
   --font-mono: "Roboto Mono", monospace;
-  --font-sans: "Roboto", sans-serif;
+  --font-sans: roboto, sans-serif;
   --radius: 4px;
 }
 

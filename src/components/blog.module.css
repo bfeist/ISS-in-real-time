@@ -44,7 +44,7 @@
 
 .clickableImage:hover {
   opacity: 0.9;
-  box-shadow: 0 0 10px rgba(124, 180, 255, 0.5);
+  box-shadow: 0 0 10px rgb(124 180 255 / 50%);
   transition: all 0.2s ease-in-out;
 }
 
@@ -52,7 +52,7 @@
   font-size: 0.9rem;
   font-style: italic;
   margin-top: 6px;
-  color: #ccc;
+  color: #cccccc;
 }
 
 .content p {

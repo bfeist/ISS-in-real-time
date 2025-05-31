@@ -213,7 +213,7 @@ const SupplyFlights = ({
           }
 
           return (
-            <div key={supply.number} className={styles.flight}>
+            <div key={supply.number} className={styles.supplyFlight}>
               <div className={styles.missionHeader}>
                 {/* Supply flights don't have mission_patch_url, so we can't use it here */}
                 <div className={styles.missionInfo}>

@@ -60,7 +60,7 @@ const YouTubeComponent: FunctionComponent<{
           }}
         />
       ) : (
-        <div className={styles.noVideo}>No video available for this date</div>
+        <div>No video available for this date</div>
       )}
     </>
   );

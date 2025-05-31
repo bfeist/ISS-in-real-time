@@ -1,5 +1,5 @@
 .page {
-  font-family: "Roboto", sans-serif;
+  font-family: Roboto, sans-serif;
   background-color: #797979;
   margin: 0;
   padding: 0;
@@ -50,34 +50,4 @@
 
 .audioPlayer {
   display: none;
-}
-
-@media (max-width: 640px) {
-  .upper {
-    display: block;
-  }
-
-  /* Tab buttons */
-  .tab-buttons {
-    display: flex;
-    justify-content: space-around;
-    background-color: #707070;
-  }
-
-  .tab-buttons button {
-    flex: 1;
-    padding: 10px;
-    background-color: #797979;
-    border: none;
-    cursor: pointer;
-  }
-
-  /* Tab content */
-  .tab-content {
-    display: none;
-  }
-
-  .tab-content.active {
-    display: block;
-  }
 }

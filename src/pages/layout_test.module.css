@@ -93,7 +93,7 @@
   display: flex;
   overflow-x: auto;
   background-color: #f1f1f1;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid #cccccc;
 }
 
 .tab {
@@ -109,14 +109,15 @@
 }
 
 .tab:hover {
-  background-color: #ddd;
+  background-color: #dddddd;
 }
 
 .activeTab {
-  background-color: #ccc;
+  background-color: #cccccc;
 }
+
 .activeTab:hover {
-  background-color: #ccc;
+  background-color: #cccccc;
 }
 
 .tabContent {
@@ -132,9 +133,4 @@
 .tabContent .fakeSection[data-section="globe"],
 .tabContent .fakeSection[data-section="transcript"] {
   min-height: 600px;
-}
-
-.mobileDetails {
-  flex: 0 1 auto;
-  min-height: 100px; /* Minimum height but can grow */
 }
