@@ -13,6 +13,9 @@
 /.next/
 /out/
 
+# uv
+.venv/
+
 # production
 /build
 

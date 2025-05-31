@@ -1,0 +1,15 @@
+beautifulsoup4
+python-dotenv
+requests
+python-dateutil
+pycountry
+whisperx
+rich
+pydub
+internetarchive
+tqdm
+torch
+numpy
+sentence-transformers
+pandas
+dotenv
