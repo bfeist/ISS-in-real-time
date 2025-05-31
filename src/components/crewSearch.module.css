@@ -1,0 +1,98 @@
+.container {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.searchBox {
+  margin-bottom: 16px;
+}
+
+.searchInputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #cccccc;
+  border-radius: 4px;
+}
+
+.clearButton {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: #666666;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.clearButton:hover {
+  color: #333333;
+  background-color: #eeeeee;
+}
+
+.listContainer {
+  height: 400px;
+  overflow-y: auto;
+  border: 1px solid #eeeeee;
+  border-radius: 4px;
+}
+
+.list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.listItem {
+  border-bottom: 1px solid #eeeeee;
+  cursor: pointer;
+  user-select: none;
+}
+
+.listItem:last-child {
+  border-bottom: none;
+}
+
+.listItem:hover {
+  background-color: #f9f9f9;
+}
+
+.listItem.selected {
+  background-color: #e6f7ff;
+  font-weight: 500;
+}
+
+.noResults {
+  padding: 20px;
+  text-align: center;
+  color: #666666;
+}
+
+.selectedCrewMember {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+.selectedCrewMember h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 16px;
+}

@@ -163,7 +163,10 @@ export default [
         },
       ],
 
-      "no-unused-expressions": "error",
+      // Replace base rule with TypeScript version for better TS support
+      "no-unused-expressions": "off",
+      "@typescript-eslint/no-unused-expressions": "error",
+
       "no-useless-call": "error",
       "no-void": "error",
       "no-with": "error",

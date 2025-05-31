@@ -9,6 +9,7 @@ import {
   getActiveSupplyFlightsByDate,
   getCrewMembersOnboardByDate,
 } from "utils/onboard";
+import CrewSearch from "components/crewSearch";
 
 const SliderPage: FunctionComponent = (): JSX.Element => {
   const indexPageData = useLoaderData() as GetDataIndexPageDataResponse;
@@ -201,6 +202,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
             </div>
           )}
         </div>
+        <CrewSearch />
       </div>
     </div>
   );
