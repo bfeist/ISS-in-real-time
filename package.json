@@ -37,7 +37,8 @@
     "react-youtube": "^10.1.0",
     "resium": "^1.18.3",
     "satellite.js": "^6.0.0",
-    "tle.js": "^4.9.0"
+    "tle.js": "^4.9.0",
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.9",

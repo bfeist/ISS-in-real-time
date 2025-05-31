@@ -14,7 +14,7 @@ import { FunctionComponent, useState, useRef, useEffect } from "react";
 import { Viewer, Entity } from "resium";
 import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
-import { useClockContext } from "context/clockContext";
+import { useClockState } from "store";
 import { timeStrFromAppSeconds } from "utils/time";
 import { globalTelemetry } from "utils/global";
 
@@ -25,7 +25,7 @@ const Globe: FunctionComponent<{
   viewDate: string;
   ephemeraItems: EphemeraItem[];
 }> = ({ viewDate, ephemeraItems }) => {
-  const { clock } = useClockContext();
+  const { clock } = useClockState();
 
   const startStopDate = new Date(clock.startStopTimestamp);
   const appSeconds = clock.appSecondsAtStartStop + (Date.now() - startStopDate.getTime()) / 1000;

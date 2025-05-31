@@ -1,6 +1,6 @@
 import { FunctionComponent, useEffect, useState } from "react";
 import styles from "./crewOnboard.module.css"; // ensure this CSS file exists or adjust accordingly
-import { useClockContext } from "context/clockContext";
+import { useClockState } from "store";
 import { ddhhmmssBetweenDateStrings, timeStrFromDateAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { flagUrlByCountryName } from "utils/countries";
@@ -9,7 +9,7 @@ const CrewOnboard: FunctionComponent<{
   dateStr: string;
   crewOnboard: CrewArrDepItem[];
 }> = ({ dateStr, crewOnboard }) => {
-  const { clock } = useClockContext();
+  const { clock } = useClockState();
 
   const [currentTimeStr, setCurrentTimeStr] = useState("");
   const [appSeconds, setAppSeconds] = useState(0);

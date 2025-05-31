@@ -1,7 +1,7 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import YouTube, { YouTubePlayer, YouTubeEvent } from "react-youtube";
 import styles from "./youtube.module.css";
-import { useClockContext } from "context/clockContext";
+import { useClockState } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 
@@ -12,7 +12,7 @@ const YouTubeComponent: FunctionComponent<{
 
   const [appSeconds, setAppSeconds] = useState(0);
 
-  const { clock } = useClockContext();
+  const { clock } = useClockState();
 
   const onPlayerReady = (event: YouTubeEvent) => {
     playerRef.current = event.target;

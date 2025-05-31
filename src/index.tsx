@@ -12,7 +12,6 @@ import Home from "pages/index";
 import DatePage from "pages/dateSlug";
 import { getDataAvailabilities } from "utils/dateLoaders/index.ts";
 import { getDatePageData } from "utils/dateLoaders/dateSlug.ts";
-import CombinedProviders from "context/_CombinedProviders.tsx";
 import LayoutTest from "pages/layout_test.tsx";
 import IndexSlider from "pages/index_slider.tsx";
 
@@ -35,8 +34,6 @@ if (!container) {
 const root = createRoot(container);
 root.render(
   <React.StrictMode>
-    <CombinedProviders>
-      <RouterProvider router={router} />
-    </CombinedProviders>
+    <RouterProvider router={router} />
   </React.StrictMode>
 );

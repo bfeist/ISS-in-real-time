@@ -1,6 +1,6 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./earthPhotography.module.css";
-import { useClockContext } from "context/clockContext";
+import { useClockState } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 
@@ -9,7 +9,7 @@ const EarthPhotography: FunctionComponent<{
 }> = ({ imageItems }) => {
   const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL.replace("\\x3a", ":");
 
-  const { clockDispatch } = useClockContext();
+  const { setClock } = useClockState();
 
   const [visibleImages, setVisibleImages] = useState<number[]>([]);
   const [appSeconds, setAppSeconds] = useState(0);
@@ -79,17 +79,11 @@ const EarthPhotography: FunctionComponent<{
             role="button"
             tabIndex={0}
             onClick={() => {
-              clockDispatch({
-                type: "setAppSeconds",
-                appSeconds: appSecondsFromTimeStr(item.dateTaken.split("T")[1]),
-              });
+              setClock(appSecondsFromTimeStr(item.dateTaken.split("T")[1]));
             }}
             onKeyUp={(e) => {
               if (e.key === "Enter" || e.key === " ") {
-                clockDispatch({
-                  type: "setAppSeconds",
-                  appSeconds: appSecondsFromTimeStr(item.dateTaken.split("T")[1]),
-                });
+                setClock(appSecondsFromTimeStr(item.dateTaken.split("T")[1]));
               }
             }}
           >

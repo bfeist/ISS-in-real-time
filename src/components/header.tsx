@@ -1,6 +1,6 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./header.module.css";
-import { useClockContext } from "context/clockContext";
+import { useClockState } from "store";
 import { timeStrFromAppSeconds } from "utils/time";
 import { useNavigate } from "react-router-dom";
 import ClockInterval from "./clockInterval";
@@ -19,7 +19,7 @@ const Header: FunctionComponent<{
   const latRef = useRef<HTMLSpanElement>(null);
   const lngRef = useRef<HTMLSpanElement>(null);
 
-  const { clock, clockDispatch } = useClockContext();
+  const { clock, startClock, stopClock } = useClockState();
   const navigate = useNavigate();
 
   const [appSeconds, setAppSeconds] = useState(0);
@@ -66,10 +66,10 @@ const Header: FunctionComponent<{
         <button
           onClick={() => {
             if (clock.isRunning) {
-              clockDispatch({ type: "stop" });
+              stopClock();
               setMuted(true);
             } else {
-              clockDispatch({ type: "start" });
+              startClock();
               setMuted(false);
             }
           }}

@@ -1,7 +1,7 @@
 import { extractChannelInfoFromFilename } from "utils/comm";
 import { FunctionComponent, useEffect, useState } from "react";
 import styles from "./comm.module.css";
-import { useClockContext } from "context/clockContext";
+import { useClockState } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 
@@ -11,7 +11,7 @@ const Comm: FunctionComponent<{
   audioRef: React.RefObject<HTMLAudioElement>;
 }> = ({ viewDate, commItems, audioRef }) => {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL.replace("\\x3a", ":");
-  const { clock, clockDispatch } = useClockContext();
+  const { clock, setClock } = useClockState();
   const [lastScrolledToTimeStr, setLastScrolledToTimeStr] = useState<string | null>(null);
   const [appSeconds, setAppSeconds] = useState(0);
 
@@ -101,17 +101,11 @@ const Comm: FunctionComponent<{
             tabIndex={0}
             onClick={() => {
               setLastScrolledToTimeStr(null);
-              clockDispatch({
-                type: "setAppSeconds",
-                appSeconds: appSecondsFromTimeStr(item.utteranceTime),
-              });
+              setClock(appSecondsFromTimeStr(item.utteranceTime));
             }}
             onKeyDown={() => {
               setLastScrolledToTimeStr(null);
-              clockDispatch({
-                type: "setAppSeconds",
-                appSeconds: appSecondsFromTimeStr(item.utteranceTime),
-              });
+              setClock(appSecondsFromTimeStr(item.utteranceTime));
             }}
           >
             <div>{item.utteranceTime}</div>
