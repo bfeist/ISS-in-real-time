@@ -1,5 +1,6 @@
 import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
+import { useShallow } from "zustand/react/shallow";
 
 // Define the store creation function separately with proper types
 const createStore: StateCreator<AppState> = (set) => ({
@@ -64,18 +65,22 @@ export const useClockState = (): {
   stopClock: () => void;
   setClock: (seconds: number) => void;
 } =>
-  useAppStore((state) => ({
-    clock: state.clock,
-    startClock: state.startClock,
-    stopClock: state.stopClock,
-    setClock: state.setClock,
-  }));
+  useAppStore(
+    useShallow((state) => ({
+      clock: state.clock,
+      startClock: state.startClock,
+      stopClock: state.stopClock,
+      setClock: state.setClock,
+    }))
+  );
 
 export const useHoverState = (): {
   hoverSeconds: number | null;
   setHoverSeconds: (seconds: number | null) => void;
 } =>
-  useAppStore((state) => ({
-    hoverSeconds: state.hoverSeconds,
-    setHoverSeconds: state.setHoverSeconds,
-  }));
+  useAppStore(
+    useShallow((state) => ({
+      hoverSeconds: state.hoverSeconds,
+      setHoverSeconds: state.setHoverSeconds,
+    }))
+  );
