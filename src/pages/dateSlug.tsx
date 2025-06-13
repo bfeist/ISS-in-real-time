@@ -80,12 +80,13 @@ const DatePage = (): JSX.Element => {
   return (
     <div className={styles.page}>
       <Header
-        date={date}
+        viewDate={date}
         showGlobe={showGlobe}
         setShowGlobe={setShowGlobe}
         dataAvailability={dataAvailability}
         muted={muted}
         setMuted={setMuted}
+        ephemeraItems={ephemeraItems}
       />
       <div className={styles.upper}>
         <div className={styles.transcriptsContainer}>

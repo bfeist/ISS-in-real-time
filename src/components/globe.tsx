@@ -16,7 +16,6 @@ import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
 import { useClockState } from "store";
 import { timeStrFromAppSeconds } from "utils/time";
-import { globalTelemetry } from "utils/global";
 
 // Set Cesium Ion access token
 Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
@@ -154,34 +153,6 @@ const Globe: FunctionComponent<{
     setInitialView();
   }, [cesiumReady]);
 
-  // Update tick callback function to accept clock object rather than JulianDate directly
-  const handleTick = (clockObj: Cesium.Clock) => {
-    const currentTime: JulianDate = clockObj.currentTime;
-    if (!tle || tle.length === 0) return;
-
-    const jsDate = JulianDate.toDate(currentTime);
-    const satrec = satellite.twoline2satrec(tle[0], tle[1]);
-    const positionAndVelocity = satellite.propagate(satrec, jsDate);
-    const velocityVector = positionAndVelocity.velocity as satellite.EciVec3<number>;
-    const positionEci = positionAndVelocity.position as satellite.EciVec3<number>;
-    if (!velocityVector || !positionEci) return;
-    const gmst = satellite.gstime(jsDate);
-    const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-    const altitude = positionGd.height;
-    const velocity =
-      Math.sqrt(velocityVector.x ** 2 + velocityVector.y ** 2 + velocityVector.z ** 2) * 3600;
-
-    // New: compute lat and lng in degrees from positionGd
-    const latitude = CesiumMath.toDegrees(positionGd.latitude);
-    const longitude = CesiumMath.toDegrees(positionGd.longitude);
-
-    // Update global telemetry with full precision values for velocity, altitude, lat, and lng
-    if (globalTelemetry.velocity !== velocity) globalTelemetry.velocity = velocity;
-    if (globalTelemetry.altitude !== altitude) globalTelemetry.altitude = altitude;
-    if (globalTelemetry.lat !== latitude) globalTelemetry.lat = latitude;
-    if (globalTelemetry.lng !== longitude) globalTelemetry.lng = longitude;
-  };
-
   const startOfDay = new Date(startTime);
   startOfDay.setUTCHours(0, 0, 0, 0);
   const endOfDay = new Date(startOfDay);
@@ -239,7 +210,6 @@ const Globe: FunctionComponent<{
         clockRange={ClockRange.LOOP_STOP}
         multiplier={1}
         shouldAnimate={isRunning}
-        onTick={handleTick} // pass tick callback via Clock
       />
     </Viewer>
   );
