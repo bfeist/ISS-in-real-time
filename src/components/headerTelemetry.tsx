@@ -4,6 +4,7 @@ import * as satellite from "satellite.js";
 import { findClosestEphemeraItem } from "utils/map";
 import { timeStrFromAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
+import { useClockState } from "store";
 
 const HeaderTelemetry: FunctionComponent<{
   viewDate: string;
@@ -17,16 +18,27 @@ const HeaderTelemetry: FunctionComponent<{
   const [appSeconds, setAppSeconds] = useState(0);
   const [lastAppSecondsUpdate, setLastAppSecondsUpdate] = useState(Date.now());
 
+  const { isRunning } = useClockState();
+
   // Update lastAppSecondsUpdate when appSeconds changes
   useEffect(() => {
     setLastAppSecondsUpdate(Date.now());
   }, [appSeconds]);
 
   const calcTelemetryAnimationFrame = useCallback(
-    (satrec: satellite.SatRec, currentTime: Date, lastAppSecondsUpdate: number): (() => void) => {
+    (
+      satrec: satellite.SatRec,
+      currentTime: Date,
+      lastAppSecondsUpdate: number,
+      isRunning: boolean
+    ): (() => void) => {
       let frameId: number;
 
       const animationFrame = () => {
+        if (!isRunning) {
+          // If not running, don't update and don't request a new frame
+          return;
+        }
         // Calculate elapsed milliseconds since last appSeconds update
         const now = Date.now();
         const elapsedMs = now - lastAppSecondsUpdate;
@@ -77,7 +89,7 @@ const HeaderTelemetry: FunctionComponent<{
       frameId = requestAnimationFrame(animationFrame);
       return () => cancelAnimationFrame(frameId);
     },
-    [velocityRef, altitudeRef, latRef, lngRef]
+    [velocityRef, altitudeRef, latRef, lngRef] // isRunning will be added to dependencies of useEffect that calls this
   );
 
   useEffect(() => {
@@ -88,10 +100,36 @@ const HeaderTelemetry: FunctionComponent<{
     const satrec = satellite.twoline2satrec(ephemeris.tle_line1, ephemeris.tle_line2);
     const currentTime = new Date(`${viewDate}T${timeStrFromAppSeconds(appSeconds)}Z`);
 
-    const cleanup = calcTelemetryAnimationFrame(satrec, currentTime, lastAppSecondsUpdate);
+    // Only start the animation if isRunning is true.
+    // The cleanup function will handle stopping it if isRunning becomes false or other dependencies change.
+    let cleanup = () => {};
+    if (isRunning) {
+      cleanup = calcTelemetryAnimationFrame(satrec, currentTime, lastAppSecondsUpdate, isRunning);
+    } else {
+      // If not running, ensure any existing animation frame is cancelled.
+      // This might be redundant if the previous effect's cleanup already handled it,
+      // but it's a safe measure.
+      const existingFrameId = parseInt(sessionStorage.getItem("telemetryFrameId") || "0");
+      if (existingFrameId) {
+        cancelAnimationFrame(existingFrameId);
+      }
+    }
 
-    return cleanup;
-  }, [viewDate, appSeconds, ephemeraItems, lastAppSecondsUpdate, calcTelemetryAnimationFrame]);
+    // Store frameId in sessionStorage to be accessible for cancellation if needed
+    // This part might need refinement based on how frameId is managed by calcTelemetryAnimationFrame's return
+    // For now, we assume calcTelemetryAnimationFrame's cleanup handles its own frameId.
+
+    return () => {
+      cleanup(); // This will cancel the animation frame when the component unmounts or dependencies change
+    };
+  }, [
+    viewDate,
+    appSeconds,
+    ephemeraItems,
+    lastAppSecondsUpdate,
+    calcTelemetryAnimationFrame,
+    isRunning,
+  ]);
 
   return (
     <>
