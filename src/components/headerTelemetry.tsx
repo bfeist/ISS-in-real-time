@@ -105,19 +105,7 @@ const HeaderTelemetry: FunctionComponent<{
     let cleanup = () => {};
     if (isRunning) {
       cleanup = calcTelemetryAnimationFrame(satrec, currentTime, lastAppSecondsUpdate, isRunning);
-    } else {
-      // If not running, ensure any existing animation frame is cancelled.
-      // This might be redundant if the previous effect's cleanup already handled it,
-      // but it's a safe measure.
-      const existingFrameId = parseInt(sessionStorage.getItem("telemetryFrameId") || "0");
-      if (existingFrameId) {
-        cancelAnimationFrame(existingFrameId);
-      }
     }
-
-    // Store frameId in sessionStorage to be accessible for cancellation if needed
-    // This part might need refinement based on how frameId is managed by calcTelemetryAnimationFrame's return
-    // For now, we assume calcTelemetryAnimationFrame's cleanup handles its own frameId.
 
     return () => {
       cleanup(); // This will cancel the animation frame when the component unmounts or dependencies change
