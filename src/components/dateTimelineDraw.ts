@@ -48,7 +48,7 @@ export const initializePaperCanvas = ({
   dataGroup.matrix = dataMatrix;
   paper.project.activeLayer.addChildren([uiGroup, dataGroup]);
 
-  let verticalLine: paper.Path.Line | null = null;
+  let dayBox: paper.Path.Rectangle | null = null;
   const tool = new paper.Tool();
 
   let currentOffsetX = 0;
@@ -80,17 +80,24 @@ export const initializePaperCanvas = ({
       scrollDirection = 0;
     }
 
-    if (!verticalLine) {
-      verticalLine = new paper.Path.Line(
-        new paper.Point(event.point.x, paper.view.bounds.top),
-        new paper.Point(event.point.x, paper.view.bounds.bottom)
-      );
-      verticalLine.strokeColor = new paper.Color("red");
-      verticalLine.strokeWidth = 1;
-      uiGroup.addChild(verticalLine);
+    if (!dayBox) {
+      dayBox = new paper.Path.Rectangle({
+        point: new paper.Point(event.point.x - 3, event.point.y - 3),
+        size: new paper.Size(6, 6),
+        fillColor: new paper.Color("rgba(255, 0, 0, 0.2)"),
+        strokeColor: new paper.Color("red"),
+        strokeWidth: 2,
+      });
+      uiGroup.addChild(dayBox);
     } else {
-      verticalLine.segments[0].point.x = event.point.x;
-      verticalLine.segments[1].point.x = event.point.x;
+      dayBox.segments[0].point.x = event.point.x - 3;
+      dayBox.segments[0].point.y = event.point.y - 3;
+      dayBox.segments[1].point.x = event.point.x + 3;
+      dayBox.segments[1].point.y = event.point.y - 3;
+      dayBox.segments[2].point.x = event.point.x + 3;
+      dayBox.segments[2].point.y = event.point.y + 3;
+      dayBox.segments[3].point.x = event.point.x - 3;
+      dayBox.segments[3].point.y = event.point.y + 3;
     }
 
     const effectiveMouseX = event.point.x - currentOffsetX;
@@ -190,10 +197,6 @@ export const initializePaperCanvas = ({
       event.clientY <= rect.bottom;
 
     if (!isInside) {
-      if (verticalLine) {
-        verticalLine.remove();
-        verticalLine = null;
-      }
       // Stop scrolling when mouse leaves canvas
       scrollDirection = 0;
       currentScrollSpeed = 0;
@@ -206,6 +209,11 @@ export const initializePaperCanvas = ({
       // Reset last known positions after the "mouse out" callback
       lastKnownPhysicalMouseX = null;
       lastKnownPhysicalMouseY = null;
+
+      if (dayBox) {
+        dayBox.remove();
+        dayBox = null;
+      }
     }
   };
 
@@ -222,7 +230,8 @@ export const initializePaperCanvas = ({
 
       uiGroup.removeChildren();
       dataGroup.removeChildren();
-      verticalLine = null;
+      // verticalLine = null;
+      dayBox = null;
 
       const logicalCanvasWidth = Math.max(clientWidth, minCanvasWidth);
       drawCalendar(dataGroup, dataAvailabilityItems, logicalCanvasWidth);

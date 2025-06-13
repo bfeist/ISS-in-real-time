@@ -22,7 +22,7 @@ const compat = new FlatCompat({
 
 export default [
   {
-    ignores: ["**/public/**/*", "**/coverage", "**/.local", "coverage/*"],
+    ignores: ["**/public/**/*", "**/coverage", "**/.local", "coverage/*", "**/.venv"],
   },
   ...fixupConfigRules(
     compat.extends("prettier", "plugin:react-hooks/recommended", "plugin:jsx-a11y/recommended")
