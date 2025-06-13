@@ -1,9 +1,8 @@
-import { FunctionComponent, useEffect, useRef, useState, useCallback } from "react";
+import { FunctionComponent, useEffect, useRef, useCallback } from "react";
 import styles from "./headerTelemetry.module.css";
 import * as satellite from "satellite.js";
 import { findClosestEphemeraItem } from "utils/map";
 import { timeStrFromAppSeconds } from "utils/time";
-import ClockInterval from "./clockInterval";
 import { useClockState } from "store";
 
 const HeaderTelemetry: FunctionComponent<{
@@ -15,23 +14,10 @@ const HeaderTelemetry: FunctionComponent<{
   const latRef = useRef<HTMLSpanElement>(null);
   const lngRef = useRef<HTMLSpanElement>(null);
 
-  const [appSeconds, setAppSeconds] = useState(0);
-  const [lastAppSecondsUpdate, setLastAppSecondsUpdate] = useState(Date.now());
-
-  const { isRunning } = useClockState();
-
-  // Update lastAppSecondsUpdate when appSeconds changes
-  useEffect(() => {
-    setLastAppSecondsUpdate(Date.now());
-  }, [appSeconds]);
+  const { appSecondsAtStartStop, isRunning, startStopTimestamp } = useClockState();
 
   const calcTelemetryAnimationFrame = useCallback(
-    (
-      satrec: satellite.SatRec,
-      currentTime: Date,
-      lastAppSecondsUpdate: number,
-      isRunning: boolean
-    ): (() => void) => {
+    (satrec: satellite.SatRec, baseTime: Date, isRunning: boolean): (() => void) => {
       let frameId: number;
 
       const animationFrame = () => {
@@ -39,12 +25,13 @@ const HeaderTelemetry: FunctionComponent<{
           // If not running, don't update and don't request a new frame
           return;
         }
-        // Calculate elapsed milliseconds since last appSeconds update
-        const now = Date.now();
-        const elapsedMs = now - lastAppSecondsUpdate;
 
-        // Create date with partial seconds
-        currentTime.setMilliseconds(currentTime.getMilliseconds() + elapsedMs);
+        // Calculate current time with millisecond precision directly
+        const currentTimeMs =
+          Date.parse(startStopTimestamp) +
+          appSecondsAtStartStop * 1000 +
+          (Date.now() - Date.parse(startStopTimestamp));
+        const currentTime = new Date(currentTimeMs);
 
         // Convert JS date to required time format
         const positionAndVelocity = satellite.propagate(satrec, currentTime);
@@ -89,22 +76,27 @@ const HeaderTelemetry: FunctionComponent<{
       frameId = requestAnimationFrame(animationFrame);
       return () => cancelAnimationFrame(frameId);
     },
-    [velocityRef, altitudeRef, latRef, lngRef] // isRunning will be added to dependencies of useEffect that calls this
+    [velocityRef, altitudeRef, latRef, lngRef, appSecondsAtStartStop, startStopTimestamp]
   );
 
   useEffect(() => {
-    const startTime = new Date(`${viewDate}T${timeStrFromAppSeconds(appSeconds)}Z`);
+    // Calculate current app seconds for finding ephemeris
+    const currentAppSeconds = isRunning
+      ? Math.floor(appSecondsAtStartStop + (Date.now() - Date.parse(startStopTimestamp)) / 1000)
+      : appSecondsAtStartStop;
+
+    const startTime = new Date(`${viewDate}T${timeStrFromAppSeconds(currentAppSeconds)}Z`);
     const ephemeris = findClosestEphemeraItem(startTime, ephemeraItems);
 
     // Parse TLE into a satellite record
     const satrec = satellite.twoline2satrec(ephemeris.tle_line1, ephemeris.tle_line2);
-    const currentTime = new Date(`${viewDate}T${timeStrFromAppSeconds(appSeconds)}Z`);
+    const baseTime = new Date(`${viewDate}T${timeStrFromAppSeconds(currentAppSeconds)}Z`);
 
     // Only start the animation if isRunning is true.
     // The cleanup function will handle stopping it if isRunning becomes false or other dependencies change.
     let cleanup = () => {};
     if (isRunning) {
-      cleanup = calcTelemetryAnimationFrame(satrec, currentTime, lastAppSecondsUpdate, isRunning);
+      cleanup = calcTelemetryAnimationFrame(satrec, baseTime, isRunning);
     }
 
     return () => {
@@ -112,16 +104,15 @@ const HeaderTelemetry: FunctionComponent<{
     };
   }, [
     viewDate,
-    appSeconds,
     ephemeraItems,
-    lastAppSecondsUpdate,
     calcTelemetryAnimationFrame,
     isRunning,
+    appSecondsAtStartStop,
+    startStopTimestamp,
   ]);
 
   return (
     <>
-      <ClockInterval setAppSeconds={setAppSeconds} />
       <div className={styles.telemetry}>
         <div>
           Velocity: <span ref={velocityRef} /> km/h
