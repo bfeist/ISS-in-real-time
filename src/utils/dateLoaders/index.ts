@@ -1,4 +1,5 @@
 export { getDatePageData } from "./dateSlug";
+import { cleanCrewName } from "../nameUtils";
 
 export async function getDataAvailabilities(): Promise<GetDataIndexPageDataResponse> {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL.replace("\\x3a", ":");
@@ -45,7 +46,10 @@ export async function getDataAvailabilities(): Promise<GetDataIndexPageDataRespo
           response.ok ? response.json() : Promise.resolve([])
       )
       .then((data: CrewArrDepItem[]): void => {
-        crewArrDep = data;
+        crewArrDep = data.map((crew) => ({
+          ...crew,
+          name: cleanCrewName(crew.name) || crew.name,
+        }));
       })
       .catch(() => {
         console.error("Failed to fetch Crew Arrival/Departure data");

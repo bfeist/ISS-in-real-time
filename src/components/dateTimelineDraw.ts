@@ -37,6 +37,7 @@ export const initializePaperCanvas = ({
   const minCanvasWidth = 1500;
   const MAX_SCROLL_SPEED = 20;
   const hoverMargin = 50;
+  const YEARS_AREA_HEIGHT = 12;
 
   const uiGroup = new paper.Group();
   const dataGroup = new paper.Group();
@@ -80,7 +81,10 @@ export const initializePaperCanvas = ({
       scrollDirection = 0;
     }
 
-    if (!dayBox) {
+    // Hide red box if mouse is in years area (top 12 pixels)
+    const isInYearsArea = event.point.y < YEARS_AREA_HEIGHT;
+
+    if (!dayBox && !isInYearsArea) {
       dayBox = new paper.Path.Rectangle({
         point: new paper.Point(event.point.x - 3, event.point.y - 3),
         size: new paper.Size(6, 6),
@@ -89,7 +93,7 @@ export const initializePaperCanvas = ({
         strokeWidth: 2,
       });
       uiGroup.addChild(dayBox);
-    } else {
+    } else if (dayBox && !isInYearsArea) {
       dayBox.segments[0].point.x = event.point.x - 3;
       dayBox.segments[0].point.y = event.point.y - 3;
       dayBox.segments[1].point.x = event.point.x + 3;
@@ -98,14 +102,20 @@ export const initializePaperCanvas = ({
       dayBox.segments[2].point.y = event.point.y + 3;
       dayBox.segments[3].point.x = event.point.x - 3;
       dayBox.segments[3].point.y = event.point.y + 3;
+    } else if (dayBox && isInYearsArea) {
+      dayBox.remove();
+      dayBox = null;
     }
 
-    const effectiveMouseX = event.point.x - currentOffsetX;
-    hoverCallback({
-      mouseX: effectiveMouseX,
-      mouseY: event.point.y,
-      canvasWidth: Math.max(viewWidth, minCanvasWidth),
-    });
+    // Don't send hover callback if in years area
+    if (!isInYearsArea) {
+      const effectiveMouseX = event.point.x - currentOffsetX;
+      hoverCallback({
+        mouseX: effectiveMouseX,
+        mouseY: event.point.y,
+        canvasWidth: Math.max(viewWidth, minCanvasWidth),
+      });
+    }
   };
 
   tool.onMouseUp = (event: paper.ToolEvent) => {
@@ -113,13 +123,18 @@ export const initializePaperCanvas = ({
     lastKnownPhysicalMouseY = event.point.y;
     const viewWidth = canvasElement.clientWidth;
 
-    // Calculate effective mouse position considering the offset (which is 0 for wide views anyway)
-    const effectiveMouseX = event.point.x - currentOffsetX;
-    clickCallback({
-      mouseX: effectiveMouseX,
-      mouseY: event.point.y,
-      canvasWidth: Math.max(viewWidth, minCanvasWidth),
-    });
+    // Don't handle clicks in years area
+    const isInYearsArea = event.point.y < YEARS_AREA_HEIGHT;
+
+    if (!isInYearsArea) {
+      // Calculate effective mouse position considering the offset (which is 0 for wide views anyway)
+      const effectiveMouseX = event.point.x - currentOffsetX;
+      clickCallback({
+        mouseX: effectiveMouseX,
+        mouseY: event.point.y,
+        canvasWidth: Math.max(viewWidth, minCanvasWidth),
+      });
+    }
   };
 
   const onViewFrame = () => {
@@ -196,8 +211,11 @@ export const initializePaperCanvas = ({
       event.clientY >= rect.top &&
       event.clientY <= rect.bottom;
 
-    if (!isInside) {
-      // Stop scrolling when mouse leaves canvas
+    // Also consider years area (top 12 pixels) as out of bounds
+    const isInYearsArea = isInside && event.clientY - rect.top < YEARS_AREA_HEIGHT;
+
+    if (!isInside || isInYearsArea) {
+      // Stop scrolling when mouse leaves canvas or enters years area
       scrollDirection = 0;
       currentScrollSpeed = 0;
 
@@ -234,7 +252,7 @@ export const initializePaperCanvas = ({
       dayBox = null;
 
       const logicalCanvasWidth = Math.max(clientWidth, minCanvasWidth);
-      drawCalendar(dataGroup, dataAvailabilityItems, logicalCanvasWidth);
+      drawCalendar(dataGroup, dataAvailabilityItems, logicalCanvasWidth, YEARS_AREA_HEIGHT);
 
       let newTargetOffsetX;
       if (clientWidth < minCanvasWidth) {
@@ -270,7 +288,8 @@ export const initializePaperCanvas = ({
 function drawCalendar(
   group: paper.Group,
   dataAvailabilityItems: DataAvailability[],
-  canvasLogicalWidth: number
+  canvasLogicalWidth: number,
+  yearsAreaHeight: number
 ): void {
   // epoch is Nov 2, 2000.
   const epochYear = 2000;
@@ -305,7 +324,7 @@ function drawCalendar(
 
   // Calculate day height based on maximum possible days in a month (31)
   const maxDaysInMonth = 31;
-  const dayMarkerTopOffset = 12;
+  const dayMarkerTopOffset = yearsAreaHeight;
   const dayHeight = (paper.view.bounds.height - dayMarkerTopOffset) / maxDaysInMonth;
 
   // Draw months and days
