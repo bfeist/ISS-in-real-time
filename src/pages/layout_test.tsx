@@ -349,13 +349,26 @@ const NoPhotosOrVideo: FunctionComponent<{
 
 const LayoutTest: FunctionComponent<{
   setSelectedDate: (date: string | null) => void;
-}> = ({ setSelectedDate }) => {
+  dataAvailability?: DataAvailability;
+}> = ({ setSelectedDate, dataAvailability }) => {
   // Independent toggles for all sections
   const [showVideo, setShowVideo] = useState(true);
   const [showPhotos, setShowPhotos] = useState(true);
   const [showArticles, setShowArticles] = useState(true);
   const [showEVA, setShowEVA] = useState(true);
   const [showComm, setShowComm] = useState(true);
+
+  // Update state based on data availability when provided
+  useEffect(() => {
+    if (dataAvailability) {
+      setShowVideo(dataAvailability.youtube);
+      setShowPhotos(dataAvailability.earthPhotography);
+      setShowArticles(dataAvailability.blog);
+      setShowEVA(dataAvailability.eva);
+      setShowComm(dataAvailability.comm || dataAvailability.vvComm);
+    }
+  }, [dataAvailability]);
+
   const { width } = useViewport();
   const isMobile = width <= 1000;
 

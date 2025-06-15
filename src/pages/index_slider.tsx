@@ -16,6 +16,8 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
   const indexPageData = useLoaderData() as GetDataIndexPageDataResponse;
 
   const [selectedDate, setSelectedDate] = useState<string>();
+  const [selectedDateDataAvailability, setSelectedDateDataAvailability] =
+    useState<DataAvailability | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [calculatedDate, setCalculatedDate] = useState<{
@@ -146,15 +148,31 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
         );
 
         if (day) {
-          setSelectedDate(
-            `${monthInfo.year}-${String(monthInfo.month + 1).padStart(2, "0")}-${String(
-              day
-            ).padStart(2, "0")}`
+          const dateString = `${monthInfo.year}-${String(monthInfo.month + 1).padStart(2, "0")}-${String(
+            day
+          ).padStart(2, "0")}`;
+          setSelectedDate(dateString);
+
+          // Find data availability for this date
+          const dataAvailability = indexPageData.dataAvailabilityItems.find(
+            (item) => item.date === dateString
+          );
+          setSelectedDateDataAvailability(
+            dataAvailability || {
+              date: dateString,
+              comm: false,
+              vvComm: false,
+              youtube: false,
+              eva: false,
+              blog: false,
+              activitySummary: false,
+              earthPhotography: false,
+            }
           );
         }
       }
     },
-    []
+    [indexPageData.dataAvailabilityItems]
   );
 
   useEffect(() => {
@@ -191,8 +209,11 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
               )}-${String(calculatedDate.day).padStart(2, "0")}`
             : "Hover over the timeline to select a date"}
       </div>
-      {selectedDate ? (
-        <LayoutTest setSelectedDate={setSelectedDate} />
+      {selectedDate && selectedDateDataAvailability ? (
+        <LayoutTest
+          setSelectedDate={setSelectedDate}
+          dataAvailability={selectedDateDataAvailability}
+        />
       ) : (
         <YearsHoverAndSearch
           crewOnboardList={crewOnboardList}
