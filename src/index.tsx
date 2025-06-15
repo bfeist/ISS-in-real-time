@@ -20,7 +20,7 @@ const router = createBrowserRouter(
     <Route path="/" element={<App />}>
       <Route index element={<Home />} loader={getDataAvailabilities} />
       <Route path="date/:date" element={<DatePage />} loader={getDatePageData} />
-      <Route path="layout_test" element={<LayoutTest />} />
+      <Route path="layout_test" element={<LayoutTest setSelectedDate={() => {}} />} />
       <Route path="index_slider" element={<IndexSlider />} loader={getDataAvailabilities} />
     </Route>
   )

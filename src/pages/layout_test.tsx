@@ -347,7 +347,9 @@ const NoPhotosOrVideo: FunctionComponent<{
   );
 };
 
-const LayoutTest: FunctionComponent = () => {
+const LayoutTest: FunctionComponent<{
+  setSelectedDate: (date: string | null) => void;
+}> = ({ setSelectedDate }) => {
   // Independent toggles for all sections
   const [showVideo, setShowVideo] = useState(true);
   const [showPhotos, setShowPhotos] = useState(true);
@@ -386,6 +388,13 @@ const LayoutTest: FunctionComponent = () => {
 
   return (
     <div className={styles.outerWrapper}>
+      <button
+        className={styles.closeButton}
+        onClick={() => setSelectedDate(null)}
+        aria-label="Close"
+      >
+        ×
+      </button>
       <LayoutTestControls
         showVideo={showVideo}
         showPhotos={showPhotos}

@@ -2,25 +2,20 @@ import styles from "./index_slider.module.css";
 import { FunctionComponent, JSX, useEffect, useRef, useState, useCallback } from "react";
 import { initializePaperCanvas, clearPaperCanvas } from "../components/dateTimelineDraw";
 import { calculateMonthByX, calculateDayByY } from "../utils/indexSliderCalcs";
-import { useLoaderData, useNavigate } from "react-router";
+import { useLoaderData } from "react-router";
 import paper from "paper";
 import {
   getActiveFlightsByDate,
   getActiveSupplyFlightsByDate,
   getCrewMembersOnboardByDate,
 } from "utils/onboard";
-import CrewSearch from "components/crewSearch";
+import YearsHoverAndSearch from "../components/yearsHoverAndSearch";
+import LayoutTest from "./layout_test";
 
 const SliderPage: FunctionComponent = (): JSX.Element => {
   const indexPageData = useLoaderData() as GetDataIndexPageDataResponse;
 
-  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<string>();
-  useEffect(() => {
-    if (selectedDate) {
-      navigate(`/date/${selectedDate}`);
-    }
-  }, [selectedDate, navigate]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [calculatedDate, setCalculatedDate] = useState<{
@@ -187,45 +182,27 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
     <div className={styles.page}>
       <canvas ref={canvasRef} className={styles.paperCanvas} />
       <div className={styles.selectedDateDisplay}>
-        {calculatedDate && calculatedDate.day !== null
-          ? `Selected Date: ${calculatedDate.year}-${String(calculatedDate.month + 1).padStart(
-              2,
-              "0"
-            )}-${String(calculatedDate.day).padStart(2, "0")}`
-          : "Hover over the timeline to see the date"}
+        {selectedDate
+          ? `Selected Date: ${selectedDate}`
+          : calculatedDate && calculatedDate.day !== null
+            ? `${calculatedDate.year}-${String(calculatedDate.month + 1).padStart(
+                2,
+                "0"
+              )}-${String(calculatedDate.day).padStart(2, "0")}`
+            : "Hover over the timeline to select a date"}
       </div>
-      <div className={styles.dataLists}>
-        <div className={styles.dataItem}>
-          <h2>Crew Onboard</h2>
-          {crewOnboardList.length > 0 &&
-            crewOnboardList.map((name) => <div key={name}>{name}</div>)}
-        </div>
-        <div className={styles.dataItem}>
-          <h2>Crew Vehicles Docked</h2>
-          {flightsDocked.length > 0 && (
-            <div>
-              {flightsDocked.map((name) => (
-                <div key={name}>{name}</div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className={styles.dataItem}>
-          <h2>Supply Vehicles Docked</h2>
-          {supplyFlightsDocked.length > 0 && (
-            <div>
-              {supplyFlightsDocked.map((name) => (
-                <div key={name}>{name}</div>
-              ))}
-            </div>
-          )}
-        </div>
-        <CrewSearch
+      {selectedDate ? (
+        <LayoutTest setSelectedDate={setSelectedDate} />
+      ) : (
+        <YearsHoverAndSearch
+          crewOnboardList={crewOnboardList}
+          flightsDocked={flightsDocked}
+          supplyFlightsDocked={supplyFlightsDocked}
           crewArrDep={indexPageData.crewArrDep}
           selectedCrewMember={selectedCrewMember}
           setSelectedCrewMember={setSelectedCrewMember}
         />
-      </div>
+      )}
     </div>
   );
 };
