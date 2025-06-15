@@ -37,7 +37,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
   useEffect(() => {
     if (selectedCrewMember) {
       const crewStays = indexPageData.crewArrDep.filter(
-        (item) => item.name === selectedCrewMember.name
+        (item) => `${item.name_first} ${item.name_last}` === selectedCrewMember.name
       );
       setSelectedCrewStays(crewStays);
     } else {
@@ -88,11 +88,11 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
                 return arrivalDateA.localeCompare(arrivalDateB);
               }
               // If arrival dates are the same, sort by name
-              const nameA = a.name || "";
-              const nameB = b.name || "";
+              const nameA = `${a.name_first} ${a.name_last}` || "";
+              const nameB = `${b.name_first} ${b.name_last}` || "";
               return nameA.localeCompare(nameB);
             })
-            .map((crewMember) => crewMember.name);
+            .map((crewMember) => `${crewMember.name_first} ${crewMember.name_last}`);
           setCrewOnboardList(crewNames);
         }
 

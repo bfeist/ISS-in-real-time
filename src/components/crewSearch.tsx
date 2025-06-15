@@ -13,18 +13,18 @@ const CrewSearch: FunctionComponent<{
 
     // For each crew member, only keep the most recent visit (based on arrival date)
     crewArrDep.forEach((crew) => {
-      const existingCrew = uniqueCrewMap.get(crew.name);
+      const existingCrew = uniqueCrewMap.get(crew.name_first + " " + crew.name_last);
 
       // If this is the first time we're seeing this name, or this visit is more recent
       if (!existingCrew || new Date(crew.arrivalDate) > new Date(existingCrew.arrivalDate)) {
-        uniqueCrewMap.set(crew.name, crew);
+        uniqueCrewMap.set(crew.name_first + " " + crew.name_last, crew);
       }
     });
 
     // Convert the map back to an array and format for display
     return Array.from(uniqueCrewMap.values())
       .map((crew) => ({
-        name: crew.name,
+        name: crew.name_first + " " + crew.name_last,
         nationality: crew.nationality,
       }))
       .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by name

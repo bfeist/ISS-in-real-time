@@ -67,7 +67,10 @@ type CrewItem = {
 };
 
 type CrewArrDepItem = {
-  name: string;
+  name_first: string;
+  name_middle: string;
+  name_last: string;
+  name_suffix: string;
   nationality: string;
   arrivalDate: string;
   arrivalFlight: string;
