@@ -148,9 +148,6 @@ const MobileLayout: FunctionComponent<{
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <div className={styles.headerTop}>
-          <FakeSection name="header" />
-        </div>
         <div className={styles.headerBottom}>
           <FakeSection name="timeline" />
         </div>
@@ -190,9 +187,6 @@ const VideoPhotos: FunctionComponent<{
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <div className={styles.headerTop}>
-          <FakeSection name="header" />
-        </div>
         <div className={styles.headerBottom}>
           <FakeSection name="timeline" />
         </div>
@@ -233,9 +227,6 @@ const VideoOnly: FunctionComponent<{
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <div className={styles.headerTop}>
-          <FakeSection name="header" />
-        </div>
         <div className={styles.headerBottom}>
           <FakeSection name="timeline" />
         </div>
@@ -275,9 +266,6 @@ const PhotosOnly: FunctionComponent<{
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <div className={styles.headerTop}>
-          <FakeSection name="header" />
-        </div>
         <div className={styles.headerBottom}>
           <FakeSection name="timeline" />
         </div>
@@ -318,9 +306,6 @@ const NoPhotosOrVideo: FunctionComponent<{
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <div className={styles.headerTop}>
-          <FakeSection name="header" />
-        </div>
         <div className={styles.headerBottom}>
           <FakeSection name="timeline" />
         </div>

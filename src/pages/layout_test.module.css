@@ -41,13 +41,9 @@
 /* Section specific styles - removed general rule */
 
 .header {
-  flex: 0 0 200px;
+  flex: 0;
   display: flex;
   flex-direction: column;
-}
-
-.headerTop {
-  flex: 0 0 150px;
 }
 
 .headerBottom {
