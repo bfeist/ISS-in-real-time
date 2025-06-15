@@ -40,7 +40,7 @@ export async function getDataAvailabilities(): Promise<GetDataIndexPageDataRespo
   );
 
   fetchPromises.push(
-    fetch(`${baseStaticUrl}/crew_arr_dep.json`)
+    fetch(`${baseStaticUrl}/iss_crew_arr_dep.json`)
       .then(
         (response): Promise<CrewArrDepItem[]> =>
           response.ok ? response.json() : Promise.resolve([])

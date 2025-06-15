@@ -3,12 +3,13 @@ import paper from "paper";
 export const initializePaperCanvas = ({
   canvasElement,
   dataAvailabilityItems,
+  selectedCrewStays,
   hoverCallback,
   clickCallback,
 }: {
   canvasElement: HTMLCanvasElement;
-
   dataAvailabilityItems: DataAvailability[];
+  selectedCrewStays: CrewArrDepItem[];
   hoverCallback: ({
     mouseX,
     mouseY,
@@ -47,7 +48,7 @@ export const initializePaperCanvas = ({
 
   const dataMatrix = new paper.Matrix();
   dataGroup.matrix = dataMatrix;
-  paper.project.activeLayer.addChildren([uiGroup, dataGroup]);
+  paper.project.activeLayer.addChildren([dataGroup, uiGroup]); // Swapped order so uiGroup is on top
 
   let dayBox: paper.Path.Rectangle | null = null;
   const tool = new paper.Tool();
@@ -252,7 +253,13 @@ export const initializePaperCanvas = ({
       dayBox = null;
 
       const logicalCanvasWidth = Math.max(clientWidth, minCanvasWidth);
-      drawCalendar(dataGroup, dataAvailabilityItems, logicalCanvasWidth, YEARS_AREA_HEIGHT);
+      drawCalendar(
+        dataGroup,
+        dataAvailabilityItems,
+        logicalCanvasWidth,
+        YEARS_AREA_HEIGHT,
+        selectedCrewStays
+      );
 
       let newTargetOffsetX;
       if (clientWidth < minCanvasWidth) {
@@ -289,7 +296,8 @@ function drawCalendar(
   group: paper.Group,
   dataAvailabilityItems: DataAvailability[],
   canvasLogicalWidth: number,
-  yearsAreaHeight: number
+  yearsAreaHeight: number,
+  selectedCrewStays: CrewArrDepItem[]
 ): void {
   // epoch is Nov 2, 2000.
   const epochYear = 2000;
@@ -348,6 +356,7 @@ function drawCalendar(
       dayMarkerTopOffset,
       maxDaysInMonth,
       dataAvailabilityItems,
+      selectedCrewStays,
     });
   }
 }
@@ -407,6 +416,7 @@ function drawDaysForMonth({
   dayMarkerTopOffset,
   maxDaysInMonth,
   dataAvailabilityItems,
+  selectedCrewStays,
 }: {
   group: paper.Group;
   month: { date: Date; daysInMonth: number };
@@ -415,6 +425,7 @@ function drawDaysForMonth({
   dayMarkerTopOffset: number;
   maxDaysInMonth: number;
   dataAvailabilityItems: DataAvailability[];
+  selectedCrewStays: CrewArrDepItem[];
 }): void {
   // Define colors based on data availability
   const colors = {
@@ -424,6 +435,22 @@ function drawDaysForMonth({
     youtube: new paper.Color("blue"), // Blue for YouTube
   };
 
+  // Helper function to check if a date is within crew member's time on board
+  const isDateInCrewPeriod = (checkDate: Date): boolean => {
+    if (!selectedCrewStays || selectedCrewStays.length === 0) return false;
+
+    return selectedCrewStays.some((stay) => {
+      const arrivalDate = new Date(stay.arrivalDate);
+      const departureDate = new Date(stay.departureDate);
+      // Set time to start of day for accurate comparison
+      arrivalDate.setHours(0, 0, 0, 0);
+      departureDate.setHours(23, 59, 59, 999);
+      checkDate.setHours(12, 0, 0, 0); // Set to noon for consistent comparison
+
+      return checkDate >= arrivalDate && checkDate <= departureDate;
+    });
+  };
+
   // Draw day boxes within this month
   for (let day = 1; day <= maxDaysInMonth; day++) {
     // Y position - day 1 at top + offset
@@ -431,7 +458,7 @@ function drawDaysForMonth({
 
     // Only add day marker if this month actually has this day
     if (day <= month.daysInMonth) {
-      // Create date string in ISO format (YYYY-MM-DD)
+      // Create date object for this specific day
       const currentDate = new Date(month.date);
       currentDate.setDate(day);
       const dateString = currentDate.toISOString().split("T")[0];
@@ -453,13 +480,33 @@ function drawDaysForMonth({
         } else {
           dayColor = colors.noData;
         }
-
-        // Make EVA days bolder
-        if (dayItem.eva) {
-          boxSideSize = 4; // Make EVA days slightly larger
-        }
       } else {
         dayColor = colors.noData;
+      }
+
+      // Make EVA days bolder
+      if (dayItem && dayItem.eva) {
+        boxSideSize = 4; // Make EVA days slightly larger
+      }
+
+      // Add background if this date is within selected crew member's time on board
+      // Draw this BEFORE the day box so it appears behind
+      if (isDateInCrewPeriod(new Date(currentDate))) {
+        const backgroundPadding = 2;
+        const backgroundBox = new paper.Path.Rectangle({
+          point: new paper.Point(
+            monthStartX + 2 - backgroundPadding,
+            dayY + (dayHeight - boxSideSize) / 2 - backgroundPadding
+          ),
+          size: new paper.Size(
+            boxSideSize + 2 * backgroundPadding,
+            boxSideSize + 2 * backgroundPadding
+          ),
+          fillColor: new paper.Color("yellow"),
+          strokeColor: null,
+          strokeWidth: 0,
+        });
+        group.addChild(backgroundBox);
       }
 
       // Create a small box for each day

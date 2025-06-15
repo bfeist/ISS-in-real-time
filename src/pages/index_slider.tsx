@@ -31,6 +31,19 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
   const [crewOnboardList, setCrewOnboardList] = useState<string[]>([]);
   const [flightsDocked, setFlightsDocked] = useState<string[]>([]);
   const [supplyFlightsDocked, setSupplyFlightsDocked] = useState<string[]>([]);
+  const [selectedCrewMember, setSelectedCrewMember] = useState<CrewMember | null>(null);
+  const [selectedCrewStays, setSelectedCrewStays] = useState<CrewArrDepItem[]>([]);
+
+  useEffect(() => {
+    if (selectedCrewMember) {
+      const crewStays = indexPageData.crewArrDep.filter(
+        (item) => item.name === selectedCrewMember.name
+      );
+      setSelectedCrewStays(crewStays);
+    } else {
+      setSelectedCrewStays([]);
+    }
+  }, [selectedCrewMember, indexPageData.crewArrDep]);
 
   const hoverCallback = useCallback(
     ({
@@ -69,11 +82,15 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
           const crewNames = crewOnboard
             .sort((a, b) => {
               // First sort by arrival date (earliest first)
-              if (a.arrivalDate !== b.arrivalDate) {
-                return a.arrivalDate.localeCompare(b.arrivalDate);
+              const arrivalDateA = a.arrivalDate || "";
+              const arrivalDateB = b.arrivalDate || "";
+              if (arrivalDateA !== arrivalDateB) {
+                return arrivalDateA.localeCompare(arrivalDateB);
               }
               // If arrival dates are the same, sort by name
-              return a.name.localeCompare(b.name);
+              const nameA = a.name || "";
+              const nameB = b.name || "";
+              return nameA.localeCompare(nameB);
             })
             .map((crewMember) => crewMember.name);
           setCrewOnboardList(crewNames);
@@ -151,6 +168,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
       const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
         canvasElement: canvas,
         dataAvailabilityItems: indexPageData.dataAvailabilityItems,
+        selectedCrewStays,
         hoverCallback,
         clickCallback,
       });
@@ -163,7 +181,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
         clearPaperCanvas();
       };
     }
-  }, [hoverCallback, clickCallback, indexPageData.dataAvailabilityItems]);
+  }, [hoverCallback, clickCallback, indexPageData.dataAvailabilityItems, selectedCrewStays]);
 
   return (
     <div className={styles.page}>
@@ -202,7 +220,11 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
             </div>
           )}
         </div>
-        <CrewSearch crewArrDep={indexPageData.crewArrDep} />
+        <CrewSearch
+          crewArrDep={indexPageData.crewArrDep}
+          selectedCrewMember={selectedCrewMember}
+          setSelectedCrewMember={setSelectedCrewMember}
+        />
       </div>
     </div>
   );

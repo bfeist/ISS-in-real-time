@@ -76,6 +76,11 @@ type CrewArrDepItem = {
   durationDays: string;
 };
 
+type CrewMember = {
+  name: string;
+  nationality: string;
+};
+
 type ExpeditionInfo = {
   expedition: number;
   start: string;
