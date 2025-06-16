@@ -1,37 +1,3 @@
-const calculateMonthByX = (
-  x: number | null,
-  currentCanvasWidth: number | null
-): { year: number; month: number } | null => {
-  if (x === null || currentCanvasWidth === null || currentCanvasWidth <= 0) {
-    return null;
-  }
-  // epoch is Nov 2, 2000.
-  const epochYear = 2000;
-  const epochMonth = 10; // November (0-indexed)
-
-  // Calculate totalMonths from epoch to now
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-indexed
-  const totalMonthsSinceEpoch = (currentYear - epochYear) * 12 + (currentMonth - epochMonth) + 1;
-
-  if (totalMonthsSinceEpoch <= 0) {
-    return null;
-  }
-
-  const proportion = x / currentCanvasWidth;
-  const selectedMonthIndexFromEpoch = Math.floor(proportion * totalMonthsSinceEpoch);
-
-  const targetYear = epochYear + Math.floor(selectedMonthIndexFromEpoch / 12);
-  let newCalculatedMonth = epochMonth + (selectedMonthIndexFromEpoch % 12);
-  let newCalculatedYear = targetYear;
-
-  newCalculatedYear += Math.floor(newCalculatedMonth / 12);
-  newCalculatedMonth = newCalculatedMonth % 12;
-
-  return { year: newCalculatedYear, month: newCalculatedMonth };
-};
-
 const calculateDayByY = (
   y: number | null,
   currentCanvasHeight: number | null,
@@ -75,21 +41,72 @@ export const calculateDateFromPosition = (
     return null;
   }
 
-  const monthInfo = calculateMonthByX(x, currentCanvasWidth);
-  if (!monthInfo) {
+  // Use the same epoch and calculation logic as the drawing code
+  const epochYear = 2000;
+  const epochMonth = 10; // November (0-indexed)
+
+  // Calculate total days from epoch to now (same as drawing code)
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+  const totalMonthsSinceEpoch = (currentYear - epochYear) * 12 + (currentMonth - epochMonth) + 1;
+
+  let totalDaysSinceEpoch = 0;
+  const allMonths = [];
+
+  // Build the same month structure as the drawing code
+  for (let i = 0; i < totalMonthsSinceEpoch; i++) {
+    const monthDate = new Date(epochYear, epochMonth + i, 1);
+    const nextMonth = new Date(monthDate);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    nextMonth.setDate(0);
+    const daysInMonth = nextMonth.getDate();
+
+    allMonths.push({
+      date: monthDate,
+      daysInMonth,
+      startDay: totalDaysSinceEpoch,
+    });
+
+    totalDaysSinceEpoch += daysInMonth;
+  }
+
+  // Calculate which day we're hovering over using the same logic as drawing
+  const dayProportion = x / currentCanvasWidth;
+  const hoveredDayIndex = Math.floor(dayProportion * totalDaysSinceEpoch);
+
+  // Find which month this day belongs to
+  let targetMonth = null;
+  let dayWithinMonth = 0;
+
+  for (const month of allMonths) {
+    if (hoveredDayIndex >= month.startDay && hoveredDayIndex < month.startDay + month.daysInMonth) {
+      targetMonth = month;
+      dayWithinMonth = hoveredDayIndex - month.startDay + 1; // +1 because days are 1-indexed
+      break;
+    }
+  }
+
+  if (!targetMonth || dayWithinMonth < 1) {
     return null;
   }
 
+  // Calculate day from Y position
   const day = calculateDayByY(
     y - yearsAreaHeight,
     currentCanvasHeight - yearsAreaHeight,
-    monthInfo.year,
-    monthInfo.month
+    targetMonth.date.getFullYear(),
+    targetMonth.date.getMonth()
   );
 
   if (!day) {
     return null;
   }
 
-  return `${monthInfo.year}-${String(monthInfo.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  // Make sure the calculated day exists in the target month
+  if (day > targetMonth.daysInMonth) {
+    return null;
+  }
+
+  return `${targetMonth.date.getFullYear()}-${String(targetMonth.date.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 };
