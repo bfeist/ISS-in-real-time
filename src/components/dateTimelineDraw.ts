@@ -1,4 +1,5 @@
 import paper from "paper";
+import { calculateDateFromPosition } from "../utils/indexSliderCalcs";
 
 export const initializePaperCanvas = ({
   canvasElement,
@@ -10,24 +11,8 @@ export const initializePaperCanvas = ({
   canvasElement: HTMLCanvasElement;
   dataAvailabilityItems: DataAvailability[];
   selectedCrewStays: CrewArrDepItem[];
-  hoverCallback: ({
-    mouseX,
-    mouseY,
-    canvasWidth,
-  }: {
-    mouseX: number | null;
-    mouseY: number | null;
-    canvasWidth: number | null;
-  }) => void;
-  clickCallback: ({
-    mouseX,
-    mouseY,
-    canvasWidth,
-  }: {
-    mouseX: number | null;
-    mouseY: number | null;
-    canvasWidth: number | null;
-  }) => void;
+  hoverCallback: ({ hoveredDate }: { hoveredDate: string | null }) => void;
+  clickCallback: ({ clickedDate }: { clickedDate: string | null }) => void;
 }): {
   drawPaperItems: () => void;
   cleanupInputHandlers: () => void;
@@ -111,11 +96,18 @@ export const initializePaperCanvas = ({
     // Don't send hover callback if in years area
     if (!isInYearsArea) {
       const effectiveMouseX = event.point.x - currentOffsetX;
-      hoverCallback({
-        mouseX: effectiveMouseX,
-        mouseY: event.point.y,
-        canvasWidth: Math.max(viewWidth, minCanvasWidth),
-      });
+      const viewWidth = canvasElement.clientWidth;
+
+      // Calculate the hovered date
+      const hoveredDate = calculateDateFromPosition(
+        effectiveMouseX,
+        event.point.y,
+        Math.max(viewWidth, minCanvasWidth),
+        paper.view?.bounds.height || null,
+        YEARS_AREA_HEIGHT
+      );
+
+      hoverCallback({ hoveredDate });
     }
   };
 
@@ -130,11 +122,17 @@ export const initializePaperCanvas = ({
     if (!isInYearsArea) {
       // Calculate effective mouse position considering the offset (which is 0 for wide views anyway)
       const effectiveMouseX = event.point.x - currentOffsetX;
-      clickCallback({
-        mouseX: effectiveMouseX,
-        mouseY: event.point.y,
-        canvasWidth: Math.max(viewWidth, minCanvasWidth),
-      });
+
+      // Calculate the clicked date
+      const clickedDate = calculateDateFromPosition(
+        effectiveMouseX,
+        event.point.y,
+        Math.max(viewWidth, minCanvasWidth),
+        paper.view?.bounds.height || null,
+        YEARS_AREA_HEIGHT
+      );
+
+      clickCallback({ clickedDate });
     }
   };
 
@@ -193,11 +191,18 @@ export const initializePaperCanvas = ({
       lastKnownPhysicalMouseY !== null
     ) {
       const effectiveMouseX = lastKnownPhysicalMouseX - currentOffsetX;
-      hoverCallback({
-        mouseX: effectiveMouseX,
-        mouseY: lastKnownPhysicalMouseY,
-        canvasWidth: Math.max(viewWidth, minCanvasWidth),
-      });
+      const viewWidth = canvasElement.clientWidth;
+
+      // Calculate the hovered date for the updated position
+      const hoveredDate = calculateDateFromPosition(
+        effectiveMouseX,
+        lastKnownPhysicalMouseY,
+        Math.max(viewWidth, minCanvasWidth),
+        paper.view?.bounds.height || null,
+        YEARS_AREA_HEIGHT
+      );
+
+      hoverCallback({ hoveredDate });
     }
   };
 
@@ -220,11 +225,7 @@ export const initializePaperCanvas = ({
       scrollDirection = 0;
       currentScrollSpeed = 0;
 
-      hoverCallback({
-        mouseX: null,
-        mouseY: null,
-        canvasWidth: Math.max(canvasElement.clientWidth, minCanvasWidth),
-      });
+      hoverCallback({ hoveredDate: null });
       // Reset last known positions after the "mouse out" callback
       lastKnownPhysicalMouseX = null;
       lastKnownPhysicalMouseY = null;

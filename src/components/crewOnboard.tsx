@@ -19,7 +19,7 @@ const CrewOnboard: FunctionComponent<{
     <div className={styles.crewOnboard}>
       <ClockInterval setAppSeconds={setAppSeconds} />
       {crewOnboard.map((crewItem) => (
-        <div key={`${crewItem.arrivalDate}_${crewItem.name}`}>
+        <div key={`${crewItem.arrivalDate}_${crewItem.name_first}_${crewItem.name_last}`}>
           <div>
             <div className={styles.crewName}>
               <img
@@ -27,7 +27,7 @@ const CrewOnboard: FunctionComponent<{
                 src={flagUrlByCountryName[crewItem.nationality]}
                 alt={crewItem.nationality}
               />
-              {crewItem.name}
+              {crewItem.name_first} {crewItem.name_last}
             </div>
             <div>Onboard: {ddhhmmssBetweenDateStrings(crewItem.arrivalDate, currentTimeStr)}</div>
             <div>

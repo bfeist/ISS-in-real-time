@@ -1,4 +1,4 @@
-export const calculateMonthByX = (
+const calculateMonthByX = (
   x: number | null,
   currentCanvasWidth: number | null
 ): { year: number; month: number } | null => {
@@ -32,7 +32,7 @@ export const calculateMonthByX = (
   return { year: newCalculatedYear, month: newCalculatedMonth };
 };
 
-export const calculateDayByY = (
+const calculateDayByY = (
   y: number | null,
   currentCanvasHeight: number | null,
   year: number | null,
@@ -62,4 +62,34 @@ export const calculateDayByY = (
 
   // Make sure it's a valid day (1 to actual days in month)
   return Math.min(Math.max(day, 1), actualDaysInMonth);
+};
+
+export const calculateDateFromPosition = (
+  x: number,
+  y: number,
+  currentCanvasWidth: number | null,
+  currentCanvasHeight: number | null,
+  yearsAreaHeight: number = 0
+): string | null => {
+  if (currentCanvasWidth === null || currentCanvasHeight === null) {
+    return null;
+  }
+
+  const monthInfo = calculateMonthByX(x, currentCanvasWidth);
+  if (!monthInfo) {
+    return null;
+  }
+
+  const day = calculateDayByY(
+    y - yearsAreaHeight,
+    currentCanvasHeight - yearsAreaHeight,
+    monthInfo.year,
+    monthInfo.month
+  );
+
+  if (!day) {
+    return null;
+  }
+
+  return `${monthInfo.year}-${String(monthInfo.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 };

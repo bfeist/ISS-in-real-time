@@ -1,9 +1,7 @@
 import styles from "./index_slider.module.css";
 import { FunctionComponent, JSX, useEffect, useRef, useState, useCallback } from "react";
 import { initializePaperCanvas, clearPaperCanvas } from "../components/dateTimelineDraw";
-import { calculateMonthByX, calculateDayByY } from "../utils/indexSliderCalcs";
 import { useLoaderData } from "react-router";
-import paper from "paper";
 import {
   getActiveFlightsByDate,
   getActiveSupplyFlightsByDate,
@@ -43,37 +41,22 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
   }, [selectedCrewMember, indexPageData.crewArrDep]);
 
   const hoverCallback = useCallback(
-    ({
-      mouseX,
-      mouseY,
-      canvasWidth,
-    }: {
-      mouseX: number | null;
-      mouseY: number | null;
-      canvasWidth: number | null;
-    }) => {
-      // Calculate date here
-      if (mouseX !== null && mouseY !== null && canvasWidth !== null) {
-        const monthInfo = calculateMonthByX(mouseX, canvasWidth);
-        const day = calculateDayByY(
-          mouseY,
-          paper.view?.bounds.height ?? null,
-          monthInfo.year,
-          monthInfo.month
-        );
+    ({ hoveredDate }: { hoveredDate: string | null }) => {
+      // Clear previous state
+      setCalculatedDate(null);
+      setCrewOnboardList([]);
+      setFlightsDocked([]);
+      setSupplyFlightsDocked([]);
 
-        if (day) {
-          setCalculatedDate({ ...monthInfo, day });
-        }
-
-        const date = `${monthInfo.year}-${String(monthInfo.month + 1).padStart(2, "0")}-${String(
-          day
-        ).padStart(2, "0")}`;
+      if (hoveredDate) {
+        // Parse the date to get year, month, day
+        const [year, month, day] = hoveredDate.split("-").map(Number);
+        setCalculatedDate({ year, month: month - 1, day }); // month is 0-indexed for display
 
         // Show crew onboard
         const crewOnboard = getCrewMembersOnboardByDate({
           crewArrDep: indexPageData.crewArrDep,
-          dateStr: date,
+          dateStr: hoveredDate,
         });
         if (crewOnboard.length > 0) {
           const crewNames = crewOnboard
@@ -94,7 +77,10 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
         }
 
         // Show flights docked
-        const flights = getActiveFlightsByDate({ dateStr: date, flights: indexPageData.flights });
+        const flights = getActiveFlightsByDate({
+          dateStr: hoveredDate,
+          flights: indexPageData.flights,
+        });
         if (flights.length > 0) {
           const flightNames = flights
             .sort((a, b) => a.mission_name.localeCompare(b.mission_name))
@@ -107,7 +93,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
         }
 
         const supplyFlights = getActiveSupplyFlightsByDate({
-          dateStr: date,
+          dateStr: hoveredDate,
           flightsSupply: indexPageData.flightsSupply,
         });
         if (supplyFlights.length > 0) {
@@ -118,58 +104,32 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
             );
           setSupplyFlightsDocked(supplyFlightNames);
         }
-      } else {
-        setCalculatedDate(null);
-        setCrewOnboardList([]);
-        setFlightsDocked([]);
-        setSupplyFlightsDocked([]);
       }
     },
     [indexPageData]
   );
 
   const clickCallback = useCallback(
-    ({
-      mouseX,
-      mouseY,
-      canvasWidth,
-    }: {
-      mouseX: number | null;
-      mouseY: number | null;
-      canvasWidth: number | null;
-    }) => {
-      if (mouseX !== null && mouseY !== null && canvasWidth !== null) {
-        const monthInfo = calculateMonthByX(mouseX, canvasWidth);
-        const day = calculateDayByY(
-          mouseY,
-          paper.view?.bounds.height ?? null,
-          monthInfo.year,
-          monthInfo.month
+    ({ clickedDate }: { clickedDate: string | null }) => {
+      if (clickedDate) {
+        setSelectedDate(clickedDate);
+
+        // Find data availability for this date
+        const dataAvailability = indexPageData.dataAvailabilityItems.find(
+          (item) => item.date === clickedDate
         );
-
-        if (day) {
-          const dateString = `${monthInfo.year}-${String(monthInfo.month + 1).padStart(2, "0")}-${String(
-            day
-          ).padStart(2, "0")}`;
-          setSelectedDate(dateString);
-
-          // Find data availability for this date
-          const dataAvailability = indexPageData.dataAvailabilityItems.find(
-            (item) => item.date === dateString
-          );
-          setSelectedDateDataAvailability(
-            dataAvailability || {
-              date: dateString,
-              comm: false,
-              vvComm: false,
-              youtube: false,
-              eva: false,
-              blog: false,
-              activitySummary: false,
-              earthPhotography: false,
-            }
-          );
-        }
+        setSelectedDateDataAvailability(
+          dataAvailability || {
+            date: clickedDate,
+            comm: false,
+            vvComm: false,
+            youtube: false,
+            eva: false,
+            blog: false,
+            activitySummary: false,
+            earthPhotography: false,
+          }
+        );
       }
     },
     [indexPageData.dataAvailabilityItems]
