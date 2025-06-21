@@ -32,6 +32,7 @@ const config = {
   setupFiles: ["<rootDir>/tests/jest.setup.ts"],
   setupFilesAfterEnv: ["<rootDir>/utils/jest-extends.ts"],
   testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/out"],
+  transformIgnorePatterns: ["/node_modules/(?!tle.js)"],
   globals: {
     window: {},
     document: {},
