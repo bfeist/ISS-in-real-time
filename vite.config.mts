@@ -11,12 +11,14 @@ export default defineConfig({
   plugins: [react(), cesium(), EnvironmentPlugin("all", { prefix: "VITE_" })],
   resolve: {
     alias: {
+      api: path.resolve(__dirname, "./src/api"),
       components: path.resolve(__dirname, "./src/components"),
       context: path.resolve(__dirname, "./src/context"),
       utils: path.resolve(__dirname, "./src/utils"),
       styles: path.resolve(__dirname, "./src/styles"),
       pages: path.resolve(__dirname, "./src/pages"),
       store: path.resolve(__dirname, "./src/store"),
+      hooks: path.resolve(__dirname, "./src/hooks"),
     },
   },
   server: {

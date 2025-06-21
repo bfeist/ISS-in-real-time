@@ -37,12 +37,15 @@ export function useCommTranscript(
   date: string,
   enabled: boolean = true
 ): UseQueryResult<CommItem[], Error> {
+  const dataAvailabilityQuery = useDataAvailability(date);
+  const isCommAvailable = dataAvailabilityQuery.data?.comm;
+
   return useQuery({
     queryKey: ["commTranscript", date],
     queryFn: () => fetchCommTranscript(date),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    enabled: !!date && enabled,
+    enabled: !!date && enabled && !!isCommAvailable,
   });
 }
 
@@ -60,24 +63,31 @@ export function useEarthPhotography(
   date: string,
   enabled: boolean = true
 ): UseQueryResult<EarthPhotographyItem[], Error> {
+  const dataAvailabilityQuery = useDataAvailability(date);
+  const isEarthPhotographyAvailable = dataAvailabilityQuery.data?.earthPhotography;
+
   return useQuery({
     queryKey: ["earthPhotography", date],
     queryFn: () => fetchEarthPhotography(date),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    enabled: !!date && enabled,
+    enabled: !!date && enabled && !!isEarthPhotographyAvailable,
   });
 }
 
 export function useYoutubeData(
+  date: string,
   enabled: boolean = true
 ): UseQueryResult<YoutubeLiveRecording[], Error> {
+  const dataAvailabilityQuery = useDataAvailability(date);
+  const isYoutubeAvailable = dataAvailabilityQuery.data?.youtube;
+
   return useQuery({
     queryKey: ["youtubeData"],
     queryFn: fetchYoutubeData,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    enabled,
+    enabled: enabled && !!isYoutubeAvailable,
   });
 }
 
@@ -85,12 +95,15 @@ export function useActivitySummary(
   date: string,
   enabled: boolean = true
 ): UseQueryResult<ActivitySummary, Error> {
+  const dataAvailabilityQuery = useDataAvailability(date);
+  const isActivitySummaryAvailable = dataAvailabilityQuery.data?.activitySummary;
+
   return useQuery({
     queryKey: ["activitySummary", date],
     queryFn: () => fetchActivitySummary(date),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    enabled: !!date && enabled,
+    enabled: !!date && enabled && !!isActivitySummaryAvailable,
   });
 }
 
@@ -98,12 +111,15 @@ export function useBlogArticles(
   date: string,
   enabled: boolean = true
 ): UseQueryResult<BlogArticle[], Error> {
+  const dataAvailabilityQuery = useDataAvailability(date);
+  const isBlogAvailable = dataAvailabilityQuery.data?.blog;
+
   return useQuery({
     queryKey: ["blogArticles", date],
     queryFn: () => fetchBlogArticles(date),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    enabled: !!date && enabled,
+    enabled: !!date && enabled && !!isBlogAvailable,
   });
 }
 
@@ -129,11 +145,11 @@ export function useDatePageData(date: string): DatePageDataState {
   const ephemeraQuery = useEphemera(date);
 
   // Conditional data (based on availability)
-  const commTranscriptQuery = useCommTranscript(date, !!dataAvailability?.comm);
-  const earthPhotographyQuery = useEarthPhotography(date, !!dataAvailability?.earthPhotography);
-  const youtubeQuery = useYoutubeData(!!dataAvailability?.youtube);
-  const activitySummaryQuery = useActivitySummary(date, !!dataAvailability?.activitySummary);
-  const blogArticlesQuery = useBlogArticles(date, !!dataAvailability?.blog);
+  const commTranscriptQuery = useCommTranscript(date);
+  const earthPhotographyQuery = useEarthPhotography(date);
+  const youtubeQuery = useYoutubeData(date);
+  const activitySummaryQuery = useActivitySummary(date);
+  const blogArticlesQuery = useBlogArticles(date);
 
   // Check if any query is loading
   const isLoading =
@@ -144,11 +160,11 @@ export function useDatePageData(date: string): DatePageDataState {
     flightsQuery.isLoading ||
     flightsSupplyQuery.isLoading ||
     ephemeraQuery.isLoading ||
-    (dataAvailability?.comm && commTranscriptQuery.isLoading) ||
-    (dataAvailability?.earthPhotography && earthPhotographyQuery.isLoading) ||
-    (dataAvailability?.youtube && youtubeQuery.isLoading) ||
-    (dataAvailability?.activitySummary && activitySummaryQuery.isLoading) ||
-    (dataAvailability?.blog && blogArticlesQuery.isLoading);
+    commTranscriptQuery.isLoading ||
+    earthPhotographyQuery.isLoading ||
+    youtubeQuery.isLoading ||
+    activitySummaryQuery.isLoading ||
+    blogArticlesQuery.isLoading;
 
   // Check if any query has an error
   const error =
@@ -174,11 +190,11 @@ export function useDatePageData(date: string): DatePageDataState {
     flightsQuery.isSuccess &&
     flightsSupplyQuery.isSuccess &&
     ephemeraQuery.isSuccess &&
-    (!dataAvailability?.comm || commTranscriptQuery.isSuccess) &&
-    (!dataAvailability?.earthPhotography || earthPhotographyQuery.isSuccess) &&
-    (!dataAvailability?.youtube || youtubeQuery.isSuccess) &&
-    (!dataAvailability?.activitySummary || activitySummaryQuery.isSuccess) &&
-    (!dataAvailability?.blog || blogArticlesQuery.isSuccess);
+    commTranscriptQuery.isSuccess &&
+    earthPhotographyQuery.isSuccess &&
+    youtubeQuery.isSuccess &&
+    activitySummaryQuery.isSuccess &&
+    blogArticlesQuery.isSuccess;
 
   // Combine data when all queries are successful
   const data = useMemo(() => {

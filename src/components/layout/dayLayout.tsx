@@ -1,5 +1,7 @@
 import { FunctionComponent, useState, useEffect } from "react";
 import styles from "./dayLayout.module.css";
+import { useSelectedDateDataAvailability } from "hooks/useIndexPageData";
+import { useSelectedDateState } from "store";
 
 // Custom hook to detect viewport width
 const useViewport = () => {
@@ -290,17 +292,18 @@ const NoPhotosOrVideo: FunctionComponent<{
   );
 };
 
-const Layout: FunctionComponent<{
-  dataAvailability: DataAvailability;
-}> = ({ dataAvailability }) => {
+const Layout: FunctionComponent = () => {
+  const { selectedDate } = useSelectedDateState();
+  const dataAvailability = useSelectedDateDataAvailability(selectedDate);
+
   const { width } = useViewport();
   const isMobile = width <= 1000;
 
-  const showVideo = dataAvailability.youtube;
-  const showPhotos = dataAvailability.earthPhotography;
-  const showArticles = dataAvailability.blog || dataAvailability.activitySummary;
-  const showEVA = dataAvailability.eva;
-  const showComm = dataAvailability.comm || dataAvailability.vvComm;
+  const showVideo = dataAvailability?.youtube || false;
+  const showPhotos = dataAvailability?.earthPhotography || false;
+  const showArticles = dataAvailability?.blog || dataAvailability?.activitySummary || false;
+  const showEVA = dataAvailability?.eva || false;
+  const showComm = dataAvailability?.comm || dataAvailability?.vvComm || false;
 
   let content = null;
   if (isMobile) {

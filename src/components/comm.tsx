@@ -107,7 +107,7 @@ const Comm: FunctionComponent = () => {
           return (
             <>
               <div className={styles.audioPlayer}>
-                <audio ref={audioRef} controls muted={true}>
+                <audio ref={audioRef} controls muted={false}>
                   <track src="" kind="captions" label="English" />
                   Your browser does not support the audio element.
                 </audio>

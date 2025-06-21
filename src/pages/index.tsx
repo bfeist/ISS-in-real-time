@@ -39,13 +39,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
         dataAvailabilityItems={indexPageData.dataAvailabilityItems}
         indexPageData={indexPageData}
       />
-      {selectedDate && (
-        <Layout
-          dataAvailability={indexPageData.dataAvailabilityItems.find(
-            (item) => item.date === selectedDate
-          )}
-        />
-      )}
+      {selectedDate && <Layout />}
     </div>
   );
 };
