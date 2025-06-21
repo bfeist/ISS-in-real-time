@@ -7,7 +7,7 @@ import { JSX, useEffect, useRef, useState, useMemo } from "react";
 import { isValidTimestring } from "utils/params";
 import YouTube from "components/youtube";
 import { getCrewMembersOnboardByDate } from "utils/onboard";
-import { useClockState } from "store";
+import { useClockState, useSelectedDateState } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import Globe from "components/globe";
 import Header from "components/header";
@@ -24,10 +24,11 @@ const DatePage = (): JSX.Element => {
   const searchParams = new URLSearchParams(location.search);
   const t = searchParams.get("t");
   const { startClock, setClock } = useClockState();
-  const audioRef = useRef<HTMLAudioElement>(null);
   const clockStartedRef = useRef<string | null>(null);
   const [showGlobe, setShowGlobe] = useState(true);
   const [muted, setMuted] = useState(true);
+
+  const { setSelectedDate } = useSelectedDateState();
 
   const { data, isLoading, error } = useDatePageData(date || "");
 
@@ -39,6 +40,11 @@ const DatePage = (): JSX.Element => {
     }),
     [data?.ephemeraItems, date]
   );
+
+  useEffect(() => {
+    // Set the selected date in the store when the component mounts
+    setSelectedDate(date || null);
+  }, [date, setSelectedDate]);
 
   // Effect to manage clock based on data
   useEffect(() => {
@@ -79,7 +85,6 @@ const DatePage = (): JSX.Element => {
   }
 
   const {
-    transcriptItems,
     earthPhotographyItems,
     ephemeraItems,
     evaDetails,
@@ -120,7 +125,7 @@ const DatePage = (): JSX.Element => {
       />
       <div className={styles.upper}>
         <div className={styles.transcriptsContainer}>
-          <Transcript audioRef={audioRef} commItems={transcriptItems} viewDate={date} />
+          <Transcript />
         </div>
         <div className={styles.videoContainer}>
           <YouTube youtubeLiveRecording={youtubeLiveRecording} />
@@ -144,12 +149,6 @@ const DatePage = (): JSX.Element => {
         {evaDetailsForDate.length > 0 && <EvaInfo evaDetails={evaDetailsForDate} />}
         <Flights date={date} flights={flights} flightsSupply={flightsSupply} />
         <Blog date={date} blogArticles={blogArticles} activitySummary={activitySummary} />
-        <div className={styles.audioPlayer}>
-          <audio ref={audioRef} controls muted={muted}>
-            <track src="" kind="captions" label="English" />
-            Your browser does not support the audio element.
-          </audio>
-        </div>
       </div>
     </div>
   );

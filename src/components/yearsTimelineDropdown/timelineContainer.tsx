@@ -8,20 +8,14 @@ import {
   getActiveSupplyFlightsByDate,
   getCrewMembersOnboardByDate,
 } from "utils/onboard";
+import { useSelectedDateState } from "../../store";
 
-interface TimelineContainerProps {
+const TimelineContainer: FunctionComponent<{
   dataAvailabilityItems: DataAvailability[];
-  clickCallback: ({ clickedDate }: { clickedDate: string | null }) => void;
   indexPageData: GetDataIndexPageDataResponse;
-  selectedDate?: string;
-}
+}> = ({ dataAvailabilityItems, indexPageData }): JSX.Element => {
+  const { selectedDate, setSelectedDate } = useSelectedDateState();
 
-const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
-  dataAvailabilityItems,
-  clickCallback,
-  indexPageData,
-  selectedDate,
-}): JSX.Element => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const yearsScrollContainerRef = useRef<HTMLDivElement>(null);
@@ -121,7 +115,7 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
   const handleCanvasClick = useCallback(
     ({ clickedDate }: { clickedDate: string | null }) => {
       // Call the original click callback
-      clickCallback({ clickedDate });
+      setSelectedDate(clickedDate);
 
       // Close the dropdown when a date is selected
       if (clickedDate) {
@@ -129,7 +123,7 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
         setIsDefaultOpen(false);
       }
     },
-    [clickCallback]
+    [setSelectedDate]
   );
 
   // Effect to update selectedCrewStays when selectedCrewMember changes

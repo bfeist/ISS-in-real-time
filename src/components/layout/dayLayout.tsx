@@ -291,10 +291,8 @@ const NoPhotosOrVideo: FunctionComponent<{
 };
 
 const Layout: FunctionComponent<{
-  selectedDate: string | null;
-  setSelectedDate: (date: string | null) => void;
   dataAvailability: DataAvailability;
-}> = ({ selectedDate, setSelectedDate, dataAvailability }) => {
+}> = ({ dataAvailability }) => {
   const { width } = useViewport();
   const isMobile = width <= 1000;
 

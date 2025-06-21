@@ -33,3 +33,7 @@
 .textOriginalLang {
   color: #474747;
 }
+
+.audioPlayer {
+  display: none;
+}

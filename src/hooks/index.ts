@@ -16,4 +16,4 @@ export {
   useExpeditionInfo,
   useFlights,
   useFlightsSupply,
-} from "./useDataTypes";
+} from "./useIndexPageData";

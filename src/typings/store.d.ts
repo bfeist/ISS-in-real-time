@@ -16,5 +16,12 @@ interface HoverState {
   setHoverSeconds: (seconds: number | null) => void;
 }
 
+interface SelectedDateState {
+  selectedDate: string | null;
+
+  // Actions
+  setSelectedDate: (date: string | null) => void;
+}
+
 // Combined store type
-interface AppState extends ClockState, HoverState {}
+interface AppState extends ClockState, HoverState, SelectedDateState {}

@@ -1,19 +1,13 @@
 import styles from "./index.module.css";
-import { FunctionComponent, JSX, useState, useCallback } from "react";
+import { FunctionComponent, JSX } from "react";
 import Layout from "../components/layout/dayLayout";
 import TimelineContainer from "../components/yearsTimelineDropdown/timelineContainer";
 import { useIndexPageData } from "../hooks";
+import { useSelectedDateState } from "../store";
 
 const SliderPage: FunctionComponent = (): JSX.Element => {
   const { data: indexPageData, isLoading, error } = useIndexPageData();
-
-  const [selectedDate, setSelectedDate] = useState<string>();
-
-  const clickCallback = useCallback(({ clickedDate }: { clickedDate: string | null }) => {
-    if (clickedDate) {
-      setSelectedDate(clickedDate);
-    }
-  }, []);
+  const { selectedDate } = useSelectedDateState();
 
   if (isLoading) {
     return (
@@ -43,14 +37,10 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
     <div className={styles.page}>
       <TimelineContainer
         dataAvailabilityItems={indexPageData.dataAvailabilityItems}
-        clickCallback={clickCallback}
         indexPageData={indexPageData}
-        selectedDate={selectedDate}
       />
       {selectedDate && (
         <Layout
-          selectedDate={selectedDate}
-          setSelectedDate={setSelectedDate}
           dataAvailability={indexPageData.dataAvailabilityItems.find(
             (item) => item.date === selectedDate
           )}

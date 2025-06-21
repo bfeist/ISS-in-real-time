@@ -1,17 +1,20 @@
 import { extractChannelInfoFromFilename } from "utils/comm";
-import { FunctionComponent, useEffect, useState } from "react";
+import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./comm.module.css";
-import { useClockState } from "store";
+import { useClockState, useSelectedDateState } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
+import { useCommTranscript } from "../hooks/useDatePageData";
 
-const Comm: FunctionComponent<{
-  viewDate: string;
-  commItems: CommItem[];
-  audioRef: React.RefObject<HTMLAudioElement>;
-}> = ({ viewDate, commItems, audioRef }) => {
+const Comm: FunctionComponent = () => {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL.replace("\\x3a", ":");
   const { isRunning, setClock } = useClockState();
+  const { selectedDate } = useSelectedDateState();
+
+  const { data: commItems = [], isLoading, error } = useCommTranscript(selectedDate);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const [lastScrolledToTimeStr, setLastScrolledToTimeStr] = useState<string | null>(null);
   const [appSeconds, setAppSeconds] = useState(0);
 
@@ -32,7 +35,6 @@ const Comm: FunctionComponent<{
     }
     return closestComm;
   };
-
   /**
    * Effect to scroll to the closest comm item when the clock changes
    */
@@ -56,7 +58,6 @@ const Comm: FunctionComponent<{
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appSeconds, commItems, audioRef, setLastScrolledToTimeStr, lastScrolledToTimeStr]);
-
   /**
    *  effect to play audio if appSeconds === one of the commItems
    */
@@ -69,7 +70,7 @@ const Comm: FunctionComponent<{
     );
 
     if (commItem) {
-      const [year, month, day] = viewDate.split("-");
+      const [year, month, day] = selectedDate.split("-");
       const aacFileUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/${commItem.filename}`;
       if (audioRef.current && isRunning) {
         audioRef.current.src = aacFileUrl;
@@ -77,50 +78,69 @@ const Comm: FunctionComponent<{
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appSeconds, commItems, audioRef, viewDate]);
+  }, [appSeconds, commItems, audioRef, selectedDate]);
 
   return (
     <div className={styles.comm}>
       <ClockInterval setAppSeconds={setAppSeconds} />
-      {commItems.map((item, index) => {
-        const channelInfo = extractChannelInfoFromFilename(item.filename);
 
-        let commItemActive = null;
-        const startAppSeconds = appSecondsFromTimeStr(item.utteranceTime);
-        const endAppSeconds = appSecondsFromTimeStr(item.utteranceTime) + parseFloat(item.end);
-        if (appSeconds >= startAppSeconds && appSeconds <= endAppSeconds) {
-          commItemActive = styles.commItemActive;
-        }
+      {isLoading && <div className={styles.commItem}>Loading communication transcripts...</div>}
 
-        return (
-          <div
-            key={index}
-            className={`${styles.commItem} ${commItemActive}`}
-            data-time={item.utteranceTime}
-            role="button"
-            tabIndex={0}
-            onClick={() => {
-              setLastScrolledToTimeStr(null);
-              setClock(appSecondsFromTimeStr(item.utteranceTime));
-            }}
-            onKeyDown={() => {
-              setLastScrolledToTimeStr(null);
-              setClock(appSecondsFromTimeStr(item.utteranceTime));
-            }}
-          >
-            <div>{item.utteranceTime}</div>
-            <div className={styles.channelnum}>
-              {channelInfo.type}-{channelInfo.number}
-            </div>
-            <div className={styles.textContainer}>
-              <div>{item.text}</div>
-              {item.textOriginalLang && (
-                <div className={styles.textOriginalLang}>{item.textOriginalLang}</div>
-              )}
-            </div>
-          </div>
-        );
-      })}
+      {error && (
+        <div className={styles.commItem}>
+          Error loading communication transcripts: {error.message || "Unknown error"}
+        </div>
+      )}
+
+      {!isLoading &&
+        !error &&
+        commItems.map((item, index) => {
+          const channelInfo = extractChannelInfoFromFilename(item.filename);
+
+          let commItemActive = null;
+          const startAppSeconds = appSecondsFromTimeStr(item.utteranceTime);
+          const endAppSeconds = appSecondsFromTimeStr(item.utteranceTime) + parseFloat(item.end);
+          if (appSeconds >= startAppSeconds && appSeconds <= endAppSeconds) {
+            commItemActive = styles.commItemActive;
+          }
+
+          return (
+            <>
+              <div className={styles.audioPlayer}>
+                <audio ref={audioRef} controls muted={true}>
+                  <track src="" kind="captions" label="English" />
+                  Your browser does not support the audio element.
+                </audio>
+              </div>
+              <div
+                key={index}
+                className={`${styles.commItem} ${commItemActive}`}
+                data-time={item.utteranceTime}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setLastScrolledToTimeStr(null);
+                  setClock(appSecondsFromTimeStr(item.utteranceTime));
+                }}
+                onKeyDown={() => {
+                  setLastScrolledToTimeStr(null);
+                  setClock(appSecondsFromTimeStr(item.utteranceTime));
+                }}
+              >
+                <div>{item.utteranceTime}</div>
+                <div className={styles.channelnum}>
+                  {channelInfo.type}-{channelInfo.number}
+                </div>
+                <div className={styles.textContainer}>
+                  <div>{item.text}</div>
+                  {item.textOriginalLang && (
+                    <div className={styles.textOriginalLang}>{item.textOriginalLang}</div>
+                  )}
+                </div>
+              </div>
+            </>
+          );
+        })}
     </div>
   );
 };

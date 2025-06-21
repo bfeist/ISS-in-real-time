@@ -5,20 +5,6 @@
   position: relative;
 }
 
-.closeButton {
-  position: absolute;
-  top: -5px;
-  right: 10px;
-  font-size: 28px;
-  cursor: pointer;
-  border: none;
-  background: none;
-  z-index: 1000;
-  color: #333333;
-  width: 30px;
-  height: 30px;
-}
-
 .page {
   flex: 1 1 auto;
   background-color: #797979;

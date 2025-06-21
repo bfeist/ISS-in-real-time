@@ -2,9 +2,8 @@ import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 
-// Define the store creation function separately with proper types
 const createStore: StateCreator<AppState> = (set) => ({
-  // Clock initial state - flattened
+  // Clock initial state
   startStopTimestamp: new Date().toISOString(),
   appSecondsAtStartStop: 0,
   isRunning: false,
@@ -39,6 +38,12 @@ const createStore: StateCreator<AppState> = (set) => ({
 
   // Hover actions
   setHoverSeconds: (seconds: number | null) => set({ hoverSeconds: seconds }),
+
+  // Selected date initial state
+  selectedDate: null,
+
+  // Selected date actions
+  setSelectedDate: (date: string | null) => set({ selectedDate: date }),
 });
 
 // Create store with redux devtools middleware
@@ -74,5 +79,16 @@ export const useHoverState = (): {
     useShallow((state) => ({
       hoverSeconds: state.hoverSeconds,
       setHoverSeconds: state.setHoverSeconds,
+    }))
+  );
+
+export const useSelectedDateState = (): {
+  selectedDate: string | null;
+  setSelectedDate: (date: string | null) => void;
+} =>
+  useAppStore(
+    useShallow((state) => ({
+      selectedDate: state.selectedDate,
+      setSelectedDate: state.setSelectedDate,
     }))
   );
