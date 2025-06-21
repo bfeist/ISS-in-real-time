@@ -1,294 +1,192 @@
 import styles from "./index.module.css";
-import { useLoaderData, useNavigate } from "react-router-dom";
-import { FunctionComponent, JSX, useEffect, useState } from "react";
+import { FunctionComponent, JSX, useEffect, useRef, useState, useCallback } from "react";
+import { initializePaperCanvas, clearPaperCanvas } from "../components/dateTimelineDraw";
+import { useLoaderData } from "react-router";
+import {
+  getActiveFlightsByDate,
+  getActiveSupplyFlightsByDate,
+  getCrewMembersOnboardByDate,
+} from "utils/onboard";
+import YearsHoverAndSearch from "../components/yearsHoverAndSearch";
+import LayoutTest from "./layout_test";
 
-type TotalsObject = {
-  comm: number;
-  vvComm: number;
-  youtube: number;
-  eva: number;
-  blog: number;
-  activitySummary: number;
-  earthPhotography: number;
-};
-
-const Home = (): JSX.Element => {
+const SliderPage: FunctionComponent = (): JSX.Element => {
   const indexPageData = useLoaderData() as GetDataIndexPageDataResponse;
-  const [propertyToHighlight, setPropertyToHighlight] = useState<string>("");
 
-  const handlePropertyHighlight = (property: string) => {
-    setPropertyToHighlight(property);
-  };
+  const [selectedDate, setSelectedDate] = useState<string>();
+  const [selectedDateDataAvailability, setSelectedDateDataAvailability] =
+    useState<DataAvailability | null>(null);
 
-  const calculateTotals = (dataAvailabilityItems: DataAvailability[]): TotalsObject => {
-    const totalsObject = {
-      comm: 0,
-      vvComm: 0,
-      youtube: 0,
-      eva: 0,
-      blog: 0,
-      activitySummary: 0,
-      earthPhotography: 0,
-    };
-    dataAvailabilityItems.forEach((item) => {
-      totalsObject.comm += item.comm ? 1 : 0;
-      totalsObject.vvComm += item.vvComm ? 1 : 0;
-      totalsObject.youtube += item.youtube ? 1 : 0;
-      totalsObject.eva += item.eva ? 1 : 0;
-      totalsObject.blog += item.blog ? 1 : 0;
-      totalsObject.activitySummary += item.activitySummary ? 1 : 0;
-      totalsObject.earthPhotography += item.earthPhotography ? 1 : 0;
-    });
-    return totalsObject;
-  };
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [calculatedDate, setCalculatedDate] = useState<{
+    year: number;
+    month: number;
+    day: number | null;
+  } | null>(null);
+  const [crewOnboardList, setCrewOnboardList] = useState<string[]>([]);
+  const [flightsDocked, setFlightsDocked] = useState<string[]>([]);
+  const [supplyFlightsDocked, setSupplyFlightsDocked] = useState<string[]>([]);
+  const [selectedCrewMember, setSelectedCrewMember] = useState<CrewMember | null>(null);
+  const [selectedCrewStays, setSelectedCrewStays] = useState<CrewArrDepItem[]>([]);
 
-  const totalsObject: TotalsObject = calculateTotals(indexPageData.dataAvailabilityItems);
+  useEffect(() => {
+    if (selectedCrewMember) {
+      const crewStays = indexPageData.crewArrDep.filter(
+        (item) => `${item.name_first} ${item.name_last}` === selectedCrewMember.name
+      );
+      setSelectedCrewStays(crewStays);
+    } else {
+      setSelectedCrewStays([]);
+    }
+  }, [selectedCrewMember, indexPageData.crewArrDep]);
 
-  const startDate = new Date(Date.UTC(2000, 9, 1)); // 2000-10-01
-  const endDate = new Date();
-  const allYears: number[] = [];
+  const hoverCallback = useCallback(
+    ({ hoveredDate }: { hoveredDate: string | null }) => {
+      // Clear previous state
+      setCalculatedDate(null);
+      setCrewOnboardList([]);
+      setFlightsDocked([]);
+      setSupplyFlightsDocked([]);
 
-  for (let year = endDate.getUTCFullYear(); year >= startDate.getUTCFullYear(); year--) {
-    allYears.push(year);
-  }
+      if (hoveredDate) {
+        // Parse the date to get year, month, day
+        const [year, month, day] = hoveredDate.split("-").map(Number);
+        setCalculatedDate({ year, month: month - 1, day }); // month is 0-indexed for display
+
+        // Show crew onboard
+        const crewOnboard = getCrewMembersOnboardByDate({
+          crewArrDep: indexPageData.crewArrDep,
+          dateStr: hoveredDate,
+        });
+        if (crewOnboard.length > 0) {
+          const crewNames = crewOnboard
+            .sort((a, b) => {
+              // First sort by arrival date (earliest first)
+              const arrivalDateA = a.arrivalDate || "";
+              const arrivalDateB = b.arrivalDate || "";
+              if (arrivalDateA !== arrivalDateB) {
+                return arrivalDateA.localeCompare(arrivalDateB);
+              }
+              // If arrival dates are the same, sort by name
+              const nameA = `${a.name_first} ${a.name_last}` || "";
+              const nameB = `${b.name_first} ${b.name_last}` || "";
+              return nameA.localeCompare(nameB);
+            })
+            .map((crewMember) => `${crewMember.name_first} ${crewMember.name_last}`);
+          setCrewOnboardList(crewNames);
+        }
+
+        // Show flights docked
+        const flights = getActiveFlightsByDate({
+          dateStr: hoveredDate,
+          flights: indexPageData.flights,
+        });
+        if (flights.length > 0) {
+          const flightNames = flights
+            .sort((a, b) => a.mission_name.localeCompare(b.mission_name))
+            .map(
+              (flight) =>
+                `${flight.iss_flight} - ${flight.mission_name}` +
+                (flight.spacecraft_name ? " - " + flight.spacecraft_name : "")
+            );
+          setFlightsDocked(flightNames);
+        }
+
+        const supplyFlights = getActiveSupplyFlightsByDate({
+          dateStr: hoveredDate,
+          flightsSupply: indexPageData.flightsSupply,
+        });
+        if (supplyFlights.length > 0) {
+          const supplyFlightNames = supplyFlights
+            .sort((a, b) => a.flight_no.localeCompare(b.flight_no))
+            .map(
+              (flight) => flight.flight_no + (flight.spacecraft ? " - " + flight.spacecraft : "")
+            );
+          setSupplyFlightsDocked(supplyFlightNames);
+        }
+      }
+    },
+    [indexPageData]
+  );
+
+  const clickCallback = useCallback(
+    ({ clickedDate }: { clickedDate: string | null }) => {
+      if (clickedDate) {
+        setSelectedDate(clickedDate);
+
+        // Find data availability for this date
+        const dataAvailability = indexPageData.dataAvailabilityItems.find(
+          (item) => item.date === clickedDate
+        );
+        setSelectedDateDataAvailability(
+          dataAvailability || {
+            date: clickedDate,
+            comm: false,
+            vvComm: false,
+            youtube: false,
+            eva: false,
+            blog: false,
+            activitySummary: false,
+            earthPhotography: false,
+          }
+        );
+      }
+    },
+    [indexPageData.dataAvailabilityItems]
+  );
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
+        canvasElement: canvas,
+        dataAvailabilityItems: indexPageData.dataAvailabilityItems,
+        selectedCrewStays,
+        hoverCallback,
+        clickCallback,
+      });
+
+      window.addEventListener("resize", drawPaperItems);
+
+      return () => {
+        window.removeEventListener("resize", drawPaperItems);
+        cleanupInputHandlers();
+        clearPaperCanvas();
+      };
+    }
+  }, [hoverCallback, clickCallback, indexPageData.dataAvailabilityItems, selectedCrewStays]);
 
   return (
     <div className={styles.page}>
-      <div className={styles.pageTitle}>Available Dates</div>
-      <p>
-        <span className={styles.dayYoutube}>Blue</span> means youtube coverage.
-        <br />
-        <span className={styles.dayEva}>Bold</span> means EVA that day.
-        <br />
-        <span className={styles.dayComm}>Black</span> means space-to-ground comm coverage.
-        <br />
-        <span className={styles.dayOtherData}>This grey</span> means no comm but has other data like
-        blogs, statuses, or earth photography.
-        <br />
-        <span className={styles.dayNoData}>This grey</span> means no data at all.
-      </p>
-      <p>
-        Day Totals:
-        <br />
-        <button
-          className={`${styles.totalButton} ${propertyToHighlight === "comm" ? styles.highlightedTotal : ""}`}
-          onClick={() => handlePropertyHighlight(propertyToHighlight === "comm" ? "" : "comm")}
-        >
-          Comm: {totalsObject.comm}
-        </button>{" "}
-        <button
-          className={`${styles.totalButton} ${propertyToHighlight === "vvComm" ? styles.highlightedTotal : ""}`}
-          onClick={() => handlePropertyHighlight(propertyToHighlight === "vvComm" ? "" : "vvComm")}
-        >
-          Visiting Vehicle Comm: {totalsObject.vvComm}
-        </button>{" "}
-        <button
-          className={`${styles.totalButton} ${propertyToHighlight === "youtube" ? styles.highlightedTotal : ""}`}
-          onClick={() =>
-            handlePropertyHighlight(propertyToHighlight === "youtube" ? "" : "youtube")
-          }
-        >
-          YouTube: {totalsObject.youtube}
-        </button>{" "}
-        <button
-          className={`${styles.totalButton} ${propertyToHighlight === "eva" ? styles.highlightedTotal : ""}`}
-          onClick={() => handlePropertyHighlight(propertyToHighlight === "eva" ? "" : "eva")}
-        >
-          EVA: {totalsObject.eva}
-        </button>{" "}
-        <button
-          className={`${styles.totalButton} ${propertyToHighlight === "blog" ? styles.highlightedTotal : ""}`}
-          onClick={() => handlePropertyHighlight(propertyToHighlight === "blog" ? "" : "blog")}
-        >
-          Blog: {totalsObject.blog}
-        </button>{" "}
-        <button
-          className={`${styles.totalButton} ${propertyToHighlight === "activitySummary" ? styles.highlightedTotal : ""}`}
-          onClick={() =>
-            handlePropertyHighlight(
-              propertyToHighlight === "activitySummary" ? "" : "activitySummary"
-            )
-          }
-        >
-          Activity Summary: {totalsObject.activitySummary}
-        </button>{" "}
-        <button
-          className={`${styles.totalButton} ${propertyToHighlight === "earthPhotography" ? styles.highlightedTotal : ""}`}
-          onClick={() =>
-            handlePropertyHighlight(
-              propertyToHighlight === "earthPhotography" ? "" : "earthPhotography"
-            )
-          }
-        >
-          Earth Photography: {totalsObject.earthPhotography}
-        </button>
-      </p>
-      <div className={styles.yearsContainer}>
-        {allYears.map((year) => {
-          const dataItemsThisYear = indexPageData.dataAvailabilityItems.filter(
-            (item) => parseInt(item.date.split("-")[0]) === year
-          );
-
-          return (
-            <YearPicker
-              key={year}
-              availableDataItemsThisYear={dataItemsThisYear}
-              year={year}
-              propertyToHighlight={propertyToHighlight}
-            />
-          );
-        })}
+      <canvas ref={canvasRef} className={styles.paperCanvas} />
+      <div className={styles.selectedDateDisplay}>
+        {selectedDate
+          ? `Selected Date: ${selectedDate}`
+          : calculatedDate && calculatedDate.day !== null
+            ? `${calculatedDate.year}-${String(calculatedDate.month + 1).padStart(
+                2,
+                "0"
+              )}-${String(calculatedDate.day).padStart(2, "0")}`
+            : "Hover over the timeline to select a date"}
       </div>
+      {selectedDate && selectedDateDataAvailability ? (
+        <LayoutTest
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          dataAvailability={selectedDateDataAvailability}
+        />
+      ) : (
+        <YearsHoverAndSearch
+          crewOnboardList={crewOnboardList}
+          flightsDocked={flightsDocked}
+          supplyFlightsDocked={supplyFlightsDocked}
+          crewArrDep={indexPageData.crewArrDep}
+          selectedCrewMember={selectedCrewMember}
+          setSelectedCrewMember={setSelectedCrewMember}
+        />
+      )}
     </div>
   );
 };
 
-export default Home;
-
-const YearPicker: FunctionComponent<{
-  availableDataItemsThisYear: DataAvailability[];
-  year: number;
-  propertyToHighlight: string;
-}> = ({ availableDataItemsThisYear, year, propertyToHighlight }) => {
-  const availableMonthsThisYear: number[] = [];
-  availableDataItemsThisYear.forEach((item) => {
-    const month = parseInt(item.date.split("-")[1]);
-    if (!availableMonthsThisYear.includes(month)) {
-      availableMonthsThisYear.push(month);
-    }
-  });
-  // sort descending
-  availableMonthsThisYear.sort((a, b) => b - a);
-
-  return (
-    <div className={styles.yearPickerContainer}>
-      <div className={styles.yearTitle}>{year}</div>
-      <div className={styles.yearContainer}>
-        {availableMonthsThisYear.map((month) => {
-          const availableDataItemsThisMonth: DataAvailability[] = [];
-          availableDataItemsThisYear.forEach((item) => {
-            if (parseInt(item.date.split("-")[1]) === month) {
-              availableDataItemsThisMonth.push(item);
-            }
-          });
-          return (
-            <MonthPicker
-              key={month}
-              availableDataItemsThisMonth={availableDataItemsThisMonth}
-              month={month}
-              propertyToHighlight={propertyToHighlight}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-const MonthPicker: FunctionComponent<{
-  availableDataItemsThisMonth: DataAvailability[];
-  month: number;
-  propertyToHighlight: string;
-}> = ({ availableDataItemsThisMonth, month, propertyToHighlight }) => {
-  const navigate = useNavigate();
-  const [selected, setSelected] = useState<Date>();
-  useEffect(() => {
-    if (selected) {
-      // open the selected date at /date/yyyy-mm-dd
-      const date = selected.toISOString().split("T")[0];
-      navigate(`/date/${date}`);
-    }
-  }, [selected, navigate]);
-
-  const getDaysInMonth = (year: number, month: number) => {
-    return new Date(Date.UTC(year, month, 0)).getUTCDate();
-  };
-
-  const getTooltipText = (dayItem: DataAvailability | undefined): string => {
-    if (!dayItem) return "No data available";
-    const available = [];
-    if (dayItem.comm) available.push("Space-to-Ground Comm");
-    if (dayItem.vvComm) available.push("Visiting Vehicle Comm");
-    if (dayItem.youtube) available.push("YouTube Coverage");
-    if (dayItem.eva) available.push("EVA");
-    if (dayItem.blog) available.push("Blog");
-    if (dayItem.activitySummary) available.push("Activity Summary");
-    if (dayItem.earthPhotography) available.push("Earth Photography");
-    return available.length ? `Available: ${available.join(", ")}` : "No data available";
-  };
-
-  const year =
-    availableDataItemsThisMonth[0]?.date.split("-")[0] || new Date().getUTCFullYear().toString();
-  const daysInMonth = getDaysInMonth(parseInt(year), month);
-  const allDays: Date[] = [];
-
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(Date.UTC(parseInt(year), month - 1, day));
-    if (date >= new Date(Date.UTC(2000, 9, 1)) && date <= new Date()) {
-      allDays.push(date);
-    }
-  }
-
-  return (
-    <div>
-      <div className={styles.monthTitle}>{month}</div>
-      <div>
-        {allDays.map((date) => {
-          const dayItem = availableDataItemsThisMonth.find(
-            (item) => item.date === date.toISOString().split("T")[0]
-          );
-
-          const commStyle = dayItem?.comm || dayItem?.vvComm ? styles.dayComm : "";
-          const evaStyle = dayItem?.eva ? styles.dayEva : "";
-          const youtubeStyle = dayItem?.youtube ? styles.dayYoutube : "";
-          const otherDataStyle =
-            dayItem &&
-            !dayItem.comm &&
-            (dayItem.blog || dayItem.activitySummary || dayItem.earthPhotography)
-              ? styles.dayOtherData
-              : "";
-          const noDataStyle =
-            !dayItem ||
-            (!dayItem.comm &&
-              !dayItem.blog &&
-              !dayItem.activitySummary &&
-              !dayItem.earthPhotography &&
-              !dayItem.vvComm)
-              ? styles.dayNoData
-              : "";
-
-          let highlightToday = false;
-          if (propertyToHighlight === "comm" && dayItem?.comm) {
-            highlightToday = true;
-          } else if (propertyToHighlight === "vvComm" && dayItem?.vvComm) {
-            highlightToday = true;
-          } else if (propertyToHighlight === "activitySummary" && dayItem?.activitySummary) {
-            highlightToday = true;
-          } else if (propertyToHighlight === "earthPhotography" && dayItem?.earthPhotography) {
-            highlightToday = true;
-          } else if (propertyToHighlight === "eva" && dayItem?.eva) {
-            highlightToday = true;
-          } else if (propertyToHighlight === "youtube" && dayItem?.youtube) {
-            highlightToday = true;
-          } else if (propertyToHighlight === "blog" && dayItem?.blog) {
-            highlightToday = true;
-          }
-
-          return (
-            <div
-              key={date.toISOString()}
-              className={`${styles.day}  ${commStyle} ${evaStyle} ${youtubeStyle} ${otherDataStyle} ${noDataStyle} ${highlightToday && styles.dayHighlighted}`}
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelected(date)}
-              onKeyDown={() => setSelected(date)}
-              title={getTooltipText(dayItem)}
-            >
-              {date.toISOString().split("T")[0].split("-")[2]}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
+export default SliderPage;

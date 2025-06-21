@@ -1,0 +1,98 @@
+.page {
+  background-color: #adadad;
+  font-family: Roboto, sans-serif;
+  margin: 0;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.pageTitle {
+  font-size: 30px;
+  font-weight: 600;
+  margin: 0;
+  padding: 10px;
+  text-align: center;
+}
+
+.yearsContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 40px;
+  flex-wrap: wrap;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.yearPickerContainer {
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+}
+
+.yearTitle {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.yearContainer {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  font-size: 0.9em;
+}
+
+.monthTitle {
+  font-weight: 600;
+  margin: 5px 0 5px 0;
+}
+
+.day {
+  cursor: pointer;
+  padding: 1px 3px 1px 3px;
+  border-radius: var(--radius);
+}
+
+.dayComm {
+  color: black;
+}
+
+.dayEva {
+  font-weight: 600;
+}
+
+.dayYoutube {
+  color: blue;
+}
+
+.dayOtherData {
+  color: #535353;
+}
+
+.dayNoData {
+  color: #999999;
+}
+
+.dayHighlighted {
+  background-color: #57ff48;
+  color: black;
+}
+
+.totalButton {
+  cursor: pointer;
+  padding: 4px 8px;
+  margin: 3px;
+  border-radius: 4px;
+  border: 1px solid #888888;
+  background-color: #f0f0f0;
+  font-size: 0.9em;
+  transition: background-color 0.2s;
+}
+
+.highlightedTotal {
+  background-color: #57ff48;
+  border-color: #444444;
+}

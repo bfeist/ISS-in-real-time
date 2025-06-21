@@ -8,20 +8,23 @@ import {
   Route,
 } from "react-router-dom";
 import App from "./App.tsx";
-import Home from "pages/index";
+import Home from "pages/index.tsx";
 import DatePage from "pages/dateSlug";
 import { getDataAvailabilities } from "utils/dateLoaders/index.ts";
 import { getDatePageData } from "utils/dateLoaders/dateSlug.ts";
 import LayoutTest from "pages/layout_test.tsx";
-import IndexSlider from "pages/index_slider.tsx";
+import IndexOld from "pages/index_old.tsx";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<App />}>
       <Route index element={<Home />} loader={getDataAvailabilities} />
       <Route path="date/:date" element={<DatePage />} loader={getDatePageData} />
-      <Route path="layout_test" element={<LayoutTest setSelectedDate={() => {}} />} />
-      <Route path="index_slider" element={<IndexSlider />} loader={getDataAvailabilities} />
+      <Route
+        path="layout_test"
+        element={<LayoutTest selectedDate="2020-01-01" setSelectedDate={() => {}} />}
+      />
+      <Route path="index_old" element={<IndexOld />} loader={getDataAvailabilities} />
     </Route>
   )
 );

@@ -333,9 +333,10 @@ const NoPhotosOrVideo: FunctionComponent<{
 };
 
 const LayoutTest: FunctionComponent<{
+  selectedDate: string | null;
   setSelectedDate: (date: string | null) => void;
   dataAvailability?: DataAvailability;
-}> = ({ setSelectedDate, dataAvailability }) => {
+}> = ({ selectedDate, setSelectedDate, dataAvailability }) => {
   // Independent toggles for all sections
   const [showVideo, setShowVideo] = useState(true);
   const [showPhotos, setShowPhotos] = useState(true);
@@ -393,18 +394,20 @@ const LayoutTest: FunctionComponent<{
       >
         ×
       </button>
-      <LayoutTestControls
-        showVideo={showVideo}
-        showPhotos={showPhotos}
-        showArticles={showArticles}
-        showEVA={showEVA}
-        showComm={showComm}
-        onToggleVideo={setShowVideo}
-        onTogglePhotos={setShowPhotos}
-        onToggleArticles={setShowArticles}
-        onToggleEVA={setShowEVA}
-        onToggleComm={setShowComm}
-      />
+      {!selectedDate && (
+        <LayoutTestControls
+          showVideo={showVideo}
+          showPhotos={showPhotos}
+          showArticles={showArticles}
+          showEVA={showEVA}
+          showComm={showComm}
+          onToggleVideo={setShowVideo}
+          onTogglePhotos={setShowPhotos}
+          onToggleArticles={setShowArticles}
+          onToggleEVA={setShowEVA}
+          onToggleComm={setShowComm}
+        />
+      )}
       {content}
     </div>
   );
