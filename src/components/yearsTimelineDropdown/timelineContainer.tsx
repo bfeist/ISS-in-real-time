@@ -49,6 +49,7 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
       setHoveredDate(hoveredDate);
 
       // Clear previous state
+      setExpeditionsOnHoveredDate([]);
       setCrewOnboardList([]);
       setFlightsDocked([]);
       setSupplyFlightsDocked([]);
@@ -281,6 +282,7 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
             <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
           </div>
           <HoverAndSearch
+            hoveredDate={hoveredDate}
             expeditions={expeditionsOnHoveredDate}
             crewOnboardList={crewOnboardList}
             flightsDocked={flightsDocked}

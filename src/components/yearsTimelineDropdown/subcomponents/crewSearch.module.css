@@ -1,10 +1,11 @@
 .container {
   margin: 0 auto;
-  padding: 20px;
+  padding: 10px;
+  width: 330px;
 }
 
 .searchBox {
-  margin-bottom: 16px;
+  margin-bottom: 4px;
 }
 
 .searchInputWrapper {
@@ -15,8 +16,8 @@
 
 .searchInput {
   width: 100%;
-  padding: 10px;
-  font-size: 16px;
+  padding: 2px;
+  font-size: 0.9rem;
   border: 1px solid #cccccc;
   border-radius: 4px;
 }
@@ -27,28 +28,19 @@
   background: none;
   border: none;
   font-size: 20px;
-  line-height: 1;
   cursor: pointer;
   color: #666666;
-  padding: 0;
   width: 24px;
   height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border-radius: 50%;
 }
 
-.clearButton:hover {
-  color: #333333;
-  background-color: #eeeeee;
-}
-
 .listContainer {
-  height: 100px;
+  height: 160px;
   overflow-y: auto;
   border: 1px solid #eeeeee;
   border-radius: 4px;
+  font-size: 0.9rem;
 }
 
 .list {

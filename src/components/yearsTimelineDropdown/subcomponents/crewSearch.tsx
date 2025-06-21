@@ -73,7 +73,7 @@ const CrewSearch: FunctionComponent<{
         <div className={styles.searchInputWrapper}>
           <input
             type="text"
-            placeholder="Search crew members..."
+            placeholder="Filter crew members..."
             value={searchTerm}
             onChange={handleSearchChange}
             className={styles.searchInput}
@@ -82,7 +82,7 @@ const CrewSearch: FunctionComponent<{
             <button
               className={styles.clearButton}
               onClick={handleClearSearch}
-              aria-label="Clear search"
+              aria-label="Clear filter"
             >
               ×
             </button>
