@@ -1,4 +1,4 @@
-import { useLoaderData, useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import EarthPhotography from "components/earthPhotography";
 import styles from "./dateSlug.module.css";
 import Transcript from "components/comm";
@@ -16,9 +16,68 @@ import CrewOnboard from "components/crewOnboard";
 import EvaInfo from "components/evaInfo";
 import Flights from "components/flights";
 import Blog from "components/blog";
+import { useDatePageData } from "../hooks";
 
 const DatePage = (): JSX.Element => {
   const { date } = useParams();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const t = searchParams.get("t");
+  const { startClock, setClock } = useClockState();
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const clockStartedRef = useRef<string | null>(null);
+  const [showGlobe, setShowGlobe] = useState(true);
+  const [muted, setMuted] = useState(true);
+
+  const { data, isLoading, error } = useDatePageData(date || "");
+
+  // Memoize the Globe component's props to prevent unnecessary re-renders
+  const globeProps = useMemo(
+    () => ({
+      ephemeraItems: data?.ephemeraItems || [],
+      viewDate: date || "",
+    }),
+    [data?.ephemeraItems, date]
+  );
+
+  // Effect to manage clock based on data
+  useEffect(() => {
+    if (!data || isLoading) return;
+
+    // Only start clock once per date
+    if (clockStartedRef.current !== date) {
+      startClock();
+      clockStartedRef.current = date || null;
+    }
+
+    const youtubeLiveRecording = data.youtubeLiveRecordings.find((recording) =>
+      recording.startTime.startsWith(date || "")
+    );
+
+    if (isValidTimestring(t)) {
+      setClock(appSecondsFromTimeStr(t));
+    } else if (youtubeLiveRecording) {
+      setClock(appSecondsFromTimeStr(youtubeLiveRecording.startTime.split("T")[1]));
+    } else if (data.transcriptItems.length > 0) {
+      const firstTimeStr = data.transcriptItems[0].utteranceTime;
+      setClock(appSecondsFromTimeStr(firstTimeStr) - 5);
+    }
+    // Don't include startClock/setClock in dependencies to avoid infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, data, isLoading, date]);
+
+  if (isLoading) {
+    return <div className={styles.loading}>Loading...</div>;
+  }
+
+  if (error) {
+    return <div className={styles.error}>Error loading data: {error.message}</div>;
+  }
+
+  if (!data) {
+    return <div className={styles.error}>No data available for {date}</div>;
+  }
+
   const {
     transcriptItems,
     earthPhotographyItems,
@@ -32,49 +91,20 @@ const DatePage = (): JSX.Element => {
     flightsSupply,
     blogArticles,
     activitySummary,
-  } = useLoaderData() as GetDatePageDataResponse;
+  } = data;
 
-  const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const t = searchParams.get("t");
-
-  const { startClock, setClock } = useClockState();
-
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  const [showGlobe, setShowGlobe] = useState(true);
-  const [muted, setMuted] = useState(true);
-
-  const evaDetailsForDate = evaDetails.filter((evaDetail) => evaDetail.startTime.startsWith(date));
+  const evaDetailsForDate = evaDetails.filter((evaDetail) =>
+    evaDetail.startTime.startsWith(date || "")
+  );
   const youtubeLiveRecording =
-    youtubeLiveRecordings.filter((recording) => recording.startTime.startsWith(date))[0] || null;
+    youtubeLiveRecordings.filter((recording) => recording.startTime.startsWith(date || ""))[0] ||
+    null;
 
-  const crewOnboard = getCrewMembersOnboardByDate({ crewArrDep, dateStr: date });
+  const crewOnboard = getCrewMembersOnboardByDate({ crewArrDep, dateStr: date || "" });
 
-  const dateObj = new Date(date);
+  const dateObj = new Date(date || "");
   const expeditions = expeditionInfo.filter(
     (exp) => new Date(exp.start) <= dateObj && (exp.end === null || new Date(exp.end) >= dateObj)
-  );
-
-  useEffect(() => {
-    startClock();
-    if (isValidTimestring(t)) {
-      setClock(appSecondsFromTimeStr(t));
-    } else if (youtubeLiveRecording) {
-      setClock(appSecondsFromTimeStr(youtubeLiveRecording.startTime.split("T")[1]));
-    } else if (transcriptItems.length > 0) {
-      const firstTimeStr = transcriptItems[0].utteranceTime;
-      setClock(appSecondsFromTimeStr(firstTimeStr) - 5);
-    }
-  }, [t, transcriptItems, date, youtubeLiveRecording, startClock, setClock]);
-
-  // Memoize the Globe component's props to prevent unnecessary re-renders
-  const globeProps = useMemo(
-    () => ({
-      ephemeraItems,
-      viewDate: date,
-    }),
-    [ephemeraItems, date]
   );
 
   return (

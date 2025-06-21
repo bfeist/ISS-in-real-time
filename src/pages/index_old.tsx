@@ -1,6 +1,7 @@
 import styles from "./index_old.module.css";
-import { useLoaderData, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FunctionComponent, JSX, useEffect, useState } from "react";
+import { useIndexPageData } from "../hooks";
 
 type TotalsObject = {
   comm: number;
@@ -13,12 +14,23 @@ type TotalsObject = {
 };
 
 const Home = (): JSX.Element => {
-  const indexPageData = useLoaderData() as GetDataIndexPageDataResponse;
+  const { data: indexPageData, isLoading, error } = useIndexPageData();
   const [propertyToHighlight, setPropertyToHighlight] = useState<string>("");
 
   const handlePropertyHighlight = (property: string) => {
     setPropertyToHighlight(property);
   };
+  if (isLoading) {
+    return <div className={styles.loading}>Loading...</div>;
+  }
+
+  if (error) {
+    return <div className={styles.error}>Error loading data: {error.message}</div>;
+  }
+
+  if (!indexPageData) {
+    return <div className={styles.error}>No data available</div>;
+  }
 
   const calculateTotals = (dataAvailabilityItems: DataAvailability[]): TotalsObject => {
     const totalsObject = {

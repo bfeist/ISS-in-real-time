@@ -9,6 +9,28 @@
   flex: 1;
 }
 
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.2rem;
+  color: #666666;
+  background-color: #adadad;
+}
+
+.error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.2rem;
+  color: #d32f2f;
+  text-align: center;
+  padding: 20px;
+  background-color: #adadad;
+}
+
 .pageTitle {
   font-size: 30px;
   font-weight: 600;

@@ -24,6 +24,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@tanstack/react-query": "^5.81.1",
     "cesium": "^1.130.0",
     "cors": "^2.8.5",
     "geojson": "^0.5.0",

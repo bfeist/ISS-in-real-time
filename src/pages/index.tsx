@@ -1,41 +1,43 @@
 import styles from "./index.module.css";
 import { FunctionComponent, JSX, useState, useCallback } from "react";
-import { useLoaderData } from "react-router";
 import Layout from "../components/layout/dayLayout";
 import TimelineContainer from "../components/yearsTimelineDropdown/timelineContainer";
+import { useIndexPageData } from "../hooks";
 
 const SliderPage: FunctionComponent = (): JSX.Element => {
-  const indexPageData = useLoaderData() as GetDataIndexPageDataResponse;
+  const { data: indexPageData, isLoading, error } = useIndexPageData();
 
   const [selectedDate, setSelectedDate] = useState<string>();
-  const [selectedDateDataAvailability, setSelectedDateDataAvailability] =
-    useState<DataAvailability | null>(null);
 
-  const clickCallback = useCallback(
-    ({ clickedDate }: { clickedDate: string | null }) => {
-      if (clickedDate) {
-        setSelectedDate(clickedDate);
+  const clickCallback = useCallback(({ clickedDate }: { clickedDate: string | null }) => {
+    if (clickedDate) {
+      setSelectedDate(clickedDate);
+    }
+  }, []);
 
-        // Find data availability for this date
-        const dataAvailability = indexPageData.dataAvailabilityItems.find(
-          (item) => item.date === clickedDate
-        );
-        setSelectedDateDataAvailability(
-          dataAvailability || {
-            date: clickedDate,
-            comm: false,
-            vvComm: false,
-            youtube: false,
-            eva: false,
-            blog: false,
-            activitySummary: false,
-            earthPhotography: false,
-          }
-        );
-      }
-    },
-    [indexPageData.dataAvailabilityItems]
-  );
+  if (isLoading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.loading}>Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.error}>Error loading data: {error.message}</div>
+      </div>
+    );
+  }
+
+  if (!indexPageData) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.error}>No data available</div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -45,11 +47,13 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
         indexPageData={indexPageData}
         selectedDate={selectedDate}
       />
-      {selectedDate && selectedDateDataAvailability && (
+      {selectedDate && (
         <Layout
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
-          dataAvailability={selectedDateDataAvailability}
+          dataAvailability={indexPageData.dataAvailabilityItems.find(
+            (item) => item.date === selectedDate
+          )}
         />
       )}
     </div>
