@@ -1,0 +1,89 @@
+import { FunctionComponent, JSX, useMemo } from "react";
+import styles from "./yearsLabels.module.css";
+
+interface YearsLabelsProps {
+  canvasWidth: number;
+  onHover?: (isHovering: boolean) => void;
+}
+
+const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
+  canvasWidth,
+  onHover,
+}): JSX.Element => {
+  const yearPositions = useMemo(() => {
+    // Use the same epoch and calculation logic as the canvas
+    const epochYear = 2000;
+    const epochMonth = 10; // November (0-indexed)
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed
+    const totalMonthsSinceEpoch = (currentYear - epochYear) * 12 + (currentMonth - epochMonth) + 1;
+
+    let totalDaysSinceEpoch = 0;
+    const years: Array<{ year: number; position: number; startDay: number }> = [];
+
+    // Calculate positions for each year
+    for (let i = 0; i < totalMonthsSinceEpoch; i++) {
+      const monthDate = new Date(epochYear, epochMonth + i, 1);
+      const nextMonth = new Date(monthDate);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      nextMonth.setDate(0);
+      const daysInMonth = nextMonth.getDate();
+
+      // If this is January (month 0), record the year position
+      if (monthDate.getMonth() === 0) {
+        const position =
+          (totalDaysSinceEpoch /
+            (() => {
+              // Calculate total days to match canvas logic
+              let tempTotal = 0;
+              for (let j = 0; j < totalMonthsSinceEpoch; j++) {
+                const tempMonthDate = new Date(epochYear, epochMonth + j, 1);
+                const tempNextMonth = new Date(tempMonthDate);
+                tempNextMonth.setMonth(tempNextMonth.getMonth() + 1);
+                tempNextMonth.setDate(0);
+                tempTotal += tempNextMonth.getDate();
+              }
+              return tempTotal;
+            })()) *
+          canvasWidth;
+
+        years.push({
+          year: monthDate.getFullYear(),
+          position,
+          startDay: totalDaysSinceEpoch,
+        });
+      }
+
+      totalDaysSinceEpoch += daysInMonth;
+    }
+
+    return years;
+  }, [canvasWidth]);
+
+  const handleMouseEnter = () => {
+    onHover?.(true);
+  };
+
+  const handleMouseLeave = () => {
+    onHover?.(false);
+  };
+
+  return (
+    <div
+      className={styles.yearsContainer}
+      style={{ width: canvasWidth }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {yearPositions.map(({ year, position }) => (
+        <div key={year} className={styles.yearLabel} style={{ left: position + 2 }}>
+          {year}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default YearsLabels;

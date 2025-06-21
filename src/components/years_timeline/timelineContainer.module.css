@@ -1,0 +1,64 @@
+.timelineContainer {
+  position: relative;
+  width: 100%;
+}
+
+.yearsRow {
+  position: relative;
+  width: 100%;
+  height: 30px;
+  background-color: blue;
+  overflow: hidden;
+}
+
+.yearsScrollContainer {
+  position: relative;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Hide scrollbars completely */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* Hide scrollbar in WebKit browsers */
+.yearsScrollContainer::-webkit-scrollbar {
+  display: none;
+}
+
+.timelineDropdown {
+  position: relative;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background-color: white;
+  border: 1px solid #cccccc;
+  border-top: none;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+}
+
+.canvasScrollContainer {
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+  height: 150px;
+  box-sizing: border-box;
+  /* Ensure the container allows content to overflow horizontally */
+  min-width: 0; /* Allow shrinking but content can overflow */
+  /* Hide scrollbars completely */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* Hide scrollbar in WebKit browsers */
+.canvasScrollContainer::-webkit-scrollbar {
+  display: none;
+}
+
+.timelineCanvas {
+  display: block;
+  cursor: pointer;
+  /* Remove max-width constraint to allow canvas to expand beyond container */
+  min-width: 1500px; /* Ensure minimum width */
+}

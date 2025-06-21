@@ -1,5 +1,5 @@
 import { FunctionComponent } from "react";
-import CrewSearch from "./crewSearch";
+import CrewSearch from "../crewSearch";
 import styles from "./yearsHoverAndSearch.module.css";
 
 interface DataListsProps {

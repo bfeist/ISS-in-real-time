@@ -1,0 +1,18 @@
+.yearsContainer {
+  position: relative;
+  height: 30px;
+  overflow: visible;
+}
+
+.yearLabel {
+  position: absolute;
+  top: 5px;
+  color: black;
+  font-size: 13px;
+  font-weight: bold;
+  padding: 2px 4px;
+  margin: 0;
+  min-width: 40px;
+  text-align: left;
+  pointer-events: none; /* Year labels are not interactive individually */
+}
