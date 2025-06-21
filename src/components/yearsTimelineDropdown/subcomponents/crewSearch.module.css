@@ -1,6 +1,4 @@
 .container {
-  width: 100%;
-  max-width: 600px;
   margin: 0 auto;
   padding: 20px;
 }
@@ -47,7 +45,7 @@
 }
 
 .listContainer {
-  height: 400px;
+  height: 100px;
   overflow-y: auto;
   border: 1px solid #eeeeee;
   border-radius: 4px;

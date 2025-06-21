@@ -1,7 +1,7 @@
 import { FunctionComponent, JSX, useRef, useEffect, useState, useCallback } from "react";
 import styles from "./timelineContainer.module.css";
 import YearsLabels from "./yearsLabels";
-import YearsHoverAndSearch from "./yearsHoverAndSearch";
+import HoverAndSearch from "./subcomponents/hoverAndSearch";
 import { initializePaperCanvas, clearPaperCanvas } from "./yearsTimelineDraw";
 import {
   getActiveFlightsByDate,
@@ -34,6 +34,8 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
   );
   const [canvasWidth, setCanvasWidth] = useState(() => Math.max(window.innerWidth, 1500));
 
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const [expeditionsOnHoveredDate, setExpeditionsOnHoveredDate] = useState<ExpeditionInfo[]>([]);
   const [crewOnboardList, setCrewOnboardList] = useState<string[]>([]);
   const [flightsDocked, setFlightsDocked] = useState<string[]>([]);
   const [supplyFlightsDocked, setSupplyFlightsDocked] = useState<string[]>([]);
@@ -43,12 +45,21 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
   // Hover callback that was moved from index.tsx
   const hoverCallback = useCallback(
     ({ hoveredDate }: { hoveredDate: string | null }) => {
+      // Store the hovered date in state
+      setHoveredDate(hoveredDate);
+
       // Clear previous state
       setCrewOnboardList([]);
       setFlightsDocked([]);
       setSupplyFlightsDocked([]);
 
       if (hoveredDate) {
+        // Show expeditions
+        const expeditions = indexPageData.expeditionInfo.filter(
+          (expedition) => expedition.start <= hoveredDate && expedition.end >= hoveredDate
+        );
+        setExpeditionsOnHoveredDate(expeditions);
+
         // Show crew onboard
         const crewOnboard = getCrewMembersOnboardByDate({
           crewArrDep: indexPageData.crewArrDep,
@@ -255,7 +266,12 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
           className={styles.yearsScrollContainer}
           onScroll={handleYearsScroll}
         >
-          <YearsLabels canvasWidth={canvasWidth} onHover={handleYearsHover} />
+          <YearsLabels
+            canvasWidth={canvasWidth}
+            onHover={handleYearsHover}
+            hoveredDate={hoveredDate}
+            selectedDate={selectedDate}
+          />
         </div>
       </div>
 
@@ -269,7 +285,8 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
           >
             <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
           </div>
-          <YearsHoverAndSearch
+          <HoverAndSearch
+            expeditions={expeditionsOnHoveredDate}
             crewOnboardList={crewOnboardList}
             flightsDocked={flightsDocked}
             supplyFlightsDocked={supplyFlightsDocked}

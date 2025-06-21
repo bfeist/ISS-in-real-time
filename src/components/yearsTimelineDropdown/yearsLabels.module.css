@@ -1,0 +1,40 @@
+.yearsContainer {
+  position: relative;
+  height: 30px;
+  overflow: visible;
+  background-color: rgb(230 230 230);
+}
+
+.yearLabel {
+  position: absolute;
+  top: 3px;
+  color: black;
+  font-size: 13px;
+  font-weight: bold;
+  padding: 2px 4px;
+  margin: 0;
+  min-width: 40px;
+  text-align: left;
+  pointer-events: none; /* Year labels are not interactive individually */
+  transform: rotate(-30deg);
+}
+
+.hoveredDateLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: red;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.selectedDateLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: red;
+  pointer-events: none;
+  z-index: 11;
+}

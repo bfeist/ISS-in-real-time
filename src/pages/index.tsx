@@ -2,7 +2,7 @@ import styles from "./index.module.css";
 import { FunctionComponent, JSX, useState, useCallback } from "react";
 import { useLoaderData } from "react-router";
 import Layout from "../components/layout/dayLayout";
-import TimelineContainer from "../components/years_timeline/timelineContainer";
+import TimelineContainer from "../components/yearsTimelineDropdown/timelineContainer";
 
 const SliderPage: FunctionComponent = (): JSX.Element => {
   const indexPageData = useLoaderData() as GetDataIndexPageDataResponse;

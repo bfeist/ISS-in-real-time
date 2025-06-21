@@ -1,8 +1,9 @@
 import { FunctionComponent } from "react";
-import CrewSearch from "../crewSearch";
-import styles from "./yearsHoverAndSearch.module.css";
+import CrewSearch from "./crewSearch";
+import styles from "./hoverAndSearch.module.css";
 
 interface DataListsProps {
+  expeditions: ExpeditionInfo[];
   crewOnboardList: string[];
   flightsDocked: string[];
   supplyFlightsDocked: string[];
@@ -11,7 +12,8 @@ interface DataListsProps {
   setSelectedCrewMember: (crewMember: CrewMember | null) => void;
 }
 
-const YearsHoverAndSearch: FunctionComponent<DataListsProps> = ({
+const HoverAndSearch: FunctionComponent<DataListsProps> = ({
+  expeditions,
   crewOnboardList,
   flightsDocked,
   supplyFlightsDocked,
@@ -21,6 +23,16 @@ const YearsHoverAndSearch: FunctionComponent<DataListsProps> = ({
 }) => {
   return (
     <div className={styles.dataLists}>
+      <div className={styles.dataItem}>
+        <h2>Expeditions</h2>
+        {expeditions.length > 0 && (
+          <div>
+            {expeditions.map((expedition) => (
+              <div key={expedition.expedition}>{`Expedition ${expedition.expedition}`}</div>
+            ))}
+          </div>
+        )}
+      </div>
       <div className={styles.dataItem}>
         <h2>Crew Onboard</h2>
         {crewOnboardList.length > 0 && crewOnboardList.map((name) => <div key={name}>{name}</div>)}
@@ -54,4 +66,4 @@ const YearsHoverAndSearch: FunctionComponent<DataListsProps> = ({
   );
 };
 
-export default YearsHoverAndSearch;
+export default HoverAndSearch;

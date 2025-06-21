@@ -1,9 +1,13 @@
+h2 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
 .dataLists {
   display: flex;
   flex-direction: row;
-  overflow-y: scroll;
   flex: 1;
-  height: calc(100% - 160px); /* Adjust based on paperCanvas height plus any margins/padding */
+  height: 200px;
 }
 
 .dataItem {
@@ -11,6 +15,5 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  height: 100%;
   width: 25%;
 }
