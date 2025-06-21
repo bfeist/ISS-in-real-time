@@ -331,19 +331,7 @@ const Layout: FunctionComponent<{
     }
   }
 
-  return (
-    <div className={styles.outerWrapper}>
-      <button
-        className={styles.closeButton}
-        onClick={() => setSelectedDate(null)}
-        aria-label="Close"
-      >
-        ×
-      </button>
-
-      {content}
-    </div>
-  );
+  return <div className={styles.outerWrapper}>{content}</div>;
 };
 
 export default Layout;

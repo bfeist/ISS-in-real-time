@@ -29,6 +29,9 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
   const [showTimeline, setShowTimeline] = useState(
     () => selectedDate === null || selectedDate === undefined
   );
+  const [isDefaultOpen, setIsDefaultOpen] = useState(
+    () => selectedDate === null || selectedDate === undefined
+  );
   const [canvasWidth, setCanvasWidth] = useState(() => Math.max(window.innerWidth, 1500));
 
   const [crewOnboardList, setCrewOnboardList] = useState<string[]>([]);
@@ -102,6 +105,21 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
     [indexPageData]
   );
 
+  // Wrap the original clickCallback to also close the dropdown
+  const handleCanvasClick = useCallback(
+    ({ clickedDate }: { clickedDate: string | null }) => {
+      // Call the original click callback
+      clickCallback({ clickedDate });
+
+      // Close the dropdown when a date is selected
+      if (clickedDate) {
+        setShowTimeline(false);
+        setIsDefaultOpen(false);
+      }
+    },
+    [clickCallback]
+  );
+
   // Effect to update selectedCrewStays when selectedCrewMember changes
   useEffect(() => {
     if (selectedCrewMember) {
@@ -131,14 +149,19 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
   const handleYearsHover = useCallback((isHovering: boolean) => {
     if (isHovering) {
       setShowTimeline(true);
+      // If timeline was opened via hover, it should close on mouse leave
+      setIsDefaultOpen(false);
     }
     // Don't set to false here - let the container mouse leave handle it
   }, []);
 
   // Handle mouse leave from the entire timeline container
   const handleContainerMouseLeave = useCallback(() => {
-    setShowTimeline(false);
-  }, []);
+    // Only close if it wasn't default opened
+    if (!isDefaultOpen) {
+      setShowTimeline(false);
+    }
+  }, [isDefaultOpen]);
 
   // Sync scroll between years and canvas
   const handleCanvasScroll = useCallback(() => {
@@ -163,7 +186,7 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
         dataAvailabilityItems,
         selectedCrewStays,
         hoverCallback,
-        clickCallback,
+        clickCallback: handleCanvasClick,
         canvasWidth,
       });
 
@@ -186,7 +209,7 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
     dataAvailabilityItems,
     selectedCrewStays,
     hoverCallback,
-    clickCallback,
+    handleCanvasClick,
     showTimeline,
     canvasWidth,
   ]);
@@ -208,9 +231,12 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
     // If selectedDate is null/undefined, default to open
     if (selectedDate === null || selectedDate === undefined) {
       setShowTimeline(true);
+      setIsDefaultOpen(true);
+    } else {
+      // If a date is selected, we can close the timeline (user has made a selection)
+      // but don't force it closed - let hover behavior control it
+      setIsDefaultOpen(false);
     }
-    // If a date is selected, we can close the timeline (user has made a selection)
-    // but don't force it closed - let hover behavior control it
   }, [selectedDate]);
 
   return (

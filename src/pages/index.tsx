@@ -45,11 +45,6 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
         indexPageData={indexPageData}
         selectedDate={selectedDate}
       />
-      <div className={styles.selectedDateDisplay}>
-        {selectedDate
-          ? `Selected Date: ${selectedDate}`
-          : "Hover over the timeline to select a date"}
-      </div>
       {selectedDate && selectedDateDataAvailability && (
         <Layout
           selectedDate={selectedDate}
