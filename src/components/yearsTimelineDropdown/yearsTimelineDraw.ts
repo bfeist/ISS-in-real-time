@@ -21,8 +21,10 @@ export const initializePaperCanvas = ({
 } => {
   // Handle high-DPI displays (like iPhone Retina screens)
   const pixelRatio = window.devicePixelRatio || 1;
+  const desiredHeight = 150; // Match the style.height in CSS
+
   canvasElement.width = canvasElement.clientWidth * pixelRatio;
-  canvasElement.height = canvasElement.clientHeight * pixelRatio;
+  canvasElement.height = desiredHeight * pixelRatio;
 
   paper.setup(canvasElement);
 
@@ -49,22 +51,22 @@ export const initializePaperCanvas = ({
     // Create or update the red hover indicator box
     if (!dayBox) {
       dayBox = new paper.Path.Rectangle({
-        point: new paper.Point(point.x - 3, point.y - 3),
-        size: new paper.Size(6, 6),
+        point: new paper.Point(point.x - 5, point.y - 5),
+        size: new paper.Size(10, 10),
         fillColor: new paper.Color("rgba(255, 0, 0, 0.2)"),
         strokeColor: new paper.Color("red"),
         strokeWidth: 2,
       });
       uiGroup.addChild(dayBox);
     } else {
-      dayBox.segments[0].point.x = point.x - 3;
-      dayBox.segments[0].point.y = point.y - 3;
-      dayBox.segments[1].point.x = point.x + 3;
-      dayBox.segments[1].point.y = point.y - 3;
-      dayBox.segments[2].point.x = point.x + 3;
-      dayBox.segments[2].point.y = point.y + 3;
-      dayBox.segments[3].point.x = point.x - 3;
-      dayBox.segments[3].point.y = point.y + 3;
+      dayBox.segments[0].point.x = point.x - 5;
+      dayBox.segments[0].point.y = point.y - 5;
+      dayBox.segments[1].point.x = point.x + 5;
+      dayBox.segments[1].point.y = point.y - 5;
+      dayBox.segments[2].point.x = point.x + 5;
+      dayBox.segments[2].point.y = point.y + 5;
+      dayBox.segments[3].point.x = point.x - 5;
+      dayBox.segments[3].point.y = point.y + 5;
     }
 
     // Calculate the hovered date
@@ -94,6 +96,110 @@ export const initializePaperCanvas = ({
 
     clickCallback({ clickedDate });
   };
+
+  // Add touch event handling for mobile devices
+  tool.onMouseDown = (_event: paper.ToolEvent) => {
+    // This is needed to make sure touch events work properly
+  };
+
+  // Handle touch events for mobile devices
+  const handleTouchStart = (e: TouchEvent) => {
+    if (!canvasElement) return;
+
+    // Prevent default to avoid scrolling
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    const rect = canvasElement.getBoundingClientRect();
+
+    // Calculate touch position in CSS pixels relative to the canvas
+    const touchX = touch.clientX - rect.left;
+    const touchY = touch.clientY - rect.top;
+
+    // Adjust for canvas scaling
+    const xRatio = canvasWidth / rect.width;
+    const yRatio = paper.view.viewSize.height / rect.height;
+
+    // Create a point in Paper.js coordinates
+    const point = new paper.Point(touchX * xRatio, touchY * yRatio);
+
+    // Create a custom event for Paper.js
+    const event = {
+      point,
+      delta: new paper.Point(0, 0),
+      count: 1,
+    };
+
+    // Manually trigger the tool's handlers
+    if (tool.onMouseMove) tool.onMouseMove(event as unknown as paper.ToolEvent);
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!canvasElement) return;
+
+    // Prevent default to avoid scrolling
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    const rect = canvasElement.getBoundingClientRect();
+
+    // Calculate touch position in CSS pixels relative to the canvas
+    const touchX = touch.clientX - rect.left;
+    const touchY = touch.clientY - rect.top;
+
+    // Adjust for canvas scaling
+    const xRatio = canvasWidth / rect.width;
+    const yRatio = paper.view.viewSize.height / rect.height;
+
+    // Create a point in Paper.js coordinates
+    const point = new paper.Point(touchX * xRatio, touchY * yRatio);
+
+    // Create a custom event for Paper.js
+    const event = {
+      point,
+      delta: new paper.Point(0, 0),
+      count: 1,
+    };
+
+    // Manually trigger the tool's handlers
+    if (tool.onMouseMove) tool.onMouseMove(event as unknown as paper.ToolEvent);
+  };
+
+  const handleTouchEnd = (e: TouchEvent) => {
+    if (!canvasElement) return;
+
+    // Prevent default
+    e.preventDefault();
+
+    const touch = e.changedTouches[0];
+    const rect = canvasElement.getBoundingClientRect();
+
+    // Calculate touch position in CSS pixels relative to the canvas
+    const touchX = touch.clientX - rect.left;
+    const touchY = touch.clientY - rect.top;
+
+    // Adjust for canvas scaling
+    const xRatio = canvasWidth / rect.width;
+    const yRatio = paper.view.viewSize.height / rect.height;
+
+    // Create a point in Paper.js coordinates
+    const point = new paper.Point(touchX * xRatio, touchY * yRatio);
+
+    // Create a custom event for Paper.js
+    const event = {
+      point,
+      delta: new paper.Point(0, 0),
+      count: 1,
+    };
+
+    // Manually trigger the tool's handlers
+    if (tool.onMouseUp) tool.onMouseUp(event as unknown as paper.ToolEvent);
+  };
+
+  // Add touch event listeners
+  canvasElement.addEventListener("touchstart", handleTouchStart, { passive: false });
+  canvasElement.addEventListener("touchmove", handleTouchMove, { passive: false });
+  canvasElement.addEventListener("touchend", handleTouchEnd, { passive: false });
 
   // Handle mouse leaving the canvas
   const handleDocumentMouseMove = (event: MouseEvent) => {
@@ -125,12 +231,15 @@ export const initializePaperCanvas = ({
       // Reset the view matrix first
       paper.view.matrix = new paper.Matrix();
 
+      // Make sure canvas height is properly set
+      const desiredHeight = 150; // Match the style.height in CSS
+
       // Set the canvas dimensions with pixel ratio factored in
       canvasElement.width = canvasWidth * pixelRatio;
-      canvasElement.height = canvasElement.clientHeight * pixelRatio;
+      canvasElement.height = desiredHeight * pixelRatio;
 
       // Update the view size (in CSS pixels)
-      paper.view.viewSize = new paper.Size(canvasWidth, canvasElement.clientHeight);
+      paper.view.viewSize = new paper.Size(canvasWidth, desiredHeight);
 
       // Apply the pixel ratio scaling as a view matrix transformation
       paper.view.matrix = new paper.Matrix().scale(pixelRatio);
@@ -153,6 +262,12 @@ export const initializePaperCanvas = ({
 
   const cleanupInputHandlers = () => {
     document.removeEventListener("mousemove", handleDocumentMouseMove);
+
+    // Remove touch event listeners
+    canvasElement.removeEventListener("touchstart", handleTouchStart);
+    canvasElement.removeEventListener("touchmove", handleTouchMove);
+    canvasElement.removeEventListener("touchend", handleTouchEnd);
+
     if (tool) {
       tool.remove();
     }

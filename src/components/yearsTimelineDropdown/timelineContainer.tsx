@@ -282,7 +282,12 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
             className={styles.canvasScrollContainer}
             onScroll={handleCanvasScroll}
           >
-            <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
+            <canvas
+              ref={canvasRef}
+              className={styles.timelineCanvas}
+              style={{ height: "150px" }}
+              height="150"
+            />
           </div>
           <HoverAndSearch
             hoveredDate={hoveredDate}

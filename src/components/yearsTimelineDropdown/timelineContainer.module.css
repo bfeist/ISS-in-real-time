@@ -59,6 +59,9 @@
   cursor: pointer;
   /* Remove max-width constraint to allow canvas to expand beyond container */
   min-width: 1500px; /* Ensure minimum width */
+  height: 150px; /* Set fixed height to match canvas element height attribute */
+  /* Better touch handling on mobile */
+  touch-action: none; /* Prevent default touch actions like scrolling */
   /* Prevent blurry rendering on high-DPI displays */
   image-rendering: pixelated; /* Standard, also works for Chrome/Edge */
   -webkit-font-smoothing: antialiased; /* Better text rendering on high-DPI displays */
