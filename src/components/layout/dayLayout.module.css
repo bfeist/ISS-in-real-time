@@ -1,0 +1,143 @@
+.outerWrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: relative;
+}
+
+.closeButton {
+  position: absolute;
+  top: -5px;
+  right: 10px;
+  font-size: 28px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  z-index: 1000;
+  color: #333333;
+  width: 30px;
+  height: 30px;
+}
+
+.page {
+  flex: 1 1 auto;
+  background-color: #797979;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fakeSection {
+  height: 100%;
+  width: 100%;
+}
+
+/* Section specific styles - removed general rule */
+
+.header {
+  flex: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.headerBottom {
+  flex: 0 0 50px;
+}
+
+.body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: row;
+}
+
+.bodyLeft {
+  flex: 0 0 45%;
+  display: flex;
+  flex-direction: column;
+}
+
+.bodyLeftTop {
+  flex: 0 0 50%;
+}
+
+.bodyLeftBottom {
+  flex: 0 0 50%;
+  display: flex;
+  flex-direction: row;
+}
+
+.bodyCenter {
+  flex: 1 1 30%;
+  display: flex;
+  flex-direction: column;
+}
+
+.bodyCenterTop {
+  flex: 0 0 50%;
+  display: flex;
+  flex-direction: row;
+}
+
+.bodyCenterBottom {
+  flex: 0 0 50%;
+}
+
+.bodyRight {
+  flex: 0 0 25%;
+}
+
+/* Mobile styles - no media query needed since React controls when these components render */
+.mobileBody {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* Allow vertical scrolling */
+}
+
+.tabs {
+  display: flex;
+  overflow-x: auto;
+  background-color: #f1f1f1;
+  border-bottom: 1px solid #cccccc;
+}
+
+.tab {
+  background-color: inherit;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 10px 16px;
+  font-size: 16px;
+  transition: 0.3s;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  background-color: #dddddd;
+}
+
+.activeTab {
+  background-color: #cccccc;
+}
+
+.activeTab:hover {
+  background-color: #cccccc;
+}
+
+.tabContent {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 200px;
+  overflow: auto; /* Allow scrolling if content exceeds space */
+}
+
+/* Mobile section specific styles - only apply minimum height in tab content */
+.tabContent .fakeSection[data-section="video"],
+.tabContent .fakeSection[data-section="photos"],
+.tabContent .fakeSection[data-section="globe"],
+.tabContent .fakeSection[data-section="transcript"] {
+  min-height: 600px;
+}

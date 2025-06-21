@@ -1,6 +1,9 @@
 import styles from "./index.module.css";
 import { FunctionComponent, JSX, useEffect, useRef, useState, useCallback } from "react";
-import { initializePaperCanvas, clearPaperCanvas } from "../components/dateTimelineDraw";
+import {
+  initializePaperCanvas,
+  clearPaperCanvas,
+} from "../components/years_timeline/yearsTimelineDraw";
 import { useLoaderData } from "react-router";
 import {
   getActiveFlightsByDate,
@@ -8,7 +11,7 @@ import {
   getCrewMembersOnboardByDate,
 } from "utils/onboard";
 import YearsHoverAndSearch from "../components/yearsHoverAndSearch";
-import LayoutTest from "./layout_test";
+import Layout from "../components/layout/dayLayout";
 
 const SliderPage: FunctionComponent = (): JSX.Element => {
   const indexPageData = useLoaderData() as GetDataIndexPageDataResponse;
@@ -170,7 +173,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
             : "Hover over the timeline to select a date"}
       </div>
       {selectedDate && selectedDateDataAvailability ? (
-        <LayoutTest
+        <Layout
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
           dataAvailability={selectedDateDataAvailability}

@@ -20,6 +20,7 @@ import Terminator from "utils/terminator";
 import { containsCoordinate } from "ol/extent";
 import { timeStrFromAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
+import styles from "./map.module.css";
 
 const MapComponent: FunctionComponent<{
   viewDate: string;
@@ -221,7 +222,7 @@ const MapComponent: FunctionComponent<{
   return (
     <>
       <ClockInterval setAppSeconds={setAppSeconds} />
-      <div ref={mapRef} style={{ width: "100%", height: "100%" }}></div>
+      <div ref={mapRef} className={styles.mapContainer}></div>
     </>
   );
 };

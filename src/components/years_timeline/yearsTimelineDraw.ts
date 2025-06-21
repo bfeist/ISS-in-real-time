@@ -1,5 +1,5 @@
 import paper from "paper";
-import { calculateDateFromPosition } from "../utils/indexSliderCalcs";
+import { calculateDateFromPosition } from "../../utils/indexSliderCalcs";
 
 export const initializePaperCanvas = ({
   canvasElement,
