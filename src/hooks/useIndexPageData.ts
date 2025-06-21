@@ -63,17 +63,6 @@ export function useFlightsSupply(): UseQueryResult<FlightSupply[], Error> {
   });
 }
 
-// Selector hook to get data availability for the selected date
-export function useSelectedDateDataAvailability(
-  selectedDate: string | null
-): DataAvailability | null {
-  const { data: dataAvailabilities } = useDataAvailabilities();
-
-  return selectedDate
-    ? dataAvailabilities?.find((item) => item.date === selectedDate) || null
-    : null;
-}
-
 interface IndexPageDataState {
   data?: GetDataIndexPageDataResponse;
   isLoading: boolean;

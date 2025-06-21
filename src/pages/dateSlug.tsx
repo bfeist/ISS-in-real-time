@@ -16,7 +16,7 @@ import CrewOnboard from "components/crewOnboard";
 import EvaInfo from "components/evaInfo";
 import Flights from "components/flights";
 import Blog from "components/blog";
-import { useDatePageData } from "../hooks";
+import { useDatePageData } from "../hooks/useDatePageData";
 
 const DatePage = (): JSX.Element => {
   const { date } = useParams();

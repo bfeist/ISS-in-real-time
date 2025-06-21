@@ -1,7 +1,7 @@
 import styles from "./index_old.module.css";
 import { useNavigate } from "react-router-dom";
 import { FunctionComponent, JSX, useEffect, useState } from "react";
-import { useIndexPageData } from "../hooks";
+import { useIndexPageData } from "../hooks/useIndexPageData";
 
 type TotalsObject = {
   comm: number;
