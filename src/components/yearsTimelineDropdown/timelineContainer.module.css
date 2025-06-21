@@ -41,7 +41,7 @@
   overflow-x: auto;
   overflow-y: hidden;
   width: 100%;
-  height: 150px;
+  height: 165px;
   box-sizing: border-box;
   /* Ensure the container allows content to overflow horizontally */
   min-width: 0; /* Allow shrinking but content can overflow */
