@@ -45,14 +45,13 @@
   box-sizing: border-box;
   /* Ensure the container allows content to overflow horizontally */
   min-width: 0; /* Allow shrinking but content can overflow */
-  /* Hide scrollbars completely */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
 }
 
-/* Hide scrollbar in WebKit browsers */
-.canvasScrollContainer::-webkit-scrollbar {
-  display: none;
+/* Hide horizontal scrollbar when window width is greater than 1500px */
+@media screen and (width >= 1501px) {
+  .canvasScrollContainer {
+    overflow-x: hidden;
+  }
 }
 
 .timelineCanvas {

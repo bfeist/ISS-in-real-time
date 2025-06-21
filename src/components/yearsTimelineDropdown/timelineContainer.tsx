@@ -160,8 +160,6 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
   const handleYearsHover = useCallback((isHovering: boolean) => {
     if (isHovering) {
       setShowTimeline(true);
-      // If timeline was opened via hover, it should close on mouse leave
-      setIsDefaultOpen(false);
     }
     // Don't set to false here - let the container mouse leave handle it
   }, []);
@@ -229,11 +227,8 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas && showTimeline) {
-      console.log("Setting canvas width to:", canvasWidth);
       canvas.style.width = `${canvasWidth}px`;
       canvas.width = canvasWidth; // Also set the actual canvas width attribute
-      console.log("Canvas style width:", canvas.style.width);
-      console.log("Canvas clientWidth:", canvas.clientWidth);
     }
   }, [canvasWidth, showTimeline]);
 
