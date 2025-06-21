@@ -228,8 +228,11 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas && showTimeline) {
+      // Set the CSS width of the canvas
       canvas.style.width = `${canvasWidth}px`;
-      canvas.width = canvasWidth; // Also set the actual canvas width attribute
+      canvas.style.height = "150px"; // Set the height via CSS
+
+      // Don't set canvas.width/height here - let the initializePaperCanvas handle the pixel ratio
     }
   }, [canvasWidth, showTimeline]);
 

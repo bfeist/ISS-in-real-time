@@ -59,4 +59,7 @@
   cursor: pointer;
   /* Remove max-width constraint to allow canvas to expand beyond container */
   min-width: 1500px; /* Ensure minimum width */
+  /* Prevent blurry rendering on high-DPI displays */
+  image-rendering: pixelated; /* Standard, also works for Chrome/Edge */
+  -webkit-font-smoothing: antialiased; /* Better text rendering on high-DPI displays */
 }

@@ -19,7 +19,17 @@ export const initializePaperCanvas = ({
   drawPaperItems: () => void;
   cleanupInputHandlers: () => void;
 } => {
+  // Handle high-DPI displays (like iPhone Retina screens)
+  const pixelRatio = window.devicePixelRatio || 1;
+  canvasElement.width = canvasElement.clientWidth * pixelRatio;
+  canvasElement.height = canvasElement.clientHeight * pixelRatio;
+
   paper.setup(canvasElement);
+
+  // Scale the view to account for pixel ratio
+  if (pixelRatio !== 1) {
+    paper.view.matrix = new paper.Matrix().scale(pixelRatio);
+  }
 
   // Constants - simplified without scroll handling
   const YEARS_AREA_HEIGHT = 0; // Years will be handled externally
@@ -33,10 +43,13 @@ export const initializePaperCanvas = ({
   const tool = new paper.Tool();
 
   tool.onMouseMove = (event: paper.ToolEvent) => {
+    // Get event point in device-independent coordinates
+    const point = event.point;
+
     // Create or update the red hover indicator box
     if (!dayBox) {
       dayBox = new paper.Path.Rectangle({
-        point: new paper.Point(event.point.x - 3, event.point.y - 3),
+        point: new paper.Point(point.x - 3, point.y - 3),
         size: new paper.Size(6, 6),
         fillColor: new paper.Color("rgba(255, 0, 0, 0.2)"),
         strokeColor: new paper.Color("red"),
@@ -44,20 +57,20 @@ export const initializePaperCanvas = ({
       });
       uiGroup.addChild(dayBox);
     } else {
-      dayBox.segments[0].point.x = event.point.x - 3;
-      dayBox.segments[0].point.y = event.point.y - 3;
-      dayBox.segments[1].point.x = event.point.x + 3;
-      dayBox.segments[1].point.y = event.point.y - 3;
-      dayBox.segments[2].point.x = event.point.x + 3;
-      dayBox.segments[2].point.y = event.point.y + 3;
-      dayBox.segments[3].point.x = event.point.x - 3;
-      dayBox.segments[3].point.y = event.point.y + 3;
+      dayBox.segments[0].point.x = point.x - 3;
+      dayBox.segments[0].point.y = point.y - 3;
+      dayBox.segments[1].point.x = point.x + 3;
+      dayBox.segments[1].point.y = point.y - 3;
+      dayBox.segments[2].point.x = point.x + 3;
+      dayBox.segments[2].point.y = point.y + 3;
+      dayBox.segments[3].point.x = point.x - 3;
+      dayBox.segments[3].point.y = point.y + 3;
     }
 
     // Calculate the hovered date
     const hoveredDate = calculateDateFromPosition(
-      event.point.x,
-      event.point.y,
+      point.x,
+      point.y,
       canvasWidth,
       paper.view?.bounds.height || null,
       YEARS_AREA_HEIGHT
@@ -67,10 +80,13 @@ export const initializePaperCanvas = ({
   };
 
   tool.onMouseUp = (event: paper.ToolEvent) => {
+    // Get event point in device-independent coordinates
+    const point = event.point;
+
     // Calculate the clicked date
     const clickedDate = calculateDateFromPosition(
-      event.point.x,
-      event.point.y,
+      point.x,
+      point.y,
       canvasWidth,
       paper.view?.bounds.height || null,
       YEARS_AREA_HEIGHT
@@ -103,7 +119,21 @@ export const initializePaperCanvas = ({
 
   const drawPaperItems = () => {
     if (canvasElement && paper.view && paper.project) {
+      // Get the current pixel ratio
+      const pixelRatio = window.devicePixelRatio || 1;
+
+      // Reset the view matrix first
+      paper.view.matrix = new paper.Matrix();
+
+      // Set the canvas dimensions with pixel ratio factored in
+      canvasElement.width = canvasWidth * pixelRatio;
+      canvasElement.height = canvasElement.clientHeight * pixelRatio;
+
+      // Update the view size (in CSS pixels)
       paper.view.viewSize = new paper.Size(canvasWidth, canvasElement.clientHeight);
+
+      // Apply the pixel ratio scaling as a view matrix transformation
+      paper.view.matrix = new paper.Matrix().scale(pixelRatio);
 
       uiGroup.removeChildren();
       dataGroup.removeChildren();
