@@ -228,11 +228,8 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas && showTimeline) {
-      // Set the CSS width of the canvas
       canvas.style.width = `${canvasWidth}px`;
-      canvas.style.height = "150px"; // Set the height via CSS
-
-      // Don't set canvas.width/height here - let the initializePaperCanvas handle the pixel ratio
+      canvas.width = canvasWidth; // Also set the actual canvas width attribute
     }
   }, [canvasWidth, showTimeline]);
 
@@ -282,12 +279,7 @@ const TimelineContainer: FunctionComponent<TimelineContainerProps> = ({
             className={styles.canvasScrollContainer}
             onScroll={handleCanvasScroll}
           >
-            <canvas
-              ref={canvasRef}
-              className={styles.timelineCanvas}
-              style={{ height: "150px" }}
-              height="150"
-            />
+            <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
           </div>
           <HoverAndSearch
             hoveredDate={hoveredDate}
