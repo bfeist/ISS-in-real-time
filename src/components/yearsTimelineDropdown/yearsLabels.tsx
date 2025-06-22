@@ -4,6 +4,7 @@ import styles from "./yearsLabels.module.css";
 interface YearsLabelsProps {
   canvasWidth: number;
   onHover?: (isHovering: boolean) => void;
+  onClick?: () => void;
   hoveredDate?: string | null;
   selectedDate?: string | null;
 }
@@ -11,6 +12,7 @@ interface YearsLabelsProps {
 const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
   canvasWidth,
   onHover,
+  onClick,
   hoveredDate,
   selectedDate,
 }): JSX.Element => {
@@ -140,6 +142,17 @@ const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
       style={{ width: canvasWidth }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClick={() => {
+        onClick?.();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          onClick?.();
+        }
+      }}
+      tabIndex={0} // Make the div focusable
+      role="button" // Indicate that this is an interactive element
+      aria-label="Years timeline labels"
     >
       {yearPositions.map(({ year, position }) => (
         <div key={year} className={styles.yearLabel} style={{ left: position + 2 }}>

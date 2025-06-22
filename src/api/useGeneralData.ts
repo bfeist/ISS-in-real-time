@@ -1,0 +1,64 @@
+import { useQuery, UseQueryResult } from "@tanstack/react-query";
+import {
+  fetchDataAvailabilities,
+  fetchEvaDetails,
+  fetchCrewArrDep,
+  fetchExpeditionInfo,
+  fetchFlights,
+  fetchFlightsSupply,
+} from "./dataFetchers";
+
+// Individual hooks for each data type
+export function useGeneralDataAvailabilities(): UseQueryResult<DataAvailability[], Error> {
+  return useQuery({
+    queryKey: ["dataAvailabilities"],
+    queryFn: fetchDataAvailabilities,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+export function useGeneralEvaDetails(): UseQueryResult<EvaDetail[], Error> {
+  return useQuery({
+    queryKey: ["evaDetails"],
+    queryFn: fetchEvaDetails,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+export function useGeneralCrewArrDep(): UseQueryResult<CrewArrDepItem[], Error> {
+  return useQuery({
+    queryKey: ["crewArrDep"],
+    queryFn: fetchCrewArrDep,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+export function useGeneralExpeditionInfo(): UseQueryResult<ExpeditionInfo[], Error> {
+  return useQuery({
+    queryKey: ["expeditionInfo"],
+    queryFn: fetchExpeditionInfo,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+export function useGeneralFlights(): UseQueryResult<Flight[], Error> {
+  return useQuery({
+    queryKey: ["flights"],
+    queryFn: fetchFlights,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+export function useGeneralFlightsSupply(): UseQueryResult<FlightSupply[], Error> {
+  return useQuery({
+    queryKey: ["flightsSupply"],
+    queryFn: fetchFlightsSupply,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}

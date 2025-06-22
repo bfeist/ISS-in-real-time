@@ -1,7 +1,7 @@
 import styles from "./index_old.module.css";
 import { useNavigate } from "react-router-dom";
 import { FunctionComponent, JSX, useEffect, useState } from "react";
-import { useIndexPageData } from "../hooks/useIndexPageData";
+import { useGeneralDataAvailabilities } from "api/useGeneralData";
 
 type TotalsObject = {
   comm: number;
@@ -14,21 +14,26 @@ type TotalsObject = {
 };
 
 const Home = (): JSX.Element => {
-  const { data: indexPageData, isLoading, error } = useIndexPageData();
+  // Use individual hooks for better granular control
+  const dataAvailabilitiesQuery = useGeneralDataAvailabilities();
   const [propertyToHighlight, setPropertyToHighlight] = useState<string>("");
 
   const handlePropertyHighlight = (property: string) => {
     setPropertyToHighlight(property);
   };
-  if (isLoading) {
+  if (dataAvailabilitiesQuery.isLoading) {
     return <div className={styles.loading}>Loading...</div>;
   }
 
-  if (error) {
-    return <div className={styles.error}>Error loading data: {error.message}</div>;
+  if (dataAvailabilitiesQuery.error) {
+    return (
+      <div className={styles.error}>
+        Error loading data: {dataAvailabilitiesQuery.error.message}
+      </div>
+    );
   }
 
-  if (!indexPageData) {
+  if (!dataAvailabilitiesQuery.data || dataAvailabilitiesQuery.data.length === 0) {
     return <div className={styles.error}>No data available</div>;
   }
 
@@ -54,7 +59,7 @@ const Home = (): JSX.Element => {
     return totalsObject;
   };
 
-  const totalsObject: TotalsObject = calculateTotals(indexPageData.dataAvailabilityItems);
+  const totalsObject: TotalsObject = calculateTotals(dataAvailabilitiesQuery.data);
 
   const startDate = new Date(Date.UTC(2000, 9, 1)); // 2000-10-01
   const endDate = new Date();
@@ -137,8 +142,8 @@ const Home = (): JSX.Element => {
       </p>
       <div className={styles.yearsContainer}>
         {allYears.map((year) => {
-          const dataItemsThisYear = indexPageData.dataAvailabilityItems.filter(
-            (item) => parseInt(item.date.split("-")[0]) === year
+          const dataItemsThisYear = dataAvailabilitiesQuery.data!.filter(
+            (item: DataAvailability) => parseInt(item.date.split("-")[0]) === year
           );
 
           return (

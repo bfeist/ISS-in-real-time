@@ -60,3 +60,37 @@
   /* Remove max-width constraint to allow canvas to expand beyond container */
   min-width: 1500px; /* Ensure minimum width */
 }
+
+/* Loading, error, and no data states */
+.loadingMessage,
+.errorMessage,
+.noDataMessage {
+  text-align: center;
+  font-size: 14px;
+  color: #666666;
+  font-style: italic;
+}
+
+.errorMessage {
+  color: #d73027;
+  background-color: #fdf2f2;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  margin: 8px;
+}
+
+.loadingMessage {
+  color: #856404;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  margin: 8px;
+}
+
+.noDataMessage {
+  color: #6c757d;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  margin: 8px;
+}

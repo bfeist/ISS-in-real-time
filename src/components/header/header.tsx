@@ -3,7 +3,7 @@ import styles from "./header.module.css";
 import { useClockState } from "store";
 import { timeStrFromAppSeconds } from "utils/time";
 import { useNavigate } from "react-router-dom";
-import ClockInterval from "./clockInterval";
+import ClockInterval from "../clockInterval";
 import HeaderTelemetry from "./headerTelemetry";
 
 const Header: FunctionComponent<{

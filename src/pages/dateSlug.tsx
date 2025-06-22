@@ -10,13 +10,28 @@ import { getCrewMembersOnboardByDate } from "utils/onboard";
 import { useClockState, useSelectedDateState } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import Globe from "components/globe";
-import Header from "components/header";
+import Header from "components/header/header";
 import Expeditions from "components/expedition";
 import CrewOnboard from "components/crewOnboard";
 import EvaInfo from "components/evaInfo";
 import Flights from "components/flights";
 import Blog from "components/blog";
-import { useDatePageData } from "../hooks/useDatePageData";
+import {
+  useDateDataAvailability,
+  useDateCommTranscript,
+  useDateEphemera,
+  useDateEarthPhotography,
+  useDateYoutubeData,
+  useDateActivitySummary,
+  useDateBlogArticles,
+} from "../api/useDateSpecificData";
+import {
+  useGeneralCrewArrDep,
+  useGeneralEvaDetails,
+  useGeneralExpeditionInfo,
+  useGeneralFlights,
+  useGeneralFlightsSupply,
+} from "../api/useGeneralData";
 
 const DatePage = (): JSX.Element => {
   const { date } = useParams();
@@ -30,7 +45,70 @@ const DatePage = (): JSX.Element => {
 
   const { setSelectedDate } = useSelectedDateState();
 
-  const { data, isLoading, error } = useDatePageData(date || "");
+  // Use individual hooks for better granular control
+  const dataAvailabilityQuery = useDateDataAvailability(date || "");
+  const commTranscriptQuery = useDateCommTranscript(date || "");
+  const ephemeraQuery = useDateEphemera(date || "");
+  const earthPhotographyQuery = useDateEarthPhotography(date || "");
+  const youtubeDataQuery = useDateYoutubeData(date || "");
+  const activitySummaryQuery = useDateActivitySummary(date || "");
+  const blogArticlesQuery = useDateBlogArticles(date || "");
+
+  // General data hooks
+  const evaDetailsQuery = useGeneralEvaDetails();
+  const crewArrDepQuery = useGeneralCrewArrDep();
+  const expeditionInfoQuery = useGeneralExpeditionInfo();
+  const flightsQuery = useGeneralFlights();
+  const flightsSupplyQuery = useGeneralFlightsSupply();
+
+  // Check if critical data is loading
+  const isLoading = dataAvailabilityQuery.isLoading || ephemeraQuery.isLoading;
+  // Check for any errors
+  const error =
+    dataAvailabilityQuery.error ||
+    commTranscriptQuery.error ||
+    ephemeraQuery.error ||
+    earthPhotographyQuery.error ||
+    youtubeDataQuery.error ||
+    activitySummaryQuery.error ||
+    blogArticlesQuery.error ||
+    evaDetailsQuery.error ||
+    crewArrDepQuery.error ||
+    expeditionInfoQuery.error ||
+    flightsQuery.error ||
+    flightsSupplyQuery.error;
+  // Combine data - memoize to prevent unnecessary re-renders
+  const data = useMemo(() => {
+    if (!dataAvailabilityQuery.data) return null;
+
+    return {
+      transcriptItems: commTranscriptQuery.data || [],
+      earthPhotographyItems: earthPhotographyQuery.data || [],
+      ephemeraItems: ephemeraQuery.data || [],
+      evaDetails: evaDetailsQuery.data || [],
+      dataAvailability: dataAvailabilityQuery.data,
+      youtubeLiveRecordings: youtubeDataQuery.data || [],
+      crewArrDep: crewArrDepQuery.data || [],
+      expeditionInfo: expeditionInfoQuery.data || [],
+      flights: flightsQuery.data || [],
+      flightsSupply: flightsSupplyQuery.data || [],
+      activitySummary: activitySummaryQuery.data,
+      blogArticles: blogArticlesQuery.data || [],
+    };
+  }, [
+    dataAvailabilityQuery.data,
+    commTranscriptQuery.data,
+    earthPhotographyQuery.data,
+    ephemeraQuery.data,
+    evaDetailsQuery.data,
+    youtubeDataQuery.data,
+    crewArrDepQuery.data,
+    expeditionInfoQuery.data,
+    flightsQuery.data,
+    flightsSupplyQuery.data,
+    activitySummaryQuery.data,
+    blogArticlesQuery.data,
+  ]);
 
   // Memoize the Globe component's props to prevent unnecessary re-renders
   const globeProps = useMemo(
@@ -56,8 +134,8 @@ const DatePage = (): JSX.Element => {
       clockStartedRef.current = date || null;
     }
 
-    const youtubeLiveRecording = data.youtubeLiveRecordings.find((recording) =>
-      recording.startTime.startsWith(date || "")
+    const youtubeLiveRecording = data.youtubeLiveRecordings.find(
+      (recording: YoutubeLiveRecording) => recording.startTime.startsWith(date || "")
     );
 
     if (isValidTimestring(t)) {
@@ -68,9 +146,7 @@ const DatePage = (): JSX.Element => {
       const firstTimeStr = data.transcriptItems[0].utteranceTime;
       setClock(appSecondsFromTimeStr(firstTimeStr) - 5);
     }
-    // Don't include startClock/setClock in dependencies to avoid infinite loops
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [t, data, isLoading, date]);
+  }, [t, date, isLoading, data, startClock, setClock]);
 
   if (isLoading) {
     return <div className={styles.loading}>Loading...</div>;
@@ -83,7 +159,6 @@ const DatePage = (): JSX.Element => {
   if (!data) {
     return <div className={styles.error}>No data available for {date}</div>;
   }
-
   const {
     earthPhotographyItems,
     ephemeraItems,
@@ -98,18 +173,20 @@ const DatePage = (): JSX.Element => {
     activitySummary,
   } = data;
 
-  const evaDetailsForDate = evaDetails.filter((evaDetail) =>
+  const evaDetailsForDate = evaDetails.filter((evaDetail: EvaDetail) =>
     evaDetail.startTime.startsWith(date || "")
   );
   const youtubeLiveRecording =
-    youtubeLiveRecordings.filter((recording) => recording.startTime.startsWith(date || ""))[0] ||
-    null;
+    youtubeLiveRecordings.filter((recording: YoutubeLiveRecording) =>
+      recording.startTime.startsWith(date || "")
+    )[0] || null;
 
   const crewOnboard = getCrewMembersOnboardByDate({ crewArrDep, dateStr: date || "" });
 
   const dateObj = new Date(date || "");
   const expeditions = expeditionInfo.filter(
-    (exp) => new Date(exp.start) <= dateObj && (exp.end === null || new Date(exp.end) >= dateObj)
+    (exp: ExpeditionInfo) =>
+      new Date(exp.start) <= dateObj && (exp.end === null || new Date(exp.end) >= dateObj)
   );
 
   return (
@@ -148,7 +225,11 @@ const DatePage = (): JSX.Element => {
         </div>
         {evaDetailsForDate.length > 0 && <EvaInfo evaDetails={evaDetailsForDate} />}
         <Flights date={date} flights={flights} flightsSupply={flightsSupply} />
-        <Blog date={date} blogArticles={blogArticles} activitySummary={activitySummary} />
+        <Blog
+          date={date}
+          blogArticles={blogArticles}
+          activitySummary={activitySummary || undefined}
+        />
       </div>
     </div>
   );

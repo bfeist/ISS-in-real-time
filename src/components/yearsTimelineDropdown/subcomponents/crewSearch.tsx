@@ -8,6 +8,9 @@ const CrewSearch: FunctionComponent<{
 }> = ({ crewArrDep, selectedCrewMember, setSelectedCrewMember }) => {
   // Generate unique crew list for display in the dropdown
   const crewMembers: CrewMember[] = useMemo(() => {
+    if (!crewArrDep || crewArrDep.length === 0) {
+      return [];
+    }
     // Create a map to track unique crew members by name
     const uniqueCrewMap = new Map<string, CrewArrDepItem>();
 

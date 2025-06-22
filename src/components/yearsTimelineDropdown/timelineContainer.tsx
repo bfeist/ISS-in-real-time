@@ -3,23 +3,22 @@ import styles from "./timelineContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
 import { initializePaperCanvas, clearPaperCanvas } from "./yearsTimelineDraw";
-import {
-  getActiveFlightsByDate,
-  getActiveSupplyFlightsByDate,
-  getCrewMembersOnboardByDate,
-} from "utils/onboard";
 import { useSelectedDateState } from "../../store";
+import { useGeneralDataAvailabilities } from "api/useGeneralData";
 
-const TimelineContainer: FunctionComponent<{
-  dataAvailabilityItems: DataAvailability[];
-  indexPageData: GetDataIndexPageDataResponse;
-}> = ({ dataAvailabilityItems, indexPageData }): JSX.Element => {
+const TimelineContainer: FunctionComponent = (): JSX.Element => {
+  const dataAvailabilityQuery = useGeneralDataAvailabilities();
+  const { data: dataAvailabilityItems, isLoading, error } = dataAvailabilityQuery;
+
   const { selectedDate, setSelectedDate } = useSelectedDateState();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const yearsScrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const [selectedCrewMember, setSelectedCrewMember] = useState<CrewMember | null>(null);
+  const [selectedCrewStays, setSelectedCrewStays] = useState<CrewArrDepItem[]>([]);
   const [showTimeline, setShowTimeline] = useState(
     () => selectedDate === null || selectedDate === undefined
   );
@@ -29,86 +28,14 @@ const TimelineContainer: FunctionComponent<{
   const [canvasWidth, setCanvasWidth] = useState(() => Math.max(window.innerWidth, 1500));
 
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
-  const [expeditionsOnHoveredDate, setExpeditionsOnHoveredDate] = useState<ExpeditionInfo[]>([]);
-  const [crewOnboardList, setCrewOnboardList] = useState<string[]>([]);
-  const [flightsDocked, setFlightsDocked] = useState<string[]>([]);
-  const [supplyFlightsDocked, setSupplyFlightsDocked] = useState<string[]>([]);
-  const [selectedCrewMember, setSelectedCrewMember] = useState<CrewMember | null>(null);
-  const [selectedCrewStays, setSelectedCrewStays] = useState<CrewArrDepItem[]>([]);
 
   // Hover callback that was moved from index.tsx
   const hoverCallback = useCallback(
     ({ hoveredDate }: { hoveredDate: string | null }) => {
       // Store the hovered date in state
       setHoveredDate(hoveredDate);
-
-      // Clear previous state
-      setExpeditionsOnHoveredDate([]);
-      setCrewOnboardList([]);
-      setFlightsDocked([]);
-      setSupplyFlightsDocked([]);
-
-      if (hoveredDate) {
-        // Show expeditions
-        const expeditions = indexPageData.expeditionInfo.filter(
-          (expedition) => expedition.start <= hoveredDate && expedition.end >= hoveredDate
-        );
-        setExpeditionsOnHoveredDate(expeditions);
-
-        // Show crew onboard
-        const crewOnboard = getCrewMembersOnboardByDate({
-          crewArrDep: indexPageData.crewArrDep,
-          dateStr: hoveredDate,
-        });
-        if (crewOnboard.length > 0) {
-          const crewNames = crewOnboard
-            .sort((a, b) => {
-              // First sort by arrival date (earliest first)
-              const arrivalDateA = a.arrivalDate || "";
-              const arrivalDateB = b.arrivalDate || "";
-              if (arrivalDateA !== arrivalDateB) {
-                return arrivalDateA.localeCompare(arrivalDateB);
-              }
-              // If arrival dates are the same, sort by name
-              const nameA = `${a.name_first} ${a.name_last}` || "";
-              const nameB = `${b.name_first} ${b.name_last}` || "";
-              return nameA.localeCompare(nameB);
-            })
-            .map((crewMember) => `${crewMember.name_first} ${crewMember.name_last}`);
-          setCrewOnboardList(crewNames);
-        }
-
-        // Show flights docked
-        const flights = getActiveFlightsByDate({
-          dateStr: hoveredDate,
-          flights: indexPageData.flights,
-        });
-        if (flights.length > 0) {
-          const flightNames = flights
-            .sort((a, b) => a.mission_name.localeCompare(b.mission_name))
-            .map(
-              (flight) =>
-                `${flight.iss_flight} - ${flight.mission_name}` +
-                (flight.spacecraft_name ? " - " + flight.spacecraft_name : "")
-            );
-          setFlightsDocked(flightNames);
-        }
-
-        const supplyFlights = getActiveSupplyFlightsByDate({
-          dateStr: hoveredDate,
-          flightsSupply: indexPageData.flightsSupply,
-        });
-        if (supplyFlights.length > 0) {
-          const supplyFlightNames = supplyFlights
-            .sort((a, b) => a.flight_no.localeCompare(b.flight_no))
-            .map(
-              (flight) => flight.flight_no + (flight.spacecraft ? " - " + flight.spacecraft : "")
-            );
-          setSupplyFlightsDocked(supplyFlightNames);
-        }
-      }
     },
-    [indexPageData]
+    [setHoveredDate]
   );
 
   // Wrap the original clickCallback to also close the dropdown
@@ -125,18 +52,6 @@ const TimelineContainer: FunctionComponent<{
     },
     [setSelectedDate]
   );
-
-  // Effect to update selectedCrewStays when selectedCrewMember changes
-  useEffect(() => {
-    if (selectedCrewMember) {
-      const crewStays = indexPageData.crewArrDep.filter(
-        (item) => `${item.name_first} ${item.name_last}` === selectedCrewMember.name
-      );
-      setSelectedCrewStays(crewStays);
-    } else {
-      setSelectedCrewStays([]);
-    }
-  }, [selectedCrewMember, indexPageData.crewArrDep]);
 
   // Update canvas width on window resize
   useEffect(() => {
@@ -183,7 +98,7 @@ const TimelineContainer: FunctionComponent<{
   useEffect(() => {
     const canvas = canvasRef.current;
 
-    if (canvas && showTimeline) {
+    if (canvas && showTimeline && dataAvailabilityItems) {
       // Use the current canvasWidth state which matches years labels
       const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
         canvasElement: canvas,
@@ -240,6 +155,39 @@ const TimelineContainer: FunctionComponent<{
     }
   }, [selectedDate]);
 
+  // Handle loading state
+  if (isLoading) {
+    return (
+      <div className={styles.timelineContainer}>
+        <div className={styles.yearsRow}>
+          <div className={styles.loadingMessage}>Loading timeline data...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle error state
+  if (error) {
+    return (
+      <div className={styles.timelineContainer}>
+        <div className={styles.yearsRow}>
+          <div className={styles.errorMessage}>Error loading timeline data: {error.message}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle no data
+  if (!dataAvailabilityItems || dataAvailabilityItems.length === 0) {
+    return (
+      <div className={styles.timelineContainer}>
+        <div className={styles.yearsRow}>
+          <div className={styles.noDataMessage}>No timeline data available.</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -259,6 +207,16 @@ const TimelineContainer: FunctionComponent<{
           <YearsLabels
             canvasWidth={canvasWidth}
             onHover={handleYearsHover}
+            onClick={() => {
+              // When clicking on years labels, we can close the timeline if it was open
+              if (showTimeline) {
+                setShowTimeline(false);
+                setIsDefaultOpen(false);
+              } else {
+                setShowTimeline(true);
+                setIsDefaultOpen(true);
+              }
+            }}
             hoveredDate={hoveredDate}
             selectedDate={selectedDate}
           />
@@ -277,13 +235,10 @@ const TimelineContainer: FunctionComponent<{
           </div>
           <HoverAndSearch
             hoveredDate={hoveredDate}
-            expeditions={expeditionsOnHoveredDate}
-            crewOnboardList={crewOnboardList}
-            flightsDocked={flightsDocked}
-            supplyFlightsDocked={supplyFlightsDocked}
-            crewArrDep={indexPageData.crewArrDep}
             selectedCrewMember={selectedCrewMember}
             setSelectedCrewMember={setSelectedCrewMember}
+            selectedCrewStays={selectedCrewStays}
+            setSelectedCrewStays={setSelectedCrewStays}
           />
         </div>
       )}
