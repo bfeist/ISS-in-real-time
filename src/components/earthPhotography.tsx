@@ -15,6 +15,7 @@ const EarthPhotography: FunctionComponent = () => {
 
   const [visibleImages, setVisibleImages] = useState<number[]>([]);
   const [appSeconds, setAppSeconds] = useState(0);
+  const [mostRecentImage, setMostRecentImage] = useState(null);
 
   const observer = useRef<IntersectionObserver | null>(null);
 
@@ -54,7 +55,7 @@ const EarthPhotography: FunctionComponent = () => {
         break;
       }
       const diff = Math.abs(appSeconds - imageSeconds);
-      if (appSecondsDiff === null || diff < appSecondsDiff) {
+      if (appSecondsDiff === null || diff <= appSecondsDiff) {
         appSecondsDiff = diff;
         closestImageItem = imageItem;
       }
@@ -64,52 +65,79 @@ const EarthPhotography: FunctionComponent = () => {
 
     const targetElement = document.querySelector(`[data-time="${closestImageTimeStr}"]`);
     targetElement?.scrollIntoView({ behavior: "smooth" });
-  }, [appSeconds, imageItems]);
+
+    if (closestImageItem.ID !== mostRecentImage?.ID) {
+      setMostRecentImage(closestImageItem);
+    }
+  }, [appSeconds, imageItems, mostRecentImage]);
 
   if (isLoading) {
     return <div>Loading Earth photography...</div>;
   }
   return (
-    <div className={styles.imagesContainer}>
+    <div className={styles.imageComponentContainer}>
       <ClockInterval setAppSeconds={setAppSeconds} />
-      {imageItems.map((item, index) => (
-        <div
-          key={index}
-          className={`${styles.imageItem} lazy-load`}
-          data-index={index}
-          data-time={item.dateTaken.split("T")[1]}
-        >
+      <div
+        className={styles.currentImage}
+        role="button"
+        tabIndex={0}
+        onClick={() => window.open(`${imageBaseUrl}/${mostRecentImage?.largeUrl}`, "_blank")}
+        onKeyUp={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            window.open(`${imageBaseUrl}/${mostRecentImage?.largeUrl}`, "_blank");
+          }
+        }}
+      >
+        {mostRecentImage && (
+          <img
+            src={`${imageBaseUrl}/${mostRecentImage.largeUrl}`}
+            alt={mostRecentImage.ID}
+            loading="lazy"
+          />
+        )}
+      </div>
+      <div className={styles.imageThumbsContainer}>
+        {imageItems.map((item, index) => (
           <div
-            className={styles.dateTaken}
-            role="button"
-            tabIndex={0}
-            onClick={() => {
-              setClock(appSecondsFromTimeStr(item.dateTaken.split("T")[1]));
-            }}
-            onKeyUp={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
+            key={index}
+            className={`${styles.imageThumb} ${mostRecentImage?.ID === item.ID ? styles.active : ""} lazy-load`}
+            data-index={index}
+            data-time={item.dateTaken.split("T")[1]}
+          >
+            {/* <div
+              className={styles.dateTaken}
+              role="button"
+              tabIndex={0}
+              onClick={() => {
                 setClock(appSecondsFromTimeStr(item.dateTaken.split("T")[1]));
-              }
-            }}
-          >
-            {item.dateTaken}
+              }}
+              onKeyUp={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  setClock(appSecondsFromTimeStr(item.dateTaken.split("T")[1]));
+                }
+              }}
+            >
+              {item.dateTaken}
+            </div> */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                setClock(appSecondsFromTimeStr(item.dateTaken.split("T")[1]));
+              }}
+              onKeyUp={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  setClock(appSecondsFromTimeStr(item.dateTaken.split("T")[1]));
+                }
+              }}
+            >
+              {visibleImages.includes(index) && (
+                <img src={`${imageBaseUrl}/${item.smallUrl}`} alt={item.ID} loading="lazy" />
+              )}
+            </div>
           </div>
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => window.open(`${imageBaseUrl}/${item.largeUrl}`, "_blank")}
-            onKeyUp={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                window.open(`${imageBaseUrl}/${item.largeUrl}`, "_blank");
-              }
-            }}
-          >
-            {visibleImages.includes(index) && (
-              <img src={`${imageBaseUrl}/${item.smallUrl}`} alt={item.ID} loading="lazy" />
-            )}
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 };

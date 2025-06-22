@@ -8,19 +8,9 @@ const Blog: FunctionComponent<{
 }> = ({ showArticles }) => {
   const { selectedDate } = useStateSelectedDate();
 
-  const blogArticlesQuery = useDateBlogArticles(selectedDate);
-  const activitySummaryQuery = useDateActivitySummary(selectedDate);
-
-  const blogArticles = blogArticlesQuery.data || [];
-  const activitySummary = activitySummaryQuery.data || {};
-
-  const hasContent =
-    (blogArticles && blogArticles.length > 0) ||
-    (activitySummary && Object.keys(activitySummary).length > 0);
-
-  if (!hasContent) {
-    return null;
-  }
+  const { data: blogArticles, isLoading: articlesIsLoading } = useDateBlogArticles(selectedDate);
+  const { data: activitySummary, isLoading: summaryIsLoading } =
+    useDateActivitySummary(selectedDate);
 
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
   const [year, month, day] = selectedDate.split("-");
@@ -33,6 +23,10 @@ const Blog: FunctionComponent<{
         </div>
       </div>
     );
+  }
+
+  if (articlesIsLoading || summaryIsLoading) {
+    return <div className={styles.blogContainer}>Loading...</div>;
   }
 
   return (
