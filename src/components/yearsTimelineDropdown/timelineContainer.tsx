@@ -3,7 +3,7 @@ import styles from "./timelineContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
 import { initializePaperCanvas, clearPaperCanvas } from "./yearsTimelineDraw";
-import { useSelectedDateState } from "../../store";
+import { useHoverState, useSelectedDateState } from "store";
 import { useGeneralDataAvailabilities } from "api/useGeneralData";
 
 const TimelineContainer: FunctionComponent = (): JSX.Element => {
@@ -11,6 +11,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   const { data: dataAvailabilityItems, isLoading, error } = dataAvailabilityQuery;
 
   const { selectedDate, setSelectedDate } = useSelectedDateState();
+  const { hoveredDate, setHoveredDate } = useHoverState();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -26,8 +27,6 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     () => selectedDate === null || selectedDate === undefined
   );
   const [canvasWidth, setCanvasWidth] = useState(() => Math.max(window.innerWidth, 1500));
-
-  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
   // Hover callback that was moved from index.tsx
   const hoverCallback = useCallback(
@@ -234,7 +233,6 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
             <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
           </div>
           <HoverAndSearch
-            hoveredDate={hoveredDate}
             selectedCrewMember={selectedCrewMember}
             setSelectedCrewMember={setSelectedCrewMember}
             selectedCrewStays={selectedCrewStays}

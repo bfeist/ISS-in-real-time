@@ -35,9 +35,11 @@ const createStore: StateCreator<AppState> = (set) => ({
 
   // Hover initial state
   hoverSeconds: null,
+  hoveredDate: null,
 
   // Hover actions
   setHoverSeconds: (seconds: number | null) => set({ hoverSeconds: seconds }),
+  setHoveredDate: (date: string | null) => set({ hoveredDate: date }),
 
   // Selected date initial state
   selectedDate: null,
@@ -74,11 +76,15 @@ export const useClockState = (): {
 export const useHoverState = (): {
   hoverSeconds: number | null;
   setHoverSeconds: (seconds: number | null) => void;
+  hoveredDate: string | null;
+  setHoveredDate: (date: string | null) => void;
 } =>
   useAppStore(
     useShallow((state) => ({
       hoverSeconds: state.hoverSeconds,
       setHoverSeconds: state.setHoverSeconds,
+      hoveredDate: state.hoveredDate,
+      setHoveredDate: state.setHoveredDate,
     }))
   );
 

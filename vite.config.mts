@@ -34,6 +34,10 @@ export default defineConfig({
       output: {
         manualChunks: {
           react: ["react", "react-dom"],
+          router: ["react-router", "react-router-dom"],
+          map: ["ol", "geojson", "satellite.js", "tle.js"],
+          data: ["@tanstack/react-query", "zustand"],
+          vendor: ["lodash", "paper", "react-youtube", "resium"],
         },
       },
     },

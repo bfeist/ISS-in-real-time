@@ -9,18 +9,20 @@ interface ClockState {
   setClock: (seconds: number) => void;
 }
 
-interface HoverState {
-  hoverSeconds: number | null;
-
-  // Actions
-  setHoverSeconds: (seconds: number | null) => void;
-}
-
 interface SelectedDateState {
   selectedDate: string | null;
 
   // Actions
   setSelectedDate: (date: string | null) => void;
+}
+
+interface HoverState {
+  hoverSeconds: number | null;
+  hoveredDate: string | null;
+
+  // Actions
+  setHoverSeconds: (seconds: number | null) => void;
+  setHoveredDate: (date: string | null) => void;
 }
 
 // Combined store type
