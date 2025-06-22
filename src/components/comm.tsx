@@ -1,24 +1,28 @@
 import { extractChannelInfoFromFilename } from "utils/comm";
-import { FunctionComponent, useEffect, useRef, useState } from "react";
+import { FunctionComponent, useCallback, useEffect, useRef, useState } from "react";
 import styles from "./comm.module.css";
-import { useStateClock, useStateSelectedDate } from "store";
+import { useStateClock, useStateSelectedDate, useStateToggle } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useDateCommTranscript } from "../api/useDateSpecificData";
 
 const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
-  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL.replace("\\x3a", ":");
   const { isRunning, setClock } = useStateClock();
   const { selectedDate } = useStateSelectedDate();
+  const { globalMute } = useStateToggle();
 
   const { data: commItems = [], isLoading, error } = useDateCommTranscript(selectedDate);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRefCh1 = useRef<HTMLAudioElement | null>(null);
+  const audioRefCh2 = useRef<HTMLAudioElement | null>(null);
+  const audioRefCh3 = useRef<HTMLAudioElement | null>(null);
+  const audioRefCh4 = useRef<HTMLAudioElement | null>(null);
+  const audioRefCh5 = useRef<HTMLAudioElement | null>(null);
 
   const [lastScrolledToTimeStr, setLastScrolledToTimeStr] = useState<string | null>(null);
   const [appSeconds, setAppSeconds] = useState(0);
 
-  const getClosestCommItem = () => {
+  const getClosestCommItem = useCallback(() => {
     // Find the closest comm item to the current time
     let closestComm = commItems[0];
     let appSecondsDiff = null;
@@ -34,20 +38,15 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
       }
     }
     return closestComm;
-  };
+  }, [appSeconds, commItems]);
+
   /**
    * Effect to scroll to the closest comm item when the clock changes
    */
   useEffect(() => {
     if (!appSeconds || commItems.length === 0) return;
 
-    // If the clock isn't running, stop the audio
-    if (!isRunning && audioRef.current) {
-      audioRef.current.pause();
-    }
-
     const closestComm = getClosestCommItem();
-
     const closestCommTimeStr = closestComm.utteranceTime;
 
     if (lastScrolledToTimeStr === closestCommTimeStr) return;
@@ -55,14 +54,41 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
 
     const targetElement = document.querySelector(`[data-time="${closestCommTimeStr}"]`);
     targetElement?.scrollIntoView({ behavior: "smooth" });
+  }, [
+    appSeconds,
+    commItems,
+    audioRefCh1,
+    setLastScrolledToTimeStr,
+    lastScrolledToTimeStr,
+    getClosestCommItem,
+  ]);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appSeconds, commItems, audioRef, setLastScrolledToTimeStr, lastScrolledToTimeStr]);
   /**
    *  effect to play audio if appSeconds === one of the commItems
    */
   useEffect(() => {
     if (!appSeconds || commItems.length === 0) return;
+
+    const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL.replace("\\x3a", ":");
+
+    // If the clock isn't running, stop the audio
+    if (!isRunning) {
+      if (audioRefCh1.current) {
+        audioRefCh1.current.pause();
+      }
+      if (audioRefCh2.current) {
+        audioRefCh2.current.pause();
+      }
+      if (audioRefCh3.current) {
+        audioRefCh3.current.pause();
+      }
+      if (audioRefCh4.current) {
+        audioRefCh4.current.pause();
+      }
+      if (audioRefCh5.current) {
+        audioRefCh5.current.pause();
+      }
+    }
 
     // Find a comm item that matches the current time
     const commItem = commItems.find(
@@ -72,13 +98,37 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
     if (commItem) {
       const [year, month, day] = selectedDate.split("-");
       const aacFileUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/${commItem.filename}`;
-      if (audioRef.current && isRunning) {
-        audioRef.current.src = aacFileUrl;
-        audioRef.current.play();
+
+      // if SG1, play on channel 1 etc. Don't worry about overlapping audio playing. This is what happens in real life.
+      if (commItem.filename.includes("SG_1")) {
+        if (audioRefCh1.current && isRunning) {
+          audioRefCh1.current.src = aacFileUrl;
+          audioRefCh1.current.play();
+        }
+      } else if (commItem.filename.includes("SG_2")) {
+        if (audioRefCh2.current && isRunning) {
+          audioRefCh2.current.src = aacFileUrl;
+          audioRefCh2.current.play();
+        }
+      } else if (commItem.filename.includes("SG_3")) {
+        if (audioRefCh3.current && isRunning) {
+          audioRefCh3.current.src = aacFileUrl;
+          audioRefCh3.current.play();
+        }
+      } else if (commItem.filename.includes("SG_4")) {
+        if (audioRefCh4.current && isRunning) {
+          audioRefCh4.current.src = aacFileUrl;
+          audioRefCh4.current.play();
+        }
+      } else {
+        if (audioRefCh5.current && isRunning) {
+          audioRefCh5.current.src = aacFileUrl;
+          audioRefCh5.current.play();
+        }
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appSeconds, commItems, audioRef, selectedDate]);
+  }, [appSeconds, commItems, audioRefCh1, selectedDate, isRunning]);
+
   if (!showComm) {
     return (
       <div className={styles.comm}>
@@ -93,7 +143,31 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
       <ClockInterval setAppSeconds={setAppSeconds} />
 
       <div className={styles.audioPlayer}>
-        <audio ref={audioRef} controls muted={false}>
+        <audio ref={audioRefCh1} controls muted={globalMute}>
+          <track src="" kind="captions" label="English" />
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+      <div className={styles.audioPlayer}>
+        <audio ref={audioRefCh2} controls muted={globalMute}>
+          <track src="" kind="captions" label="English" />
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+      <div className={styles.audioPlayer}>
+        <audio ref={audioRefCh3} controls muted={globalMute}>
+          <track src="" kind="captions" label="English" />
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+      <div className={styles.audioPlayer}>
+        <audio ref={audioRefCh4} controls muted={globalMute}>
+          <track src="" kind="captions" label="English" />
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+      <div className={styles.audioPlayer}>
+        <audio ref={audioRefCh5} controls muted={globalMute}>
           <track src="" kind="captions" label="English" />
           Your browser does not support the audio element.
         </audio>
