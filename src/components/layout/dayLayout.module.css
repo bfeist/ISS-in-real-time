@@ -5,7 +5,7 @@
   position: relative;
 }
 
-.page {
+.dayLayout {
   flex: 1 1 auto;
   background-color: #797979;
   font-family: Arial, sans-serif;

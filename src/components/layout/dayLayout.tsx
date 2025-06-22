@@ -106,7 +106,7 @@ const MobileLayout: FunctionComponent<{
   }, [showVideo, showPhotos, showArticles, showEVA, showComm, activeTab]);
 
   return (
-    <div className={styles.page}>
+    <div className={styles.dayLayout}>
       <div className={styles.header}>
         <div className={styles.headerBottom}>
           <FakeSection name="timeline" />
@@ -145,7 +145,7 @@ const VideoPhotos: FunctionComponent<{
   showArticles: boolean;
 }> = ({ showEVA, showComm, showArticles }) => {
   return (
-    <div className={styles.page}>
+    <div className={styles.dayLayout}>
       <div className={styles.header}>
         <div className={styles.headerBottom}>
           <FakeSection name="timeline" />
@@ -185,7 +185,7 @@ const VideoOnly: FunctionComponent<{
   showArticles: boolean;
 }> = ({ showEVA, showComm, showArticles }) => {
   return (
-    <div className={styles.page}>
+    <div className={styles.dayLayout}>
       <div className={styles.header}>
         <div className={styles.headerBottom}>
           <FakeSection name="timeline" />
@@ -224,7 +224,7 @@ const PhotosOnly: FunctionComponent<{
   showArticles: boolean;
 }> = ({ showEVA, showComm, showArticles }) => {
   return (
-    <div className={styles.page}>
+    <div className={styles.dayLayout}>
       <div className={styles.header}>
         <div className={styles.headerBottom}>
           <FakeSection name="timeline" />
@@ -264,7 +264,7 @@ const NoPhotosOrVideo: FunctionComponent<{
   showArticles: boolean;
 }> = ({ showEVA, showComm, showArticles }) => {
   return (
-    <div className={styles.page}>
+    <div className={styles.dayLayout}>
       <div className={styles.header}>
         <div className={styles.headerBottom}>
           <FakeSection name="timeline" />

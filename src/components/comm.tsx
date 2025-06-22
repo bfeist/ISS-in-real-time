@@ -6,7 +6,7 @@ import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useCommTranscript } from "../hooks/useDatePageData";
 
-const Comm: FunctionComponent = () => {
+const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL.replace("\\x3a", ":");
   const { isRunning, setClock } = useClockState();
   const { selectedDate } = useSelectedDateState();
@@ -79,10 +79,25 @@ const Comm: FunctionComponent = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appSeconds, commItems, audioRef, selectedDate]);
-
+  if (!showComm) {
+    return (
+      <div className={styles.comm}>
+        <div className={styles.commItem}>
+          <div>Communication transcripts are unavailable for this date</div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={styles.comm}>
       <ClockInterval setAppSeconds={setAppSeconds} />
+
+      <div className={styles.audioPlayer}>
+        <audio ref={audioRef} controls muted={false}>
+          <track src="" kind="captions" label="English" />
+          Your browser does not support the audio element.
+        </audio>
+      </div>
 
       {isLoading && <div className={styles.commItem}>Loading communication transcripts...</div>}
 
@@ -105,40 +120,32 @@ const Comm: FunctionComponent = () => {
           }
 
           return (
-            <>
-              <div className={styles.audioPlayer}>
-                <audio ref={audioRef} controls muted={false}>
-                  <track src="" kind="captions" label="English" />
-                  Your browser does not support the audio element.
-                </audio>
+            <div
+              key={index}
+              className={`${styles.commItem} ${commItemActive}`}
+              data-time={item.utteranceTime}
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                setLastScrolledToTimeStr(null);
+                setClock(appSecondsFromTimeStr(item.utteranceTime));
+              }}
+              onKeyDown={() => {
+                setLastScrolledToTimeStr(null);
+                setClock(appSecondsFromTimeStr(item.utteranceTime));
+              }}
+            >
+              <div>{item.utteranceTime}</div>
+              <div className={styles.channelnum}>
+                {channelInfo.type}-{channelInfo.number}
               </div>
-              <div
-                key={index}
-                className={`${styles.commItem} ${commItemActive}`}
-                data-time={item.utteranceTime}
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  setLastScrolledToTimeStr(null);
-                  setClock(appSecondsFromTimeStr(item.utteranceTime));
-                }}
-                onKeyDown={() => {
-                  setLastScrolledToTimeStr(null);
-                  setClock(appSecondsFromTimeStr(item.utteranceTime));
-                }}
-              >
-                <div>{item.utteranceTime}</div>
-                <div className={styles.channelnum}>
-                  {channelInfo.type}-{channelInfo.number}
-                </div>
-                <div className={styles.textContainer}>
-                  <div>{item.text}</div>
-                  {item.textOriginalLang && (
-                    <div className={styles.textOriginalLang}>{item.textOriginalLang}</div>
-                  )}
-                </div>
+              <div className={styles.textContainer}>
+                <div>{item.text}</div>
+                {item.textOriginalLang && (
+                  <div className={styles.textOriginalLang}>{item.textOriginalLang}</div>
+                )}
               </div>
-            </>
+            </div>
           );
         })}
     </div>
