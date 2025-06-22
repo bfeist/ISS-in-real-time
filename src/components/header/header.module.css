@@ -1,11 +1,21 @@
 .header {
   flex: 0;
-  background-color: #707070;
+  background-color: rgb(230 230 230);
   display: flex;
+  border-bottom: 1px solid #cccccc;
 }
 
 .left {
   display: flex;
+  margin: 0 0 0 10px;
+}
+
+.title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333333;
+  margin-right: 20px;
+  align-self: center;
 }
 
 .right {

@@ -23,9 +23,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   const [showTimeline, setShowTimeline] = useState(
     () => selectedDate === null || selectedDate === undefined
   );
-  const [isDefaultOpen, setIsDefaultOpen] = useState(
-    () => selectedDate === null || selectedDate === undefined
-  );
+
   const [canvasWidth, setCanvasWidth] = useState(() => Math.max(window.innerWidth, 1500));
 
   // Hover callback that was moved from index.tsx
@@ -46,7 +44,6 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       // Close the dropdown when a date is selected
       if (clickedDate) {
         setShowTimeline(false);
-        setIsDefaultOpen(false);
       }
     },
     [setSelectedDate]
@@ -66,21 +63,6 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     };
   }, []);
 
-  const handleYearsHover = useCallback((isHovering: boolean) => {
-    if (isHovering) {
-      setShowTimeline(true);
-    }
-    // Don't set to false here - let the container mouse leave handle it
-  }, []);
-
-  // Handle mouse leave from the entire timeline container
-  const handleContainerMouseLeave = useCallback(() => {
-    // Only close if it wasn't default opened
-    if (!isDefaultOpen) {
-      setShowTimeline(false);
-    }
-  }, [isDefaultOpen]);
-
   // Sync scroll between years and canvas
   const handleCanvasScroll = useCallback(() => {
     if (scrollContainerRef.current && yearsScrollContainerRef.current) {
@@ -97,7 +79,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   useEffect(() => {
     const canvas = canvasRef.current;
 
-    if (canvas && showTimeline && dataAvailabilityItems) {
+    if (canvas && dataAvailabilityItems) {
       // Use the current canvasWidth state which matches years labels
       const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
         canvasElement: canvas,
@@ -123,34 +105,22 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
         clearPaperCanvas();
       };
     }
-  }, [
-    dataAvailabilityItems,
-    selectedCrewStays,
-    hoverCallback,
-    handleCanvasClick,
-    showTimeline,
-    canvasWidth,
-  ]);
+  }, [dataAvailabilityItems, selectedCrewStays, hoverCallback, handleCanvasClick, canvasWidth]);
 
   // Update canvas width when canvasWidth state changes
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas && showTimeline) {
+    if (canvas) {
       canvas.style.width = `${canvasWidth}px`;
       canvas.width = canvasWidth; // Also set the actual canvas width attribute
     }
-  }, [canvasWidth, showTimeline]);
+  }, [canvasWidth]);
 
   // Update showTimeline when selectedDate changes
   useEffect(() => {
     // If selectedDate is null/undefined, default to open
     if (selectedDate === null || selectedDate === undefined) {
       setShowTimeline(true);
-      setIsDefaultOpen(true);
-    } else {
-      // If a date is selected, we can close the timeline (user has made a selection)
-      // but don't force it closed - let hover behavior control it
-      setIsDefaultOpen(false);
     }
   }, [selectedDate]);
 
@@ -194,7 +164,6 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       onMouseEnter={() => {
         /* Keep timeline open when mouse enters container */
       }}
-      onMouseLeave={handleContainerMouseLeave}
     >
       {/* Years labels row */}
       <div className={styles.yearsRow}>
@@ -205,15 +174,12 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
         >
           <YearsLabels
             canvasWidth={canvasWidth}
-            onHover={handleYearsHover}
             onClick={() => {
               // When clicking on years labels, we can close the timeline if it was open
               if (showTimeline) {
                 setShowTimeline(false);
-                setIsDefaultOpen(false);
               } else {
                 setShowTimeline(true);
-                setIsDefaultOpen(true);
               }
             }}
             hoveredDate={hoveredDate}
@@ -223,23 +189,21 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       </div>
 
       {/* Timeline canvas dropdown */}
-      {showTimeline && (
-        <div className={styles.timelineDropdown}>
-          <div
-            ref={scrollContainerRef}
-            className={styles.canvasScrollContainer}
-            onScroll={handleCanvasScroll}
-          >
-            <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
-          </div>
-          <HoverAndSearch
-            selectedCrewMember={selectedCrewMember}
-            setSelectedCrewMember={setSelectedCrewMember}
-            selectedCrewStays={selectedCrewStays}
-            setSelectedCrewStays={setSelectedCrewStays}
-          />
+      <div className={`${styles.timelineDropdown} ${!showTimeline ? styles.hidden : ""}`}>
+        <div
+          ref={scrollContainerRef}
+          className={styles.canvasScrollContainer}
+          onScroll={handleCanvasScroll}
+        >
+          <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
         </div>
-      )}
+        <HoverAndSearch
+          selectedCrewMember={selectedCrewMember}
+          setSelectedCrewMember={setSelectedCrewMember}
+          selectedCrewStays={selectedCrewStays}
+          setSelectedCrewStays={setSelectedCrewStays}
+        />
+      </div>
     </div>
   );
 };

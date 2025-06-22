@@ -11,7 +11,6 @@ interface YearsLabelsProps {
 
 const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
   canvasWidth,
-  onHover,
   onClick,
   hoveredDate,
   selectedDate,
@@ -128,20 +127,10 @@ const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
   const hoveredDatePosition = calculateDatePosition(hoveredDate);
   const selectedDatePosition = calculateDatePosition(selectedDate);
 
-  const handleMouseEnter = () => {
-    onHover?.(true);
-  };
-
-  const handleMouseLeave = () => {
-    onHover?.(false);
-  };
-
   return (
     <div
       className={styles.yearsContainer}
       style={{ width: canvasWidth }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
       onClick={() => {
         onClick?.();
       }}

@@ -2,14 +2,12 @@ import { FunctionComponent, useState } from "react";
 import styles from "./header.module.css";
 import { useStateClock, useStateSelectedDate, useStateToggle } from "store";
 import { timeStrFromAppSeconds } from "utils/time";
-import { useNavigate } from "react-router-dom";
 import ClockInterval from "../clockInterval";
 import HeaderTelemetry from "./headerTelemetry";
 import { useDateDataAvailability } from "api/useDateSpecificData";
 
 const Header: FunctionComponent = () => {
   const { isRunning, startClock, stopClock } = useStateClock();
-  const navigate = useNavigate();
 
   const { selectedDate } = useStateSelectedDate();
   const { showGlobe, setShowGlobe, globalMute, setGlobalMute } = useStateToggle();
@@ -26,7 +24,7 @@ const Header: FunctionComponent = () => {
     <div className={styles.header}>
       <ClockInterval setAppSeconds={setAppSeconds} />
       <div className={styles.left}>
-        <button onClick={() => navigate(-1)}>Back</button>
+        <div className={styles.title}>ISS in Real Time</div>
         <div className={styles.dateTime}>
           <div>Date: {selectedDate}</div>
           <div>Time: {timeStrFromAppSeconds(appSeconds)}</div>

@@ -12,7 +12,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
     <div className={styles.page}>
       <Header />
       <TimelineContainer />
-      {selectedDate && <Layout />}
+      {selectedDate ? <Layout /> : <div>Please select a date</div>}
     </div>
   );
 };
