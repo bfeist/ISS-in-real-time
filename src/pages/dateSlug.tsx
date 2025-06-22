@@ -3,11 +3,11 @@ import EarthPhotography from "components/earthPhotography";
 import styles from "./dateSlug.module.css";
 import Comm from "components/comm";
 import Map from "components/map";
-import { JSX, useEffect, useRef, useState, useMemo } from "react";
+import { JSX, useEffect, useRef, useMemo } from "react";
 import { isValidTimestring } from "utils/params";
 import YouTube from "components/youtube";
 import { getCrewMembersOnboardByDate } from "utils/onboard";
-import { useClockState, useSelectedDateState } from "store";
+import { useStateClock, useStateSelectedDate, useStateToggle } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import Globe from "components/globe";
 import Header from "components/header/header";
@@ -38,12 +38,11 @@ const DatePage = (): JSX.Element => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const t = searchParams.get("t");
-  const { startClock, setClock } = useClockState();
+  const { startClock, setClock } = useStateClock();
   const clockStartedRef = useRef<string | null>(null);
-  const [showGlobe, setShowGlobe] = useState(true);
-  const [muted, setMuted] = useState(true);
 
-  const { setSelectedDate } = useSelectedDateState();
+  const { setSelectedDate } = useStateSelectedDate();
+  const { showGlobe } = useStateToggle();
 
   // Use individual hooks for better granular control
   const dataAvailabilityQuery = useDateDataAvailability(date || "");
@@ -161,9 +160,7 @@ const DatePage = (): JSX.Element => {
   }
   const {
     earthPhotographyItems,
-    ephemeraItems,
     evaDetails,
-    dataAvailability,
     youtubeLiveRecordings,
     crewArrDep,
     expeditionInfo,
@@ -191,15 +188,7 @@ const DatePage = (): JSX.Element => {
 
   return (
     <div className={styles.page}>
-      <Header
-        viewDate={date}
-        showGlobe={showGlobe}
-        setShowGlobe={setShowGlobe}
-        dataAvailability={dataAvailability}
-        muted={muted}
-        setMuted={setMuted}
-        ephemeraItems={ephemeraItems}
-      />
+      <Header />
       <div className={styles.upper}>
         <div className={styles.transcriptsContainer}>
           <Comm showComm={true} />
@@ -209,13 +198,7 @@ const DatePage = (): JSX.Element => {
         </div>
 
         <EarthPhotography imageItems={earthPhotographyItems} />
-        <div className={styles.mapContainer}>
-          {showGlobe ? (
-            <Globe {...globeProps} />
-          ) : (
-            <Map ephemeraItems={ephemeraItems} viewDate={date} />
-          )}
-        </div>
+        <div className={styles.mapContainer}>{showGlobe ? <Globe {...globeProps} /> : <Map />}</div>
       </div>
 
       <div className={styles.lower}>

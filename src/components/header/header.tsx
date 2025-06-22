@@ -1,24 +1,26 @@
 import { FunctionComponent, useState } from "react";
 import styles from "./header.module.css";
-import { useClockState } from "store";
+import { useStateClock, useStateSelectedDate, useStateToggle } from "store";
 import { timeStrFromAppSeconds } from "utils/time";
 import { useNavigate } from "react-router-dom";
 import ClockInterval from "../clockInterval";
 import HeaderTelemetry from "./headerTelemetry";
+import { useDateDataAvailability } from "api/useDateSpecificData";
 
-const Header: FunctionComponent<{
-  viewDate: string;
-  showGlobe: boolean;
-  setShowGlobe: (showGlobe: boolean) => void;
-  dataAvailability: DataAvailability;
-  muted: boolean;
-  setMuted: (muted: boolean) => void;
-  ephemeraItems: EphemeraItem[];
-}> = ({ viewDate, showGlobe, setShowGlobe, dataAvailability, muted, setMuted, ephemeraItems }) => {
-  const { isRunning, startClock, stopClock } = useClockState();
+const Header: FunctionComponent = () => {
+  const { isRunning, startClock, stopClock } = useStateClock();
   const navigate = useNavigate();
 
+  const { selectedDate } = useStateSelectedDate();
+  const { showGlobe, setShowGlobe, globalMute, setGlobalMute } = useStateToggle();
+
+  const { data: dataAvailability, isLoading } = useDateDataAvailability(selectedDate);
+
   const [appSeconds, setAppSeconds] = useState(0);
+
+  if (isLoading) {
+    return <div className={styles.header}>Loading...</div>;
+  }
 
   return (
     <div className={styles.header}>
@@ -26,17 +28,17 @@ const Header: FunctionComponent<{
       <div className={styles.left}>
         <button onClick={() => navigate(-1)}>Back</button>
         <div className={styles.dateTime}>
-          <div>Date: {viewDate}</div>
+          <div>Date: {selectedDate}</div>
           <div>Time: {timeStrFromAppSeconds(appSeconds)}</div>
         </div>
         <button
           onClick={() => {
             if (isRunning) {
               stopClock();
-              setMuted(true);
+              setGlobalMute(true);
             } else {
               startClock();
-              setMuted(false);
+              setGlobalMute(false);
             }
           }}
         >
@@ -44,10 +46,10 @@ const Header: FunctionComponent<{
         </button>
         <button
           onClick={() => {
-            setMuted(!muted);
+            setGlobalMute(!globalMute);
           }}
         >
-          {muted ? "Unmute" : "Mute"}
+          {globalMute ? "Unmute" : "Mute"}
         </button>
         <button onClick={() => setShowGlobe(!showGlobe)}>
           Show {showGlobe ? "Map" : "Globe"}{" "}
@@ -63,7 +65,7 @@ const Header: FunctionComponent<{
         </div>
       </div>
       <div className={styles.right}>
-        <HeaderTelemetry viewDate={viewDate} ephemeraItems={ephemeraItems} />
+        <HeaderTelemetry />
       </div>
     </div>
   );

@@ -1,15 +1,15 @@
 import { extractChannelInfoFromFilename } from "utils/comm";
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./comm.module.css";
-import { useClockState, useSelectedDateState } from "store";
+import { useStateClock, useStateSelectedDate } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useDateCommTranscript } from "../api/useDateSpecificData";
 
 const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL.replace("\\x3a", ":");
-  const { isRunning, setClock } = useClockState();
-  const { selectedDate } = useSelectedDateState();
+  const { isRunning, setClock } = useStateClock();
+  const { selectedDate } = useStateSelectedDate();
 
   const { data: commItems = [], isLoading, error } = useDateCommTranscript(selectedDate);
 

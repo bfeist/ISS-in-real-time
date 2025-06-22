@@ -14,7 +14,7 @@ import { FunctionComponent, useState, useRef, useEffect } from "react";
 import { Viewer, Entity } from "resium";
 import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
-import { useClockState } from "store";
+import { useStateClock } from "store";
 import { timeStrFromAppSeconds } from "utils/time";
 
 // Set Cesium Ion access token
@@ -24,7 +24,7 @@ const Globe: FunctionComponent<{
   viewDate: string;
   ephemeraItems: EphemeraItem[];
 }> = ({ viewDate, ephemeraItems }) => {
-  const { isRunning, startStopTimestamp, appSecondsAtStartStop } = useClockState();
+  const { isRunning, startStopTimestamp, appSecondsAtStartStop } = useStateClock();
 
   const startStopDate = new Date(startStopTimestamp);
   const appSeconds = appSecondsAtStartStop + (Date.now() - startStopDate.getTime()) / 1000;

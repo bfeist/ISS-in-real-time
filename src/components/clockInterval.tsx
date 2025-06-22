@@ -1,4 +1,4 @@
-import { useClockState } from "store";
+import { useStateClock } from "store";
 import { FunctionComponent, useEffect, useRef } from "react";
 
 /**
@@ -7,7 +7,7 @@ import { FunctionComponent, useEffect, useRef } from "react";
 const ClockInterval: FunctionComponent<{
   setAppSeconds: Function;
 }> = ({ setAppSeconds }) => {
-  const { appSecondsAtStartStop, isRunning, startStopTimestamp } = useClockState();
+  const { appSecondsAtStartStop, isRunning, startStopTimestamp } = useStateClock();
 
   const intervalRef = useRef(null);
 

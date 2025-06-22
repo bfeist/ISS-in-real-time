@@ -3,18 +3,19 @@ import styles from "./headerTelemetry.module.css";
 import * as satellite from "satellite.js";
 import { findClosestEphemeraItem } from "utils/map";
 import { timeStrFromAppSeconds } from "utils/time";
-import { useClockState } from "store";
+import { useStateClock, useStateSelectedDate } from "store";
+import { useDateEphemera } from "api/useDateSpecificData";
 
-const HeaderTelemetry: FunctionComponent<{
-  viewDate: string;
-  ephemeraItems: EphemeraItem[];
-}> = ({ viewDate, ephemeraItems }) => {
+const HeaderTelemetry: FunctionComponent = () => {
+  const { selectedDate } = useStateSelectedDate();
+  const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate);
+
   const velocityRef = useRef<HTMLSpanElement>(null);
   const altitudeRef = useRef<HTMLSpanElement>(null);
   const latRef = useRef<HTMLSpanElement>(null);
   const lngRef = useRef<HTMLSpanElement>(null);
 
-  const { appSecondsAtStartStop, isRunning, startStopTimestamp } = useClockState();
+  const { appSecondsAtStartStop, isRunning, startStopTimestamp } = useStateClock();
 
   const calcTelemetryAnimationFrame = useCallback(
     (satrec: satellite.SatRec, baseTime: Date, isRunning: boolean): (() => void) => {
@@ -80,17 +81,19 @@ const HeaderTelemetry: FunctionComponent<{
   );
 
   useEffect(() => {
+    if (isLoading || !ephemeraItems.length || !selectedDate) return;
+
     // Calculate current app seconds for finding ephemeris
     const currentAppSeconds = isRunning
       ? Math.floor(appSecondsAtStartStop + (Date.now() - Date.parse(startStopTimestamp)) / 1000)
       : appSecondsAtStartStop;
 
-    const startTime = new Date(`${viewDate}T${timeStrFromAppSeconds(currentAppSeconds)}Z`);
+    const startTime = new Date(`${selectedDate}T${timeStrFromAppSeconds(currentAppSeconds)}Z`);
     const ephemeris = findClosestEphemeraItem(startTime, ephemeraItems);
 
     // Parse TLE into a satellite record
     const satrec = satellite.twoline2satrec(ephemeris.tle_line1, ephemeris.tle_line2);
-    const baseTime = new Date(`${viewDate}T${timeStrFromAppSeconds(currentAppSeconds)}Z`);
+    const baseTime = new Date(`${selectedDate}T${timeStrFromAppSeconds(currentAppSeconds)}Z`);
 
     // Only start the animation if isRunning is true.
     // The cleanup function will handle stopping it if isRunning becomes false or other dependencies change.
@@ -103,8 +106,9 @@ const HeaderTelemetry: FunctionComponent<{
       cleanup(); // This will cancel the animation frame when the component unmounts or dependencies change
     };
   }, [
-    viewDate,
+    selectedDate,
     ephemeraItems,
+    isLoading,
     calcTelemetryAnimationFrame,
     isRunning,
     appSecondsAtStartStop,

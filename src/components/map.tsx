@@ -21,11 +21,13 @@ import { containsCoordinate } from "ol/extent";
 import { timeStrFromAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
 import styles from "./map.module.css";
+import { useStateSelectedDate } from "store";
+import { useDateEphemera } from "api/useDateSpecificData";
 
-const MapComponent: FunctionComponent<{
-  viewDate: string;
-  ephemeraItems: EphemeraItem[];
-}> = ({ viewDate, ephemeraItems }) => {
+const MapComponent: FunctionComponent = () => {
+  const { selectedDate } = useStateSelectedDate();
+  const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
+
   const mapRef = useRef<HTMLDivElement | null>(null);
   const olMapRef = useRef<Map | null>(null);
   const viewRef = useRef<View | null>(null);
@@ -122,10 +124,10 @@ const MapComponent: FunctionComponent<{
    * Update the marker position and re-center the map if the marker is out of view
    */
   useEffect(() => {
-    if (!olMapRef.current || !ephemeraItems || !viewDate) return;
+    if (!olMapRef.current || !ephemeraItems || !selectedDate) return;
 
     const ephemeris = findClosestEphemeraItem(
-      new Date(`${viewDate}T${timeStrFromAppSeconds(appSeconds)}Z`),
+      new Date(`${selectedDate}T${timeStrFromAppSeconds(appSeconds)}Z`),
       ephemeraItems
     );
     if (ephemeris) {
@@ -133,7 +135,7 @@ const MapComponent: FunctionComponent<{
         ${ephemeris.tle_line2}`;
       const { lat, lng } = getLatLngObj(
         tle,
-        new Date(`${viewDate}T${timeStrFromAppSeconds(appSeconds)}Z`).getTime()
+        new Date(`${selectedDate}T${timeStrFromAppSeconds(appSeconds)}Z`).getTime()
       );
 
       if (markerFeatureRef.current) {
@@ -151,15 +153,15 @@ const MapComponent: FunctionComponent<{
         }
       }
     }
-  }, [ephemeraItems, viewDate, appSeconds]);
+  }, [ephemeraItems, selectedDate, appSeconds]);
 
   /**
    * Add a terminator layer to the map
    */
   useEffect(() => {
-    if (!viewDate || !olMapRef.current) return;
+    if (!selectedDate || !olMapRef.current) return;
     // Add terminator layer
-    const terminator = new Terminator({ time: new Date(viewDate), resolution: 2 });
+    const terminator = new Terminator({ time: new Date(selectedDate), resolution: 2 });
     const terminatorGeoJSON = terminator.getTerminator();
 
     const terminatorSource = new VectorSourceOL({
@@ -185,16 +187,16 @@ const MapComponent: FunctionComponent<{
     return () => {
       olMapRef.current.removeLayer(terminatorLayer);
     };
-  }, [viewDate]);
+  }, [selectedDate]);
 
   /**
    * Update the orbit line based on the current time
    */
   useEffect(() => {
-    if (!viewDate || !olMapRef.current || !ephemeraItems.length) return;
+    if (!selectedDate || !olMapRef.current || !ephemeraItems.length) return;
 
     const { coordinates1, coordinates2 } = updateOrbitLine(
-      viewDate,
+      selectedDate,
       timeStrFromAppSeconds(appSeconds),
       ephemeraItems
     );
@@ -217,7 +219,11 @@ const MapComponent: FunctionComponent<{
         orbitSource.addFeature(orbitFeature2);
       }
     }
-  }, [viewDate, ephemeraItems, appSeconds]);
+  }, [selectedDate, ephemeraItems, appSeconds]);
+
+  if (isLoading) {
+    return <div className={styles.mapContainer}>Loading map...</div>;
+  }
 
   return (
     <>

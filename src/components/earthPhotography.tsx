@@ -1,6 +1,6 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./earthPhotography.module.css";
-import { useClockState } from "store";
+import { useStateClock } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 
@@ -9,7 +9,7 @@ const EarthPhotography: FunctionComponent<{
 }> = ({ imageItems }) => {
   const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL.replace("\\x3a", ":");
 
-  const { setClock } = useClockState();
+  const { setClock } = useStateClock();
 
   const [visibleImages, setVisibleImages] = useState<number[]>([]);
   const [appSeconds, setAppSeconds] = useState(0);

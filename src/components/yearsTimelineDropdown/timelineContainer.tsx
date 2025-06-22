@@ -3,15 +3,15 @@ import styles from "./timelineContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
 import { initializePaperCanvas, clearPaperCanvas } from "./yearsTimelineDraw";
-import { useHoverState, useSelectedDateState } from "store";
+import { useStateHover, useStateSelectedDate } from "store";
 import { useGeneralDataAvailabilities } from "api/useGeneralData";
 
 const TimelineContainer: FunctionComponent = (): JSX.Element => {
   const dataAvailabilityQuery = useGeneralDataAvailabilities();
   const { data: dataAvailabilityItems, isLoading, error } = dataAvailabilityQuery;
 
-  const { selectedDate, setSelectedDate } = useSelectedDateState();
-  const { hoveredDate, setHoveredDate } = useHoverState();
+  const { selectedDate, setSelectedDate } = useStateSelectedDate();
+  const { hoveredDate, setHoveredDate } = useStateHover();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);

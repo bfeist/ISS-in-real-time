@@ -12,7 +12,7 @@ import {
   getActiveFlightsByDate,
   getActiveSupplyFlightsByDate,
 } from "utils/onboard";
-import { useHoverState } from "store";
+import { useStateHover } from "store";
 
 const HoverAndSearch: FunctionComponent<{
   selectedCrewMember: CrewMember | null;
@@ -25,7 +25,7 @@ const HoverAndSearch: FunctionComponent<{
   selectedCrewStays: _selectedCrewStays,
   setSelectedCrewStays,
 }) => {
-  const { hoveredDate } = useHoverState();
+  const { hoveredDate } = useStateHover();
   const crewArrDepQuery = useGeneralCrewArrDep();
   const expeditionInfoQuery = useGeneralExpeditionInfo();
   const flightsQuery = useGeneralFlights();

@@ -25,5 +25,14 @@ interface HoverState {
   setHoveredDate: (date: string | null) => void;
 }
 
+interface ToggleState {
+  globalMute: boolean;
+  showGlobe: boolean;
+
+  // Actions
+  setGlobalMute: (mute: boolean) => void;
+  setShowGlobe: (show: boolean) => void;
+}
+
 // Combined store type
-interface AppState extends ClockState, HoverState, SelectedDateState {}
+interface AppState extends ClockState, HoverState, SelectedDateState, ToggleState {}

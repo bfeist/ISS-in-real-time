@@ -8,7 +8,7 @@ const createStore: StateCreator<AppState> = (set) => ({
   appSecondsAtStartStop: 0,
   isRunning: false,
 
-  // Clock actions
+  // Actions
   startClock: () =>
     set(() => ({
       startStopTimestamp: new Date().toISOString(),
@@ -33,19 +33,24 @@ const createStore: StateCreator<AppState> = (set) => ({
       startStopTimestamp: new Date().toISOString(),
     })),
 
-  // Hover initial state
+  // Hover initial state and actions
   hoverSeconds: null,
   hoveredDate: null,
-
-  // Hover actions
+  // Actions
   setHoverSeconds: (seconds: number | null) => set({ hoverSeconds: seconds }),
   setHoveredDate: (date: string | null) => set({ hoveredDate: date }),
 
-  // Selected date initial state
+  // Selected date initial state and actions
   selectedDate: null,
-
-  // Selected date actions
+  // Actions
   setSelectedDate: (date: string | null) => set({ selectedDate: date }),
+
+  // ToggleState initial state
+  globalMute: true,
+  showGlobe: true,
+  // Actions
+  setGlobalMute: (mute: boolean) => set({ globalMute: mute }),
+  setShowGlobe: (show: boolean) => set({ showGlobe: show }),
 });
 
 // Create store with redux devtools middleware
@@ -54,7 +59,7 @@ export const useAppStore = create<AppState>()(
 );
 
 // Create selector hooks for better performance
-export const useClockState = (): {
+export const useStateClock = (): {
   startStopTimestamp: string;
   appSecondsAtStartStop: number;
   isRunning: boolean;
@@ -73,7 +78,7 @@ export const useClockState = (): {
     }))
   );
 
-export const useHoverState = (): {
+export const useStateHover = (): {
   hoverSeconds: number | null;
   setHoverSeconds: (seconds: number | null) => void;
   hoveredDate: string | null;
@@ -88,7 +93,7 @@ export const useHoverState = (): {
     }))
   );
 
-export const useSelectedDateState = (): {
+export const useStateSelectedDate = (): {
   selectedDate: string | null;
   setSelectedDate: (date: string | null) => void;
 } =>
@@ -96,5 +101,20 @@ export const useSelectedDateState = (): {
     useShallow((state) => ({
       selectedDate: state.selectedDate,
       setSelectedDate: state.setSelectedDate,
+    }))
+  );
+
+export const useStateToggle = (): {
+  globalMute: boolean;
+  setGlobalMute: (mute: boolean) => void;
+  showGlobe: boolean;
+  setShowGlobe: (show: boolean) => void;
+} =>
+  useAppStore(
+    useShallow((state) => ({
+      globalMute: state.globalMute,
+      setGlobalMute: state.setGlobalMute,
+      showGlobe: state.showGlobe,
+      setShowGlobe: state.setShowGlobe,
     }))
   );

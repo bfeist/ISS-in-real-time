@@ -2,13 +2,15 @@ import styles from "./index.module.css";
 import { FunctionComponent, JSX } from "react";
 import Layout from "../components/layout/dayLayout";
 import TimelineContainer from "../components/yearsTimelineDropdown/timelineContainer";
-import { useSelectedDateState } from "../store";
+import { useStateSelectedDate } from "../store";
+import Header from "components/header/header";
 
 const SliderPage: FunctionComponent = (): JSX.Element => {
-  const { selectedDate } = useSelectedDateState();
+  const { selectedDate } = useStateSelectedDate();
 
   return (
     <div className={styles.page}>
+      <Header />
       <TimelineContainer />
       {selectedDate && <Layout />}
     </div>
