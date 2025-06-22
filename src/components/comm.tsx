@@ -133,7 +133,7 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
     return (
       <div className={styles.comm}>
         <div className={styles.commItem}>
-          <div>Communication transcripts are unavailable for this date</div>
+          <div>Communications audio and transcripts are unavailable for this date</div>
         </div>
       </div>
     );

@@ -166,8 +166,6 @@ const DatePage = (): JSX.Element => {
     expeditionInfo,
     flights,
     flightsSupply,
-    blogArticles,
-    activitySummary,
   } = data;
 
   const evaDetailsForDate = evaDetails.filter((evaDetail: EvaDetail) =>
@@ -208,11 +206,7 @@ const DatePage = (): JSX.Element => {
         </div>
         {evaDetailsForDate.length > 0 && <EvaInfo evaDetails={evaDetailsForDate} />}
         <Flights date={date} flights={flights} flightsSupply={flightsSupply} />
-        <Blog
-          date={date}
-          blogArticles={blogArticles}
-          activitySummary={activitySummary || undefined}
-        />
+        <Blog />
       </div>
     </div>
   );

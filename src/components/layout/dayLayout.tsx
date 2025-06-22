@@ -2,6 +2,8 @@ import { FunctionComponent, useState, useEffect } from "react";
 import styles from "./dayLayout.module.css";
 import { useStateSelectedDate } from "store";
 import { useDateDataAvailability } from "api/useDateSpecificData";
+import Comm from "components/comm";
+import Blog from "components/blog";
 
 // Custom hook to detect viewport width
 const useViewport = () => {
@@ -107,10 +109,8 @@ const MobileLayout: FunctionComponent<{
 
   return (
     <div className={styles.dayLayout}>
-      <div className={styles.header}>
-        <div className={styles.headerBottom}>
-          <FakeSection name="timeline" />
-        </div>
+      <div className={styles.dayTimeline}>
+        <FakeSection name="timeline" />
       </div>
       <div className={styles.mobileBody}>
         <div className={styles.tabs}>
@@ -146,10 +146,8 @@ const VideoPhotos: FunctionComponent<{
 }> = ({ showEVA, showComm, showArticles }) => {
   return (
     <div className={styles.dayLayout}>
-      <div className={styles.header}>
-        <div className={styles.headerBottom}>
-          <FakeSection name="timeline" />
-        </div>
+      <div className={styles.dayTimeline}>
+        <FakeSection name="timeline" />
       </div>
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
@@ -157,7 +155,7 @@ const VideoPhotos: FunctionComponent<{
             <FakeSection name="video" />
           </div>
           <div className={styles.bodyLeftBottom}>
-            <FakeSection name="articles" available={showArticles} />
+            <Blog showArticles={showArticles} />
             <FakeSection name="flights" />
             <FakeSection name="exp/onboard" />
             {showEVA && <FakeSection name="eva" />}
@@ -172,7 +170,7 @@ const VideoPhotos: FunctionComponent<{
           </div>
         </div>
         <div className={styles.bodyRight}>
-          <FakeSection name="comm" available={showComm} />
+          <Comm showComm={showComm} />
         </div>
       </div>
     </div>
@@ -186,10 +184,8 @@ const VideoOnly: FunctionComponent<{
 }> = ({ showEVA, showComm, showArticles }) => {
   return (
     <div className={styles.dayLayout}>
-      <div className={styles.header}>
-        <div className={styles.headerBottom}>
-          <FakeSection name="timeline" />
-        </div>
+      <div className={styles.dayTimeline}>
+        <FakeSection name="timeline" />
       </div>
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
@@ -204,14 +200,14 @@ const VideoOnly: FunctionComponent<{
         </div>
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
-            <FakeSection name="articles" available={showArticles} />
+            <Blog showArticles={showArticles} />
           </div>
           <div className={styles.bodyCenterBottom}>
             <FakeSection name="globe" />
           </div>
         </div>
         <div className={styles.bodyRight}>
-          <FakeSection name="comm" available={showComm} />
+          <Comm showComm={showComm} />
         </div>
       </div>
     </div>
@@ -225,10 +221,8 @@ const PhotosOnly: FunctionComponent<{
 }> = ({ showEVA, showComm, showArticles }) => {
   return (
     <div className={styles.dayLayout}>
-      <div className={styles.header}>
-        <div className={styles.headerBottom}>
-          <FakeSection name="timeline" />
-        </div>
+      <div className={styles.dayTimeline}>
+        <FakeSection name="timeline" />
       </div>
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
@@ -243,7 +237,7 @@ const PhotosOnly: FunctionComponent<{
         </div>
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
-            <FakeSection name="articles" available={showArticles} />
+            <Blog showArticles={showArticles} />
           </div>
           <div className={styles.bodyCenterBottom}>
             <FakeSection name="globe" />
@@ -251,7 +245,7 @@ const PhotosOnly: FunctionComponent<{
         </div>
 
         <div className={styles.bodyRight}>
-          <FakeSection name="comm" available={showComm} />
+          <Comm showComm={showComm} />
         </div>
       </div>
     </div>
@@ -265,14 +259,12 @@ const NoPhotosOrVideo: FunctionComponent<{
 }> = ({ showEVA, showComm, showArticles }) => {
   return (
     <div className={styles.dayLayout}>
-      <div className={styles.header}>
-        <div className={styles.headerBottom}>
-          <FakeSection name="timeline" />
-        </div>
+      <div className={styles.dayTimeline}>
+        <FakeSection name="timeline" />
       </div>
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
-          <FakeSection name="articles" available={showArticles} />
+          <Blog showArticles={showArticles} />
         </div>
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
@@ -285,7 +277,7 @@ const NoPhotosOrVideo: FunctionComponent<{
           </div>
         </div>
         <div className={styles.bodyRight}>
-          <FakeSection name="comm" available={showComm} />
+          <Comm showComm={showComm} />
         </div>
       </div>
     </div>
@@ -332,7 +324,7 @@ const Layout: FunctionComponent = () => {
     }
   }
 
-  return <div className={styles.outerWrapper}>{content}</div>;
+  return content;
 };
 
 export default Layout;

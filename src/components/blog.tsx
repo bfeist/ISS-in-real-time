@@ -1,11 +1,19 @@
-import { FC } from "react";
+import { FunctionComponent } from "react";
 import styles from "./blog.module.css";
+import { useDateActivitySummary, useDateBlogArticles } from "api/useDateSpecificData";
+import { useStateSelectedDate } from "store";
 
-const Blog: FC<{
-  date: string;
-  blogArticles: BlogArticle[];
-  activitySummary?: ActivitySummary;
-}> = ({ date, blogArticles, activitySummary }) => {
+const Blog: FunctionComponent<{
+  showArticles?: boolean;
+}> = ({ showArticles }) => {
+  const { selectedDate } = useStateSelectedDate();
+
+  const blogArticlesQuery = useDateBlogArticles(selectedDate);
+  const activitySummaryQuery = useDateActivitySummary(selectedDate);
+
+  const blogArticles = blogArticlesQuery.data || [];
+  const activitySummary = activitySummaryQuery.data || {};
+
   const hasContent =
     (blogArticles && blogArticles.length > 0) ||
     (activitySummary && Object.keys(activitySummary).length > 0);
@@ -15,7 +23,17 @@ const Blog: FC<{
   }
 
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
-  const [year, month, day] = date.split("-");
+  const [year, month, day] = selectedDate.split("-");
+
+  if (!showArticles) {
+    return (
+      <div className={styles.blogContainer}>
+        <div className={styles.blogEntry}>
+          <div>Articles are unavailable for this date</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.blogContainer}>
