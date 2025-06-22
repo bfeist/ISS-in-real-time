@@ -1,9 +1,11 @@
 import { FunctionComponent, useState, useEffect } from "react";
 import styles from "./dayLayout.module.css";
-import { useStateSelectedDate } from "store";
+import { useStateSelectedDate, useStateToggle } from "store";
 import { useDateDataAvailability } from "api/useDateSpecificData";
 import Comm from "components/comm";
 import Blog from "components/blog";
+import Globe from "components/globe";
+import Map from "components/map";
 
 // Custom hook to detect viewport width
 const useViewport = () => {
@@ -166,7 +168,7 @@ const VideoPhotos: FunctionComponent<{
             <FakeSection name="photos" />
           </div>
           <div className={styles.bodyCenterBottom}>
-            <FakeSection name="globe" />
+            <GlobeOrMap />
           </div>
         </div>
         <div className={styles.bodyRight}>
@@ -203,7 +205,7 @@ const VideoOnly: FunctionComponent<{
             <Blog showArticles={showArticles} />
           </div>
           <div className={styles.bodyCenterBottom}>
-            <FakeSection name="globe" />
+            <GlobeOrMap />
           </div>
         </div>
         <div className={styles.bodyRight}>
@@ -240,7 +242,7 @@ const PhotosOnly: FunctionComponent<{
             <Blog showArticles={showArticles} />
           </div>
           <div className={styles.bodyCenterBottom}>
-            <FakeSection name="globe" />
+            <GlobeOrMap />
           </div>
         </div>
 
@@ -273,7 +275,7 @@ const NoPhotosOrVideo: FunctionComponent<{
             {showEVA && <FakeSection name="eva" />}
           </div>
           <div className={styles.bodyCenterBottom}>
-            <FakeSection name="globe" />
+            <GlobeOrMap />
           </div>
         </div>
         <div className={styles.bodyRight}>
@@ -282,6 +284,11 @@ const NoPhotosOrVideo: FunctionComponent<{
       </div>
     </div>
   );
+};
+
+const GlobeOrMap: FunctionComponent = () => {
+  const { showGlobe } = useStateToggle();
+  return <>{showGlobe ? <Globe /> : <Map />}</>;
 };
 
 const Layout: FunctionComponent = () => {

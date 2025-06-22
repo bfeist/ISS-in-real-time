@@ -1,3 +1,4 @@
+import styles from "./globe.module.css";
 import {
   Cartesian3,
   createWorldTerrainAsync,
@@ -10,37 +11,47 @@ import {
 } from "cesium";
 import * as Cesium from "cesium";
 import { Clock, Scene, Camera, CesiumComponentRef } from "resium";
-import { FunctionComponent, useState, useRef, useEffect } from "react";
+import { FunctionComponent, useState, useRef, useEffect, useMemo } from "react";
 import { Viewer, Entity } from "resium";
 import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
-import { useStateClock } from "store";
+import { useStateClock, useStateSelectedDate } from "store";
 import { timeStrFromAppSeconds } from "utils/time";
+import { useDateEphemera } from "api/useDateSpecificData";
 
 // Set Cesium Ion access token
 Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
 
-const Globe: FunctionComponent<{
-  viewDate: string;
-  ephemeraItems: EphemeraItem[];
-}> = ({ viewDate, ephemeraItems }) => {
+const Globe: FunctionComponent = () => {
   const { isRunning, startStopTimestamp, appSecondsAtStartStop } = useStateClock();
+  const { selectedDate } = useStateSelectedDate();
+  const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
 
   const startStopDate = new Date(startStopTimestamp);
   const appSeconds = appSecondsAtStartStop + (Date.now() - startStopDate.getTime()) / 1000;
 
-  const startTime = new Date(`${viewDate}T${timeStrFromAppSeconds(appSeconds)}Z`);
+  const startTime = useMemo(
+    () => new Date(`${selectedDate}T${timeStrFromAppSeconds(appSeconds)}Z`),
+    [selectedDate, appSeconds]
+  );
   const julianDate = JulianDate.fromDate(startTime);
 
-  const [tle, _setTle] = useState<string[]>(() => {
-    const ephemeris = findClosestEphemeraItem(startTime, ephemeraItems);
-    return [ephemeris.tle_line1, ephemeris.tle_line2];
-  });
+  const [tle, setTle] = useState<string[]>();
 
   const [cesiumReady, setCesiumReady] = useState(false);
+  useEffect(() => {
+    if (!ephemeraItems || ephemeraItems.length === 0) return;
+
+    // Use a stable reference time for finding ephemera (start of selected date)
+    const referenceTime = new Date(`${selectedDate}T00:00:00Z`);
+    const ephemeris = findClosestEphemeraItem(referenceTime, ephemeraItems);
+    setTle([ephemeris.tle_line1, ephemeris.tle_line2]);
+  }, [selectedDate, ephemeraItems]);
 
   // poll for cesium to be ready
   useEffect(() => {
+    if (!tle || tle.length === 0) return;
+
     const interval = setInterval(() => {
       if (viewerRef.current?.cesiumElement?.scene && issEntityRef.current?.cesiumElement) {
         setCesiumReady(true);
@@ -48,7 +59,7 @@ const Globe: FunctionComponent<{
       }
     }, 100);
     return () => clearInterval(interval);
-  }, []);
+  }, [tle]);
 
   const computeSampledPositions = () => {
     if (!tle || tle.length === 0) {
@@ -160,58 +171,64 @@ const Globe: FunctionComponent<{
   const startJd = JulianDate.fromDate(startOfDay);
   const endJd = JulianDate.fromDate(endOfDay);
 
+  if (isLoading) {
+    return <div className={styles.globeContainer}>Loading globe...</div>;
+  }
+
   return (
-    <Viewer
-      style={{ width: "100%", height: "100%" }}
-      ref={viewerRef}
-      terrainProvider={terrainProvider}
-      timeline={false}
-      animation={false}
-      navigationHelpButton={false}
-      homeButton={false}
-      fullscreenButton={false}
-      geocoder={false}
-      baseLayerPicker={false}
-      sceneModePicker={false}
-      selectionIndicator={false}
-      infoBox={false}
-      skyBox={false}
-      // contextOptions={{ webgl: { alpha: true } }}
-    >
-      <Scene ref={sceneRef} backgroundColor={Color.TRANSPARENT}>
-        <Camera ref={cameraRef} />
-      </Scene>
-      <Entity
-        tracked={true}
-        ref={issEntityRef}
-        name="ISS"
-        position={sampledPositionProperty}
-        point={{ pixelSize: 10, color: Color.RED }}
-        // label={{
-        //   text: "ISS", // changed to static "ISS"
-        //   font: "14pt sans-serif",
-        //   style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        //   outlineWidth: 2,
-        //   verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        //   pixelOffset: new Cesium.Cartesian2(0, -9),
-        // }}
-        path={{
-          material: Color.YELLOW,
-          width: 2,
-          leadTime: 3600,
-          trailTime: 3600,
-          resolution: 60,
-        }}
-      />
-      <Clock
-        startTime={startJd}
-        currentTime={julianDate}
-        stopTime={endJd}
-        clockRange={ClockRange.LOOP_STOP}
-        multiplier={1}
-        shouldAnimate={isRunning}
-      />
-    </Viewer>
+    <div className={styles.globeContainer}>
+      <Viewer
+        style={{ width: "100%", height: "100%" }}
+        ref={viewerRef}
+        terrainProvider={terrainProvider}
+        timeline={false}
+        animation={false}
+        navigationHelpButton={false}
+        homeButton={false}
+        fullscreenButton={false}
+        geocoder={false}
+        baseLayerPicker={false}
+        sceneModePicker={false}
+        selectionIndicator={false}
+        infoBox={false}
+        skyBox={false}
+        // contextOptions={{ webgl: { alpha: true } }}
+      >
+        <Scene ref={sceneRef} backgroundColor={Color.TRANSPARENT}>
+          <Camera ref={cameraRef} />
+        </Scene>
+        <Entity
+          tracked={true}
+          ref={issEntityRef}
+          name="ISS"
+          position={sampledPositionProperty}
+          point={{ pixelSize: 10, color: Color.RED }}
+          // label={{
+          //   text: "ISS", // changed to static "ISS"
+          //   font: "14pt sans-serif",
+          //   style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          //   outlineWidth: 2,
+          //   verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          //   pixelOffset: new Cesium.Cartesian2(0, -9),
+          // }}
+          path={{
+            material: Color.YELLOW,
+            width: 2,
+            leadTime: 3600,
+            trailTime: 3600,
+            resolution: 60,
+          }}
+        />
+        <Clock
+          startTime={startJd}
+          currentTime={julianDate}
+          stopTime={endJd}
+          clockRange={ClockRange.LOOP_STOP}
+          multiplier={1}
+          shouldAnimate={isRunning}
+        />
+      </Viewer>
+    </div>
   );
 };
 

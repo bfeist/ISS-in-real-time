@@ -109,15 +109,6 @@ const DatePage = (): JSX.Element => {
     blogArticlesQuery.data,
   ]);
 
-  // Memoize the Globe component's props to prevent unnecessary re-renders
-  const globeProps = useMemo(
-    () => ({
-      ephemeraItems: data?.ephemeraItems || [],
-      viewDate: date || "",
-    }),
-    [data?.ephemeraItems, date]
-  );
-
   useEffect(() => {
     // Set the selected date in the store when the component mounts
     setSelectedDate(date || null);
@@ -196,7 +187,7 @@ const DatePage = (): JSX.Element => {
         </div>
 
         <EarthPhotography imageItems={earthPhotographyItems} />
-        <div className={styles.mapContainer}>{showGlobe ? <Globe {...globeProps} /> : <Map />}</div>
+        {showGlobe ? <Globe /> : <Map />}
       </div>
 
       <div className={styles.lower}>

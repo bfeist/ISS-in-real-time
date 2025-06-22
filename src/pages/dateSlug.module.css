@@ -51,12 +51,6 @@
   background-color: black;
 }
 
-.mapContainer {
-  flex: 1;
-  /* background-color: rgb(255, 0, 0); */
-  height: 100%;
-}
-
 .lower {
   flex: 1;
   display: flex;
