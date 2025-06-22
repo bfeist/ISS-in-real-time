@@ -1,12 +1,14 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./earthPhotography.module.css";
-import { useStateClock } from "store";
+import { useStateClock, useStateSelectedDate } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
+import { useDateEarthPhotography } from "api/useDateSpecificData";
 
-const EarthPhotography: FunctionComponent<{
-  imageItems: EarthPhotographyItem[];
-}> = ({ imageItems }) => {
+const EarthPhotography: FunctionComponent = () => {
+  const { selectedDate } = useStateSelectedDate();
+  const { data: imageItems = [], isLoading } = useDateEarthPhotography(selectedDate || "");
+
   const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL.replace("\\x3a", ":");
 
   const { setClock } = useStateClock();
@@ -64,6 +66,9 @@ const EarthPhotography: FunctionComponent<{
     targetElement?.scrollIntoView({ behavior: "smooth" });
   }, [appSeconds, imageItems]);
 
+  if (isLoading) {
+    return <div>Loading Earth photography...</div>;
+  }
   return (
     <div className={styles.imagesContainer}>
       <ClockInterval setAppSeconds={setAppSeconds} />

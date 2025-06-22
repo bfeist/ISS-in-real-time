@@ -11,6 +11,7 @@ import CrewOnboard from "components/crewOnboard";
 import Expeditions from "components/expedition";
 import EvaInfo from "components/evaInfo";
 import YouTubeComponent from "components/youtube";
+import EarthPhotography from "components/earthPhotography";
 
 // Custom hook to detect viewport width
 const useViewport = () => {
@@ -170,7 +171,7 @@ const VideoPhotos: FunctionComponent<{
         </div>
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
-            <FakeSection name="photos" />
+            <EarthPhotography />
           </div>
           <div className={styles.bodyCenterBottom}>
             <GlobeOrMap />
@@ -234,7 +235,7 @@ const PhotosOnly: FunctionComponent<{
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
           <div className={styles.bodyLeftTop}>
-            <FakeSection name="photos" />
+            <EarthPhotography />
           </div>
           <div className={styles.bodyLeftBottom}>
             <Flights />

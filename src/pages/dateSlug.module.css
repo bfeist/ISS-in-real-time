@@ -8,28 +8,6 @@
   flex-direction: column;
 }
 
-.loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  font-size: 1.2rem;
-  color: #ffffff;
-  background-color: #797979;
-}
-
-.error {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  font-size: 1.2rem;
-  color: #ff6b6b;
-  text-align: center;
-  padding: 20px;
-  background-color: #797979;
-}
-
 .upper {
   flex: 1;
   display: flex;
