@@ -1,5 +1,4 @@
 .crewOnboard {
-  flex: 0 1 220px;
   display: flex;
   flex-direction: column;
   padding: 1em;

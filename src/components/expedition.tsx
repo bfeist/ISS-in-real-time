@@ -1,9 +1,21 @@
 import { FunctionComponent } from "react";
 import styles from "./expedition.module.css";
+import { useStateSelectedDate } from "store";
+import { useGeneralExpeditionInfo } from "api/useGeneralData";
 
-const Expeditions: FunctionComponent<{
-  expeditions: ExpeditionInfo[];
-}> = ({ expeditions }) => {
+const Expeditions: FunctionComponent = () => {
+  const { selectedDate } = useStateSelectedDate();
+  const { data: expeditionInfo = [], isLoading } = useGeneralExpeditionInfo();
+
+  const expeditions = expeditionInfo.filter(
+    (exp: ExpeditionInfo) =>
+      exp.start <= selectedDate && (exp.end === null || exp.end >= selectedDate)
+  );
+
+  if (isLoading) {
+    return <div>Loading expeditions...</div>;
+  }
+
   return (
     <div className={styles.expeditions}>
       {expeditions.map((expedition) => (

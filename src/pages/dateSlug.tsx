@@ -6,7 +6,6 @@ import Map from "components/map";
 import { JSX, useEffect, useRef, useMemo } from "react";
 import { isValidTimestring } from "utils/params";
 import YouTube from "components/youtube";
-import { getCrewMembersOnboardByDate } from "utils/onboard";
 import { useStateClock, useStateSelectedDate, useStateToggle } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import Globe from "components/globe";
@@ -149,8 +148,7 @@ const DatePage = (): JSX.Element => {
   if (!data) {
     return <div className={styles.error}>No data available for {date}</div>;
   }
-  const { earthPhotographyItems, evaDetails, youtubeLiveRecordings, crewArrDep, expeditionInfo } =
-    data;
+  const { earthPhotographyItems, evaDetails, youtubeLiveRecordings } = data;
 
   const evaDetailsForDate = evaDetails.filter((evaDetail: EvaDetail) =>
     evaDetail.startTime.startsWith(date || "")
@@ -159,14 +157,6 @@ const DatePage = (): JSX.Element => {
     youtubeLiveRecordings.filter((recording: YoutubeLiveRecording) =>
       recording.startTime.startsWith(date || "")
     )[0] || null;
-
-  const crewOnboard = getCrewMembersOnboardByDate({ crewArrDep, dateStr: date || "" });
-
-  const dateObj = new Date(date || "");
-  const expeditions = expeditionInfo.filter(
-    (exp: ExpeditionInfo) =>
-      new Date(exp.start) <= dateObj && (exp.end === null || new Date(exp.end) >= dateObj)
-  );
 
   return (
     <div className={styles.page}>
@@ -185,8 +175,8 @@ const DatePage = (): JSX.Element => {
 
       <div className={styles.lower}>
         <div className={styles.lowerLeft}>
-          <Expeditions expeditions={expeditions} />
-          <CrewOnboard dateStr={date} crewOnboard={crewOnboard} />
+          <Expeditions />
+          <CrewOnboard />
         </div>
         {evaDetailsForDate.length > 0 && <EvaInfo evaDetails={evaDetailsForDate} />}
         <Flights />

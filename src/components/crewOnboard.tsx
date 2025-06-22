@@ -3,17 +3,26 @@ import styles from "./crewOnboard.module.css"; // ensure this CSS file exists or
 import { ddhhmmssBetweenDateStrings, timeStrFromDateAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { flagUrlByCountryName } from "utils/countries";
+import { useStateSelectedDate } from "store";
+import { useGeneralCrewArrDep } from "api/useGeneralData";
+import { getCrewMembersOnboardByDate } from "utils/onboard";
 
-const CrewOnboard: FunctionComponent<{
-  dateStr: string;
-  crewOnboard: CrewArrDepItem[];
-}> = ({ dateStr, crewOnboard }) => {
+const CrewOnboard: FunctionComponent = () => {
+  const { selectedDate } = useStateSelectedDate();
+  const { data: crewArrDep = [], isLoading } = useGeneralCrewArrDep();
+
+  const crewOnboard = getCrewMembersOnboardByDate({ crewArrDep, dateStr: selectedDate || "" });
+
   const [currentTimeStr, setCurrentTimeStr] = useState("");
   const [appSeconds, setAppSeconds] = useState(0);
 
   useEffect(() => {
-    setCurrentTimeStr(timeStrFromDateAppSeconds({ dateStr, appSeconds }));
-  }, [dateStr, appSeconds]);
+    setCurrentTimeStr(timeStrFromDateAppSeconds({ dateStr: selectedDate || "", appSeconds }));
+  }, [selectedDate, appSeconds]);
+
+  if (isLoading) {
+    return <div>Loading crew onboard...</div>;
+  }
 
   return (
     <div className={styles.crewOnboard}>

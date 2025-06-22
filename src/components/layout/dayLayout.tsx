@@ -7,6 +7,8 @@ import Blog from "components/blog";
 import Globe from "components/globe";
 import Map from "components/map";
 import Flights from "components/flights";
+import CrewOnboard from "components/crewOnboard";
+import Expeditions from "components/expedition";
 
 // Custom hook to detect viewport width
 const useViewport = () => {
@@ -197,7 +199,7 @@ const VideoOnly: FunctionComponent<{
           </div>
           <div className={styles.bodyLeftBottom}>
             <Flights />
-            <FakeSection name="exp/onboard" />
+            <ExpeditionAndCrewOnboard />
             {showEVA && <FakeSection name="eva" />}
           </div>
         </div>
@@ -234,7 +236,7 @@ const PhotosOnly: FunctionComponent<{
           </div>
           <div className={styles.bodyLeftBottom}>
             <Flights />
-            <FakeSection name="exp/onboard" />
+            <ExpeditionAndCrewOnboard />
             {showEVA && <FakeSection name="eva" />}
           </div>
         </div>
@@ -272,7 +274,7 @@ const NoPhotosOrVideo: FunctionComponent<{
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
             <Flights />
-            <FakeSection name="exp/onboard" />
+            <ExpeditionAndCrewOnboard />
             {showEVA && <FakeSection name="eva" />}
           </div>
           <div className={styles.bodyCenterBottom}>
@@ -290,6 +292,15 @@ const NoPhotosOrVideo: FunctionComponent<{
 const GlobeOrMap: FunctionComponent = () => {
   const { showGlobe } = useStateToggle();
   return <>{showGlobe ? <Globe /> : <Map />}</>;
+};
+
+const ExpeditionAndCrewOnboard: FunctionComponent = () => {
+  return (
+    <div className={styles.expeditionsAndCrewOnboard}>
+      <Expeditions />
+      <CrewOnboard />
+    </div>
+  );
 };
 
 const Layout: FunctionComponent = () => {
