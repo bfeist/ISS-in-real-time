@@ -1,12 +1,17 @@
 import { flagUrlByCountryName } from "utils/countries";
 import styles from "./evaInfo.module.css";
-import { JSX } from "react";
+import { FunctionComponent, JSX } from "react";
+import { useStateSelectedDate } from "store";
+import { useGeneralEvaDetails } from "api/useGeneralData";
 
-type Props = {
-  evaDetails: EvaDetail[];
-};
+const EvaInfo: FunctionComponent = (): JSX.Element => {
+  const { selectedDate } = useStateSelectedDate();
+  const { data: evaDetails = [], isLoading } = useGeneralEvaDetails();
 
-const EvaInfo = ({ evaDetails }: Props): JSX.Element => {
+  const evaDetailsForDate = evaDetails.filter((evaDetail: EvaDetail) =>
+    evaDetail.startTime.startsWith(selectedDate || "")
+  );
+
   const renderCrewMember = (c: { name: string; nationality: string; ev?: number }) => (
     <div key={c.name} className={styles.crewMember}>
       <img className={styles.flag} src={flagUrlByCountryName[c.nationality]} alt={c.nationality} />
@@ -14,9 +19,17 @@ const EvaInfo = ({ evaDetails }: Props): JSX.Element => {
     </div>
   );
 
+  if (isLoading) {
+    return <div>Loading EVA details...</div>;
+  }
+
+  if (evaDetailsForDate.length === 0) {
+    return <div>No EVA details for {selectedDate}</div>;
+  }
+
   return (
     <div className={styles.evaDetails}>
-      {evaDetails.map((evaDetail) => (
+      {evaDetailsForDate.map((evaDetail) => (
         <div key={evaDetail.startTime} className={styles.evaDetail}>
           <div className={styles.evaTitle}>
             {evaDetail.mission} EVA #{evaDetail.missionEvaNum} ({evaDetail.number})
