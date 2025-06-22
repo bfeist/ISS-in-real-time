@@ -4,13 +4,15 @@ import styles from "./comm.module.css";
 import { useStateClock, useStateSelectedDate, useStateToggle } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
-import { useDateCommTranscript } from "../api/useDateSpecificData";
+import { useDateCommTranscript, useDateDataAvailability } from "../api/useDateSpecificData";
 
 const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
   const { isRunning, setClock } = useStateClock();
   const { selectedDate } = useStateSelectedDate();
   const { globalMute } = useStateToggle();
 
+  const { data: dataAvailability, isLoading: isDataAvailabilityLoading } =
+    useDateDataAvailability(selectedDate);
   const { data: commItems = [], isLoading, error } = useDateCommTranscript(selectedDate);
 
   const audioRefCh1 = useRef<HTMLAudioElement | null>(null);
@@ -39,6 +41,19 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
     }
     return closestComm;
   }, [appSeconds, commItems]);
+
+  /**
+   * Effect to set the clock to the first comm item when the component mounts
+   */
+  useEffect(() => {
+    if (!commItems.length || !dataAvailability) return;
+
+    // If YouTube data is available, we don't set the clock to the first comm item
+    if (dataAvailability.youtube) return;
+
+    const firstComm = commItems[0];
+    setClock(appSecondsFromTimeStr(firstComm.utteranceTime) - 10); // Start 10 seconds before the first comm item
+  }, [commItems, setClock, dataAvailability]);
 
   /**
    * Effect to scroll to the closest comm item when the clock changes
@@ -173,7 +188,9 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
         </audio>
       </div>
 
-      {isLoading && <div className={styles.commItem}>Loading communication transcripts...</div>}
+      {(isLoading || isDataAvailabilityLoading) && (
+        <div className={styles.commItem}>Loading communication transcripts...</div>
+      )}
 
       {error && (
         <div className={styles.commItem}>

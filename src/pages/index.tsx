@@ -4,6 +4,7 @@ import Layout from "../components/layout/dayLayout";
 import TimelineContainer from "../components/yearsTimelineDropdown/timelineContainer";
 import { useStateSelectedDate } from "../store";
 import Header from "components/header/header";
+import NoDateSelected from "../components/layout/noDateSelected";
 
 const SliderPage: FunctionComponent = (): JSX.Element => {
   const { selectedDate } = useStateSelectedDate();
@@ -12,7 +13,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
     <div className={styles.page}>
       <Header />
       <TimelineContainer />
-      {selectedDate ? <Layout /> : <div>Please select a date</div>}
+      {selectedDate ? <Layout /> : <NoDateSelected />}
     </div>
   );
 };
