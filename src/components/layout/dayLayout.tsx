@@ -6,6 +6,7 @@ import Comm from "components/comm";
 import Blog from "components/blog";
 import Globe from "components/globe";
 import Map from "components/map";
+import Flights from "components/flights";
 
 // Custom hook to detect viewport width
 const useViewport = () => {
@@ -158,7 +159,7 @@ const VideoPhotos: FunctionComponent<{
           </div>
           <div className={styles.bodyLeftBottom}>
             <Blog showArticles={showArticles} />
-            <FakeSection name="flights" />
+            <Flights />
             <FakeSection name="exp/onboard" />
             {showEVA && <FakeSection name="eva" />}
           </div>
@@ -195,7 +196,7 @@ const VideoOnly: FunctionComponent<{
             <FakeSection name="video" />
           </div>
           <div className={styles.bodyLeftBottom}>
-            <FakeSection name="flights" />
+            <Flights />
             <FakeSection name="exp/onboard" />
             {showEVA && <FakeSection name="eva" />}
           </div>
@@ -232,7 +233,7 @@ const PhotosOnly: FunctionComponent<{
             <FakeSection name="photos" />
           </div>
           <div className={styles.bodyLeftBottom}>
-            <FakeSection name="flights" />
+            <Flights />
             <FakeSection name="exp/onboard" />
             {showEVA && <FakeSection name="eva" />}
           </div>
@@ -270,7 +271,7 @@ const NoPhotosOrVideo: FunctionComponent<{
         </div>
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
-            <FakeSection name="flights" />
+            <Flights />
             <FakeSection name="exp/onboard" />
             {showEVA && <FakeSection name="eva" />}
           </div>

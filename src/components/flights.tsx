@@ -1,4 +1,4 @@
-import { JSX, useMemo } from "react";
+import { FunctionComponent, JSX, useMemo } from "react";
 import styles from "./flights.module.css";
 import { flagUrlByCountryName } from "utils/countries";
 import {
@@ -7,6 +7,8 @@ import {
   isFlightCurrentlyDocked,
 } from "utils/onboard";
 import { capitalizeWords } from "utils/string";
+import { useStateSelectedDate } from "store";
+import { useGeneralFlights, useGeneralFlightsSupply } from "api/useGeneralData";
 
 // Keep only the functions that aren't moved to onboard.ts
 const isSameDay = (date1: Date | null, date2: Date): boolean => {
@@ -39,14 +41,19 @@ const getActiveDockingEvent = (
   );
 };
 
-const CrewedFlights = ({
-  date,
-  activeFlights,
-}: {
-  date: string;
-  activeFlights: Flight[];
-}): JSX.Element | null => {
+const CrewedFlights: FunctionComponent = (): JSX.Element | null => {
+  const { selectedDate } = useStateSelectedDate();
+  const { data: flights = [], isLoading } = useGeneralFlights();
+
+  const activeFlights = useMemo(() => {
+    return getActiveFlightsByDate({ dateStr: selectedDate || "", flights });
+  }, [selectedDate, flights]);
+
   if (activeFlights.length === 0) return null;
+
+  if (isLoading) {
+    return <div>Loading flights...</div>;
+  }
 
   const renderCrew = (crew: FlightCrewMember[]) => (
     <div className={styles.crewList}>
@@ -69,7 +76,7 @@ const CrewedFlights = ({
     <>
       <h3 className={styles.sectionHeader}>Active Crewed Missions</h3>
       {activeFlights.map((flight) => {
-        const currentDate = new Date(date);
+        const currentDate = new Date(selectedDate);
         const flightIsDocked = isFlightCurrentlyDocked(flight, currentDate);
         const activeDockingEvent = getActiveDockingEvent(flight.docking_events, currentDate);
 
@@ -135,7 +142,7 @@ const CrewedFlights = ({
                     ` • Scheduled undocking: ${new Date(activeDockingEvent.undocking_date).toLocaleString()}`}
                 </div>
               </>
-            ) : new Date(flight.launch_date) > new Date(date) ? (
+            ) : new Date(flight.launch_date) > new Date(selectedDate) ? (
               <>
                 <div>
                   <b>Launching Crew:</b>
@@ -183,13 +190,18 @@ const CrewedFlights = ({
   );
 };
 
-const SupplyFlights = ({
-  date,
-  activeSupplyFlights,
-}: {
-  date: string;
-  activeSupplyFlights: FlightSupply[];
-}): JSX.Element | null => {
+const SupplyFlights: FunctionComponent = () => {
+  const { selectedDate } = useStateSelectedDate();
+  const { data: flightsSupply = [], isLoading } = useGeneralFlightsSupply();
+
+  const activeSupplyFlights = useMemo(() => {
+    return getActiveSupplyFlightsByDate({ dateStr: selectedDate || "", flightsSupply });
+  }, [selectedDate, flightsSupply]);
+
+  if (isLoading) {
+    return <div>Loading supply flights...</div>;
+  }
+
   if (activeSupplyFlights.length === 0) return null;
 
   return (
@@ -197,7 +209,7 @@ const SupplyFlights = ({
       <h3 className={styles.sectionHeader}>Active Supply Missions</h3>
       <div>
         {activeSupplyFlights.map((supply) => {
-          const currentDate = new Date(date);
+          const currentDate = new Date(selectedDate);
           const launchDate = new Date(supply.launch_date);
           const dockingDate = supply.docking_date ? new Date(supply.docking_date) : null;
           const undockingDate = supply.undocking_date ? new Date(supply.undocking_date) : null;
@@ -289,32 +301,11 @@ const SupplyFlights = ({
   );
 };
 
-const Flights = ({
-  date,
-  flights,
-  flightsSupply,
-}: {
-  date: string;
-  flights: Flight[];
-  flightsSupply: FlightSupply[];
-}): JSX.Element | null => {
-  // Use the imported utility functions to filter flights
-  const activeFlights = useMemo(() => {
-    return getActiveFlightsByDate({ dateStr: date, flights });
-  }, [date, flights]);
-
-  // Use the imported utility function to filter supply flights
-  const activeSupplyFlights = useMemo(() => {
-    return getActiveSupplyFlightsByDate({ dateStr: date, flightsSupply });
-  }, [date, flightsSupply]);
-
-  // If nothing to display, return null
-  if (activeFlights.length === 0 && activeSupplyFlights.length === 0) return null;
-
+const Flights: FunctionComponent = () => {
   return (
     <div className={styles.flightsContainer}>
-      <CrewedFlights date={date} activeFlights={activeFlights} />
-      <SupplyFlights date={date} activeSupplyFlights={activeSupplyFlights} />
+      <CrewedFlights />
+      <SupplyFlights />
     </div>
   );
 };

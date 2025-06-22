@@ -149,15 +149,8 @@ const DatePage = (): JSX.Element => {
   if (!data) {
     return <div className={styles.error}>No data available for {date}</div>;
   }
-  const {
-    earthPhotographyItems,
-    evaDetails,
-    youtubeLiveRecordings,
-    crewArrDep,
-    expeditionInfo,
-    flights,
-    flightsSupply,
-  } = data;
+  const { earthPhotographyItems, evaDetails, youtubeLiveRecordings, crewArrDep, expeditionInfo } =
+    data;
 
   const evaDetailsForDate = evaDetails.filter((evaDetail: EvaDetail) =>
     evaDetail.startTime.startsWith(date || "")
@@ -196,7 +189,7 @@ const DatePage = (): JSX.Element => {
           <CrewOnboard dateStr={date} crewOnboard={crewOnboard} />
         </div>
         {evaDetailsForDate.length > 0 && <EvaInfo evaDetails={evaDetailsForDate} />}
-        <Flights date={date} flights={flights} flightsSupply={flightsSupply} />
+        <Flights />
         <Blog />
       </div>
     </div>
