@@ -6,6 +6,7 @@ import {
   fetchExpeditionInfo,
   fetchFlights,
   fetchFlightsSupply,
+  fetchYoutubeData,
 } from "./dataFetchers";
 
 // Individual hooks for each data type
@@ -60,5 +61,13 @@ export function useGeneralFlightsSupply(): UseQueryResult<FlightSupply[], Error>
     queryFn: fetchFlightsSupply,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+export function useGeneralYoutubeData(): UseQueryResult<YoutubeLiveRecording[], Error> {
+  return useQuery({
+    queryKey: ["youtubeData"],
+    queryFn: fetchYoutubeData,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }

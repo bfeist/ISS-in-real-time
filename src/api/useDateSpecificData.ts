@@ -4,7 +4,6 @@ import {
   fetchCommTranscript,
   fetchEphemera,
   fetchEarthPhotography,
-  fetchYoutubeData,
   fetchActivitySummary,
   fetchBlogArticles,
 } from "./dataFetchers";
@@ -64,22 +63,6 @@ export function useDateEarthPhotography(
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     enabled: !!date && enabled && !!isEarthPhotographyAvailable,
-  });
-}
-
-export function useDateYoutubeData(
-  date: string,
-  enabled: boolean = true
-): UseQueryResult<YoutubeLiveRecording[], Error> {
-  const dataAvailabilityQuery = useDateDataAvailability(date);
-  const isYoutubeAvailable = dataAvailabilityQuery.data?.youtube;
-
-  return useQuery({
-    queryKey: ["youtubeData"],
-    queryFn: fetchYoutubeData,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    enabled: enabled && !!isYoutubeAvailable,
   });
 }
 

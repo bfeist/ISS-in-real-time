@@ -20,7 +20,6 @@ import {
   useDateCommTranscript,
   useDateEphemera,
   useDateEarthPhotography,
-  useDateYoutubeData,
   useDateActivitySummary,
   useDateBlogArticles,
 } from "../api/useDateSpecificData";
@@ -48,7 +47,6 @@ const DatePage = (): JSX.Element => {
   const commTranscriptQuery = useDateCommTranscript(date || "");
   const ephemeraQuery = useDateEphemera(date || "");
   const earthPhotographyQuery = useDateEarthPhotography(date || "");
-  const youtubeDataQuery = useDateYoutubeData(date || "");
   const activitySummaryQuery = useDateActivitySummary(date || "");
   const blogArticlesQuery = useDateBlogArticles(date || "");
 
@@ -67,7 +65,6 @@ const DatePage = (): JSX.Element => {
     commTranscriptQuery.error ||
     ephemeraQuery.error ||
     earthPhotographyQuery.error ||
-    youtubeDataQuery.error ||
     activitySummaryQuery.error ||
     blogArticlesQuery.error ||
     evaDetailsQuery.error ||
@@ -85,7 +82,6 @@ const DatePage = (): JSX.Element => {
       ephemeraItems: ephemeraQuery.data || [],
       evaDetails: evaDetailsQuery.data || [],
       dataAvailability: dataAvailabilityQuery.data,
-      youtubeLiveRecordings: youtubeDataQuery.data || [],
       crewArrDep: crewArrDepQuery.data || [],
       expeditionInfo: expeditionInfoQuery.data || [],
       flights: flightsQuery.data || [],
@@ -99,7 +95,6 @@ const DatePage = (): JSX.Element => {
     earthPhotographyQuery.data,
     ephemeraQuery.data,
     evaDetailsQuery.data,
-    youtubeDataQuery.data,
     crewArrDepQuery.data,
     expeditionInfoQuery.data,
     flightsQuery.data,
@@ -123,14 +118,8 @@ const DatePage = (): JSX.Element => {
       clockStartedRef.current = date || null;
     }
 
-    const youtubeLiveRecording = data.youtubeLiveRecordings.find(
-      (recording: YoutubeLiveRecording) => recording.startTime.startsWith(date || "")
-    );
-
     if (isValidTimestring(t)) {
       setClock(appSecondsFromTimeStr(t));
-    } else if (youtubeLiveRecording) {
-      setClock(appSecondsFromTimeStr(youtubeLiveRecording.startTime.split("T")[1]));
     } else if (data.transcriptItems.length > 0) {
       const firstTimeStr = data.transcriptItems[0].utteranceTime;
       setClock(appSecondsFromTimeStr(firstTimeStr) - 5);
@@ -148,12 +137,7 @@ const DatePage = (): JSX.Element => {
   if (!data) {
     return <div className={styles.error}>No data available for {date}</div>;
   }
-  const { earthPhotographyItems, youtubeLiveRecordings } = data;
-
-  const youtubeLiveRecording =
-    youtubeLiveRecordings.filter((recording: YoutubeLiveRecording) =>
-      recording.startTime.startsWith(date || "")
-    )[0] || null;
+  const { earthPhotographyItems } = data;
 
   return (
     <div className={styles.page}>
@@ -163,7 +147,7 @@ const DatePage = (): JSX.Element => {
           <Comm showComm={true} />
         </div>
         <div className={styles.videoContainer}>
-          <YouTube youtubeLiveRecording={youtubeLiveRecording} />
+          <YouTube />
         </div>
 
         <EarthPhotography imageItems={earthPhotographyItems} />

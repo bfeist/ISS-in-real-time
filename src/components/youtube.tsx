@@ -1,15 +1,22 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import YouTube, { YouTubePlayer, YouTubeEvent } from "react-youtube";
 import styles from "./youtube.module.css";
-import { useStateClock } from "store";
+import { useStateClock, useStateSelectedDate } from "store";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
+import { useGeneralYoutubeData } from "api/useGeneralData";
 
-const YouTubeComponent: FunctionComponent<{
-  youtubeLiveRecording: YoutubeLiveRecording;
-}> = ({ youtubeLiveRecording }) => {
+const YouTubeComponent: FunctionComponent = () => {
+  const { selectedDate } = useStateSelectedDate();
+  const { setClock } = useStateClock();
+
+  const { data: youtubeLiveRecordings = [], isLoading } = useGeneralYoutubeData();
+
+  const youtubeLiveRecording = youtubeLiveRecordings?.find((recording: YoutubeLiveRecording) =>
+    recording.startTime.startsWith(selectedDate || "")
+  );
+
   const playerRef = useRef<YouTubePlayer | null>(null);
-
   const [appSeconds, setAppSeconds] = useState(0);
 
   const { isRunning } = useStateClock();
@@ -18,6 +25,14 @@ const YouTubeComponent: FunctionComponent<{
     playerRef.current = event.target;
     playerRef.current.mute();
   };
+
+  useEffect(() => {
+    if (!youtubeLiveRecording) return;
+
+    // Set the clock to the start time of the YouTube recording
+    const startTimeStr = youtubeLiveRecording.startTime.split("T")[1];
+    setClock(appSecondsFromTimeStr(startTimeStr));
+  }, [youtubeLiveRecording, setClock]);
 
   useEffect(() => {
     if (!playerRef.current) return;
@@ -44,6 +59,10 @@ const YouTubeComponent: FunctionComponent<{
     };
     syncTime();
   }, [isRunning, youtubeLiveRecording, appSeconds]);
+
+  if (isLoading) {
+    return <div>Loading video data...</div>;
+  }
 
   return (
     <>
