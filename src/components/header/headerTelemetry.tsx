@@ -37,12 +37,13 @@ const HeaderTelemetry: FunctionComponent = () => {
         // Convert JS date to required time format
         const positionAndVelocity = satellite.propagate(satrec, currentTime);
         const gmst = satellite.gstime(currentTime);
-        const positionEci = positionAndVelocity.position;
 
-        if (!positionEci) {
+        if (!positionAndVelocity || !positionAndVelocity.position) {
           frameId = requestAnimationFrame(animationFrame);
           return;
         }
+
+        const positionEci = positionAndVelocity.position;
 
         // Convert ECI to geodetic coordinates
         const positionGd = satellite.eciToGeodetic(positionEci, gmst);
