@@ -79,10 +79,11 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   useEffect(() => {
     const canvas = canvasRef.current;
 
-    if (canvas && dataAvailabilityItems) {
+    if (canvas && dataAvailabilityItems && showTimeline) {
       // Use the current canvasWidth state which matches years labels
       const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
         canvasElement: canvas,
+        selectedDate,
         dataAvailabilityItems,
         selectedCrewStays,
         hoverCallback,
@@ -105,7 +106,15 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
         clearPaperCanvas();
       };
     }
-  }, [dataAvailabilityItems, selectedCrewStays, hoverCallback, handleCanvasClick, canvasWidth]);
+  }, [
+    dataAvailabilityItems,
+    selectedDate,
+    selectedCrewStays,
+    hoverCallback,
+    handleCanvasClick,
+    canvasWidth,
+    showTimeline,
+  ]);
 
   // Update canvas width when canvasWidth state changes
   useEffect(() => {

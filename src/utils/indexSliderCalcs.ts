@@ -23,29 +23,20 @@ const calculateDayByY = (
   // Calculate day height based on the actual days in this month
   const dayHeight = currentCanvasHeight / 31; // We still divide by 31 to match the canvas display
 
-  // Calculate the day (1-indexed)
-  const day = Math.floor(y / dayHeight) + 1;
+  // Calculate the day (1-indexed), accounting for centering offset
+  // Subtract half dayHeight to account for the fact that positions are centered within days
+  const adjustedY = y - dayHeight / 2;
+  const day = Math.floor(adjustedY / dayHeight) + 1;
 
   // Make sure it's a valid day (1 to actual days in month)
   return Math.min(Math.max(day, 1), actualDaysInMonth);
 };
 
-export const calculateDateFromPosition = (
-  x: number,
-  y: number,
-  currentCanvasWidth: number | null,
-  currentCanvasHeight: number | null,
-  yearsAreaHeight: number = 0
-): string | null => {
-  if (currentCanvasWidth === null || currentCanvasHeight === null) {
-    return null;
-  }
-
-  // Use the same epoch and calculation logic as the drawing code
+// Shared helper function to build month structure from epoch
+const buildMonthStructure = () => {
   const epochYear = 2000;
   const epochMonth = 10; // November (0-indexed)
 
-  // Calculate total days from epoch to now (same as drawing code)
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth(); // 0-indexed
@@ -54,7 +45,6 @@ export const calculateDateFromPosition = (
   let totalDaysSinceEpoch = 0;
   const allMonths = [];
 
-  // Build the same month structure as the drawing code
   for (let i = 0; i < totalMonthsSinceEpoch; i++) {
     const monthDate = new Date(epochYear, epochMonth + i, 1);
     const nextMonth = new Date(monthDate);
@@ -70,6 +60,87 @@ export const calculateDateFromPosition = (
 
     totalDaysSinceEpoch += daysInMonth;
   }
+
+  return { allMonths, totalDaysSinceEpoch };
+};
+
+// Helper function to find month data by year and month
+const findMonthData = (
+  allMonths: Array<{ date: Date; daysInMonth: number; startDay: number }>,
+  year: number,
+  month: number
+) => {
+  return allMonths.find(
+    (monthItem) => monthItem.date.getFullYear() === year && monthItem.date.getMonth() === month
+  );
+};
+
+export const calculatePositionFromDate = (
+  dateString: string,
+  canvasWidth: number,
+  canvasHeight: number,
+  yearsAreaHeight: number
+): { x: number; y: number } | null => {
+  if (!dateString || canvasWidth <= 0 || canvasHeight <= 0) return null;
+
+  const targetDate = new Date(dateString);
+  if (isNaN(targetDate.getTime())) return null;
+
+  const { allMonths, totalDaysSinceEpoch } = buildMonthStructure();
+
+  // Find the month that contains our target date
+  const targetYear = targetDate.getFullYear();
+  const targetMonth = targetDate.getMonth();
+  const targetDay = targetDate.getDate();
+
+  // Check if the target date is within our epoch range
+  const epochYear = 2000;
+  const epochMonth = 10; // November (0-indexed)
+  const epochDate = new Date(epochYear, epochMonth, 2); // Nov 2, 2000
+
+  if (targetDate < epochDate) {
+    console.warn(`Selected date ${dateString} is before epoch (Nov 2, 2000)`);
+    return null;
+  }
+
+  const monthData = findMonthData(allMonths, targetYear, targetMonth);
+
+  if (!monthData || targetDay > monthData.daysInMonth) {
+    console.warn(`Invalid date or month data for ${dateString}`);
+    return null;
+  }
+
+  // Calculate X position
+  const dayIndex = monthData.startDay + (targetDay - 1);
+  const x = (dayIndex / totalDaysSinceEpoch) * canvasWidth;
+
+  // Calculate Y position using the same logic as the drawing code
+  const maxDaysInMonth = 31;
+  const dayHeight = (canvasHeight - yearsAreaHeight) / maxDaysInMonth;
+  // Position at the center of the day box to match drawing code
+  const y = yearsAreaHeight + (targetDay - 1) * dayHeight + dayHeight / 2;
+
+  // Validate calculated position
+  if (x < 0 || x > canvasWidth || y < yearsAreaHeight || y > canvasHeight) {
+    console.warn(`Calculated position (${x}, ${y}) is outside canvas bounds`);
+    return null;
+  }
+
+  return { x, y };
+};
+
+export const calculateDateFromPosition = (
+  x: number,
+  y: number,
+  currentCanvasWidth: number | null,
+  currentCanvasHeight: number | null,
+  yearsAreaHeight: number = 0
+): string | null => {
+  if (currentCanvasWidth === null || currentCanvasHeight === null) {
+    return null;
+  }
+
+  const { allMonths, totalDaysSinceEpoch } = buildMonthStructure();
 
   // Calculate which day we're hovering over using the same logic as drawing
   const dayProportion = x / currentCanvasWidth;

@@ -1,8 +1,9 @@
 import paper from "paper";
-import { calculateDateFromPosition } from "../../utils/indexSliderCalcs";
+import { calculateDateFromPosition, calculatePositionFromDate } from "../../utils/indexSliderCalcs";
 
 export const initializePaperCanvas = ({
   canvasElement,
+  selectedDate,
   dataAvailabilityItems,
   selectedCrewStays,
   hoverCallback,
@@ -10,6 +11,7 @@ export const initializePaperCanvas = ({
   canvasWidth = 1500,
 }: {
   canvasElement: HTMLCanvasElement;
+  selectedDate: string | null;
   dataAvailabilityItems: DataAvailability[];
   selectedCrewStays: CrewArrDepItem[];
   hoverCallback: ({ hoveredDate }: { hoveredDate: string | null }) => void;
@@ -103,19 +105,55 @@ export const initializePaperCanvas = ({
 
   const drawPaperItems = () => {
     if (canvasElement && paper.view && paper.project) {
-      paper.view.viewSize = new paper.Size(canvasWidth, canvasElement.clientHeight);
+      try {
+        paper.view.viewSize = new paper.Size(canvasWidth, canvasElement.clientHeight);
 
-      uiGroup.removeChildren();
-      dataGroup.removeChildren();
-      dayBox = null;
+        uiGroup.removeChildren();
+        dataGroup.removeChildren();
+        dayBox = null;
 
-      drawCalendar(
-        dataGroup,
-        dataAvailabilityItems,
-        canvasWidth,
-        YEARS_AREA_HEIGHT,
-        selectedCrewStays
-      );
+        drawCalendar(
+          dataGroup,
+          dataAvailabilityItems,
+          canvasWidth,
+          YEARS_AREA_HEIGHT,
+          selectedCrewStays
+        );
+
+        // Then draw the selected date indicator if a date is selected
+        if (selectedDate) {
+          try {
+            const position = calculatePositionFromDate(
+              selectedDate,
+              canvasWidth,
+              paper.view.bounds.height,
+              YEARS_AREA_HEIGHT
+            );
+            if (position) {
+              // Ensure position is within canvas bounds
+              const clampedX = Math.max(0, Math.min(position.x, canvasWidth));
+              const clampedY = Math.max(
+                YEARS_AREA_HEIGHT,
+                Math.min(position.y, paper.view.bounds.height)
+              );
+
+              const selectedDateBox = new paper.Path.Rectangle({
+                point: new paper.Point(clampedX - 3, clampedY - 3),
+                size: new paper.Size(6, 6),
+                fillColor: new paper.Color("rgba(255, 0, 0, 0.2)"),
+                strokeColor: new paper.Color("red"),
+                strokeWidth: 2,
+              });
+              uiGroup.addChild(selectedDateBox);
+            }
+          } catch (error) {
+            console.error("Error drawing selected date indicator:", error);
+            // Continue without the selected date indicator
+          }
+        }
+      } catch (error) {
+        console.error("Error in drawPaperItems:", error);
+      }
     }
   };
 
