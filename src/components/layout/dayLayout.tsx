@@ -2,6 +2,7 @@ import { FunctionComponent, useState, useEffect } from "react";
 import styles from "./dayLayout.module.css";
 import { useStateSelectedDate, useStateToggle } from "store";
 import { useDateDataAvailability } from "api/useDateSpecificData";
+import { useDateCacheManagement } from "api/useDateCacheManagement";
 import Comm from "components/comm";
 import Blog from "components/blog";
 import Globe from "components/globe";
@@ -309,6 +310,9 @@ const ExpeditionAndCrewOnboard: FunctionComponent = () => {
 const Layout: FunctionComponent = () => {
   const { selectedDate } = useStateSelectedDate();
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
+
+  // Manage cache when date changes
+  useDateCacheManagement(selectedDate);
 
   const { width } = useViewport();
   const isMobile = width <= 1000;

@@ -19,7 +19,7 @@ export function useDateDataAvailability(
       return availabilities.find((da) => da.date === date);
     },
     staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 2 * 60 * 1000, // Reduced from 10 to 2 minutes
     enabled: !!date,
   });
 }
@@ -35,7 +35,7 @@ export function useDateCommTranscript(
     queryKey: ["commTranscript", date],
     queryFn: () => fetchCommTranscript(date),
     staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 2 * 60 * 1000, // Reduced from 10 to 2 minutes
     enabled: !!date && enabled && !!isCommAvailable,
   });
 }
@@ -45,7 +45,7 @@ export function useDateEphemera(date: string): UseQueryResult<EphemeraItem[], Er
     queryKey: ["ephemera", date],
     queryFn: () => fetchEphemera(date),
     staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 2 * 60 * 1000, // Reduced from 10 to 2 minutes
     enabled: !!date,
   });
 }
@@ -61,7 +61,7 @@ export function useDateEarthPhotography(
     queryKey: ["earthPhotography", date],
     queryFn: () => fetchEarthPhotography(date),
     staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 2 * 60 * 1000, // Reduced from 10 to 2 minutes
     enabled: !!date && enabled && !!isEarthPhotographyAvailable,
   });
 }
@@ -77,7 +77,7 @@ export function useDateActivitySummary(
     queryKey: ["activitySummary", date],
     queryFn: () => fetchActivitySummary(date),
     staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 2 * 60 * 1000, // Reduced from 10 to 2 minutes
     enabled: !!date && enabled && !!isActivitySummaryAvailable,
   });
 }
@@ -93,7 +93,7 @@ export function useDateBlogArticles(
     queryKey: ["blogArticles", date],
     queryFn: () => fetchBlogArticles(date),
     staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 2 * 60 * 1000, // Reduced from 10 to 2 minutes
     enabled: !!date && enabled && !!isBlogAvailable,
   });
 }
