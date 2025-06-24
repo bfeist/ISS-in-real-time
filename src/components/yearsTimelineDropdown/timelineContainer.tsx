@@ -89,11 +89,14 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     );
   }, [crewArrDep, selectedCrewMember]);
 
+  // Store the draw function to reuse when timeline becomes visible
+  const drawFunctionRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     const canvas = canvasRef.current;
 
-    if (canvas && dataAvailabilityItems && showTimeline) {
-      // Use the current canvasWidth state which matches years labels
+    if (canvas && dataAvailabilityItems) {
+      // Initialize canvas regardless of showTimeline state to prevent delay
       const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
         canvasElement: canvas,
         selectedDate,
@@ -104,6 +107,9 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
         clickCallback: handleCanvasClick,
         canvasWidth,
       });
+
+      // Store the draw function for later use
+      drawFunctionRef.current = drawPaperItems;
 
       // Update canvas element width to match calculated width
       canvas.style.width = `${canvasWidth}px`;
@@ -118,6 +124,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
         window.removeEventListener("resize", handleResize);
         cleanupInputHandlers();
         clearPaperCanvas();
+        drawFunctionRef.current = null;
       };
     }
   }, [
@@ -128,8 +135,15 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     hoverCallback,
     handleCanvasClick,
     canvasWidth,
-    showTimeline,
   ]);
+
+  // Redraw canvas when timeline becomes visible
+  useEffect(() => {
+    if (showTimeline && drawFunctionRef.current) {
+      // Use the stored draw function to redraw the canvas
+      drawFunctionRef.current();
+    }
+  }, [showTimeline]);
 
   // Update canvas width when canvasWidth state changes
   useEffect(() => {
