@@ -32,6 +32,7 @@ export const initializePaperCanvas = ({
   paper.project.activeLayer.addChildren([dataGroup, uiGroup]);
 
   let dayBox: paper.Path.Rectangle | null = null;
+  let lastHoveredDate: string | null = null; // Track the last hovered date
   const tool = new paper.Tool();
 
   tool.onMouseMove = (event: paper.ToolEvent) => {
@@ -65,7 +66,11 @@ export const initializePaperCanvas = ({
       YEARS_AREA_HEIGHT
     );
 
-    hoverCallback({ hoveredDate });
+    // Only call the callback if the hovered date has actually changed
+    if (hoveredDate !== lastHoveredDate) {
+      lastHoveredDate = hoveredDate;
+      hoverCallback({ hoveredDate });
+    }
   };
 
   tool.onMouseUp = (event: paper.ToolEvent) => {
@@ -91,7 +96,11 @@ export const initializePaperCanvas = ({
       event.clientY <= rect.bottom;
 
     if (!isInside) {
-      hoverCallback({ hoveredDate: null });
+      // Only call callback if we're not already at null
+      if (lastHoveredDate !== null) {
+        lastHoveredDate = null;
+        hoverCallback({ hoveredDate: null });
+      }
       if (dayBox) {
         dayBox.remove();
         dayBox = null;

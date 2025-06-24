@@ -56,6 +56,27 @@ const createStore: StateCreator<AppState> = (set) => ({
   selectedCrewMember: null,
   // Actions
   setSelectedCrewMember: (crewMember: CrewMember | null) => set({ selectedCrewMember: crewMember }),
+
+  // Content highlights initial state
+  contentHighlights: [],
+  // Actions
+  addContentHighlight: (highlight: string) =>
+    set((state) => ({
+      contentHighlights: state.contentHighlights.includes(highlight)
+        ? state.contentHighlights
+        : [...state.contentHighlights, highlight],
+    })),
+  removeContentHighlight: (highlight: string) =>
+    set((state) => ({
+      contentHighlights: state.contentHighlights.filter((h) => h !== highlight),
+    })),
+  toggleContentHighlight: (highlight: string) =>
+    set((state) => ({
+      contentHighlights: state.contentHighlights.includes(highlight)
+        ? state.contentHighlights.filter((h) => h !== highlight)
+        : [...state.contentHighlights, highlight],
+    })),
+  clearContentHighlights: () => set({ contentHighlights: [] }),
 });
 
 // Create store with redux devtools middleware
@@ -132,5 +153,22 @@ export const useStateCrewSelection = (): {
     useShallow((state) => ({
       selectedCrewMember: state.selectedCrewMember,
       setSelectedCrewMember: state.setSelectedCrewMember,
+    }))
+  );
+
+export const useStateContentHighlights = (): {
+  contentHighlights: string[];
+  addContentHighlight: (highlight: string) => void;
+  removeContentHighlight: (highlight: string) => void;
+  toggleContentHighlight: (highlight: string) => void;
+  clearContentHighlights: () => void;
+} =>
+  useAppStore(
+    useShallow((state) => ({
+      contentHighlights: state.contentHighlights,
+      addContentHighlight: state.addContentHighlight,
+      removeContentHighlight: state.removeContentHighlight,
+      toggleContentHighlight: state.toggleContentHighlight,
+      clearContentHighlights: state.clearContentHighlights,
     }))
   );

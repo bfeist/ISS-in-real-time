@@ -12,16 +12,28 @@ import {
   getActiveFlightsByDate,
   getActiveSupplyFlightsByDate,
 } from "utils/onboard";
-import { useStateHover } from "store";
+import { useStateHover, useStateContentHighlights } from "store";
 
 const HoverAndSearch: FunctionComponent = () => {
   const { hoveredDate } = useStateHover();
+  const { contentHighlights, toggleContentHighlight } = useStateContentHighlights();
 
   // Extract only the data we need from queries - React Query handles caching
   const { data: crewArrDep } = useGeneralCrewArrDep();
   const { data: expeditionInfo } = useGeneralExpeditionInfo();
   const { data: flights } = useGeneralFlights();
   const { data: flightsSupply } = useGeneralFlightsSupply();
+
+  // Define the available content types for highlighting
+  const contentTypes = [
+    { key: "comm", label: "Comm" },
+    { key: "vvComm", label: "VV Comm" },
+    { key: "youtube", label: "YouTube" },
+    { key: "eva", label: "EVA" },
+    { key: "blog", label: "Blog" },
+    { key: "activitySummary", label: "Activity Summary" },
+    { key: "earthPhotography", label: "Earth Photography" },
+  ];
 
   // Memoized calculations based on hoveredDate and data
   const expeditionsOnHoveredDate = useMemo(() => {
@@ -133,6 +145,23 @@ const HoverAndSearch: FunctionComponent = () => {
               ))}
             </div>
           )}
+        </div>
+      </div>
+      <div className={styles.dataItem} style={{ flex: "0 0 190px" }}>
+        <div className={styles.contentHeading}>Content Highlights</div>
+        <div className={styles.contentColumns}>
+          {contentTypes.map((contentType) => (
+            <button
+              key={contentType.key}
+              className={`${styles.highlightButton} ${
+                contentHighlights.includes(contentType.key) ? styles.highlightButtonActive : ""
+              }`}
+              onClick={() => toggleContentHighlight(contentType.key)}
+              type="button"
+            >
+              {contentType.label}
+            </button>
+          ))}
         </div>
       </div>
       <CrewSearch />

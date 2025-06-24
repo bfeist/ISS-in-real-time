@@ -51,3 +51,33 @@ h2 {
   margin: 0 0 3px 0;
   color: #555555;
 }
+
+.highlightButton {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  margin-bottom: 3px;
+  border: 1px solid #cccccc;
+  background-color: #ffffff;
+  color: #333333;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.highlightButton:hover {
+  background-color: #f0f0f0;
+  border-color: #999999;
+}
+
+.highlightButtonActive {
+  background-color: #007acc;
+  color: #ffffff;
+  border-color: #005a99;
+}
+
+.highlightButtonActive:hover {
+  background-color: #005a99;
+}

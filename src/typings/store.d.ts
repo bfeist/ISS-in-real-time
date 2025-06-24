@@ -41,10 +41,21 @@ interface CrewSelectionState {
   setSelectedCrewMember: (crewMember: CrewMember | null) => void;
 }
 
+interface ContentHighlightsState {
+  contentHighlights: string[];
+
+  // Actions
+  addContentHighlight: (highlight: string) => void;
+  removeContentHighlight: (highlight: string) => void;
+  toggleContentHighlight: (highlight: string) => void;
+  clearContentHighlights: () => void;
+}
+
 // Combined store type
 interface AppState
   extends ClockState,
     HoverState,
     SelectedDateState,
     ToggleState,
-    CrewSelectionState {}
+    CrewSelectionState,
+    ContentHighlightsState {}

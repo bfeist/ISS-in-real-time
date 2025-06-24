@@ -32,7 +32,8 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       // Store the hovered date in state
       setHoveredDate(hoveredDate);
     },
-    [setHoveredDate]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [] // setHoveredDate is stable from Zustand, no need to include in deps
   );
 
   // Wrap the original clickCallback to also close the dropdown
@@ -46,7 +47,8 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
         setShowTimeline(false);
       }
     },
-    [setSelectedDate]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [setShowTimeline] // Only include React state setters, Zustand setters are stable
   );
 
   // Update canvas width on window resize
