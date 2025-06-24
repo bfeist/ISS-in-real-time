@@ -33,32 +33,14 @@ export const initializePaperCanvas = ({
 
   paper.project.activeLayer.addChildren([dataGroup, uiGroup]);
 
-  let dayBox: paper.Path.Rectangle | null = null;
   let lastHoveredDate: string | null = null; // Track the last hovered date
+  let hoveredDayBox: paper.Path.Rectangle | null = null; // Track the currently hovered day box
+  let originalStrokeColor: paper.Color | null = null; // Store original stroke color
+  let originalStrokeWidth: number = 0; // Store original stroke width
+  const dayBoxMap: Map<string, paper.Path.Rectangle> = new Map(); // Map dates to day boxes
   const tool = new paper.Tool();
 
   tool.onMouseMove = (event: paper.ToolEvent) => {
-    // Create or update the red hover indicator box
-    if (!dayBox) {
-      dayBox = new paper.Path.Rectangle({
-        point: new paper.Point(event.point.x - 3, event.point.y - 3),
-        size: new paper.Size(6, 6),
-        fillColor: new paper.Color("rgba(255, 0, 0, 0.2)"),
-        strokeColor: new paper.Color("red"),
-        strokeWidth: 2,
-      });
-      uiGroup.addChild(dayBox);
-    } else {
-      dayBox.segments[0].point.x = event.point.x - 3;
-      dayBox.segments[0].point.y = event.point.y - 3;
-      dayBox.segments[1].point.x = event.point.x + 3;
-      dayBox.segments[1].point.y = event.point.y - 3;
-      dayBox.segments[2].point.x = event.point.x + 3;
-      dayBox.segments[2].point.y = event.point.y + 3;
-      dayBox.segments[3].point.x = event.point.x - 3;
-      dayBox.segments[3].point.y = event.point.y + 3;
-    }
-
     // Calculate the hovered date
     const hoveredDate = calculateDateFromPosition(
       event.point.x,
@@ -68,8 +50,31 @@ export const initializePaperCanvas = ({
       YEARS_AREA_HEIGHT
     );
 
-    // Only call the callback if the hovered date has actually changed
+    // Only process if the hovered date has actually changed
     if (hoveredDate !== lastHoveredDate) {
+      // Reset previous hovered day box stroke
+      if (hoveredDayBox) {
+        hoveredDayBox.strokeColor = originalStrokeColor;
+        hoveredDayBox.strokeWidth = originalStrokeWidth;
+        hoveredDayBox = null;
+      }
+
+      // Find and highlight the new day box if hovering over a valid date
+      if (hoveredDate) {
+        // Find the day box corresponding to this date using our map
+        const foundDayBox = dayBoxMap.get(hoveredDate);
+        if (foundDayBox) {
+          // Store original properties
+          originalStrokeColor = foundDayBox.strokeColor;
+          originalStrokeWidth = foundDayBox.strokeWidth;
+
+          // Apply hover highlight - subtle red stroke
+          foundDayBox.strokeColor = new paper.Color("red");
+          foundDayBox.strokeWidth = 1.5; // Thin but visible stroke
+          hoveredDayBox = foundDayBox;
+        }
+      }
+
       lastHoveredDate = hoveredDate;
       hoverCallback({ hoveredDate });
     }
@@ -103,9 +108,11 @@ export const initializePaperCanvas = ({
         lastHoveredDate = null;
         hoverCallback({ hoveredDate: null });
       }
-      if (dayBox) {
-        dayBox.remove();
-        dayBox = null;
+      // Reset hovered day box stroke
+      if (hoveredDayBox) {
+        hoveredDayBox.strokeColor = originalStrokeColor;
+        hoveredDayBox.strokeWidth = originalStrokeWidth;
+        hoveredDayBox = null;
       }
     }
   };
@@ -121,7 +128,10 @@ export const initializePaperCanvas = ({
 
         uiGroup.removeChildren();
         dataGroup.removeChildren();
-        dayBox = null;
+        hoveredDayBox = null;
+        originalStrokeColor = null;
+        originalStrokeWidth = 0;
+        dayBoxMap.clear(); // Clear the day box map
 
         drawCalendar(
           dataGroup,
@@ -129,7 +139,8 @@ export const initializePaperCanvas = ({
           canvasWidth,
           YEARS_AREA_HEIGHT,
           selectedCrewStays,
-          contentHighlights
+          contentHighlights,
+          dayBoxMap
         );
 
         // Then draw the selected date indicator if a date is selected
@@ -173,6 +184,12 @@ export const initializePaperCanvas = ({
 
   const cleanupInputHandlers = () => {
     document.removeEventListener("mousemove", handleDocumentMouseMove);
+    // Reset any hovered day box before cleanup
+    if (hoveredDayBox) {
+      hoveredDayBox.strokeColor = originalStrokeColor;
+      hoveredDayBox.strokeWidth = originalStrokeWidth;
+      hoveredDayBox = null;
+    }
     if (tool) {
       tool.remove();
     }
@@ -187,7 +204,8 @@ function drawCalendar(
   canvasLogicalWidth: number,
   yearsAreaHeight: number,
   selectedCrewStays: CrewArrDepItem[],
-  contentHighlights: string[]
+  contentHighlights: string[],
+  dayBoxMap: Map<string, paper.Path.Rectangle>
 ): void {
   // epoch is Nov 2, 2000.
   const epochYear = 2000;
@@ -240,6 +258,7 @@ function drawCalendar(
       dataAvailabilityItems,
       selectedCrewStays,
       contentHighlights,
+      dayBoxMap,
     });
   }
 }
@@ -254,6 +273,7 @@ function drawDaysForMonth({
   dataAvailabilityItems,
   selectedCrewStays,
   contentHighlights,
+  dayBoxMap,
 }: {
   group: paper.Group;
   month: { date: Date; daysInMonth: number };
@@ -264,6 +284,7 @@ function drawDaysForMonth({
   dataAvailabilityItems: DataAvailability[];
   selectedCrewStays: CrewArrDepItem[];
   contentHighlights: string[];
+  dayBoxMap: Map<string, paper.Path.Rectangle>;
 }): void {
   // Define colors based on data availability
   const colors = {
@@ -359,8 +380,10 @@ function drawDaysForMonth({
 
       // Determine stroke properties based on content highlights
       const satisfiesHighlights = doesDaySatisfyContentHighlights(dayItem);
-      const strokeColor = satisfiesHighlights ? new paper.Color("green") : null;
-      const strokeWidth = satisfiesHighlights ? 1 : 0;
+      const strokeColor = satisfiesHighlights
+        ? new paper.Color("green")
+        : new paper.Color("rgba(0, 0, 0, 0.1)"); // Very light stroke instead of transparent
+      const strokeWidth = 1; // Always have stroke width of 1 so hover can work
 
       // Create a small box for each day
       const dayBox = new paper.Path.Rectangle({
@@ -370,6 +393,12 @@ function drawDaysForMonth({
         strokeColor: strokeColor,
         strokeWidth: strokeWidth,
       });
+
+      // Set the date data after creation (Paper.js sometimes doesn't set data in constructor properly)
+      dayBox.data = { dayDate: dateString };
+
+      // Store in our map for quick lookup during hover
+      dayBoxMap.set(dateString, dayBox);
 
       group.addChild(dayBox);
     }
