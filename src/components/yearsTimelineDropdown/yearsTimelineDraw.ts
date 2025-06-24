@@ -1,5 +1,5 @@
 import paper from "paper";
-import { calculateDateFromPosition, calculatePositionFromDate } from "../../utils/indexSliderCalcs";
+import { calculateDateFromPosition } from "../../utils/indexSliderCalcs";
 
 export const initializePaperCanvas = ({
   canvasElement,
@@ -143,35 +143,18 @@ export const initializePaperCanvas = ({
           dayBoxMap
         );
 
-        // Then draw the selected date indicator if a date is selected
+        // Then highlight the selected date's day box if a date is selected
         if (selectedDate) {
           try {
-            const position = calculatePositionFromDate(
-              selectedDate,
-              canvasWidth,
-              paper.view.bounds.height,
-              YEARS_AREA_HEIGHT
-            );
-            if (position) {
-              // Ensure position is within canvas bounds
-              const clampedX = Math.max(0, Math.min(position.x, canvasWidth));
-              const clampedY = Math.max(
-                YEARS_AREA_HEIGHT,
-                Math.min(position.y, paper.view.bounds.height)
-              );
-
-              const selectedDateBox = new paper.Path.Rectangle({
-                point: new paper.Point(clampedX - 3, clampedY - 3),
-                size: new paper.Size(6, 6),
-                fillColor: new paper.Color("rgba(255, 0, 0, 0.2)"),
-                strokeColor: new paper.Color("red"),
-                strokeWidth: 2,
-              });
-              uiGroup.addChild(selectedDateBox);
+            const selectedDayBox = dayBoxMap.get(selectedDate);
+            if (selectedDayBox) {
+              // Apply red stroke to the selected date's day box
+              selectedDayBox.strokeColor = new paper.Color("red");
+              selectedDayBox.strokeWidth = 1.5; // Same as hover effect
             }
           } catch (error) {
-            console.error("Error drawing selected date indicator:", error);
-            // Continue without the selected date indicator
+            console.error("Error highlighting selected date:", error);
+            // Continue without the selected date highlight
           }
         }
       } catch (error) {
