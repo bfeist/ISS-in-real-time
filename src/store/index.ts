@@ -51,6 +51,11 @@ const createStore: StateCreator<AppState> = (set) => ({
   // Actions
   setGlobalMute: (mute: boolean) => set({ globalMute: mute }),
   setShowGlobe: (show: boolean) => set({ showGlobe: show }),
+
+  // Crew selection initial state
+  selectedCrewMember: null,
+  // Actions
+  setSelectedCrewMember: (crewMember: CrewMember | null) => set({ selectedCrewMember: crewMember }),
 });
 
 // Create store with redux devtools middleware
@@ -116,5 +121,16 @@ export const useStateToggle = (): {
       setGlobalMute: state.setGlobalMute,
       showGlobe: state.showGlobe,
       setShowGlobe: state.setShowGlobe,
+    }))
+  );
+
+export const useStateCrewSelection = (): {
+  selectedCrewMember: CrewMember | null;
+  setSelectedCrewMember: (crewMember: CrewMember | null) => void;
+} =>
+  useAppStore(
+    useShallow((state) => ({
+      selectedCrewMember: state.selectedCrewMember,
+      setSelectedCrewMember: state.setSelectedCrewMember,
     }))
   );

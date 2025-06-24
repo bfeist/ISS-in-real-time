@@ -1,25 +1,25 @@
-import { FunctionComponent, JSX, useRef, useEffect, useState, useCallback } from "react";
+import { FunctionComponent, JSX, useRef, useEffect, useState, useCallback, useMemo } from "react";
 import styles from "./timelineContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
 import { initializePaperCanvas, clearPaperCanvas } from "./yearsTimelineDraw";
-import { useStateHover, useStateSelectedDate } from "store";
-import { useGeneralDataAvailabilities } from "api/useGeneralData";
+import { useStateCrewSelection, useStateHover, useStateSelectedDate } from "store";
+import { useGeneralCrewArrDep, useGeneralDataAvailabilities } from "api/useGeneralData";
 
 const TimelineContainer: FunctionComponent = (): JSX.Element => {
   const dataAvailabilityQuery = useGeneralDataAvailabilities();
   const { data: dataAvailabilityItems, isLoading, error } = dataAvailabilityQuery;
+  const { data: crewArrDep } = useGeneralCrewArrDep();
 
   const { selectedDate, setSelectedDate } = useStateSelectedDate();
   const { hoveredDate, setHoveredDate } = useStateHover();
+  const { selectedCrewMember } = useStateCrewSelection();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const yearsScrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [selectedCrewMember, setSelectedCrewMember] = useState<CrewMember | null>(null);
-  const [selectedCrewStays, setSelectedCrewStays] = useState<CrewArrDepItem[]>([]);
   const [showTimeline, setShowTimeline] = useState(
     () => selectedDate === null || selectedDate === undefined
   );
@@ -75,6 +75,13 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       scrollContainerRef.current.scrollLeft = yearsScrollContainerRef.current.scrollLeft;
     }
   }, [showTimeline]);
+
+  const selectedCrewStays = useMemo(() => {
+    if (!crewArrDep || crewArrDep.length === 0 || !selectedCrewMember) return [];
+    return crewArrDep.filter(
+      (item: CrewArrDepItem) => `${item.name_first} ${item.name_last}` === selectedCrewMember.name
+    );
+  }, [crewArrDep, selectedCrewMember]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -206,12 +213,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
         >
           <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
         </div>
-        <HoverAndSearch
-          selectedCrewMember={selectedCrewMember}
-          setSelectedCrewMember={setSelectedCrewMember}
-          selectedCrewStays={selectedCrewStays}
-          setSelectedCrewStays={setSelectedCrewStays}
-        />
+        <HoverAndSearch />
       </div>
     </div>
   );

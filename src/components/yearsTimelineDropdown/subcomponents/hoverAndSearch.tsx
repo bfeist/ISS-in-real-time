@@ -14,17 +14,7 @@ import {
 } from "utils/onboard";
 import { useStateHover } from "store";
 
-const HoverAndSearch: FunctionComponent<{
-  selectedCrewMember: CrewMember | null;
-  setSelectedCrewMember: (crewMember: CrewMember | null) => void;
-  selectedCrewStays: CrewArrDepItem[];
-  setSelectedCrewStays: (crewStays: CrewArrDepItem[]) => void;
-}> = ({
-  selectedCrewMember,
-  setSelectedCrewMember,
-  selectedCrewStays: _selectedCrewStays,
-  setSelectedCrewStays,
-}) => {
+const HoverAndSearch: FunctionComponent = () => {
   const { hoveredDate } = useStateHover();
   const crewArrDepQuery = useGeneralCrewArrDep();
   const expeditionInfoQuery = useGeneralExpeditionInfo();
@@ -109,18 +99,6 @@ const HoverAndSearch: FunctionComponent<{
     }
   }, [hoveredDate, expeditionInfo, crewArrDep, flights, flightsSupply]);
 
-  // Effect to update selectedCrewStays when selectedCrewMember changes
-  useEffect(() => {
-    if (selectedCrewMember && crewArrDep) {
-      const crewStays = crewArrDep.filter(
-        (item: CrewArrDepItem) => `${item.name_first} ${item.name_last}` === selectedCrewMember.name
-      );
-      setSelectedCrewStays(crewStays);
-    } else {
-      setSelectedCrewStays([]);
-    }
-  }, [selectedCrewMember, crewArrDep, setSelectedCrewStays]);
-
   return (
     <div className={styles.dataLists}>
       <div className={styles.dataItem} style={{ flex: "0 0 120px" }}>
@@ -170,11 +148,7 @@ const HoverAndSearch: FunctionComponent<{
           )}
         </div>
       </div>
-      <CrewSearch
-        crewArrDep={crewArrDep}
-        selectedCrewMember={selectedCrewMember}
-        setSelectedCrewMember={setSelectedCrewMember}
-      />
+      <CrewSearch crewArrDep={crewArrDep} />
     </div>
   );
 };

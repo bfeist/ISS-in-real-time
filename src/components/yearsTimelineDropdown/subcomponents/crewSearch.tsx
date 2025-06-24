@@ -1,11 +1,11 @@
 import React, { useState, useEffect, FunctionComponent, useMemo } from "react";
 import styles from "./crewSearch.module.css";
+import { useStateCrewSelection } from "store";
 
 const CrewSearch: FunctionComponent<{
   crewArrDep: CrewArrDepItem[];
-  selectedCrewMember: CrewMember | null;
-  setSelectedCrewMember: (member: CrewMember | null) => void;
-}> = ({ crewArrDep, selectedCrewMember, setSelectedCrewMember }) => {
+}> = ({ crewArrDep }) => {
+  const { selectedCrewMember, setSelectedCrewMember } = useStateCrewSelection();
   // Generate unique crew list for display in the dropdown
   const crewMembers: CrewMember[] = useMemo(() => {
     if (!crewArrDep || crewArrDep.length === 0) {

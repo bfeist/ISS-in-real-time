@@ -34,5 +34,17 @@ interface ToggleState {
   setShowGlobe: (show: boolean) => void;
 }
 
+interface CrewSelectionState {
+  selectedCrewMember: CrewMember | null;
+
+  // Actions
+  setSelectedCrewMember: (crewMember: CrewMember | null) => void;
+}
+
 // Combined store type
-interface AppState extends ClockState, HoverState, SelectedDateState, ToggleState {}
+interface AppState
+  extends ClockState,
+    HoverState,
+    SelectedDateState,
+    ToggleState,
+    CrewSelectionState {}
