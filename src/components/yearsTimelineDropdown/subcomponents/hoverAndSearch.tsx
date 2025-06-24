@@ -148,7 +148,7 @@ const HoverAndSearch: FunctionComponent = () => {
           )}
         </div>
       </div>
-      <CrewSearch crewArrDep={crewArrDep} />
+      <CrewSearch />
     </div>
   );
 };
