@@ -1,6 +1,6 @@
 import { FunctionComponent } from "react";
 import styles from "./expedition.module.css";
-import { useStateSelectedDate } from "store";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useGeneralExpeditionInfo } from "api/useGeneralData";
 
 const Expeditions: FunctionComponent = () => {

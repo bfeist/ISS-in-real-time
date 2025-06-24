@@ -15,7 +15,8 @@ import { FunctionComponent, useState, useRef, useEffect, useMemo } from "react";
 import { Viewer, Entity } from "resium";
 import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
-import { useStateClock, useStateSelectedDate } from "store";
+import { useStateClock } from "store/hooks/useStateClock";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { timeStrFromAppSeconds } from "utils/time";
 import { useDateEphemera } from "api/useDateSpecificData";
 

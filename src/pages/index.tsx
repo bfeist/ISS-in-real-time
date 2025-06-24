@@ -2,7 +2,7 @@ import styles from "./index.module.css";
 import { FunctionComponent, JSX } from "react";
 import Layout from "../components/layout/dayLayout";
 import TimelineContainer from "../components/yearsTimelineDropdown/timelineContainer";
-import { useStateSelectedDate } from "../store";
+import { useStateSelectedDate } from "../store/hooks/useStateSelectedDate";
 import Header from "components/header/header";
 import NoDateSelected from "../components/layout/noDateSelected";
 

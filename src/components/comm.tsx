@@ -1,7 +1,9 @@
 import { extractChannelInfoFromFilename } from "utils/comm";
 import { FunctionComponent, useCallback, useEffect, useRef, useState } from "react";
 import styles from "./comm.module.css";
-import { useStateClock, useStateSelectedDate, useStateToggle } from "store";
+import { useStateClock } from "store/hooks/useStateClock";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
+import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useDateCommTranscript, useDateDataAvailability } from "../api/useDateSpecificData";

@@ -1,6 +1,7 @@
 import { FunctionComponent, useState, useEffect } from "react";
 import styles from "./dayLayout.module.css";
-import { useStateSelectedDate, useStateToggle } from "store";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
+import { useStateToggle } from "store/hooks/useStateToggle";
 import { useDateDataAvailability } from "api/useDateSpecificData";
 import { useDateCacheManagement } from "api/useDateCacheManagement";
 import Comm from "components/comm";

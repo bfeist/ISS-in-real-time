@@ -1,6 +1,7 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./earthPhotography.module.css";
-import { useStateClock, useStateSelectedDate } from "store";
+import { useStateClock } from "store/hooks/useStateClock";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useDateEarthPhotography } from "api/useDateSpecificData";

@@ -3,7 +3,7 @@ import styles from "./crewOnboard.module.css"; // ensure this CSS file exists or
 import { ddhhmmssBetweenDateStrings, timeStrFromDateAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { flagUrlByCountryName } from "utils/countries";
-import { useStateSelectedDate } from "store";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useGeneralCrewArrDep } from "api/useGeneralData";
 import { getCrewMembersOnboardByDate } from "utils/onboard";
 

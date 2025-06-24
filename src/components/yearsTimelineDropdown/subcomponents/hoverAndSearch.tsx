@@ -12,7 +12,8 @@ import {
   getActiveFlightsByDate,
   getActiveSupplyFlightsByDate,
 } from "utils/onboard";
-import { useStateHover, useStateContentHighlights } from "store";
+import { useStateHover } from "store/hooks/useStateHover";
+import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
 
 const HoverAndSearch: FunctionComponent = () => {
   const { hoveredDate } = useStateHover();

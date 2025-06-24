@@ -7,7 +7,7 @@ import {
   isFlightCurrentlyDocked,
 } from "utils/onboard";
 import { capitalizeWords } from "utils/string";
-import { useStateSelectedDate } from "store";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useGeneralFlights, useGeneralFlightsSupply } from "api/useGeneralData";
 
 // Keep only the functions that aren't moved to onboard.ts

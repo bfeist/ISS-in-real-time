@@ -1,7 +1,7 @@
 import { flagUrlByCountryName } from "utils/countries";
 import styles from "./evaInfo.module.css";
 import { FunctionComponent, JSX } from "react";
-import { useStateSelectedDate } from "store";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useGeneralEvaDetails } from "api/useGeneralData";
 
 const EvaInfo: FunctionComponent = (): JSX.Element => {

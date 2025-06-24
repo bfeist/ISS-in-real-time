@@ -1,6 +1,6 @@
 import React, { useState, useEffect, FunctionComponent, useMemo } from "react";
 import styles from "./crewSearch.module.css";
-import { useStateCrewSelection } from "store";
+import { useStateCrewSelection } from "store/hooks/useStateCrewSelection";
 import { useGeneralCrewArrDep } from "api/useGeneralData";
 
 const CrewSearch: FunctionComponent = () => {

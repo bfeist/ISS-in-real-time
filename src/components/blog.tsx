@@ -1,7 +1,7 @@
 import { FunctionComponent } from "react";
 import styles from "./blog.module.css";
 import { useDateActivitySummary, useDateBlogArticles } from "api/useDateSpecificData";
-import { useStateSelectedDate } from "store";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 
 const Blog: FunctionComponent<{
   showArticles?: boolean;

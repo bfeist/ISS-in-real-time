@@ -3,7 +3,8 @@ import styles from "./headerTelemetry.module.css";
 import * as satellite from "satellite.js";
 import { findClosestEphemeraItem } from "utils/map";
 import { timeStrFromAppSeconds } from "utils/time";
-import { useStateClock, useStateSelectedDate } from "store";
+import { useStateClock } from "store/hooks/useStateClock";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useDateEphemera } from "api/useDateSpecificData";
 
 const HeaderTelemetry: FunctionComponent = () => {

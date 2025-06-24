@@ -1,4 +1,4 @@
-import { useStateClock } from "store";
+import { useStateClock } from "store/hooks/useStateClock";
 import { FunctionComponent, useEffect, useRef } from "react";
 
 /**

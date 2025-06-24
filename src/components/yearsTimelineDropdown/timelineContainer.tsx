@@ -3,7 +3,9 @@ import styles from "./timelineContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
 import { initializePaperCanvas, clearPaperCanvas } from "./yearsTimelineDraw";
-import { useStateCrewSelection, useStateHover, useStateSelectedDate } from "store";
+import { useStateCrewSelection } from "store/hooks/useStateCrewSelection";
+import { useStateHover } from "store/hooks/useStateHover";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useGeneralCrewArrDep, useGeneralDataAvailabilities } from "api/useGeneralData";
 
 const TimelineContainer: FunctionComponent = (): JSX.Element => {

@@ -21,7 +21,7 @@ import { containsCoordinate } from "ol/extent";
 import { timeStrFromAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
 import styles from "./map.module.css";
-import { useStateSelectedDate } from "store";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useDateEphemera } from "api/useDateSpecificData";
 
 const MapComponent: FunctionComponent = () => {
