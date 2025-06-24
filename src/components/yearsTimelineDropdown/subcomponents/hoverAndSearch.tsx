@@ -150,18 +150,17 @@ const HoverAndSearch: FunctionComponent = () => {
       </div>
       <div className={styles.dataItem} style={{ flex: "0 0 190px" }}>
         <div className={styles.contentHeading}>Content Highlights</div>
-        <div className={styles.contentColumns}>
+        <div>Days with (all):</div>
+        <div className={styles.checkboxContainer}>
           {contentTypes.map((contentType) => (
-            <button
-              key={contentType.key}
-              className={`${styles.highlightButton} ${
-                contentHighlights.includes(contentType.key) ? styles.highlightButtonActive : ""
-              }`}
-              onClick={() => toggleContentHighlight(contentType.key)}
-              type="button"
-            >
+            <label key={contentType.key} className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={contentHighlights.includes(contentType.key)}
+                onChange={() => toggleContentHighlight(contentType.key)}
+              />
               {contentType.label}
-            </button>
+            </label>
           ))}
         </div>
       </div>
