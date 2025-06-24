@@ -6,6 +6,7 @@ export const initializePaperCanvas = ({
   selectedDate,
   dataAvailabilityItems,
   selectedCrewStays,
+  contentHighlights,
   hoverCallback,
   clickCallback,
   canvasWidth = 1500,
@@ -14,6 +15,7 @@ export const initializePaperCanvas = ({
   selectedDate: string | null;
   dataAvailabilityItems: DataAvailability[];
   selectedCrewStays: CrewArrDepItem[];
+  contentHighlights: string[];
   hoverCallback: ({ hoveredDate }: { hoveredDate: string | null }) => void;
   clickCallback: ({ clickedDate }: { clickedDate: string | null }) => void;
   canvasWidth?: number;
@@ -126,7 +128,8 @@ export const initializePaperCanvas = ({
           dataAvailabilityItems,
           canvasWidth,
           YEARS_AREA_HEIGHT,
-          selectedCrewStays
+          selectedCrewStays,
+          contentHighlights
         );
 
         // Then draw the selected date indicator if a date is selected
@@ -183,7 +186,8 @@ function drawCalendar(
   dataAvailabilityItems: DataAvailability[],
   canvasLogicalWidth: number,
   yearsAreaHeight: number,
-  selectedCrewStays: CrewArrDepItem[]
+  selectedCrewStays: CrewArrDepItem[],
+  contentHighlights: string[]
 ): void {
   // epoch is Nov 2, 2000.
   const epochYear = 2000;
@@ -235,6 +239,7 @@ function drawCalendar(
       maxDaysInMonth,
       dataAvailabilityItems,
       selectedCrewStays,
+      contentHighlights,
     });
   }
 }
@@ -248,6 +253,7 @@ function drawDaysForMonth({
   maxDaysInMonth,
   dataAvailabilityItems,
   selectedCrewStays,
+  contentHighlights,
 }: {
   group: paper.Group;
   month: { date: Date; daysInMonth: number };
@@ -257,10 +263,11 @@ function drawDaysForMonth({
   maxDaysInMonth: number;
   dataAvailabilityItems: DataAvailability[];
   selectedCrewStays: CrewArrDepItem[];
+  contentHighlights: string[];
 }): void {
   // Define colors based on data availability
   const colors = {
-    noData: new paper.Color("#999999"), // Light grey for no data
+    noData: new paper.Color("rgba(0, 0, 0, 0.4)"), // Light grey for no data with 50% transparency
     otherData: new paper.Color("#535353"), // Dark grey for other data
     comm: new paper.Color("black"), // Black for comm
     youtube: new paper.Color("blue"), // Blue for YouTube
@@ -282,6 +289,34 @@ function drawDaysForMonth({
     });
   };
 
+  // Helper function to check if a day's data availability satisfies all content highlights
+  const doesDaySatisfyContentHighlights = (dayItem: DataAvailability | undefined): boolean => {
+    if (!contentHighlights || contentHighlights.length === 0) return false;
+    if (!dayItem) return false;
+
+    // Check if all content highlights are satisfied by this day's data
+    return contentHighlights.every((highlight) => {
+      switch (highlight.toLowerCase()) {
+        case "comm":
+          return dayItem.comm;
+        case "vvcomm":
+          return dayItem.vvComm;
+        case "youtube":
+          return dayItem.youtube;
+        case "eva":
+          return dayItem.eva;
+        case "blog":
+          return dayItem.blog;
+        case "activitysummary":
+          return dayItem.activitySummary;
+        case "earthphotography":
+          return dayItem.earthPhotography;
+        default:
+          return false;
+      }
+    });
+  };
+
   // Draw day boxes within this month
   for (let day = 1; day <= maxDaysInMonth; day++) {
     // Y position - day 1 at top + offset
@@ -289,6 +324,8 @@ function drawDaysForMonth({
 
     // Only add day marker if this month actually has this day
     if (day <= month.daysInMonth) {
+      // Use a simple horizontal offset that's consistent across all months
+      const dayX = monthStartX + 2;
       // Create date object for this specific day
       const currentDate = new Date(month.date);
       currentDate.setDate(day);
@@ -298,55 +335,40 @@ function drawDaysForMonth({
       const dayItem = dataAvailabilityItems.find((item) => item.date === dateString);
 
       // Determine color based on data availability
-      let dayColor = null;
-      let boxSideSize = 3;
+      const dayColor = colors.noData;
+      const boxSideSize = 4;
 
-      if (dayItem) {
-        if (dayItem.youtube) {
-          dayColor = colors.youtube;
-        } else if (dayItem.comm || dayItem.vvComm) {
-          dayColor = colors.comm;
-        } else if (dayItem.blog || dayItem.activitySummary || dayItem.earthPhotography) {
-          dayColor = colors.otherData;
-        } else {
-          dayColor = colors.noData;
-        }
-      } else {
-        dayColor = colors.noData;
-      }
+      // Check if this date is within selected crew member's time on board
+      const isCrewOnboard = isDateInCrewPeriod(new Date(currentDate));
 
-      // Make EVA days bolder
-      if (dayItem && dayItem.eva) {
-        boxSideSize = 4; // Make EVA days slightly larger
-      }
+      // Add circular background for crew onboard periods
+      if (isCrewOnboard) {
+        const backgroundRadius = boxSideSize * 0.8; // Slightly larger than the day box
+        const centerX = dayX + boxSideSize / 2;
+        const centerY = dayY + (dayHeight - boxSideSize) / 2 + boxSideSize / 2;
 
-      // Add background if this date is within selected crew member's time on board
-      // Draw this BEFORE the day box so it appears behind
-      if (isDateInCrewPeriod(new Date(currentDate))) {
-        const backgroundPadding = 2;
-        const backgroundBox = new paper.Path.Rectangle({
-          point: new paper.Point(
-            monthStartX + 2 - backgroundPadding,
-            dayY + (dayHeight - boxSideSize) / 2 - backgroundPadding
-          ),
-          size: new paper.Size(
-            boxSideSize + 2 * backgroundPadding,
-            boxSideSize + 2 * backgroundPadding
-          ),
-          fillColor: new paper.Color("yellow"),
+        const backgroundCircle = new paper.Path.Circle({
+          center: new paper.Point(centerX, centerY),
+          radius: backgroundRadius,
+          fillColor: new paper.Color("rgba(255, 215, 0, 0.4)"), // Gold with transparency
           strokeColor: null,
           strokeWidth: 0,
         });
-        group.addChild(backgroundBox);
+        group.addChild(backgroundCircle);
       }
+
+      // Determine stroke properties based on content highlights
+      const satisfiesHighlights = doesDaySatisfyContentHighlights(dayItem);
+      const strokeColor = satisfiesHighlights ? new paper.Color("green") : null;
+      const strokeWidth = satisfiesHighlights ? 1 : 0;
 
       // Create a small box for each day
       const dayBox = new paper.Path.Rectangle({
-        point: new paper.Point(monthStartX + 2, dayY + (dayHeight - boxSideSize) / 2),
+        point: new paper.Point(dayX, dayY + (dayHeight - boxSideSize) / 2),
         size: new paper.Size(boxSideSize, boxSideSize),
         fillColor: dayColor,
-        strokeColor: null,
-        strokeWidth: 0,
+        strokeColor: strokeColor,
+        strokeWidth: strokeWidth,
       });
 
       group.addChild(dayBox);

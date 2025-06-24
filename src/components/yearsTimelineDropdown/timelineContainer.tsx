@@ -6,6 +6,7 @@ import { initializePaperCanvas, clearPaperCanvas } from "./yearsTimelineDraw";
 import { useStateCrewSelection } from "store/hooks/useStateCrewSelection";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
+import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
 import { useGeneralCrewArrDep, useGeneralDataAvailabilities } from "api/useGeneralData";
 
 const TimelineContainer: FunctionComponent = (): JSX.Element => {
@@ -16,6 +17,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   const { selectedDate, setSelectedDate } = useStateSelectedDate();
   const { hoveredDate, setHoveredDate } = useStateHover();
   const { selectedCrewMember } = useStateCrewSelection();
+  const { contentHighlights } = useStateContentHighlights();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -97,6 +99,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
         selectedDate,
         dataAvailabilityItems,
         selectedCrewStays,
+        contentHighlights,
         hoverCallback,
         clickCallback: handleCanvasClick,
         canvasWidth,
@@ -121,6 +124,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     dataAvailabilityItems,
     selectedDate,
     selectedCrewStays,
+    contentHighlights,
     hoverCallback,
     handleCanvasClick,
     canvasWidth,
