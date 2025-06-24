@@ -48,6 +48,24 @@
 }
 
 /* Hide horizontal scrollbar when window width is greater than 1500px */
+
+.dateTooltip {
+  position: fixed;
+  padding: 8px 12px;
+  background-color: rgb(255 255 255 / 80%);
+  border: 1px solid red;
+  border-radius: 6px;
+  color: black;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 1000;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+  transition: opacity 0.2s ease;
+}
+
 @media screen and (width >= 1501px) {
   .canvasScrollContainer {
     overflow-x: hidden;

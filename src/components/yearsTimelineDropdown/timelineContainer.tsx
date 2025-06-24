@@ -1,4 +1,12 @@
-import { FunctionComponent, JSX, useRef, useEffect, useState, useCallback, useMemo } from "react";
+import React, {
+  FunctionComponent,
+  JSX,
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import styles from "./timelineContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
@@ -23,18 +31,25 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const yearsScrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   const [showTimeline, setShowTimeline] = useState(
     () => selectedDate === null || selectedDate === undefined
   );
 
   const [canvasWidth, setCanvasWidth] = useState(() => Math.max(window.innerWidth, 1500));
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
 
   // Hover callback that was moved from index.tsx
   const hoverCallback = useCallback(
     ({ hoveredDate }: { hoveredDate: string | null }) => {
       // Store the hovered date in state
       setHoveredDate(hoveredDate);
+
+      // Reset mouse position when no date is hovered
+      if (!hoveredDate) {
+        setMousePosition(null);
+      }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [] // setHoveredDate is stable from Zustand, no need to include in deps
@@ -137,6 +152,22 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     canvasWidth,
   ]);
 
+  // Simplified mouse position tracking
+  useEffect(() => {
+    // Function to update mouse position
+    const handleMouseMove = (event: MouseEvent) => {
+      setMousePosition({ x: event.clientX, y: event.clientY });
+    };
+
+    // Add listener to document level only - this is sufficient
+    document.addEventListener("mousemove", handleMouseMove);
+
+    // Much simpler cleanup
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, []); // No dependencies needed for this basic tracking
+
   // Redraw canvas when timeline becomes visible
   useEffect(() => {
     if (showTimeline && drawFunctionRef.current) {
@@ -153,6 +184,49 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       canvas.width = canvasWidth; // Also set the actual canvas width attribute
     }
   }, [canvasWidth]);
+
+  // Format date for tooltip display
+  const formatTooltipDate = useCallback((dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-US", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        weekday: "short",
+      });
+    } catch {
+      return dateString;
+    }
+  }, []);
+
+  // Calculate tooltip position
+  const getTooltipStyle = useCallback((): React.CSSProperties => {
+    if (!mousePosition || !hoveredDate) {
+      return { pointerEvents: "none", visibility: "hidden" };
+    }
+
+    const offset = 10;
+    let x = mousePosition.x + offset;
+    let y = mousePosition.y - 40; // Default to above mouse
+
+    // Check if tooltip would be too close to top of screen
+    if (y < 50) {
+      y = mousePosition.y + offset; // Switch to below mouse
+    }
+
+    // Check if tooltip would go off right edge of screen
+    if (x + 200 > window.innerWidth) {
+      x = mousePosition.x - 200 - offset; // Switch to left side
+    }
+    console.log(`Tooltip position: x=${x}, y=${y}, hoveredDate=${hoveredDate}`);
+
+    return {
+      left: `${x}px`,
+      top: `${y}px`,
+      visibility: "visible",
+    };
+  }, [mousePosition, hoveredDate]);
 
   // Update showTimeline when selectedDate changes
   useEffect(() => {
@@ -196,48 +270,55 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className={styles.timelineContainer}
-      onMouseEnter={() => {
-        /* Keep timeline open when mouse enters container */
-      }}
-    >
-      {/* Years labels row */}
-      <div className={styles.yearsRow}>
-        <div
-          ref={yearsScrollContainerRef}
-          className={styles.yearsScrollContainer}
-          onScroll={handleYearsScroll}
-        >
-          <YearsLabels
-            canvasWidth={canvasWidth}
-            onClick={() => {
-              // When clicking on years labels, we can close the timeline if it was open
-              if (showTimeline) {
-                setShowTimeline(false);
-              } else {
-                setShowTimeline(true);
-              }
-            }}
-            hoveredDate={hoveredDate}
-            selectedDate={selectedDate}
-          />
-        </div>
+    <>
+      {/* Floating date tooltip - always render it but control visibility with CSS */}
+      <div ref={tooltipRef} className={styles.dateTooltip} style={getTooltipStyle()}>
+        {hoveredDate ? formatTooltipDate(hoveredDate) : ""}
       </div>
 
-      {/* Timeline canvas dropdown */}
-      <div className={`${styles.timelineDropdown} ${!showTimeline ? styles.hidden : ""}`}>
-        <div
-          ref={scrollContainerRef}
-          className={styles.canvasScrollContainer}
-          onScroll={handleCanvasScroll}
-        >
-          <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
+      <div
+        ref={containerRef}
+        className={styles.timelineContainer}
+        onMouseEnter={() => {
+          /* Keep timeline open when mouse enters container */
+        }}
+      >
+        {/* Years labels row */}
+        <div className={styles.yearsRow}>
+          <div
+            ref={yearsScrollContainerRef}
+            className={styles.yearsScrollContainer}
+            onScroll={handleYearsScroll}
+          >
+            <YearsLabels
+              canvasWidth={canvasWidth}
+              onClick={() => {
+                // When clicking on years labels, we can close the timeline if it was open
+                if (showTimeline) {
+                  setShowTimeline(false);
+                } else {
+                  setShowTimeline(true);
+                }
+              }}
+              hoveredDate={hoveredDate}
+              selectedDate={selectedDate}
+            />
+          </div>
         </div>
-        <HoverAndSearch />
+
+        {/* Timeline canvas dropdown */}
+        <div className={`${styles.timelineDropdown} ${!showTimeline ? styles.hidden : ""}`}>
+          <div
+            ref={scrollContainerRef}
+            className={styles.canvasScrollContainer}
+            onScroll={handleCanvasScroll}
+          >
+            <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
+          </div>
+          <HoverAndSearch />
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
