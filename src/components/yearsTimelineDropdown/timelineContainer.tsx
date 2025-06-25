@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import paper from "paper";
 import styles from "./timelineContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
@@ -175,13 +176,39 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     };
   }, [hoveredDate]); // Only re-setup when hoveredDate changes
 
-  // Update canvas when timeline becomes visible - no manual dimension setting needed
+  // Update canvas when timeline becomes visible - reinitialize Paper.js properly
   useEffect(() => {
-    if (showTimeline && drawFunctionRef.current) {
-      // Use the stored draw function to redraw the canvas
-      drawFunctionRef.current();
+    if (showTimeline && canvasRef.current && dataAvailabilityItems) {
+      // When timeline becomes visible, we need to reinitialize the canvas properly
+      // because display:none makes Paper.js lose track of dimensions
+
+      const timer = setTimeout(() => {
+        const canvas = canvasRef.current;
+        if (canvas && drawFunctionRef.current) {
+          // Force Paper.js to recognize the canvas is visible again
+          if (paper.project && paper.view) {
+            // Get actual canvas dimensions now that it's visible
+            const displayWidth = Math.max(canvasWidth, 1500);
+            const displayHeight = canvas.clientHeight || 150;
+
+            // Update canvas dimensions
+            canvas.width = displayWidth;
+            canvas.height = displayHeight;
+            canvas.style.width = `${displayWidth}px`;
+            canvas.style.height = `${displayHeight}px`;
+
+            // Update Paper.js view size
+            paper.view.viewSize = new paper.Size(displayWidth, displayHeight);
+
+            // Now redraw
+            drawFunctionRef.current();
+          }
+        }
+      }, 0);
+
+      return () => clearTimeout(timer);
     }
-  }, [showTimeline]);
+  }, [showTimeline, dataAvailabilityItems, canvasWidth]);
 
   // Format date for tooltip display
   const formatTooltipDate = useCallback((dateString: string): string => {
@@ -291,12 +318,8 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
             <YearsLabels
               canvasWidth={canvasWidth}
               onClick={() => {
-                // When clicking on years labels, we can close the timeline if it was open
-                if (showTimeline) {
-                  setShowTimeline(false);
-                } else {
-                  setShowTimeline(true);
-                }
+                // Toggle timeline visibility
+                setShowTimeline(!showTimeline);
               }}
               hoveredDate={hoveredDate}
               selectedDate={selectedDate}
