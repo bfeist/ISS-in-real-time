@@ -152,21 +152,31 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     canvasWidth,
   ]);
 
-  // Simplified mouse position tracking
+  // Container-scoped mouse position tracking - more efficient than document level
   useEffect(() => {
-    // Function to update mouse position
+    const container = containerRef.current;
+    if (!container) return;
+
     const handleMouseMove = (event: MouseEvent) => {
-      setMousePosition({ x: event.clientX, y: event.clientY });
+      // Only track when we have a hovered date (tooltip is relevant)
+      if (hoveredDate) {
+        setMousePosition({ x: event.clientX, y: event.clientY });
+      }
     };
 
-    // Add listener to document level only - this is sufficient
-    document.addEventListener("mousemove", handleMouseMove);
+    const handleMouseLeave = () => {
+      // Clear mouse position when leaving the container
+      setMousePosition(null);
+    };
 
-    // Much simpler cleanup
+    container.addEventListener("mousemove", handleMouseMove);
+    container.addEventListener("mouseleave", handleMouseLeave);
+
     return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
+      container.removeEventListener("mousemove", handleMouseMove);
+      container.removeEventListener("mouseleave", handleMouseLeave);
     };
-  }, []); // No dependencies needed for this basic tracking
+  }, [hoveredDate]); // Only re-setup when hoveredDate changes
 
   // Redraw canvas when timeline becomes visible
   useEffect(() => {
