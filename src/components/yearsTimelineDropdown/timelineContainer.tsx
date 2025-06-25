@@ -126,9 +126,6 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       // Store the draw function for later use
       drawFunctionRef.current = drawPaperItems;
 
-      // Update canvas element width to match calculated width
-      canvas.style.width = `${canvasWidth}px`;
-
       const handleResize = () => {
         drawPaperItems();
       };
@@ -178,22 +175,13 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     };
   }, [hoveredDate]); // Only re-setup when hoveredDate changes
 
-  // Redraw canvas when timeline becomes visible
+  // Update canvas when timeline becomes visible - no manual dimension setting needed
   useEffect(() => {
     if (showTimeline && drawFunctionRef.current) {
       // Use the stored draw function to redraw the canvas
       drawFunctionRef.current();
     }
   }, [showTimeline]);
-
-  // Update canvas width when canvasWidth state changes
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.style.width = `${canvasWidth}px`;
-      canvas.width = canvasWidth; // Also set the actual canvas width attribute
-    }
-  }, [canvasWidth]);
 
   // Format date for tooltip display
   const formatTooltipDate = useCallback((dateString: string): string => {

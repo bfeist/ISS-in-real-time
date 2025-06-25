@@ -124,7 +124,17 @@ export const initializePaperCanvas = ({
   const drawPaperItems = () => {
     if (canvasElement && paper.view && paper.project) {
       try {
-        paper.view.viewSize = new paper.Size(canvasWidth, canvasElement.clientHeight);
+        const displayWidth = canvasWidth;
+        const displayHeight = canvasElement.clientHeight;
+
+        // Set canvas dimensions to match display size
+        canvasElement.width = displayWidth;
+        canvasElement.height = displayHeight;
+        canvasElement.style.width = `${displayWidth}px`;
+        canvasElement.style.height = `${displayHeight}px`;
+
+        // Set Paper.js view size to match canvas dimensions
+        paper.view.viewSize = new paper.Size(displayWidth, displayHeight);
 
         uiGroup.removeChildren();
         dataGroup.removeChildren();
