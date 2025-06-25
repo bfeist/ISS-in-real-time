@@ -1,5 +1,5 @@
 .flightsContainer {
-  flex: 0 0 50%;
+  flex: 1;
   padding: 1em;
   overflow-y: auto;
   background-color: hsl(0deg 0% 98%);

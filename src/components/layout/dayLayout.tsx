@@ -135,14 +135,14 @@ const MobileLayout: FunctionComponent<{
           ))}
         </div>
         <div className={styles.tabContent}>
-          {activeTab === "video" && showVideo && <FakeSection name="video" />}
-          {activeTab === "photos" && showPhotos && <FakeSection name="photos" />}
-          {activeTab === "globe" && <FakeSection name="globe" />}
-          {activeTab === "comm" && showComm && <FakeSection name="comm" />}
-          {activeTab === "articles" && showArticles && <FakeSection name="articles" />}
-          {activeTab === "flights" && <FakeSection name="flights" />}
-          {activeTab === "exp/onboard" && <FakeSection name="exp/onboard" />}
-          {activeTab === "eva" && showEVA && <FakeSection name="eva" />}
+          {activeTab === "video" && showVideo && <YouTubeComponent />}
+          {activeTab === "photos" && showPhotos && <EarthPhotography />}
+          {activeTab === "globe" && <GlobeOrMap />}
+          {activeTab === "comm" && showComm && <Comm showComm={showComm} />}
+          {activeTab === "articles" && showArticles && <Blog showArticles={showArticles} />}
+          {activeTab === "flights" && <Flights />}
+          {activeTab === "exp/onboard" && <ExpeditionAndCrewOnboard />}
+          {activeTab === "eva" && showEVA && <EvaInfo />}
         </div>
       </div>
     </div>

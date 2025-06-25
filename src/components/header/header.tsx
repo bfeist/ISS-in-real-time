@@ -6,7 +6,6 @@ import { useStateToggle } from "store/hooks/useStateToggle";
 import { timeStrFromAppSeconds } from "utils/time";
 import ClockInterval from "../clockInterval";
 import HeaderTelemetry from "./headerTelemetry";
-import { useDateDataAvailability } from "api/useDateSpecificData";
 
 const Header: FunctionComponent = () => {
   const { isRunning, startClock, stopClock } = useStateClock();
@@ -14,13 +13,7 @@ const Header: FunctionComponent = () => {
   const { selectedDate } = useStateSelectedDate();
   const { showGlobe, setShowGlobe, globalMute, setGlobalMute } = useStateToggle();
 
-  const { data: dataAvailability, isLoading } = useDateDataAvailability(selectedDate);
-
   const [appSeconds, setAppSeconds] = useState(0);
-
-  if (isLoading) {
-    return <div className={styles.header}>Loading...</div>;
-  }
 
   return (
     <div className={styles.header}>
@@ -54,15 +47,6 @@ const Header: FunctionComponent = () => {
         <button onClick={() => setShowGlobe(!showGlobe)}>
           Show {showGlobe ? "Map" : "Globe"}{" "}
         </button>
-        <div style={{ marginLeft: "10px" }}>
-          Comm: {(dataAvailability?.comm ?? false) ? "1" : "0"} | vvComm:{" "}
-          {(dataAvailability?.vvComm ?? false) ? "1" : "0"} | YouTube:{" "}
-          {(dataAvailability?.youtube ?? false) ? "1" : "0"} | EVA:{" "}
-          {(dataAvailability?.eva ?? false) ? "1" : "0"} | Blog:{" "}
-          {(dataAvailability?.blog ?? false) ? "1" : "0"} | Activity Summary:{" "}
-          {(dataAvailability?.activitySummary ?? false) ? "1" : "0"} | Earth Photography:{" "}
-          {(dataAvailability?.earthPhotography ?? false) ? "1" : "0"}
-        </div>
       </div>
       <div className={styles.right}>
         <HeaderTelemetry />
