@@ -271,10 +271,8 @@ function drawDaysForMonth({
 }): void {
   // Define colors based on data availability
   const colors = {
-    noData: new paper.Color("rgba(0, 0, 0, 0.4)"), // Light grey for no data with 50% transparency
-    otherData: new paper.Color("#535353"), // Dark grey for other data
-    comm: new paper.Color("black"), // Black for comm
-    youtube: new paper.Color("blue"), // Blue for YouTube
+    noData: new paper.Color("rgba(0, 0, 0, 0.2)"),
+    someData: new paper.Color("rgba(0, 0, 0, 0.4)"),
   };
 
   // Helper function to check if a date is within crew member's time on board
@@ -339,7 +337,7 @@ function drawDaysForMonth({
       const dayItem = dataAvailabilityItems.find((item) => item.date === dateString);
 
       // Determine color based on data availability
-      const dayColor = colors.noData;
+      const dayColor = dayItem ? colors.someData : colors.noData;
       const boxSideSize = 4;
 
       // Check if this date is within selected crew member's time on board
