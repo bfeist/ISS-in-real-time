@@ -150,15 +150,27 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     canvasWidth,
   ]);
 
-  // Container-scoped mouse position tracking - more efficient than document level
+  // Container-scoped mouse and touch position tracking - more efficient than document level
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const handleMouseMove = (event: MouseEvent) => {
+    const updatePosition = (clientX: number, clientY: number) => {
       // Only track when we have a hovered date (tooltip is relevant)
       if (hoveredDate) {
-        setMousePosition({ x: event.clientX, y: event.clientY });
+        setMousePosition({ x: clientX, y: clientY });
+      }
+    };
+
+    const handleMouseMove = (event: MouseEvent) => {
+      updatePosition(event.clientX, event.clientY);
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      // Use the first touch point
+      if (event.touches.length > 0) {
+        const touch = event.touches[0];
+        updatePosition(touch.clientX, touch.clientY);
       }
     };
 
@@ -167,12 +179,23 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       setMousePosition(null);
     };
 
+    const handleTouchEnd = () => {
+      // Clear position when touch ends
+      setMousePosition(null);
+    };
+
     container.addEventListener("mousemove", handleMouseMove);
     container.addEventListener("mouseleave", handleMouseLeave);
+    container.addEventListener("touchmove", handleTouchMove, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd);
+    container.addEventListener("touchcancel", handleTouchEnd);
 
     return () => {
       container.removeEventListener("mousemove", handleMouseMove);
       container.removeEventListener("mouseleave", handleMouseLeave);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchcancel", handleTouchEnd);
     };
   }, [hoveredDate]); // Only re-setup when hoveredDate changes
 
