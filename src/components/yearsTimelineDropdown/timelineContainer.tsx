@@ -43,6 +43,9 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   const [isTouchInteraction, setIsTouchInteraction] = useState(false);
   const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
 
+  // Scroll arrow interaction states
+  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Hover callback that was moved from index.tsx
   const hoverCallback = useCallback(
     ({ hoveredDate }: { hoveredDate: string | null }) => {
@@ -107,6 +110,55 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     setHoveredDate(null);
     setCursorPosition(null);
   }, [setHoveredDate]);
+
+  const stopScrolling = useCallback(() => {
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+  }, []);
+
+  // Arrow scroll functions
+  const startScrolling = useCallback(
+    (direction: "left" | "right", container: "years" | "canvas") => {
+      const scrollAmount = 20; // pixels per interval
+      const intervalDelay = 50; // milliseconds
+
+      const containerRef = container === "years" ? yearsScrollContainerRef : scrollContainerRef;
+
+      const scroll = () => {
+        if (containerRef.current) {
+          const currentScroll = containerRef.current.scrollLeft;
+          const newScroll =
+            direction === "left"
+              ? Math.max(0, currentScroll - scrollAmount)
+              : currentScroll + scrollAmount;
+
+          containerRef.current.scrollLeft = newScroll;
+
+          // Stop scrolling if we've reached the end
+          if (direction === "right") {
+            const maxScroll = containerRef.current.scrollWidth - containerRef.current.clientWidth;
+            if (newScroll >= maxScroll) {
+              stopScrolling();
+            }
+          } else if (newScroll <= 0) {
+            stopScrolling();
+          }
+        }
+      };
+
+      // Clear any existing interval
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+      }
+
+      // Start scrolling immediately, then continue with interval
+      scroll();
+      scrollIntervalRef.current = setInterval(scroll, intervalDelay);
+    },
+    [stopScrolling]
+  );
 
   // Update canvas width on window resize
   useEffect(() => {
@@ -370,6 +422,15 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     }
   }, [selectedDate]);
 
+  // Cleanup scroll interval on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+      }
+    };
+  }, []);
+
   // Handle loading state
   if (isLoading) {
     return (
@@ -438,6 +499,30 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       >
         {/* Years labels row */}
         <div className={styles.yearsRow}>
+          {/* Scroll arrows for years */}
+          <div
+            className={`${styles.scrollArrow} ${styles.scrollArrowLeft}`}
+            onMouseDown={() => startScrolling("left", "years")}
+            onMouseUp={stopScrolling}
+            onMouseLeave={stopScrolling}
+            onTouchStart={() => startScrolling("left", "years")}
+            onTouchEnd={stopScrolling}
+            role="button"
+            tabIndex={0}
+            aria-label="Scroll years left"
+          ></div>
+          <div
+            className={`${styles.scrollArrow} ${styles.scrollArrowRight}`}
+            onMouseDown={() => startScrolling("right", "years")}
+            onMouseUp={stopScrolling}
+            onMouseLeave={stopScrolling}
+            onTouchStart={() => startScrolling("right", "years")}
+            onTouchEnd={stopScrolling}
+            role="button"
+            tabIndex={0}
+            aria-label="Scroll years right"
+          ></div>
+
           <div
             ref={yearsScrollContainerRef}
             className={styles.yearsScrollContainer}
