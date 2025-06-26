@@ -40,26 +40,44 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
 
   const [canvasWidth, setCanvasWidth] = useState(() => Math.max(window.innerWidth, 1500));
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isTouchInteraction, setIsTouchInteraction] = useState(false);
+  const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
 
   // Hover callback that was moved from index.tsx
   const hoverCallback = useCallback(
     ({ hoveredDate }: { hoveredDate: string | null }) => {
-      // Store the hovered date in state
-      setHoveredDate(hoveredDate);
+      // For touch interactions, store as pending date instead of direct hover
+      if (isTouchInteraction && hoveredDate) {
+        setPendingTouchDate(hoveredDate);
+        setHoveredDate(hoveredDate);
+      } else if (!isTouchInteraction) {
+        // For mouse events, use normal hover behavior
+        setHoveredDate(hoveredDate);
+        setPendingTouchDate(null);
+      }
 
       // Reset cursor position when no date is hovered
       if (!hoveredDate) {
         setCursorPosition(null);
+        setPendingTouchDate(null);
+        setIsTouchInteraction(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [] // setHoveredDate is stable from Zustand, no need to include in deps
+    [isTouchInteraction, setHoveredDate]
   );
 
   // Wrap the original clickCallback to also close the dropdown
   const handleCanvasClick = useCallback(
     ({ clickedDate }: { clickedDate: string | null }) => {
-      // Call the original click callback
+      // Check if this is a touch device
+      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
+      // For touch devices, don't auto-select on click - require using the Go button
+      if (isTouchDevice) {
+        return;
+      }
+
+      // For mouse devices, proceed with normal click behavior
       setSelectedDate(clickedDate);
 
       // Close the dropdown when a date is selected
@@ -67,9 +85,28 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
         setShowTimeline(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [setShowTimeline] // Only include React state setters, Zustand setters are stable
+    [setSelectedDate, setShowTimeline]
   );
+
+  // Handle touch "Go" button click
+  const handleTouchGo = useCallback(() => {
+    if (pendingTouchDate) {
+      setSelectedDate(pendingTouchDate);
+      setShowTimeline(false);
+      setPendingTouchDate(null);
+      setIsTouchInteraction(false);
+      setHoveredDate(null);
+      setCursorPosition(null);
+    }
+  }, [pendingTouchDate, setSelectedDate, setHoveredDate]);
+
+  // Handle touch "Cancel" button click
+  const handleTouchCancel = useCallback(() => {
+    setPendingTouchDate(null);
+    setIsTouchInteraction(false);
+    setHoveredDate(null);
+    setCursorPosition(null);
+  }, [setHoveredDate]);
 
   // Update canvas width on window resize
   useEffect(() => {
@@ -164,6 +201,8 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
 
     const handleMouseMove = (event: MouseEvent) => {
       updatePosition(event.clientX, event.clientY);
+      // Reset touch interaction flag when mouse is used
+      setIsTouchInteraction(false);
     };
 
     const handleTouchMove = (event: TouchEvent) => {
@@ -171,6 +210,8 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       if (event.touches.length > 0) {
         const touch = event.touches[0];
         updatePosition(touch.clientX, touch.clientY);
+        // Set touch interaction flag when touch is detected
+        setIsTouchInteraction(true);
       }
     };
 
@@ -180,12 +221,22 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     };
 
     const handleTouchEnd = () => {
-      // Clear position when touch ends
-      setCursorPosition(null);
+      // For touch interactions, keep the tooltip visible if we have a pending date
+      // Only clear position if there's no pending touch date
+      if (!pendingTouchDate) {
+        setCursorPosition(null);
+      }
+      // Don't reset isTouchInteraction here - let the buttons handle it
+    };
+
+    const handleTouchStart = () => {
+      // Set touch interaction flag as soon as touch starts
+      setIsTouchInteraction(true);
     };
 
     container.addEventListener("mousemove", handleMouseMove);
     container.addEventListener("mouseleave", handleMouseLeave);
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
     container.addEventListener("touchmove", handleTouchMove, { passive: true });
     container.addEventListener("touchend", handleTouchEnd);
     container.addEventListener("touchcancel", handleTouchEnd);
@@ -193,11 +244,12 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     return () => {
       container.removeEventListener("mousemove", handleMouseMove);
       container.removeEventListener("mouseleave", handleMouseLeave);
+      container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("touchend", handleTouchEnd);
       container.removeEventListener("touchcancel", handleTouchEnd);
     };
-  }, [hoveredDate]); // Only re-setup when hoveredDate changes
+  }, [hoveredDate, pendingTouchDate]); // Only re-setup when hoveredDate or pendingTouchDate changes
 
   // Update canvas when timeline becomes visible - reinitialize Paper.js properly
   useEffect(() => {
@@ -256,8 +308,17 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
 
     const offset = 10;
     const tooltipElement = tooltipRef.current;
-    const tooltipHeight = tooltipElement ? tooltipElement.offsetHeight || 50 : 50;
-    const tooltipWidth = tooltipElement ? tooltipElement.offsetWidth || 180 : 180;
+    // Adjust height estimate for touch tooltip with buttons
+    const tooltipHeight = tooltipElement
+      ? tooltipElement.offsetHeight || (isTouchInteraction ? 80 : 50)
+      : isTouchInteraction
+        ? 80
+        : 50;
+    const tooltipWidth = tooltipElement
+      ? tooltipElement.offsetWidth || (isTouchInteraction ? 200 : 180)
+      : isTouchInteraction
+        ? 200
+        : 180;
 
     // Get container position for relative boundary calculation
     const container = containerRef.current;
@@ -297,8 +358,9 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       left: `${x}px`,
       top: `${y}px`,
       visibility: "visible",
+      pointerEvents: isTouchInteraction ? "auto" : "none", // Enable pointer events for touch interactions
     };
-  }, [cursorPosition, hoveredDate]);
+  }, [cursorPosition, hoveredDate, isTouchInteraction]);
 
   // Update showTimeline when selectedDate changes
   useEffect(() => {
@@ -345,7 +407,26 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     <>
       {/* Floating date tooltip - always render it but control visibility with CSS */}
       <div ref={tooltipRef} className={styles.dateTooltip} style={getTooltipStyle()}>
-        {hoveredDate ? formatTooltipDate(hoveredDate) : ""}
+        {hoveredDate && (
+          <>
+            <div className={styles.tooltipDate}>{formatTooltipDate(hoveredDate)}</div>
+            {isTouchInteraction && (
+              <div className={styles.tooltipButtons}>
+                <button className={styles.tooltipGoButton} onClick={handleTouchGo} type="button">
+                  Go
+                </button>
+                <button
+                  className={styles.tooltipCancelButton}
+                  onClick={handleTouchCancel}
+                  type="button"
+                  title="Close"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <div
