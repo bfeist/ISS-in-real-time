@@ -39,7 +39,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   );
 
   const [canvasWidth, setCanvasWidth] = useState(() => Math.max(window.innerWidth, 1500));
-  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+  const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Hover callback that was moved from index.tsx
   const hoverCallback = useCallback(
@@ -47,9 +47,9 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       // Store the hovered date in state
       setHoveredDate(hoveredDate);
 
-      // Reset mouse position when no date is hovered
+      // Reset cursor position when no date is hovered
       if (!hoveredDate) {
-        setMousePosition(null);
+        setCursorPosition(null);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,7 +158,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     const updatePosition = (clientX: number, clientY: number) => {
       // Only track when we have a hovered date (tooltip is relevant)
       if (hoveredDate) {
-        setMousePosition({ x: clientX, y: clientY });
+        setCursorPosition({ x: clientX, y: clientY });
       }
     };
 
@@ -175,13 +175,13 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
     };
 
     const handleMouseLeave = () => {
-      // Clear mouse position when leaving the container
-      setMousePosition(null);
+      // Clear cursor position when leaving the container
+      setCursorPosition(null);
     };
 
     const handleTouchEnd = () => {
       // Clear position when touch ends
-      setMousePosition(null);
+      setCursorPosition(null);
     };
 
     container.addEventListener("mousemove", handleMouseMove);
@@ -250,31 +250,55 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
 
   // Calculate tooltip position
   const getTooltipStyle = useCallback((): React.CSSProperties => {
-    if (!mousePosition || !hoveredDate) {
+    if (!cursorPosition || !hoveredDate) {
       return { pointerEvents: "none", visibility: "hidden" };
     }
 
     const offset = 10;
-    let x = mousePosition.x + offset;
-    let y = mousePosition.y - 40; // Default to above mouse
+    const tooltipElement = tooltipRef.current;
+    const tooltipHeight = tooltipElement ? tooltipElement.offsetHeight || 50 : 50;
+    const tooltipWidth = tooltipElement ? tooltipElement.offsetWidth || 180 : 180;
 
-    // Check if tooltip would be too close to top of screen
-    if (y < 50) {
-      y = mousePosition.y + offset; // Switch to below mouse
+    // Get container position for relative boundary calculation
+    const container = containerRef.current;
+    const containerRect = container ? container.getBoundingClientRect() : null;
+    const containerTop = containerRect ? containerRect.top : 0;
+
+    let x = cursorPosition.x + offset;
+    let y = cursorPosition.y - tooltipHeight - offset; // Default to above cursor
+
+    // Check if tooltip would be too close to top of viewport OR container
+    const topBoundary = Math.max(
+      window.scrollY + 20, // Viewport boundary
+      containerTop + 10 // Container boundary
+    );
+
+    if (y < topBoundary) {
+      y = cursorPosition.y + offset; // Switch to below cursor
+    }
+
+    // Check if tooltip would go off bottom of viewport
+    const bottomBoundary = window.scrollY + window.innerHeight - tooltipHeight - 20;
+    if (y > bottomBoundary) {
+      y = cursorPosition.y - tooltipHeight - offset; // Force above cursor
     }
 
     // Check if tooltip would go off right edge of screen
-    if (x + 200 > window.innerWidth) {
-      x = mousePosition.x - 200 - offset; // Switch to left side
+    if (x + tooltipWidth > window.innerWidth) {
+      x = cursorPosition.x - tooltipWidth - offset; // Switch to left side
     }
-    console.log(`Tooltip position: x=${x}, y=${y}, hoveredDate=${hoveredDate}`);
+
+    // Check if tooltip would go off left edge of screen
+    if (x < 10) {
+      x = 10; // Keep it on screen
+    }
 
     return {
       left: `${x}px`,
       top: `${y}px`,
       visibility: "visible",
     };
-  }, [mousePosition, hoveredDate]);
+  }, [cursorPosition, hoveredDate]);
 
   // Update showTimeline when selectedDate changes
   useEffect(() => {
