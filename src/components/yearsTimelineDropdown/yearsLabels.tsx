@@ -7,6 +7,7 @@ interface YearsLabelsProps {
   onClick?: () => void;
   hoveredDate?: string | null;
   selectedDate?: string | null;
+  showTimeline?: boolean;
 }
 
 const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
@@ -14,6 +15,7 @@ const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
   onClick,
   hoveredDate,
   selectedDate,
+  showTimeline = false,
 }): JSX.Element => {
   const yearPositions = useMemo(() => {
     // Use the same epoch and calculation logic as the canvas
@@ -157,6 +159,15 @@ const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
       {/* Red line for selected date */}
       {selectedDatePosition !== null && (
         <div className={styles.selectedDateLine} style={{ left: selectedDatePosition }} />
+      )}
+
+      {/* Open indicator - only show when timeline is closed */}
+      {!showTimeline && (
+        <div className={styles.openIndicator}>
+          <span className={styles.arrow}>▾</span>
+          <span className={styles.indicatorText}>OPEN</span>
+          <span className={styles.arrow}>▾</span>
+        </div>
       )}
     </div>
   );

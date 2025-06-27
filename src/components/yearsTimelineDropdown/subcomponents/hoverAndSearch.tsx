@@ -15,7 +15,9 @@ import {
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
 
-const HoverAndSearch: FunctionComponent = () => {
+const HoverAndSearch: FunctionComponent<{
+  onClose?: () => void;
+}> = ({ onClose }) => {
   const { hoveredDate } = useStateHover();
   const { contentHighlights, toggleContentHighlight } = useStateContentHighlights();
 
@@ -100,71 +102,91 @@ const HoverAndSearch: FunctionComponent = () => {
   }, [hoveredDate, flightsSupply]);
 
   return (
-    <div className={styles.dataLists}>
-      <div className={styles.dataItem} style={{ flex: "0 0 120px" }}>
-        <div className={styles.contentHeading}>Date</div>
-        <div>{hoveredDate}</div>
-      </div>
-      <div className={styles.dataItem} style={{ flex: "0 0 180px" }}>
-        <div className={styles.contentHeading}>Expeditions</div>
-        {expeditionsOnHoveredDate.length > 0 && (
-          <>
-            {expeditionsOnHoveredDate.map((expedition: ExpeditionInfo) => (
-              <div key={expedition.expedition}>{`Expedition ${expedition.expedition}`}</div>
+    <div className={styles.hoverSearchContainer}>
+      <div className={styles.dataLists}>
+        <div className={styles.dataItem} style={{ flex: "0 0 120px" }}>
+          <div className={styles.contentHeading}>Date</div>
+          <div>{hoveredDate}</div>
+        </div>
+        <div className={styles.dataItem} style={{ flex: "0 0 180px" }}>
+          <div className={styles.contentHeading}>Expeditions</div>
+          {expeditionsOnHoveredDate.length > 0 && (
+            <>
+              {expeditionsOnHoveredDate.map((expedition: ExpeditionInfo) => (
+                <div key={expedition.expedition}>{`Expedition ${expedition.expedition}`}</div>
+              ))}
+            </>
+          )}
+        </div>
+        <div className={styles.dataItem}>
+          <div className={styles.contentHeading}>Crew Onboard</div>
+          {crewOnboardList.length > 0 && (
+            <>
+              <div className={styles.contentColumns}>
+                {crewOnboardList.map((name) => (
+                  <div key={name}>{name}</div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+        <div className={styles.dataItem}>
+          <div className={styles.contentHeading}>Vehicles Docked</div>
+          <div className={styles.contentColumns}>
+            {flightsDocked.length > 0 && (
+              <div className={styles.vehicleCategory}>
+                <h3 className={styles.subheading}>Crew</h3>
+                {flightsDocked.map((name) => (
+                  <div key={name}>{name}</div>
+                ))}
+              </div>
+            )}
+            {supplyFlightsDocked.length > 0 && (
+              <div className={styles.vehicleCategory}>
+                <h3 className={styles.subheading}>Supply</h3>
+                {supplyFlightsDocked.map((name) => (
+                  <div key={name}>{name}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className={styles.dataItem} style={{ flex: "0 0 190px" }}>
+          <div className={styles.contentHeading}>Content Highlights</div>
+          <div>Days with (all):</div>
+          <div className={styles.checkboxContainer}>
+            {contentTypes.map((contentType) => (
+              <label key={contentType.key} className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={contentHighlights.includes(contentType.key)}
+                  onChange={() => toggleContentHighlight(contentType.key)}
+                />
+                {contentType.label}
+              </label>
             ))}
-          </>
-        )}
-      </div>
-      <div className={styles.dataItem}>
-        <div className={styles.contentHeading}>Crew Onboard</div>
-        {crewOnboardList.length > 0 && (
-          <>
-            <div className={styles.contentColumns}>
-              {crewOnboardList.map((name) => (
-                <div key={name}>{name}</div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-      <div className={styles.dataItem}>
-        <div className={styles.contentHeading}>Vehicles Docked</div>
-        <div className={styles.contentColumns}>
-          {flightsDocked.length > 0 && (
-            <div className={styles.vehicleCategory}>
-              <h3 className={styles.subheading}>Crew</h3>
-              {flightsDocked.map((name) => (
-                <div key={name}>{name}</div>
-              ))}
-            </div>
-          )}
-          {supplyFlightsDocked.length > 0 && (
-            <div className={styles.vehicleCategory}>
-              <h3 className={styles.subheading}>Supply</h3>
-              {supplyFlightsDocked.map((name) => (
-                <div key={name}>{name}</div>
-              ))}
-            </div>
-          )}
+          </div>
         </div>
+        <CrewSearch />
       </div>
-      <div className={styles.dataItem} style={{ flex: "0 0 190px" }}>
-        <div className={styles.contentHeading}>Content Highlights</div>
-        <div>Days with (all):</div>
-        <div className={styles.checkboxContainer}>
-          {contentTypes.map((contentType) => (
-            <label key={contentType.key} className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={contentHighlights.includes(contentType.key)}
-                onChange={() => toggleContentHighlight(contentType.key)}
-              />
-              {contentType.label}
-            </label>
-          ))}
-        </div>
+
+      {/* Close indicator at the bottom */}
+      <div
+        className={styles.closeIndicator}
+        onClick={() => onClose?.()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            onClose?.();
+          }
+        }}
+        tabIndex={0}
+        role="button"
+        aria-label="Close timeline"
+      >
+        <span className={styles.arrow}>▴</span>
+        <span className={styles.indicatorText}>CLOSE</span>
+        <span className={styles.arrow}>▴</span>
       </div>
-      <CrewSearch />
     </div>
   );
 };

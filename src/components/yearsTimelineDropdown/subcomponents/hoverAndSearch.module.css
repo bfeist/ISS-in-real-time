@@ -69,3 +69,51 @@ h2 {
 .checkboxLabel input[type="checkbox"] {
   margin-right: 6px;
 }
+
+.hoverSearchContainer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.closeIndicator {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: rgb(255 255 255 / 90%);
+  border: 1px solid #cccccc;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: bold;
+  color: #333333;
+  cursor: pointer;
+  z-index: 20;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.closeIndicator:hover {
+  background-color: rgb(240 240 240 / 95%);
+  border-color: #999999;
+}
+
+.closeIndicator:focus {
+  outline: 2px solid #007acc;
+  outline-offset: 1px;
+}
+
+.arrow {
+  font-size: 8px;
+  color: #666666;
+}
+
+.indicatorText {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}

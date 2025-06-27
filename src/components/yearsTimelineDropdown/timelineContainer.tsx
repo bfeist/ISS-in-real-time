@@ -536,6 +536,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
               }}
               hoveredDate={hoveredDate}
               selectedDate={selectedDate}
+              showTimeline={showTimeline}
             />
           </div>
         </div>
@@ -549,7 +550,7 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
           >
             <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
           </div>
-          <HoverAndSearch />
+          <HoverAndSearch onClose={() => setShowTimeline(false)} />
         </div>
       </div>
     </>
