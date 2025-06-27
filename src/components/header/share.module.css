@@ -1,0 +1,101 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgb(0 0 0 / 50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgb(0 0 0 / 10%);
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 0 20px;
+  border-bottom: 1px solid #eeeeee;
+  margin-bottom: 0;
+}
+
+.header h3 {
+  margin: 0;
+  color: #333333;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.closeButton:hover {
+  background-color: #f0f0f0;
+  color: #333333;
+}
+
+.content {
+  padding: 20px;
+}
+
+.content p {
+  margin: 0 0 15px 0;
+  color: #555555;
+}
+
+.urlContainer {
+  margin-bottom: 20px;
+}
+
+.urlInput {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #dddddd;
+  border-radius: 4px;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.urlInput:focus {
+  outline: none;
+  border-color: #007acc;
+}
+
+.copyButton {
+  background-color: #007acc;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.copyButton:hover {
+  background-color: #005a9e;
+}
+
+.copyButton:active {
+  background-color: #004785;
+}

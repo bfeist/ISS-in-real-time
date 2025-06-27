@@ -6,6 +6,7 @@ import { useStateToggle } from "store/hooks/useStateToggle";
 import { timeStrFromAppSeconds } from "utils/time";
 import ClockInterval from "../clockInterval";
 import HeaderTelemetry from "./headerTelemetry";
+import ShareButton from "./share";
 
 const Header: FunctionComponent = () => {
   const { isRunning, startClock, stopClock } = useStateClock();
@@ -44,9 +45,8 @@ const Header: FunctionComponent = () => {
         >
           {globalMute ? "Unmute" : "Mute"}
         </button>
-        <button onClick={() => setShowGlobe(!showGlobe)}>
-          Show {showGlobe ? "Map" : "Globe"}{" "}
-        </button>
+        <button onClick={() => setShowGlobe(!showGlobe)}>{showGlobe ? "Map" : "Globe"}</button>
+        <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
       </div>
       <div className={styles.right}>
         <HeaderTelemetry />
