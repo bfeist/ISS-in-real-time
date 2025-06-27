@@ -7,6 +7,7 @@ import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useDateCommTranscript, useDateDataAvailability } from "../api/useDateSpecificData";
+import { useParams } from "react-router-dom";
 
 // Explicitly reference dynamic CSS classes to prevent linter warnings
 // @ts-ignore - Used to prevent unused CSS class warnings
@@ -32,6 +33,7 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
   const { isRunning, setClock } = useStateClock();
   const { selectedDate } = useStateSelectedDate();
   const { globalMute } = useStateToggle();
+  const { dateTimeSlug } = useParams();
 
   const { data: dataAvailability, isLoading: isDataAvailabilityLoading } =
     useDateDataAvailability(selectedDate);
@@ -83,6 +85,7 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
 
   /**
    * Effect to set the clock to the first comm item when the component mounts
+   * Only do this if no slug parameter was sent in
    */
   useEffect(() => {
     if (!commItems.length || !dataAvailability) return;
@@ -90,9 +93,12 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
     // If YouTube data is available, we don't set the clock to the first comm item
     if (dataAvailability.youtube) return;
 
+    // Only set the clock to first comm item if no dateTimeSlug parameter was provided
+    if (dateTimeSlug) return;
+
     const firstComm = commItems[0];
     setClock(appSecondsFromTimeStr(firstComm.utteranceTime) - 10); // Start 10 seconds before the first comm item
-  }, [commItems, setClock, dataAvailability]);
+  }, [commItems, setClock, dataAvailability, dateTimeSlug]);
 
   /**
    * Effect to scroll to the closest comm item when the clock changes

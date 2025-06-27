@@ -17,11 +17,13 @@ import { useStateHover } from "store/hooks/useStateHover";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
 import { useGeneralCrewArrDep, useGeneralDataAvailabilities } from "api/useGeneralData";
+import { useParams } from "react-router-dom";
 
 const TimelineContainer: FunctionComponent = (): JSX.Element => {
   const dataAvailabilityQuery = useGeneralDataAvailabilities();
   const { data: dataAvailabilityItems, isLoading, error } = dataAvailabilityQuery;
   const { data: crewArrDep } = useGeneralCrewArrDep();
+  const { dateTimeSlug } = useParams();
 
   const { selectedDate, setSelectedDate } = useStateSelectedDate();
   const { hoveredDate, setHoveredDate } = useStateHover();
@@ -34,9 +36,12 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const [showTimeline, setShowTimeline] = useState(
-    () => selectedDate === null || selectedDate === undefined
-  );
+  const [showTimeline, setShowTimeline] = useState(() => {
+    // Don't open timeline by default if there was a dateTimeSlug parameter
+    if (dateTimeSlug) return false;
+    // Otherwise, open if no date is selected
+    return selectedDate === null || selectedDate === undefined;
+  });
 
   const [canvasWidth, setCanvasWidth] = useState(() => Math.max(window.innerWidth, 1500));
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
@@ -416,11 +421,14 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
 
   // Update showTimeline when selectedDate changes
   useEffect(() => {
-    // If selectedDate is null/undefined, default to open
+    // If selectedDate is null/undefined, default to open (unless there was a dateTimeSlug)
     if (selectedDate === null || selectedDate === undefined) {
-      setShowTimeline(true);
+      // Don't auto-open if there was a dateTimeSlug parameter
+      if (!dateTimeSlug) {
+        setShowTimeline(true);
+      }
     }
-  }, [selectedDate]);
+  }, [selectedDate, dateTimeSlug]);
 
   // Cleanup scroll interval on unmount
   useEffect(() => {

@@ -14,3 +14,64 @@ export const isValidTimestring = (t: string): boolean => {
 
   return true;
 };
+
+export const isValidDateString = (dateStr: string): boolean => {
+  if (!dateStr) return false;
+
+  // Check if the date string matches YYYY-MM-DD format
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(dateStr)) return false;
+
+  // Check if it's a valid date
+  const date = new Date(dateStr);
+  return date instanceof Date && !isNaN(date.getTime()) && date.toISOString().startsWith(dateStr);
+};
+
+export interface ParsedDateTimeSlug {
+  date: string;
+  time: string;
+}
+
+export const parseDateTimeSlug = (slug: string): ParsedDateTimeSlug | null => {
+  if (!slug) return null;
+
+  // Expected format: YYYY-MM-DD/HH:MM:SS but encoded as YYYY-MM-DD%2FHH%3AMM%3ASS
+  // or YYYY-MM-DD~HH-MM-SS (using ~ as separator to avoid URL encoding issues)
+  let datePart: string;
+  let timePart: string;
+
+  // Try URL decoded format first (YYYY-MM-DD/HH:MM:SS)
+  try {
+    const decoded = decodeURIComponent(slug);
+    const parts = decoded.split("/");
+    if (parts.length === 2) {
+      [datePart, timePart] = parts;
+    } else {
+      // Try alternative format with ~ separator (YYYY-MM-DD~HH:MM:SS)
+      const altParts = slug.split("~");
+      if (altParts.length === 2) {
+        [datePart, timePart] = altParts;
+      } else {
+        return null;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  // Validate date and time formats
+  if (!isValidDateString(datePart) || !isValidTimestring(timePart)) {
+    return null;
+  }
+
+  return { date: datePart, time: timePart };
+};
+
+export const createDateTimeSlug = (date: string, time: string): string => {
+  if (!isValidDateString(date) || !isValidTimestring(time)) {
+    throw new Error("Invalid date or time format");
+  }
+
+  // Use ~ separator to avoid URL encoding issues with /
+  return `${date}~${time}`;
+};

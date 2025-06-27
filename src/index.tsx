@@ -17,6 +17,7 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<App />}>
       <Route index element={<Home />} />
+      <Route path=":dateTimeSlug" element={<Home />} />
       <Route path="date/:date" element={<DatePage />} />
       <Route
         path="layout_test"

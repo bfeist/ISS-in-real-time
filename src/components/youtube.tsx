@@ -6,10 +6,12 @@ import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useGeneralYoutubeData } from "api/useGeneralData";
+import { useParams } from "react-router-dom";
 
 const YouTubeComponent: FunctionComponent = () => {
   const { selectedDate } = useStateSelectedDate();
   const { setClock } = useStateClock();
+  const { dateTimeSlug } = useParams();
 
   const { data: youtubeLiveRecordings = [], isLoading } = useGeneralYoutubeData();
 
@@ -30,10 +32,13 @@ const YouTubeComponent: FunctionComponent = () => {
   useEffect(() => {
     if (!youtubeLiveRecording) return;
 
+    // Only set the clock to YouTube start time if no dateTimeSlug parameter was provided
+    if (dateTimeSlug) return;
+
     // Set the clock to the start time of the YouTube recording
     const startTimeStr = youtubeLiveRecording.startTime.split("T")[1];
     setClock(appSecondsFromTimeStr(startTimeStr));
-  }, [youtubeLiveRecording, setClock]);
+  }, [youtubeLiveRecording, setClock, dateTimeSlug]);
 
   useEffect(() => {
     if (!playerRef.current) return;
