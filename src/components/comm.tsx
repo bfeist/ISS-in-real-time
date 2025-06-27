@@ -213,97 +213,100 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
         ))}
       </div>
 
-      <div className={styles.audioPlayer}>
-        <audio ref={audioRefCh1} controls muted={globalMute}>
-          <track src="" kind="captions" label="English" />
-          Your browser does not support the audio element.
-        </audio>
-      </div>
-      <div className={styles.audioPlayer}>
-        <audio ref={audioRefCh2} controls muted={globalMute}>
-          <track src="" kind="captions" label="English" />
-          Your browser does not support the audio element.
-        </audio>
-      </div>
-      <div className={styles.audioPlayer}>
-        <audio ref={audioRefCh3} controls muted={globalMute}>
-          <track src="" kind="captions" label="English" />
-          Your browser does not support the audio element.
-        </audio>
-      </div>
-      <div className={styles.audioPlayer}>
-        <audio ref={audioRefCh4} controls muted={globalMute}>
-          <track src="" kind="captions" label="English" />
-          Your browser does not support the audio element.
-        </audio>
-      </div>
-      <div className={styles.audioPlayer}>
-        <audio ref={audioRefCh5} controls muted={globalMute}>
-          <track src="" kind="captions" label="English" />
-          Your browser does not support the audio element.
-        </audio>
-      </div>
-
-      {(isLoading || isDataAvailabilityLoading) && (
-        <div className={styles.commItem}>Loading communication transcripts...</div>
-      )}
-
-      {error && (
-        <div className={styles.commItem}>
-          Error loading communication transcripts: {error.message || "Unknown error"}
+      <div className={styles.commContent}>
+        <div className={styles.audioPlayer}>
+          <audio ref={audioRefCh1} controls muted={globalMute}>
+            <track src="" kind="captions" label="English" />
+            Your browser does not support the audio element.
+          </audio>
         </div>
-      )}
+        <div className={styles.audioPlayer}>
+          <audio ref={audioRefCh2} controls muted={globalMute}>
+            <track src="" kind="captions" label="English" />
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+        <div className={styles.audioPlayer}>
+          <audio ref={audioRefCh3} controls muted={globalMute}>
+            <track src="" kind="captions" label="English" />
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+        <div className={styles.audioPlayer}>
+          <audio ref={audioRefCh4} controls muted={globalMute}>
+            <track src="" kind="captions" label="English" />
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+        <div className={styles.audioPlayer}>
+          <audio ref={audioRefCh5} controls muted={globalMute}>
+            <track src="" kind="captions" label="English" />
+            Your browser does not support the audio element.
+          </audio>
+        </div>
 
-      {!isLoading &&
-        !error &&
-        commItems
-          .filter((item) => {
-            const channelInfo = extractChannelInfoFromFilename(item.filename);
-            if (!channelInfo) return false;
-            const channelNumber = parseInt(channelInfo.number, 10);
-            return channelVisibility[channelNumber];
-          })
-          .map((item) => {
-            const channelInfo = extractChannelInfoFromFilename(item.filename);
+        {(isLoading || isDataAvailabilityLoading) && (
+          <div className={styles.commItem}>Loading communication transcripts...</div>
+        )}
 
-            let commItemActive = null;
-            const startAppSeconds = appSecondsFromTimeStr(item.utteranceTime);
-            const endAppSeconds = appSecondsFromTimeStr(item.utteranceTime) + parseFloat(item.end);
-            if (appSeconds >= startAppSeconds && appSeconds <= endAppSeconds) {
-              commItemActive = styles.commItemActive;
-            }
+        {error && (
+          <div className={styles.commItem}>
+            Error loading communication transcripts: {error.message || "Unknown error"}
+          </div>
+        )}
 
-            return (
-              <div
-                key={`${item.utteranceTime}-${item.filename}`}
-                className={`${styles.commItem} ${commItemActive}`}
-                data-time={item.utteranceTime}
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  setLastScrolledToTimeStr(null);
-                  setClock(appSecondsFromTimeStr(item.utteranceTime));
-                }}
-                onKeyDown={() => {
-                  setLastScrolledToTimeStr(null);
-                  setClock(appSecondsFromTimeStr(item.utteranceTime));
-                }}
-              >
-                <div>{item.utteranceTime}</div>
+        {!isLoading &&
+          !error &&
+          commItems
+            .filter((item) => {
+              const channelInfo = extractChannelInfoFromFilename(item.filename);
+              if (!channelInfo) return false;
+              const channelNumber = parseInt(channelInfo.number, 10);
+              return channelVisibility[channelNumber];
+            })
+            .map((item) => {
+              const channelInfo = extractChannelInfoFromFilename(item.filename);
+
+              let commItemActive = null;
+              const startAppSeconds = appSecondsFromTimeStr(item.utteranceTime);
+              const endAppSeconds =
+                appSecondsFromTimeStr(item.utteranceTime) + parseFloat(item.end);
+              if (appSeconds >= startAppSeconds && appSeconds <= endAppSeconds) {
+                commItemActive = styles.commItemActive;
+              }
+
+              return (
                 <div
-                  className={`${styles.channelnum} ${styles[`channelnum${channelInfo.number}`]}`}
+                  key={`${item.utteranceTime}-${item.filename}`}
+                  className={`${styles.commItem} ${commItemActive}`}
+                  data-time={item.utteranceTime}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setLastScrolledToTimeStr(null);
+                    setClock(appSecondsFromTimeStr(item.utteranceTime));
+                  }}
+                  onKeyDown={() => {
+                    setLastScrolledToTimeStr(null);
+                    setClock(appSecondsFromTimeStr(item.utteranceTime));
+                  }}
                 >
-                  {channelInfo.type}-{channelInfo.number}
+                  <div className={styles.commTime}>{item.utteranceTime}</div>
+                  <div
+                    className={`${styles.channelnum} ${styles[`channelnum${channelInfo.number}`]}`}
+                  >
+                    {channelInfo.type}-{channelInfo.number}
+                  </div>
+                  <div className={styles.textContainer}>
+                    <div>{item.text}</div>
+                    {item.textOriginalLang && (
+                      <div className={styles.textOriginalLang}>{item.textOriginalLang}</div>
+                    )}
+                  </div>
                 </div>
-                <div className={styles.textContainer}>
-                  <div>{item.text}</div>
-                  {item.textOriginalLang && (
-                    <div className={styles.textOriginalLang}>{item.textOriginalLang}</div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+      </div>
     </div>
   );
 };
