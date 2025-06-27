@@ -38,3 +38,46 @@
 .audioPlayer {
   display: none;
 }
+
+.channelToggleContainer {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  background-color: #a0a0a0;
+  border-bottom: 1px solid #909090;
+}
+
+.channelToggle {
+  padding: 6px 12px;
+  border: 1px solid #808080;
+  border-radius: 4px;
+  background-color: #d0d0d0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.channelToggle:hover {
+  background-color: #e0e0e0;
+}
+
+.channelToggleActive {
+  background-color: #2a612c;
+  color: white;
+  border-color: #45a049;
+}
+
+.channelToggleActive:hover {
+  background-color: #45a049;
+}
+
+.channelToggleInactive {
+  background-color: #bd3329;
+  color: white;
+  border-color: #ac1308;
+}
+
+.channelToggleInactive:hover {
+  background-color: #da190b;
+}

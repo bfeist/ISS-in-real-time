@@ -26,6 +26,23 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
   const [lastScrolledToTimeStr, setLastScrolledToTimeStr] = useState<string | null>(null);
   const [appSeconds, setAppSeconds] = useState(0);
 
+  // State to track which channels are visible
+  const [channelVisibility, setChannelVisibility] = useState<Record<number, boolean>>({
+    1: true,
+    2: true,
+    3: true,
+    4: true,
+    5: true,
+  });
+
+  // Function to toggle channel visibility
+  const toggleChannel = (channelNumber: number) => {
+    setChannelVisibility((prev) => ({
+      ...prev,
+      [channelNumber]: !prev[channelNumber],
+    }));
+  };
+
   const getClosestCommItem = useCallback(() => {
     // Find the closest comm item to the current time
     let closestComm = commItems[0];
@@ -118,33 +135,33 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
 
       // if SG1, play on channel 1 etc. Don't worry about overlapping audio playing. This is what happens in real life.
       if (commItem.filename.includes("SG_1")) {
-        if (audioRefCh1.current && isRunning) {
+        if (audioRefCh1.current && isRunning && channelVisibility[1]) {
           audioRefCh1.current.src = aacFileUrl;
           audioRefCh1.current.play();
         }
       } else if (commItem.filename.includes("SG_2")) {
-        if (audioRefCh2.current && isRunning) {
+        if (audioRefCh2.current && isRunning && channelVisibility[2]) {
           audioRefCh2.current.src = aacFileUrl;
           audioRefCh2.current.play();
         }
       } else if (commItem.filename.includes("SG_3")) {
-        if (audioRefCh3.current && isRunning) {
+        if (audioRefCh3.current && isRunning && channelVisibility[3]) {
           audioRefCh3.current.src = aacFileUrl;
           audioRefCh3.current.play();
         }
       } else if (commItem.filename.includes("SG_4")) {
-        if (audioRefCh4.current && isRunning) {
+        if (audioRefCh4.current && isRunning && channelVisibility[4]) {
           audioRefCh4.current.src = aacFileUrl;
           audioRefCh4.current.play();
         }
       } else {
-        if (audioRefCh5.current && isRunning) {
+        if (audioRefCh5.current && isRunning && channelVisibility[5]) {
           audioRefCh5.current.src = aacFileUrl;
           audioRefCh5.current.play();
         }
       }
     }
-  }, [appSeconds, commItems, audioRefCh1, selectedDate, isRunning]);
+  }, [appSeconds, commItems, audioRefCh1, selectedDate, isRunning, channelVisibility]);
 
   if (!showComm) {
     return (
@@ -158,6 +175,23 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
   return (
     <div className={styles.comm}>
       <ClockInterval setAppSeconds={setAppSeconds} />
+
+      {/* Channel toggle buttons */}
+      <div className={styles.channelToggleContainer}>
+        {[1, 2, 3, 4, 5].map((channelNum) => (
+          <button
+            key={channelNum}
+            className={`${styles.channelToggle} ${
+              channelVisibility[channelNum]
+                ? styles.channelToggleActive
+                : styles.channelToggleInactive
+            }`}
+            onClick={() => toggleChannel(channelNum)}
+          >
+            S/G-{channelNum}
+          </button>
+        ))}
+      </div>
 
       <div className={styles.audioPlayer}>
         <audio ref={audioRefCh1} controls muted={globalMute}>
@@ -202,45 +236,52 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
 
       {!isLoading &&
         !error &&
-        commItems.map((item, index) => {
-          const channelInfo = extractChannelInfoFromFilename(item.filename);
+        commItems
+          .filter((item) => {
+            const channelInfo = extractChannelInfoFromFilename(item.filename);
+            if (!channelInfo) return false;
+            const channelNumber = parseInt(channelInfo.number, 10);
+            return channelVisibility[channelNumber];
+          })
+          .map((item) => {
+            const channelInfo = extractChannelInfoFromFilename(item.filename);
 
-          let commItemActive = null;
-          const startAppSeconds = appSecondsFromTimeStr(item.utteranceTime);
-          const endAppSeconds = appSecondsFromTimeStr(item.utteranceTime) + parseFloat(item.end);
-          if (appSeconds >= startAppSeconds && appSeconds <= endAppSeconds) {
-            commItemActive = styles.commItemActive;
-          }
+            let commItemActive = null;
+            const startAppSeconds = appSecondsFromTimeStr(item.utteranceTime);
+            const endAppSeconds = appSecondsFromTimeStr(item.utteranceTime) + parseFloat(item.end);
+            if (appSeconds >= startAppSeconds && appSeconds <= endAppSeconds) {
+              commItemActive = styles.commItemActive;
+            }
 
-          return (
-            <div
-              key={index}
-              className={`${styles.commItem} ${commItemActive}`}
-              data-time={item.utteranceTime}
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                setLastScrolledToTimeStr(null);
-                setClock(appSecondsFromTimeStr(item.utteranceTime));
-              }}
-              onKeyDown={() => {
-                setLastScrolledToTimeStr(null);
-                setClock(appSecondsFromTimeStr(item.utteranceTime));
-              }}
-            >
-              <div>{item.utteranceTime}</div>
-              <div className={styles.channelnum}>
-                {channelInfo.type}-{channelInfo.number}
+            return (
+              <div
+                key={`${item.utteranceTime}-${item.filename}`}
+                className={`${styles.commItem} ${commItemActive}`}
+                data-time={item.utteranceTime}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setLastScrolledToTimeStr(null);
+                  setClock(appSecondsFromTimeStr(item.utteranceTime));
+                }}
+                onKeyDown={() => {
+                  setLastScrolledToTimeStr(null);
+                  setClock(appSecondsFromTimeStr(item.utteranceTime));
+                }}
+              >
+                <div>{item.utteranceTime}</div>
+                <div className={styles.channelnum}>
+                  {channelInfo.type}-{channelInfo.number}
+                </div>
+                <div className={styles.textContainer}>
+                  <div>{item.text}</div>
+                  {item.textOriginalLang && (
+                    <div className={styles.textOriginalLang}>{item.textOriginalLang}</div>
+                  )}
+                </div>
               </div>
-              <div className={styles.textContainer}>
-                <div>{item.text}</div>
-                {item.textOriginalLang && (
-                  <div className={styles.textOriginalLang}>{item.textOriginalLang}</div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
     </div>
   );
 };
