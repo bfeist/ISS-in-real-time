@@ -23,6 +23,11 @@
 
 .channelnum {
   white-space: nowrap;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: white;
+  font-size: 12px;
 }
 
 .textContainer {
@@ -51,33 +56,88 @@
   padding: 6px 12px;
   border: 1px solid #808080;
   border-radius: 4px;
-  background-color: #d0d0d0;
   cursor: pointer;
   font-size: 12px;
   font-weight: bold;
   transition: all 0.2s ease;
+  color: white;
 }
 
 .channelToggle:hover {
-  background-color: #e0e0e0;
+  opacity: 0.8;
 }
 
-.channelToggleActive {
-  background-color: #2a612c;
-  color: white;
-  border-color: #45a049;
+/* Channel 1 - Dark Blue */
+.channelToggle1Active {
+  background-color: #1e3a8a;
+  border-color: #1e40af;
 }
 
-.channelToggleActive:hover {
-  background-color: #45a049;
+.channelToggle1Inactive {
+  background-color: #64748b;
+  border-color: #475569;
 }
 
-.channelToggleInactive {
-  background-color: #bd3329;
-  color: white;
-  border-color: #ac1308;
+/* Channel 2 - Dark Green */
+.channelToggle2Active {
+  background-color: #166534;
+  border-color: #16a34a;
 }
 
-.channelToggleInactive:hover {
-  background-color: #da190b;
+.channelToggle2Inactive {
+  background-color: #64748b;
+  border-color: #475569;
+}
+
+/* Channel 3 - Dark Red */
+.channelToggle3Active {
+  background-color: #991b1b;
+  border-color: #dc2626;
+}
+
+.channelToggle3Inactive {
+  background-color: #64748b;
+  border-color: #475569;
+}
+
+/* Channel 4 - Dark Purple */
+.channelToggle4Active {
+  background-color: #581c87;
+  border-color: #7c3aed;
+}
+
+.channelToggle4Inactive {
+  background-color: #64748b;
+  border-color: #475569;
+}
+
+/* Channel 5 - Dark Orange */
+.channelToggle5Active {
+  background-color: #c2410c;
+  border-color: #ea580c;
+}
+
+.channelToggle5Inactive {
+  background-color: #64748b;
+  border-color: #475569;
+}
+
+.channelnum1 {
+  background-color: #1e3a8a;
+}
+
+.channelnum2 {
+  background-color: #166534;
+}
+
+.channelnum3 {
+  background-color: #991b1b;
+}
+
+.channelnum4 {
+  background-color: #581c87;
+}
+
+.channelnum5 {
+  background-color: #c2410c;
 }

@@ -8,6 +8,26 @@ import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useDateCommTranscript, useDateDataAvailability } from "../api/useDateSpecificData";
 
+// Explicitly reference dynamic CSS classes to prevent linter warnings
+// @ts-ignore - Used to prevent unused CSS class warnings
+const _unusedClasses = [
+  styles.channelToggle1Active,
+  styles.channelToggle1Inactive,
+  styles.channelToggle2Active,
+  styles.channelToggle2Inactive,
+  styles.channelToggle3Active,
+  styles.channelToggle3Inactive,
+  styles.channelToggle4Active,
+  styles.channelToggle4Inactive,
+  styles.channelToggle5Active,
+  styles.channelToggle5Inactive,
+  styles.channelnum1,
+  styles.channelnum2,
+  styles.channelnum3,
+  styles.channelnum4,
+  styles.channelnum5,
+];
+
 const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
   const { isRunning, setClock } = useStateClock();
   const { selectedDate } = useStateSelectedDate();
@@ -183,8 +203,8 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
             key={channelNum}
             className={`${styles.channelToggle} ${
               channelVisibility[channelNum]
-                ? styles.channelToggleActive
-                : styles.channelToggleInactive
+                ? styles[`channelToggle${channelNum}Active`]
+                : styles[`channelToggle${channelNum}Inactive`]
             }`}
             onClick={() => toggleChannel(channelNum)}
           >
@@ -270,7 +290,9 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
                 }}
               >
                 <div>{item.utteranceTime}</div>
-                <div className={styles.channelnum}>
+                <div
+                  className={`${styles.channelnum} ${styles[`channelnum${channelInfo.number}`]}`}
+                >
                   {channelInfo.type}-{channelInfo.number}
                 </div>
                 <div className={styles.textContainer}>
