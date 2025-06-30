@@ -8,6 +8,8 @@ import React, {
   useMemo,
 } from "react";
 import paper from "paper";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import styles from "./timelineContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
@@ -18,6 +20,9 @@ import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
 import { useGeneralCrewArrDep, useGeneralDataAvailabilities } from "api/useGeneralData";
 import { useParams } from "react-router-dom";
+
+// Configure dayjs to use UTC plugin
+dayjs.extend(utc);
 
 const TimelineContainer: FunctionComponent = (): JSX.Element => {
   const dataAvailabilityQuery = useGeneralDataAvailabilities();
@@ -345,13 +350,9 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   // Format date for tooltip display
   const formatTooltipDate = useCallback((dateString: string): string => {
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        weekday: "short",
-      });
+      // Parse the date string as UTC and format it
+      const date = dayjs.utc(dateString);
+      return date.format("ddd, MMM DD, YYYY");
     } catch {
       return dateString;
     }
