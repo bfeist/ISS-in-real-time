@@ -105,21 +105,6 @@ const EarthPhotography: FunctionComponent = () => {
             data-index={index}
             data-time={item.dateTaken.split("T")[1]}
           >
-            {/* <div
-              className={styles.dateTaken}
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                setClock(appSecondsFromTimeStr(item.dateTaken.split("T")[1]));
-              }}
-              onKeyUp={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  setClock(appSecondsFromTimeStr(item.dateTaken.split("T")[1]));
-                }
-              }}
-            >
-              {item.dateTaken}
-            </div> */}
             <div
               role="button"
               tabIndex={0}
