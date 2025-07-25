@@ -10,17 +10,15 @@ const TimelineDayContainer: FunctionComponent = (): JSX.Element => {
   const { selectedDate } = useStateSelectedDate();
   const { data: ephemeraItems = [], isLoading: _isLoading } = useDateEphemera(selectedDate || "");
 
-  const ephemeris = findClosestEphemeraItem(new Date(`${selectedDate}T12:00:00Z`), ephemeraItems);
-
   const _dayNight = useMemo(() => {
-    if (!ephemeris || !selectedDate) return [];
-
+    if (!ephemeraItems || ephemeraItems.length === 0 || !selectedDate) return [];
+    const ephemeris = findClosestEphemeraItem(new Date(`${selectedDate}T12:00:00Z`), ephemeraItems);
     const tle = `${ephemeris.tle_line1}
                  ${ephemeris.tle_line2}`;
     const result = calcDayNight(tle, selectedDate);
     console.log("Day/Night Data:", result);
     return result;
-  }, [ephemeris, selectedDate]);
+  }, [ephemeraItems, selectedDate]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
