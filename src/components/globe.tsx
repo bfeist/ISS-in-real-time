@@ -17,7 +17,7 @@ import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
-import { timeStrFromAppSeconds } from "utils/time";
+import { hhmmssFromAppSeconds } from "utils/time";
 import { useDateEphemera } from "api/useDateSpecificData";
 
 // Set Cesium Ion access token
@@ -32,7 +32,7 @@ const Globe: FunctionComponent = () => {
   const appSeconds = appSecondsAtStartStop + (Date.now() - startStopDate.getTime()) / 1000;
 
   const startTime = useMemo(
-    () => new Date(`${selectedDate}T${timeStrFromAppSeconds(appSeconds)}Z`),
+    () => new Date(`${selectedDate}T${hhmmssFromAppSeconds(appSeconds)}Z`),
     [selectedDate, appSeconds]
   );
   const julianDate = JulianDate.fromDate(startTime);

@@ -18,7 +18,7 @@ import VectorSourceOL from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import Terminator from "utils/terminator";
 import { containsCoordinate } from "ol/extent";
-import { timeStrFromAppSeconds } from "utils/time";
+import { hhmmssFromAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
 import styles from "./map.module.css";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
@@ -127,7 +127,7 @@ const MapComponent: FunctionComponent = () => {
     if (!olMapRef.current || !ephemeraItems || !selectedDate) return;
 
     const ephemeris = findClosestEphemeraItem(
-      new Date(`${selectedDate}T${timeStrFromAppSeconds(appSeconds)}Z`),
+      new Date(`${selectedDate}T${hhmmssFromAppSeconds(appSeconds)}Z`),
       ephemeraItems
     );
     if (ephemeris) {
@@ -135,7 +135,7 @@ const MapComponent: FunctionComponent = () => {
         ${ephemeris.tle_line2}`;
       const { lat, lng } = getLatLngObj(
         tle,
-        new Date(`${selectedDate}T${timeStrFromAppSeconds(appSeconds)}Z`).getTime()
+        new Date(`${selectedDate}T${hhmmssFromAppSeconds(appSeconds)}Z`).getTime()
       );
 
       if (markerFeatureRef.current) {
@@ -197,7 +197,7 @@ const MapComponent: FunctionComponent = () => {
 
     const { coordinates1, coordinates2 } = updateOrbitLine(
       selectedDate,
-      timeStrFromAppSeconds(appSeconds),
+      hhmmssFromAppSeconds(appSeconds),
       ephemeraItems
     );
 

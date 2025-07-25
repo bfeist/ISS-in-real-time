@@ -19,7 +19,7 @@ export const appSecondsFromTimeStr = (timeStr: string): number => {
   return hours * 3600 + minutes * 60 + seconds;
 };
 
-export function timeStrFromAppSeconds(appSeconds: number): string {
+export function hhmmssFromAppSeconds(appSeconds: number): string {
   const hours = Math.floor(appSeconds / 3600);
   const minutes = Math.floor((appSeconds % 3600) / 60);
   const seconds = Math.floor(appSeconds % 60);
@@ -28,7 +28,7 @@ export function timeStrFromAppSeconds(appSeconds: number): string {
     .padStart(2, "0")}`;
 }
 
-export const timeStrFromDateAppSeconds = ({
+export const dateTimeStrFromDateAppSeconds = ({
   dateStr,
   appSeconds,
 }: {

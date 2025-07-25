@@ -1,7 +1,7 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./share.module.css";
 import { createDateTimeSlug } from "utils/params";
-import { timeStrFromAppSeconds } from "utils/time";
+import { hhmmssFromAppSeconds } from "utils/time";
 
 const ShareModal: FunctionComponent<{
   isOpen: boolean;
@@ -99,7 +99,7 @@ const ShareButton: FunctionComponent<ShareButtonProps> = ({ selectedDate, appSec
     }
 
     // Convert appSeconds to time string format
-    const timeStr = timeStrFromAppSeconds(appSeconds);
+    const timeStr = hhmmssFromAppSeconds(appSeconds);
 
     // Create the date-time slug using the app's format
     const dateTimeSlug = createDateTimeSlug(selectedDate, timeStr);

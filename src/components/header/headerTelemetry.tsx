@@ -2,7 +2,7 @@ import { FunctionComponent, useEffect, useRef, useCallback } from "react";
 import styles from "./headerTelemetry.module.css";
 import * as satellite from "satellite.js";
 import { findClosestEphemeraItem } from "utils/map";
-import { timeStrFromAppSeconds } from "utils/time";
+import { hhmmssFromAppSeconds } from "utils/time";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useDateEphemera } from "api/useDateSpecificData";
@@ -90,12 +90,12 @@ const HeaderTelemetry: FunctionComponent = () => {
       ? Math.floor(appSecondsAtStartStop + (Date.now() - Date.parse(startStopTimestamp)) / 1000)
       : appSecondsAtStartStop;
 
-    const startTime = new Date(`${selectedDate}T${timeStrFromAppSeconds(currentAppSeconds)}Z`);
+    const startTime = new Date(`${selectedDate}T${hhmmssFromAppSeconds(currentAppSeconds)}Z`);
     const ephemeris = findClosestEphemeraItem(startTime, ephemeraItems);
 
     // Parse TLE into a satellite record
     const satrec = satellite.twoline2satrec(ephemeris.tle_line1, ephemeris.tle_line2);
-    const baseTime = new Date(`${selectedDate}T${timeStrFromAppSeconds(currentAppSeconds)}Z`);
+    const baseTime = new Date(`${selectedDate}T${hhmmssFromAppSeconds(currentAppSeconds)}Z`);
 
     // Only start the animation if isRunning is true.
     // The cleanup function will handle stopping it if isRunning becomes false or other dependencies change.

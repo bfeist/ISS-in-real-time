@@ -1,8 +1,21 @@
-import { FunctionComponent, useRef, useEffect, useState } from "react";
+import { FunctionComponent, useRef, useEffect, useState, useMemo } from "react";
 import styles from "./timelineDayContainer.module.css";
 import { initializePaperCanvas } from "./timelineDayDraw";
+import { useDateEphemera } from "api/useDateSpecificData";
+import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
+import { calcDayNight } from "utils/day-night";
 
 const TimelineDayContainer: FunctionComponent = (): JSX.Element => {
+  const { selectedDate } = useStateSelectedDate();
+  const { data: ephemeraItems = [], isLoading: _isLoading } = useDateEphemera(selectedDate || "");
+
+  const _dayNight = useMemo(() => {
+    if (!ephemeraItems || ephemeraItems.length === 0) return [];
+    const result = calcDayNight(ephemeraItems, selectedDate);
+    console.log("Day/Night Data:", result);
+    return result;
+  }, [ephemeraItems, selectedDate]);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 

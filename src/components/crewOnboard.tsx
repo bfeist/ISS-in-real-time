@@ -1,6 +1,6 @@
 import { FunctionComponent, useEffect, useState } from "react";
 import styles from "./crewOnboard.module.css"; // ensure this CSS file exists or adjust accordingly
-import { ddhhmmssBetweenDateStrings, timeStrFromDateAppSeconds } from "utils/time";
+import { ddhhmmssBetweenDateStrings, dateTimeStrFromDateAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { flagUrlByCountryName } from "utils/countries";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
@@ -17,7 +17,7 @@ const CrewOnboard: FunctionComponent = () => {
   const [appSeconds, setAppSeconds] = useState(0);
 
   useEffect(() => {
-    setCurrentTimeStr(timeStrFromDateAppSeconds({ dateStr: selectedDate || "", appSeconds }));
+    setCurrentTimeStr(dateTimeStrFromDateAppSeconds({ dateStr: selectedDate || "", appSeconds }));
   }, [selectedDate, appSeconds]);
 
   if (isLoading) {

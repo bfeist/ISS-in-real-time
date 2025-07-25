@@ -32,6 +32,13 @@ type EphemeraItem = {
   tle_line2: string;
 };
 
+type SunLighting = "day" | "night" | "sunrise" | "sunset";
+
+type DayNightObj = {
+  appSeconds: number;
+  daylight: SunLighting;
+};
+
 type GetDataIndexPageDataResponse = {
   dataAvailabilityItems: DataAvailability[];
   evaDetails: EvaDetail[];

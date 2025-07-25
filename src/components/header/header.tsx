@@ -3,7 +3,7 @@ import styles from "./header.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateToggle } from "store/hooks/useStateToggle";
-import { timeStrFromAppSeconds } from "utils/time";
+import { hhmmssFromAppSeconds } from "utils/time";
 import ClockInterval from "../clockInterval";
 import HeaderTelemetry from "./headerTelemetry";
 import ShareButton from "./share";
@@ -23,7 +23,7 @@ const Header: FunctionComponent = () => {
         <div className={styles.title}>ISS in Real Time</div>
         <div className={styles.dateTime}>
           <div>Date: {selectedDate}</div>
-          <div>Time: {timeStrFromAppSeconds(appSeconds)}</div>
+          <div>Time: {hhmmssFromAppSeconds(appSeconds)}</div>
         </div>
         <button
           onClick={() => {
