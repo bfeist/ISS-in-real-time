@@ -1,4 +1,3 @@
-import { findClosestEphemeraItem } from "./map";
 import SunCalc from "./suncalc";
 import { getSatelliteInfo } from "tle.js";
 import { hhmmssFromAppSeconds } from "./time";
@@ -11,17 +10,13 @@ import { hhmmssFromAppSeconds } from "./time";
  * @param date dd
  * @returns An array of day night objects. Each object in the array is a change in daylight state.
  */
-export function calcDayNight(ephemera: EphemeraItem[], selectedDate: string): DayNightObj[] {
+export function calcDayNight(tle: string, selectedDate: string): DayNightObj[] {
   const secondsIn24Hours = 86400;
 
   const dayNightObjArray = [];
   let prevDaylight = null;
-  //10 seconds resolution on day/night times
-  for (let i = 0; i < secondsIn24Hours; i = i + 10) {
-    const ephemeris = findClosestEphemeraItem(new Date(`${selectedDate}T12:00:00Z`), ephemera);
-    const tle = `${ephemeris.tle_line1}
-                 ${ephemeris.tle_line2}`;
-
+  //1 minute resolution on day/night times
+  for (let i = 0; i < secondsIn24Hours; i = i + 60) {
     const iISODate = selectedDate + "T" + hhmmssFromAppSeconds(i) + "Z";
     const iDate = new Date(iISODate);
 

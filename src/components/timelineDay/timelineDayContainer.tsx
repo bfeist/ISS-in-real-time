@@ -4,17 +4,23 @@ import { initializePaperCanvas } from "./timelineDayDraw";
 import { useDateEphemera } from "api/useDateSpecificData";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { calcDayNight } from "utils/day-night";
+import { findClosestEphemeraItem } from "utils/map";
 
 const TimelineDayContainer: FunctionComponent = (): JSX.Element => {
   const { selectedDate } = useStateSelectedDate();
   const { data: ephemeraItems = [], isLoading: _isLoading } = useDateEphemera(selectedDate || "");
 
+  const ephemeris = findClosestEphemeraItem(new Date(`${selectedDate}T12:00:00Z`), ephemeraItems);
+
   const _dayNight = useMemo(() => {
-    if (!ephemeraItems || ephemeraItems.length === 0) return [];
-    const result = calcDayNight(ephemeraItems, selectedDate);
+    if (!ephemeris || !selectedDate) return [];
+
+    const tle = `${ephemeris.tle_line1}
+                 ${ephemeris.tle_line2}`;
+    const result = calcDayNight(tle, selectedDate);
     console.log("Day/Night Data:", result);
     return result;
-  }, [ephemeraItems, selectedDate]);
+  }, [ephemeris, selectedDate]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
