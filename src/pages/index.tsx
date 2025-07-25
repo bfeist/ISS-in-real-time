@@ -2,7 +2,7 @@ import styles from "./index.module.css";
 import { FunctionComponent, JSX, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Layout from "../components/layout/dayLayout";
-import TimelineContainer from "../components/yearsTimelineDropdown/timelineContainer";
+import TimelineContainer from "../components/timelineYears/timelineYearsContainer";
 import { useStateSelectedDate } from "../store/hooks/useStateSelectedDate";
 import { useStateClock } from "../store/hooks/useStateClock";
 import Header from "components/header/header";

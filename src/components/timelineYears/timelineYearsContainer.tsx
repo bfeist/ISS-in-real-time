@@ -10,10 +10,10 @@ import React, {
 import paper from "paper";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import styles from "./timelineContainer.module.css";
+import styles from "./timelineYearsContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
-import { initializePaperCanvas, clearPaperCanvas } from "./yearsTimelineDraw";
+import { initializePaperCanvas, clearPaperCanvas } from "./timelineYearsDraw";
 import { useStateCrewSelection } from "store/hooks/useStateCrewSelection";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
