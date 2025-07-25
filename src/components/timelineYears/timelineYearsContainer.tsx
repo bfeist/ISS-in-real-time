@@ -13,7 +13,7 @@ import utc from "dayjs/plugin/utc";
 import styles from "./timelineYearsContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
-import { initializePaperCanvas, clearPaperCanvas } from "./timelineYearsDraw";
+import { initializePaperCanvas } from "./timelineYearsDraw";
 import { useStateCrewSelection } from "store/hooks/useStateCrewSelection";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
@@ -24,7 +24,7 @@ import { useParams } from "react-router-dom";
 // Configure dayjs to use UTC plugin
 dayjs.extend(utc);
 
-const TimelineContainer: FunctionComponent = (): JSX.Element => {
+const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const dataAvailabilityQuery = useGeneralDataAvailabilities();
   const { data: dataAvailabilityItems, isLoading, error } = dataAvailabilityQuery;
   const { data: crewArrDep } = useGeneralCrewArrDep();
@@ -235,7 +235,6 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
       return () => {
         window.removeEventListener("resize", handleResize);
         cleanupInputHandlers();
-        clearPaperCanvas();
         drawFunctionRef.current = null;
       };
     }
@@ -566,4 +565,4 @@ const TimelineContainer: FunctionComponent = (): JSX.Element => {
   );
 };
 
-export default TimelineContainer;
+export default TimelineYearsContainer;

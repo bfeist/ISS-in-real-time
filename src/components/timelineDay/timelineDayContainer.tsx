@@ -1,8 +1,78 @@
-import { FunctionComponent } from "react";
+import { FunctionComponent, useRef, useEffect, useState } from "react";
 import styles from "./timelineDayContainer.module.css";
+import { initializePaperCanvas } from "./timelineDayDraw";
 
 const TimelineDayContainer: FunctionComponent = (): JSX.Element => {
-  return <div className={styles.container}>{/* Timeline day content goes here */}</div>;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [canvasWidth, setCanvasWidth] = useState(() => window.innerWidth);
+  const canvasHeight = 70; // Fixed height for now
+
+  // Store the draw function to reuse when needed - following timelineYears pattern
+  const drawFunctionRef = useRef<(() => void) | null>(null);
+
+  // Update canvas width on window resize - following timelineYears pattern
+  useEffect(() => {
+    const updateCanvasWidth = () => {
+      const container = containerRef.current;
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const width = Math.max(containerRect.width || container.clientWidth || 800, 300);
+        setCanvasWidth(width);
+      }
+    };
+
+    window.addEventListener("resize", updateCanvasWidth);
+
+    return () => {
+      window.removeEventListener("resize", updateCanvasWidth);
+    };
+  }, []);
+
+  // Initialize Paper.js canvas - single initialization following timelineYears pattern
+  useEffect(() => {
+    const canvas = canvasRef.current;
+
+    if (canvas) {
+      const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
+        canvasElement: canvas,
+        canvasWidth,
+        canvasHeight,
+      });
+
+      // Store the draw function for later use
+      drawFunctionRef.current = drawPaperItems;
+
+      const handleResize = () => {
+        // Just redraw with the existing Paper.js setup
+        if (drawFunctionRef.current) {
+          drawFunctionRef.current();
+        }
+      };
+
+      window.addEventListener("resize", handleResize);
+
+      return () => {
+        cleanupInputHandlers();
+        window.removeEventListener("resize", handleResize);
+        drawFunctionRef.current = null;
+      };
+    }
+  }, [canvasWidth, canvasHeight]); // Re-initialize when dimensions change
+
+  // Force redraw on mount to handle hot reload scenarios
+  useEffect(() => {
+    if (drawFunctionRef.current) {
+      drawFunctionRef.current();
+    }
+  }, []);
+
+  return (
+    <div ref={containerRef} className={styles.container}>
+      <canvas ref={canvasRef} className={styles.canvas} />
+    </div>
+  );
 };
 
 export default TimelineDayContainer;

@@ -23,7 +23,11 @@ export const initializePaperCanvas = ({
   drawPaperItems: () => void;
   cleanupInputHandlers: () => void;
 } => {
-  paper.setup(canvasElement);
+  // Create an isolated Paper.js project for timelineYears to avoid conflicts with timelineDay
+  const project = new paper.Project(canvasElement);
+
+  // Activate this project to ensure all operations work within its scope
+  project.activate();
 
   // Constants - simplified without scroll handling
   const YEARS_AREA_HEIGHT = 0; // Years will be handled externally
@@ -31,7 +35,7 @@ export const initializePaperCanvas = ({
   const uiGroup = new paper.Group();
   const dataGroup = new paper.Group();
 
-  paper.project.activeLayer.addChildren([dataGroup, uiGroup]);
+  project.activeLayer.addChildren([dataGroup, uiGroup]);
 
   let lastHoveredDate: string | null = null; // Track the last hovered date
   let hoveredDayBox: paper.Path.Rectangle | null = null; // Track the currently hovered day box
@@ -46,7 +50,7 @@ export const initializePaperCanvas = ({
       event.point.x,
       event.point.y,
       canvasWidth,
-      paper.view?.bounds.height || null,
+      project.view?.bounds.height || null,
       YEARS_AREA_HEIGHT
     );
 
@@ -86,7 +90,7 @@ export const initializePaperCanvas = ({
       event.point.x,
       event.point.y,
       canvasWidth,
-      paper.view?.bounds.height || null,
+      project.view?.bounds.height || null,
       YEARS_AREA_HEIGHT
     );
 
@@ -122,8 +126,10 @@ export const initializePaperCanvas = ({
   tool.activate();
 
   const drawPaperItems = () => {
-    if (canvasElement && paper.view && paper.project) {
+    if (canvasElement && project.view && project) {
       try {
+        // Activate this project before making changes
+        project.activate();
         const displayWidth = canvasWidth;
         const displayHeight = canvasElement.clientHeight;
 
@@ -134,7 +140,7 @@ export const initializePaperCanvas = ({
         canvasElement.style.height = `${displayHeight}px`;
 
         // Set Paper.js view size to match canvas dimensions
-        paper.view.viewSize = new paper.Size(displayWidth, displayHeight);
+        project.view.viewSize = new paper.Size(displayWidth, displayHeight);
 
         uiGroup.removeChildren();
         dataGroup.removeChildren();
@@ -185,6 +191,10 @@ export const initializePaperCanvas = ({
     }
     if (tool) {
       tool.remove();
+    }
+    // Remove the project when cleaning up to prevent memory leaks
+    if (project) {
+      project.remove();
     }
   };
 
@@ -395,11 +405,3 @@ function drawDaysForMonth({
     }
   }
 }
-
-export const clearPaperCanvas = (): void => {
-  if (paper.project) {
-    // Clears all items from the currently active paper.Project.
-    // This removes all layers and their children.
-    paper.project.clear();
-  }
-};

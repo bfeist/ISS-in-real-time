@@ -14,6 +14,7 @@ import Expeditions from "components/expedition";
 import EvaInfo from "components/evaInfo";
 import YouTubeComponent from "components/youtube";
 import EarthPhotography from "components/earthPhotography";
+import TimelineDayContainer from "components/timelineDay/timelineDayContainer";
 
 // Custom hook to detect viewport width
 const useViewport = () => {
@@ -26,48 +27,6 @@ const useViewport = () => {
   }, []);
 
   return { width };
-};
-
-// Add the new type definition for section names
-type SectionName =
-  | "header"
-  | "timeline"
-  | "globe"
-  | "comm"
-  | "video"
-  | "photos"
-  | "articles"
-  | "flights"
-  | "exp/onboard"
-  | "eva";
-
-const FakeSection: FunctionComponent<{ name: SectionName; available?: boolean }> = ({
-  name,
-  available = true,
-}) => {
-  const sectionColor: Record<SectionName, string> = {
-    header: "lightblue",
-    timeline: "red",
-    globe: "lightgreen",
-    comm: "lightgrey",
-    video: "lightcoral",
-    photos: "lightcyan",
-    articles: "lightpink",
-    flights: "#ffcc99",
-    "exp/onboard": "lightgoldenrodyellow",
-    eva: "lightblue",
-  };
-  return (
-    <div
-      className={styles.fakeSection}
-      data-section={name}
-      style={{
-        backgroundColor: sectionColor[name],
-      }}
-    >
-      {name} {available ? "" : " (not available)"}
-    </div>
-  );
 };
 
 // Mobile layout with tabs
@@ -120,7 +79,7 @@ const MobileLayout: FunctionComponent<{
   return (
     <div className={styles.dayLayout}>
       <div className={styles.dayTimeline}>
-        <FakeSection name="timeline" />
+        <TimelineDayContainer />
       </div>
       <div className={styles.mobileBody}>
         <div className={styles.tabs}>
@@ -157,7 +116,7 @@ const VideoPhotos: FunctionComponent<{
   return (
     <div className={styles.dayLayout}>
       <div className={styles.dayTimeline}>
-        <FakeSection name="timeline" />
+        <TimelineDayContainer />
       </div>
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
@@ -195,7 +154,7 @@ const VideoOnly: FunctionComponent<{
   return (
     <div className={styles.dayLayout}>
       <div className={styles.dayTimeline}>
-        <FakeSection name="timeline" />
+        <TimelineDayContainer />
       </div>
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
@@ -232,7 +191,7 @@ const PhotosOnly: FunctionComponent<{
   return (
     <div className={styles.dayLayout}>
       <div className={styles.dayTimeline}>
-        <FakeSection name="timeline" />
+        <TimelineDayContainer />
       </div>
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
@@ -270,7 +229,7 @@ const NoPhotosOrVideo: FunctionComponent<{
   return (
     <div className={styles.dayLayout}>
       <div className={styles.dayTimeline}>
-        <FakeSection name="timeline" />
+        <TimelineDayContainer />
       </div>
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
