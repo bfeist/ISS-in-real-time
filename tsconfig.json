@@ -14,7 +14,7 @@
     "forceConsistentCasingInFileNames": true,
     "strict": false,
     "noImplicitAny": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false, // no unused vars is enforce with eslint, so no need here
     "noUnusedParameters": false,
     "types": ["node", "jest", "@testing-library/jest-dom"],
     "allowImportingTsExtensions": true,

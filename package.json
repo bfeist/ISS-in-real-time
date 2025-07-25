@@ -10,7 +10,7 @@
     "vite:build": "vite build --emptyOutDir",
     "vite:dev": "vite",
     "tsc": "tsc --pretty",
-    "lint": "eslint . --color && stylelint \"src/**/*.css\"",
+    "lint": "concurrently --names \"eslint,stylelint\" \"npm run lint:js\" \"npm run lint:css\"",
     "lint:js": "eslint . --color",
     "lint:css": "stylelint \"src/**/*.css\"",
     "lint:css:fix": "stylelint \"src/**/*.css\" --fix",

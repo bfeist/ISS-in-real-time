@@ -1,4 +1,4 @@
-import SunCalc from "./suncalc";
+import SunCalc from "utils/suncalc";
 
 describe("SunCalc", () => {
   test("getPosition returns azimuth and altitude", () => {
@@ -80,6 +80,7 @@ describe("SunCalc", () => {
     };
     const times = SunCalc.getTimes(date, lat, lng, height);
     for (const key in testTimes) {
+      //eslint-disable-next-line
       expect(new Date(testTimes[key]).toUTCString()).toBe((times as any)[key].toUTCString());
     }
   });
@@ -97,6 +98,7 @@ describe("SunCalc", () => {
     };
     const times = SunCalc.getTimes(date, lat, lng, height);
     for (const key in heightTestTimes) {
+      //eslint-disable-next-line
       expect(new Date(heightTestTimes[key]).toUTCString()).toBe((times as any)[key].toUTCString());
     }
   });
