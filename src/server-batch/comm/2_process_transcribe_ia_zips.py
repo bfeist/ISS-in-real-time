@@ -162,24 +162,30 @@ def ensure_mono_wav(input_wav_path):
         logger.debug(
             f"Converting {input_wav_path.name} to mono and acceptable sample rate"
         )
-        audio_segment = AudioSegment.from_wav(str(input_wav_path))
-        audio_segment = audio_segment.set_channels(1)
-        if frame_rate != MONO_WAV_FRAME_RATE:
-            # Resample to desired frame rate
-            audio_segment = audio_segment.set_frame_rate(MONO_WAV_FRAME_RATE)
-            logger.debug(
-                f"Resampling {input_wav_path.name} to {MONO_WAV_FRAME_RATE} Hz"
-            )
-            frame_rate = MONO_WAV_FRAME_RATE  # Update frame_rate variable
+        try:
+            audio_segment = AudioSegment.from_wav(str(input_wav_path))
+            audio_segment = audio_segment.set_channels(1)
+            if frame_rate != MONO_WAV_FRAME_RATE:
+                # Resample to desired frame rate
+                audio_segment = audio_segment.set_frame_rate(MONO_WAV_FRAME_RATE)
+                logger.debug(
+                    f"Resampling {input_wav_path.name} to {MONO_WAV_FRAME_RATE} Hz"
+                )
+                frame_rate = MONO_WAV_FRAME_RATE  # Update frame_rate variable
 
-        # Rename the original file
-        input_wav_path.rename(
-            input_wav_path.parent / (input_wav_path.stem + "_orig.wav")
-        )
-        # Save to a file with the same name
-        wav_path = input_wav_path.parent / (input_wav_path.stem + ".wav")
-        audio_segment.export(str(wav_path), format="wav")
-        return wav_path
+            # Rename the original file
+            input_wav_path.rename(
+                input_wav_path.parent / (input_wav_path.stem + "_orig.wav")
+            )
+            # Save to a file with the same name
+            wav_path = input_wav_path.parent / (input_wav_path.stem + ".wav")
+            audio_segment.export(str(wav_path), format="wav")
+            return wav_path
+        except Exception as conversion_error:
+            logger.warning(
+                f"Failed to convert WAV file '{input_wav_path.name}': {conversion_error}"
+            )
+            return None  # Indicate failure
 
 
 def uploadToApi(aacFilePath, dataToSend):
@@ -735,41 +741,56 @@ def process_zip_file(zip_file, is_ag_zip=False):
             if immediate_exit_event.is_set():
                 logger.info("Immediate exit requested. Stopping processing.")
                 return
-            original_wav_file = Path(wav_file)
-            wav_file = ensure_mono_wav(original_wav_file)
-            if wav_file is None:
-                logger.error(f"Skipping invalid WAV file '{original_wav_file}'")
-                continue
+
+            # Wrap individual WAV file processing in try-except to prevent one bad file from stopping the entire zip
             try:
-                # Parse the start time from filename
-                start_time_str = wav_file.stem[:17]
-                start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H%M%S")
-                # Parse out the descriptor (SG or AG/DG)
-                descriptor = wav_file.stem[18:-3]
-                segmenter = AudioSegmenter(
-                    str(wav_file),
-                    start_time,
-                    descriptor,
-                    model,
-                )
-            except Exception as e:
-                logger.error(f"Error opening WAV file '{wav_file}': {e}")
-                continue
-            logger.info(f"Segmenting IA WAV file...{wav_file.name}")
-            while True:
+                original_wav_file = Path(wav_file)
+                wav_file = ensure_mono_wav(original_wav_file)
+                if wav_file is None:
+                    logger.warning(
+                        f"Skipping invalid WAV file '{original_wav_file}' - could not convert to mono"
+                    )
+                    continue
+
+                try:
+                    # Parse the start time from filename
+                    start_time_str = wav_file.stem[:17]
+                    start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H%M%S")
+                    # Parse out the descriptor (SG or AG/DG)
+                    descriptor = wav_file.stem[18:-3]
+                    segmenter = AudioSegmenter(
+                        str(wav_file),
+                        start_time,
+                        descriptor,
+                        model,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Error opening WAV file '{wav_file}': {e} - continuing with next file"
+                    )
+                    continue
+
+                logger.info(f"Segmenting IA WAV file...{wav_file.name}")
+                while True:
+                    if immediate_exit_event.is_set():
+                        logger.info("Immediate exit requested during segmentation.")
+                        return
+                    if not segmenter.processWav():
+                        break
+                segmenter.stop()
                 if immediate_exit_event.is_set():
-                    logger.info("Immediate exit requested during segmentation.")
+                    logger.info("Immediate exit requested after segmentation.")
                     return
-                if not segmenter.processWav():
-                    break
-            segmenter.stop()
-            if immediate_exit_event.is_set():
-                logger.info("Immediate exit requested after segmentation.")
-                return
-            # Delete the "orig" file
-            orig_wav_file = wav_file.parent / (wav_file.stem + "_orig.wav")
-            if orig_wav_file.exists():
-                orig_wav_file.unlink()
+                # Delete the "orig" file
+                orig_wav_file = wav_file.parent / (wav_file.stem + "_orig.wav")
+                if orig_wav_file.exists():
+                    orig_wav_file.unlink()
+
+            except Exception as wav_error:
+                logger.warning(
+                    f"Error processing WAV file '{wav_file}': {wav_error} - continuing with next file"
+                )
+                continue
 
         # Clean up the unique directory after processing
         if CURRENT_IA_ZIP_WAVS.exists():
