@@ -31,8 +31,8 @@ export const initializePaperCanvas = ({
   // Timeline constants
   const SECONDS_IN_24_HOURS = 86400;
   const LEFT_MARGIN = 120; // Space for data labels
-  const TOP_MARGIN = 30;
-  const ROW_HEIGHT = 17.5; // Reduced to fit 4 rows in 70px (100px total - 30px top margin)
+  const TOP_MARGIN = 0; // No margin at top - start data rows at the very top
+  const ROW_HEIGHT = 17.5; // Reduced to fit 4 rows in 70px (100px total - 30px for time ticks)
   const TIMELINE_HEIGHT = 17.5;
 
   // Data row configuration in requested order
@@ -88,24 +88,25 @@ export const initializePaperCanvas = ({
     const group = new paper.Group();
     const _timelineWidth = getTimelineWidth();
     const pixelsPerSecond = getPixelsPerSecond();
+    const timelineBottom = TOP_MARGIN + DATA_ROWS.length * ROW_HEIGHT;
 
     // Draw time ticks every hour
     for (let hour = 0; hour < 24; hour++) {
       const seconds = hour * 3600;
       const x = LEFT_MARGIN + seconds * pixelsPerSecond;
 
-      // Draw tick line
+      // Draw tick line at the bottom
       const tickLine = new paper.Path.Line(
-        new paper.Point(x, TOP_MARGIN - 5),
-        new paper.Point(x, TOP_MARGIN + DATA_ROWS.length * ROW_HEIGHT)
+        new paper.Point(x, timelineBottom),
+        new paper.Point(x, timelineBottom + 10)
       );
       tickLine.strokeColor = new paper.Color("#505050");
       tickLine.strokeWidth = 1;
       group.addChild(tickLine);
 
-      // Draw hour label
+      // Draw hour label below the tick
       const hourText = new paper.PointText({
-        point: new paper.Point(x + 4, TOP_MARGIN - 8),
+        point: new paper.Point(x + 4, timelineBottom + 25),
         content: `${hour}Z`,
         fillColor: "#7b7b7b",
         fontSize: 12,
@@ -300,19 +301,20 @@ export const initializePaperCanvas = ({
     cursorGroup.removeChildren();
 
     const x = LEFT_MARGIN + seconds * getPixelsPerSecond();
+    const timelineBottom = TOP_MARGIN + DATA_ROWS.length * ROW_HEIGHT;
 
     // Draw cursor line
     const cursorLine = new paper.Path.Line(
       new paper.Point(x, TOP_MARGIN - 5),
-      new paper.Point(x, TOP_MARGIN + DATA_ROWS.length * ROW_HEIGHT)
+      new paper.Point(x, timelineBottom + 10)
     );
     cursorLine.strokeColor = new paper.Color("#d10b0b");
     cursorLine.strokeWidth = 2;
     cursorGroup.addChild(cursorLine);
 
-    // Draw time display
+    // Draw time display at the bottom, over the time ticks
     const timeText = new paper.PointText({
-      point: new paper.Point(x, TOP_MARGIN - 15),
+      point: new paper.Point(x, timelineBottom + 20),
       content: hhmmssFromAppSeconds(seconds) + "Z",
       fillColor: "white",
       fontSize: 14,
@@ -322,7 +324,7 @@ export const initializePaperCanvas = ({
 
     // Background for time text
     const textBg = new paper.Path.Rectangle(
-      new paper.Point(x - 40, TOP_MARGIN - 30),
+      new paper.Point(x - 40, timelineBottom + 5),
       new paper.Size(80, 20)
     );
     textBg.fillColor = new paper.Color("#d10b0b");
