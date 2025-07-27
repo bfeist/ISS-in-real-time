@@ -4,7 +4,7 @@ import shutil
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv(dotenv_path="../../.env")
+load_dotenv(dotenv_path="../../../.env")
 
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 RAW_FOLDER = os.getenv("RAW_FOLDER")

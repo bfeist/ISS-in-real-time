@@ -7,7 +7,7 @@ import os
 import time
 
 # Load environment variables from .env file
-load_dotenv(dotenv_path="../../.env")
+load_dotenv(dotenv_path="../../../.env")
 
 RAW_FOLDER = os.getenv("RAW_FOLDER")
 
