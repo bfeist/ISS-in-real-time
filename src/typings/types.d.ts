@@ -218,3 +218,11 @@ type Telemetry = {
   lat: number;
   lng: number;
 };
+
+interface TimelineDayData {
+  commItems: CommItem[];
+  photographyItems: EarthPhotographyItem[];
+  youtubeItems: YoutubeLiveRecording[];
+  dayNight: DayNightObj[];
+  selectedDate: string;
+}

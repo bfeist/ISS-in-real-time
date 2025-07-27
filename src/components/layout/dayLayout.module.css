@@ -10,7 +10,7 @@
 }
 
 .dayTimeline {
-  flex: 0 0 70px;
+  flex: 0 0 100px;
   display: flex;
   flex-direction: column;
 }
