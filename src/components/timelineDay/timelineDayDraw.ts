@@ -7,23 +7,31 @@ export const initializePaperCanvas = ({
   canvasWidth = 800,
   canvasHeight = 400,
   data,
+  onTimelineClick,
+  hoverSecondsSetter,
 }: {
   canvasElement: HTMLCanvasElement;
   canvasWidth?: number;
   canvasHeight?: number;
   data?: TimelineDayData;
+  onTimelineClick: (seconds: number) => void;
+  hoverSecondsSetter: (seconds: number | null) => void;
 }): {
   drawPaperItems: () => void;
   cleanupInputHandlers: () => void;
+  updateCursor: (seconds: number) => void;
+  clearHoverCursor: () => void;
 } => {
   // Create an isolated Paper.js project for this canvas to avoid conflicts with timelineYears
   const project = new paper.Project(canvasElement);
 
   // Use the project's view and create groups within this project
   const timelineGroup = new paper.Group();
-  const cursorGroup = new paper.Group();
+  const clockCursorGroup = new paper.Group(); // Red cursor for clock time
+  const hoverCursorGroup = new paper.Group(); // Yellow cursor for hover
   project.activeLayer.addChild(timelineGroup);
-  project.activeLayer.addChild(cursorGroup);
+  project.activeLayer.addChild(clockCursorGroup);
+  project.activeLayer.addChild(hoverCursorGroup);
 
   // Initialize tool for mouse interaction handling
   let tool: paper.Tool | null = null;
@@ -66,23 +74,59 @@ export const initializePaperCanvas = ({
     const _timelineWidth = getTimelineWidth();
     const pixelsPerSecond = getPixelsPerSecond();
 
+    // Only check horizontal bounds - allow hover cursor anywhere vertically on canvas
     if (event.point.x < LEFT_MARGIN || event.point.x > LEFT_MARGIN + _timelineWidth) {
-      cursorGroup.removeChildren();
+      hoverCursorGroup.removeChildren();
+      if (project && project.view) {
+        project.view.update();
+      }
       return;
     }
 
     const seconds = Math.floor((event.point.x - LEFT_MARGIN) / pixelsPerSecond);
     if (seconds >= 0 && seconds < SECONDS_IN_24_HOURS) {
-      drawCursor(seconds);
+      drawHoverCursor(seconds);
+      hoverSecondsSetter?.(seconds);
+    }
+  };
+
+  const handleMouseClick = (event: paper.MouseEvent) => {
+    const _timelineWidth = getTimelineWidth();
+    const pixelsPerSecond = getPixelsPerSecond();
+
+    // Check if click is within the timeline area
+    if (event.point.x < LEFT_MARGIN || event.point.x > LEFT_MARGIN + _timelineWidth) {
+      return;
+    }
+
+    // Check if click is within the data rows area
+    const timelineBottom = TOP_MARGIN + DATA_ROWS.length * ROW_HEIGHT;
+    if (event.point.y < TOP_MARGIN || event.point.y > timelineBottom) {
+      return;
+    }
+
+    const seconds = Math.floor((event.point.x - LEFT_MARGIN) / pixelsPerSecond);
+    if (seconds >= 0 && seconds < SECONDS_IN_24_HOURS && onTimelineClick) {
+      onTimelineClick(seconds);
     }
   };
 
   const _handleMouseLeave = () => {
-    cursorGroup.removeChildren();
+    hoverCursorGroup.removeChildren();
+    hoverSecondsSetter(null); // Clear hover state in store
   };
 
   // Set up mouse event handlers
   tool.onMouseMove = handleMouseMove;
+  tool.onMouseDown = handleMouseClick;
+
+  // Function to clear hover cursor - will be called from container level
+  const clearHoverCursor = () => {
+    hoverCursorGroup.removeChildren();
+    if (project && project.view) {
+      project.view.update();
+    }
+  };
 
   const drawTimeTicks = (): paper.Group => {
     const group = new paper.Group();
@@ -106,7 +150,7 @@ export const initializePaperCanvas = ({
 
       // Draw hour label below the tick
       const hourText = new paper.PointText({
-        point: new paper.Point(x + 4, timelineBottom + 25),
+        point: new paper.Point(x - 6, timelineBottom + 25),
         content: `${hour}Z`,
         fillColor: "#7b7b7b",
         fontSize: 12,
@@ -297,8 +341,8 @@ export const initializePaperCanvas = ({
     return group;
   };
 
-  const drawCursor = (seconds: number): void => {
-    cursorGroup.removeChildren();
+  const drawClockCursor = (seconds: number): void => {
+    clockCursorGroup.removeChildren();
 
     const x = LEFT_MARGIN + seconds * getPixelsPerSecond();
     const timelineBottom = TOP_MARGIN + DATA_ROWS.length * ROW_HEIGHT;
@@ -308,9 +352,9 @@ export const initializePaperCanvas = ({
       new paper.Point(x, TOP_MARGIN - 5),
       new paper.Point(x, timelineBottom + 10)
     );
-    cursorLine.strokeColor = new paper.Color("#d10b0b");
+    cursorLine.strokeColor = new paper.Color("#d10b0b"); // Red for clock
     cursorLine.strokeWidth = 2;
-    cursorGroup.addChild(cursorLine);
+    clockCursorGroup.addChild(cursorLine);
 
     // Draw time display at the bottom, over the time ticks
     const timeText = new paper.PointText({
@@ -327,11 +371,60 @@ export const initializePaperCanvas = ({
       new paper.Point(x - 40, timelineBottom + 5),
       new paper.Size(80, 20)
     );
-    textBg.fillColor = new paper.Color("#d10b0b");
+    textBg.fillColor = new paper.Color("#d10b0b"); // Red for clock
     textBg.opacity = 0.8;
 
-    cursorGroup.addChild(textBg);
-    cursorGroup.addChild(timeText);
+    clockCursorGroup.addChild(textBg);
+    clockCursorGroup.addChild(timeText);
+  };
+
+  const drawHoverCursor = (seconds: number): void => {
+    hoverCursorGroup.removeChildren();
+
+    const x = LEFT_MARGIN + seconds * getPixelsPerSecond();
+    const timelineBottom = TOP_MARGIN + DATA_ROWS.length * ROW_HEIGHT;
+
+    // Draw cursor line
+    const cursorLine = new paper.Path.Line(
+      new paper.Point(x, TOP_MARGIN - 5),
+      new paper.Point(x, timelineBottom + 10)
+    );
+    cursorLine.strokeColor = new paper.Color("#ffd700"); // Yellow for hover
+    cursorLine.strokeWidth = 2;
+    cursorLine.opacity = 0.8; // Slightly transparent
+    hoverCursorGroup.addChild(cursorLine);
+
+    // Draw time display at the bottom, over the time ticks
+    const timeText = new paper.PointText({
+      point: new paper.Point(x, timelineBottom + 20),
+      content: hhmmssFromAppSeconds(seconds) + "Z",
+      fillColor: "black",
+      fontSize: 14,
+      fontFamily: "Arial, sans-serif",
+      justification: "center",
+    });
+
+    // Background for time text - same size as clock cursor
+    const textBg = new paper.Path.Rectangle(
+      new paper.Point(x - 40, timelineBottom + 5),
+      new paper.Size(80, 20)
+    );
+    textBg.fillColor = new paper.Color("#ffd700"); // Yellow for hover
+    textBg.opacity = 0.9;
+
+    hoverCursorGroup.addChild(textBg);
+    hoverCursorGroup.addChild(timeText);
+  };
+
+  // Create updateCursor function that can be called externally
+  const updateCursor = (seconds: number): void => {
+    if (project && project.view) {
+      project.activate();
+      // Ensure seconds is within valid range for a day
+      const validSeconds = Math.max(0, Math.min(seconds, SECONDS_IN_24_HOURS - 1));
+      drawClockCursor(validSeconds);
+      project.view.update();
+    }
   };
 
   const drawPaperItems = () => {
@@ -354,7 +447,8 @@ export const initializePaperCanvas = ({
 
         // Clear existing content
         timelineGroup.removeChildren();
-        cursorGroup.removeChildren();
+        clockCursorGroup.removeChildren();
+        hoverCursorGroup.removeChildren();
 
         // Draw background
         const background = new paper.Path.Rectangle(
@@ -419,5 +513,5 @@ export const initializePaperCanvas = ({
     }
   };
 
-  return { drawPaperItems, cleanupInputHandlers };
+  return { drawPaperItems, cleanupInputHandlers, updateCursor, clearHoverCursor };
 };
