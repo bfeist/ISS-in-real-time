@@ -70,7 +70,7 @@ export async function fetchFlightsSupply(): Promise<FlightSupply[]> {
   return response.json();
 }
 
-export async function fetchCommFirstData(): Promise<CommFirstItem[]> {
+export async function fetchCommFirstData(): Promise<Record<string, CommFirstItem>> {
   const baseStaticUrl = getBaseStaticUrl();
 
   const response = await fetch(`${baseStaticUrl}/comm_first.json`);

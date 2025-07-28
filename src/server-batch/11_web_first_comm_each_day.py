@@ -102,12 +102,9 @@ def get_first_comm_for_date(comm_web_dir, date_str):
 
             # Construct relative path to AAC file for web assets
             year, month, day = date_str.split("-")
-            aac_file_path = (
-                f"comm/{year}/{month}/{day}/{selected_utterance['filename']}"
-            )
 
             result = {
-                "aacFilePath": aac_file_path,
+                "filename": selected_utterance["filename"],
                 "text": selected_utterance["text"],
             }
 

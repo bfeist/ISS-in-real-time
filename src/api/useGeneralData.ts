@@ -72,7 +72,7 @@ export function useGeneralYoutubeData(): UseQueryResult<YoutubeLiveRecording[], 
     gcTime: 10 * 60 * 1000,
   });
 }
-export function useCommFirstData(): UseQueryResult<CommFirstItem[], Error> {
+export function useCommFirstData(): UseQueryResult<Record<string, CommFirstItem>, Error> {
   return useQuery({
     queryKey: ["commFirstData"],
     queryFn: fetchCommFirstData,

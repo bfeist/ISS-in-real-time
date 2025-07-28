@@ -36,7 +36,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     error,
   } = dataAvailabilityQuery;
   const { data: crewArrDep, isLoading: isLoadingCrewArrDep } = useGeneralCrewArrDep();
-  const { data: _commFirstData, isLoading: isLoadingCommFirst } = useCommFirstData();
+  const { data: commFirstData, isLoading: isLoadingCommFirst } = useCommFirstData();
   const { dateTimeSlug } = useParams();
 
   // Check if any of the required data is still loading
@@ -52,6 +52,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const yearsScrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const [showTimeline, setShowTimeline] = useState(() => {
     // Don't open timeline by default if there was a dateTimeSlug parameter
@@ -64,6 +65,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [isTouchInteraction, setIsTouchInteraction] = useState(false);
   const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   // Scroll arrow interaction states
   const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -265,6 +267,72 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     isLoading, // Add isLoading as a dependency
   ]);
 
+  // Debounced audio playback when hoveredDate changes
+  useEffect(() => {
+    if (!hoveredDate || !commFirstData || !audioRef.current) {
+      return;
+    }
+
+    // Create a debounce timer
+    const timer = setTimeout(() => {
+      const audioData = commFirstData[hoveredDate];
+      if (audioData && audioData.filename) {
+        const audioElement = audioRef.current;
+        if (audioElement) {
+          // Parse the hovered date to get year, month, day
+          const date = dayjs.utc(hoveredDate);
+          const year = date.format("YYYY");
+          const month = date.format("MM");
+          const day = date.format("DD");
+
+          // Construct the full URL for the audio file
+          const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL || "";
+          const audioUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/${audioData.filename}`;
+
+          // Stop any currently playing audio
+          audioElement.pause();
+          audioElement.currentTime = 0;
+
+          // Set new source and play
+          audioElement.src = audioUrl;
+
+          // Only try to play if user has interacted with the page
+          if (hasUserInteracted) {
+            audioElement.play().catch((error) => {
+              // Silently handle the error - this is expected behavior for hover audio
+              if (error.name !== "NotAllowedError") {
+                console.warn("Failed to play audio:", error);
+              }
+            });
+          }
+        }
+      }
+    }, 1000); // 1 second debounce
+
+    // Cleanup function to clear the timer
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [hoveredDate, commFirstData, hasUserInteracted]);
+
+  // Track user interaction to enable audio playback
+  useEffect(() => {
+    const enableAudio = () => {
+      setHasUserInteracted(true);
+    };
+
+    // Listen for various user interaction events
+    document.addEventListener("click", enableAudio, { once: true });
+    document.addEventListener("keydown", enableAudio, { once: true });
+    document.addEventListener("touchstart", enableAudio, { once: true });
+
+    return () => {
+      document.removeEventListener("click", enableAudio);
+      document.removeEventListener("keydown", enableAudio);
+      document.removeEventListener("touchstart", enableAudio);
+    };
+  }, []);
+
   // Container-scoped mouse and touch position tracking - more efficient than document level
   useEffect(() => {
     const container = containerRef.current;
@@ -296,6 +364,12 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     const handleMouseLeave = () => {
       // Clear cursor position when leaving the container
       setCursorPosition(null);
+
+      // Stop audio playback when mouse leaves the container
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
     };
 
     const handleTouchEnd = () => {
@@ -581,6 +655,11 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
           <HoverAndSearch onClose={() => setShowTimeline(false)} />
         </div>
       </div>
+
+      {/* Hidden audio element for playing communication first recordings */}
+      <audio ref={audioRef} preload="none" style={{ display: "none" }}>
+        <track kind="captions" srcLang="en" label="English" default />
+      </audio>
     </>
   );
 };
