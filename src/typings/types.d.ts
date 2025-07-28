@@ -19,6 +19,12 @@ type CommItem = {
   textOriginalLang: string;
 };
 
+type CommFirstItem = {
+  filename: string;
+  text: string;
+  textOriginalLang?: string;
+};
+
 type EarthPhotographyItem = {
   ID: string;
   dateTaken: string;

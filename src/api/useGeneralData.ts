@@ -7,6 +7,7 @@ import {
   fetchFlights,
   fetchFlightsSupply,
   fetchYoutubeData,
+  fetchCommFirstData,
 } from "./dataFetchers";
 
 // Individual hooks for each data type
@@ -67,6 +68,14 @@ export function useGeneralYoutubeData(): UseQueryResult<YoutubeLiveRecording[], 
   return useQuery({
     queryKey: ["youtubeData"],
     queryFn: fetchYoutubeData,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}
+export function useCommFirstData(): UseQueryResult<CommFirstItem[], Error> {
+  return useQuery({
+    queryKey: ["commFirstData"],
+    queryFn: fetchCommFirstData,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });

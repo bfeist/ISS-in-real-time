@@ -70,6 +70,18 @@ export async function fetchFlightsSupply(): Promise<FlightSupply[]> {
   return response.json();
 }
 
+export async function fetchCommFirstData(): Promise<CommFirstItem[]> {
+  const baseStaticUrl = getBaseStaticUrl();
+
+  const response = await fetch(`${baseStaticUrl}/comm_first.json`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch COMM first items");
+  }
+
+  return response.json();
+}
+
 // Date-specific fetch functions
 export async function fetchCommTranscript(date: string): Promise<CommItem[]> {
   const baseStaticUrl = getBaseStaticUrl();

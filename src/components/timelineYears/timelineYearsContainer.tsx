@@ -18,7 +18,11 @@ import { useStateCrewSelection } from "store/hooks/useStateCrewSelection";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
-import { useGeneralCrewArrDep, useGeneralDataAvailabilities } from "api/useGeneralData";
+import {
+  useCommFirstData,
+  useGeneralCrewArrDep,
+  useGeneralDataAvailabilities,
+} from "api/useGeneralData";
 import { useParams } from "react-router-dom";
 
 // Configure dayjs to use UTC plugin
@@ -26,9 +30,17 @@ dayjs.extend(utc);
 
 const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const dataAvailabilityQuery = useGeneralDataAvailabilities();
-  const { data: dataAvailabilityItems, isLoading, error } = dataAvailabilityQuery;
-  const { data: crewArrDep } = useGeneralCrewArrDep();
+  const {
+    data: dataAvailabilityItems,
+    isLoading: isLoadingDataAvailability,
+    error,
+  } = dataAvailabilityQuery;
+  const { data: crewArrDep, isLoading: isLoadingCrewArrDep } = useGeneralCrewArrDep();
+  const { data: _commFirstData, isLoading: isLoadingCommFirst } = useCommFirstData();
   const { dateTimeSlug } = useParams();
+
+  // Check if any of the required data is still loading
+  const isLoading = isLoadingDataAvailability || isLoadingCrewArrDep || isLoadingCommFirst;
 
   const { selectedDate, setSelectedDate } = useStateSelectedDate();
   const { hoveredDate, setHoveredDate } = useStateHover();
@@ -211,7 +223,8 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   useEffect(() => {
     const canvas = canvasRef.current;
 
-    if (canvas && dataAvailabilityItems) {
+    // Only initialize canvas when all data is loaded
+    if (canvas && dataAvailabilityItems && !isLoading) {
       // Initialize canvas regardless of showTimeline state to prevent delay
       const { drawPaperItems, cleanupInputHandlers, project } = initializePaperCanvas({
         canvasElement: canvas,
@@ -249,6 +262,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     hoverCallback,
     handleCanvasClick,
     canvasWidth,
+    isLoading, // Add isLoading as a dependency
   ]);
 
   // Container-scoped mouse and touch position tracking - more efficient than document level
@@ -317,7 +331,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
   // Update canvas when timeline becomes visible - reinitialize Paper.js properly
   useEffect(() => {
-    if (showTimeline && canvasRef.current && dataAvailabilityItems) {
+    if (showTimeline && canvasRef.current && dataAvailabilityItems && !isLoading) {
       // When timeline becomes visible, we need to reinitialize the canvas properly
       // because display:none makes Paper.js lose track of dimensions
 
@@ -350,7 +364,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
       return () => clearTimeout(timer);
     }
-  }, [showTimeline, dataAvailabilityItems, canvasWidth]);
+  }, [showTimeline, dataAvailabilityItems, canvasWidth, isLoading]);
 
   // Format date for tooltip display
   const formatTooltipDate = useCallback((dateString: string): string => {
