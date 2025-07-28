@@ -206,13 +206,14 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
   // Store the draw function to reuse when timeline becomes visible
   const drawFunctionRef = useRef<(() => void) | null>(null);
+  const projectRef = useRef<paper.Project | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
 
     if (canvas && dataAvailabilityItems) {
       // Initialize canvas regardless of showTimeline state to prevent delay
-      const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
+      const { drawPaperItems, cleanupInputHandlers, project } = initializePaperCanvas({
         canvasElement: canvas,
         selectedDate,
         dataAvailabilityItems,
@@ -223,8 +224,9 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
         canvasWidth,
       });
 
-      // Store the draw function for later use
+      // Store the draw function and project for later use
       drawFunctionRef.current = drawPaperItems;
+      projectRef.current = project;
 
       const handleResize = () => {
         drawPaperItems();
@@ -236,6 +238,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
         window.removeEventListener("resize", handleResize);
         cleanupInputHandlers();
         drawFunctionRef.current = null;
+        projectRef.current = null;
       };
     }
   }, [
@@ -320,9 +323,12 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
       const timer = setTimeout(() => {
         const canvas = canvasRef.current;
-        if (canvas && drawFunctionRef.current) {
+        if (canvas && drawFunctionRef.current && projectRef.current) {
+          // Activate the specific timelineYears project
+          projectRef.current.activate();
+
           // Force Paper.js to recognize the canvas is visible again
-          if (paper.project && paper.view) {
+          if (projectRef.current.view) {
             // Get actual canvas dimensions now that it's visible
             const displayWidth = Math.max(canvasWidth, 1500);
             const displayHeight = canvas.clientHeight || 150;
@@ -333,8 +339,8 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
             canvas.style.width = `${displayWidth}px`;
             canvas.style.height = `${displayHeight}px`;
 
-            // Update Paper.js view size
-            paper.view.viewSize = new paper.Size(displayWidth, displayHeight);
+            // Update Paper.js view size for this specific project
+            projectRef.current.view.viewSize = new paper.Size(displayWidth, displayHeight);
 
             // Now redraw
             drawFunctionRef.current();

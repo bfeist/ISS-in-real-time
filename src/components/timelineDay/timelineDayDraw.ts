@@ -420,6 +420,10 @@ export const initializePaperCanvas = ({
   const updateCursor = (seconds: number): void => {
     if (project && project.view) {
       project.activate();
+      // Reactivate the tool to ensure it's bound to the correct project
+      if (tool) {
+        tool.activate();
+      }
       // Ensure seconds is within valid range for a day
       const validSeconds = Math.max(0, Math.min(seconds, SECONDS_IN_24_HOURS - 1));
       drawClockCursor(validSeconds);
@@ -432,6 +436,11 @@ export const initializePaperCanvas = ({
       try {
         // Activate this project before making changes
         project.activate();
+
+        // Reactivate the tool to ensure it's bound to the correct project
+        if (tool) {
+          tool.activate();
+        }
 
         const displayWidth = canvasWidth;
         const displayHeight = canvasHeight;

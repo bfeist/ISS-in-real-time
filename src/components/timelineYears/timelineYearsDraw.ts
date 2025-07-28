@@ -22,6 +22,7 @@ export const initializePaperCanvas = ({
 }): {
   drawPaperItems: () => void;
   cleanupInputHandlers: () => void;
+  project: paper.Project;
 } => {
   // Create an isolated Paper.js project for timelineYears to avoid conflicts with timelineDay
   const project = new paper.Project(canvasElement);
@@ -130,6 +131,12 @@ export const initializePaperCanvas = ({
       try {
         // Activate this project before making changes
         project.activate();
+
+        // Reactivate the tool to ensure it's bound to the correct project
+        if (tool) {
+          tool.activate();
+        }
+
         const displayWidth = canvasWidth;
         const displayHeight = canvasElement.clientHeight;
 
@@ -198,7 +205,7 @@ export const initializePaperCanvas = ({
     }
   };
 
-  return { drawPaperItems, cleanupInputHandlers };
+  return { drawPaperItems, cleanupInputHandlers, project };
 };
 
 function drawCalendar(
