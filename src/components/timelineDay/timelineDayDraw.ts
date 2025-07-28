@@ -38,7 +38,8 @@ export const initializePaperCanvas = ({
 
   // Timeline constants
   const SECONDS_IN_24_HOURS = 86400;
-  const LEFT_MARGIN = 120; // Space for data labels
+  const LEFT_MARGIN = 70; // Space for data labels
+  const RIGHT_MARGIN = 5; // Space at the right edge
   const TOP_MARGIN = 0; // No margin at top - start data rows at the very top
   const ROW_HEIGHT = 17.5; // Reduced to fit 4 rows in 70px (100px total - 30px for time ticks)
   const TIMELINE_HEIGHT = 17.5;
@@ -61,7 +62,7 @@ export const initializePaperCanvas = ({
   };
 
   // Utility functions
-  const getTimelineWidth = () => canvasWidth - LEFT_MARGIN - 20;
+  const getTimelineWidth = () => canvasWidth - LEFT_MARGIN - RIGHT_MARGIN;
   const getPixelsPerSecond = () => getTimelineWidth() / SECONDS_IN_24_HOURS;
 
   // Activate this project to ensure tools work with it
