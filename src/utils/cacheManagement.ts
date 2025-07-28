@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 
-// Maximum number of dates to keep cached
-const MAX_CACHED_DATES = 5;
+// Maximum number of dates to keep cached - increased to reduce aggressive cleanup
+const MAX_CACHED_DATES = 2;
 
 // Track visited dates in order
 let visitedDates: string[] = [];

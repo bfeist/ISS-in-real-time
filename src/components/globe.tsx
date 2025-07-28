@@ -40,6 +40,12 @@ const Globe: FunctionComponent = () => {
   const [tle, setTle] = useState<string[]>();
 
   const [cesiumReady, setCesiumReady] = useState(false);
+
+  // Cleanup refs for proper memory management
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const originalZoomInRef = useRef<Function | null>(null);
+  const originalZoomOutRef = useRef<Function | null>(null);
+
   useEffect(() => {
     if (!ephemeraItems || ephemeraItems.length === 0) return;
 
@@ -53,16 +59,31 @@ const Globe: FunctionComponent = () => {
   useEffect(() => {
     if (!tle || tle.length === 0) return;
 
-    const interval = setInterval(() => {
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    intervalRef.current = setInterval(() => {
       if (viewerRef.current?.cesiumElement?.scene && issEntityRef.current?.cesiumElement) {
         setCesiumReady(true);
-        clearInterval(interval);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
       }
     }, 100);
-    return () => clearInterval(interval);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [tle]);
 
-  const computeSampledPositions = () => {
+  const computeSampledPositions = useMemo(() => {
     if (!tle || tle.length === 0) {
       return null;
     }
@@ -103,16 +124,34 @@ const Globe: FunctionComponent = () => {
     }
 
     return positions;
-  };
+  }, [tle, startTime]);
 
-  const sampledPositionProperty = computeSampledPositions();
+  const sampledPositionProperty = computeSampledPositions;
 
-  const terrainProvider = createWorldTerrainAsync();
+  // Memoize terrain provider to prevent creating new promises on each render
+  const terrainProvider = useMemo(() => createWorldTerrainAsync(), []);
 
   const issEntityRef = useRef<CesiumComponentRef<Cesium.Entity>>(null);
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
   const viewerRef = useRef(null);
+
+  // Component cleanup effect
+  useEffect(() => {
+    return () => {
+      // Cleanup any remaining intervals
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+
+      // Reset Cesium readiness state
+      setCesiumReady(false);
+
+      // Clear TLE data
+      setTle(undefined);
+    };
+  }, []);
 
   useEffect(() => {
     if (!viewerRef.current?.cesiumElement?.scene || !issEntityRef.current?.cesiumElement) return;
@@ -130,16 +169,21 @@ const Globe: FunctionComponent = () => {
       controller.minimumZoomDistance = 100000; // Minimum distance in meters
       controller.maximumZoomDistance = 25000000; // Maximum distance in meters
 
-      // Override the default zoom behavior
-      const originalZoomIn = camera.zoomIn;
-      const originalZoomOut = camera.zoomOut;
+      // Store original functions for cleanup
+      if (!originalZoomInRef.current) {
+        originalZoomInRef.current = camera.zoomIn.bind(camera);
+      }
+      if (!originalZoomOutRef.current) {
+        originalZoomOutRef.current = camera.zoomOut.bind(camera);
+      }
 
+      // Override the default zoom behavior
       camera.zoomIn = function (amount?: number) {
-        return originalZoomIn.call(this, amount ? amount * 0.2 : undefined);
+        return originalZoomInRef.current?.call(this, amount ? amount * 0.2 : undefined);
       };
 
       camera.zoomOut = function (amount?: number) {
-        return originalZoomOut.call(this, amount ? amount * 0.2 : undefined);
+        return originalZoomOutRef.current?.call(this, amount ? amount * 0.2 : undefined);
       };
     }
 
@@ -163,6 +207,14 @@ const Globe: FunctionComponent = () => {
     };
 
     setInitialView();
+
+    // Cleanup function to restore original camera functions
+    return () => {
+      if (camera && originalZoomInRef.current && originalZoomOutRef.current) {
+        camera.zoomIn = originalZoomInRef.current;
+        camera.zoomOut = originalZoomOutRef.current;
+      }
+    };
   }, [cesiumReady]);
 
   const startOfDay = new Date(startTime);
@@ -204,14 +256,6 @@ const Globe: FunctionComponent = () => {
           name="ISS"
           position={sampledPositionProperty}
           point={{ pixelSize: 10, color: Color.RED }}
-          // label={{
-          //   text: "ISS", // changed to static "ISS"
-          //   font: "14pt sans-serif",
-          //   style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          //   outlineWidth: 2,
-          //   verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          //   pixelOffset: new Cesium.Cartesian2(0, -9),
-          // }}
           path={{
             material: Color.YELLOW,
             width: 2,

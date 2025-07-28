@@ -42,7 +42,7 @@ const TimelineDayContainer = (): JSX.Element => {
 
   // Log data for debugging (will be used for rendering later)
   useEffect(() => {
-    if (selectedDate) {
+    if (!isLoading) {
       console.log("Timeline Day Data for", selectedDate, {
         isLoading,
         dataLoaded: {
@@ -54,7 +54,8 @@ const TimelineDayContainer = (): JSX.Element => {
         },
       });
     }
-  }, [selectedDate, isLoading, ephemeraItems, commItems, photographyItems, youtubeItems, dayNight]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -155,67 +156,83 @@ const TimelineDayContainer = (): JSX.Element => {
   }, [handleMouseLeave]);
 
   // Initialize Paper.js canvas - single initialization following timelineYears pattern
+  // Only initialize when we have essential data and all loading is complete
   useEffect(() => {
     const canvas = canvasRef.current;
 
-    if (canvas) {
-      const timelineData: TimelineDayData = {
-        commItems,
-        photographyItems,
-        youtubeItems,
-        dayNight,
-        selectedDate: selectedDate || "",
-      };
-
-      const { drawPaperItems, cleanupInputHandlers, updateCursor, clearHoverCursor } =
-        initializePaperCanvas({
-          canvasElement: canvas,
-          canvasWidth,
-          canvasHeight,
-          data: timelineData,
-          onTimelineClick: setClock,
-          hoverSecondsSetter: setHoverSeconds,
-        });
-
-      // Store the draw function for later use
-      drawFunctionRef.current = drawPaperItems;
-      updateCursorRef.current = updateCursor;
-      clearHoverCursorRef.current = clearHoverCursor;
-
-      const handleResize = () => {
-        // Just redraw with the existing Paper.js setup
-        if (drawFunctionRef.current) {
-          drawFunctionRef.current();
-        }
-      };
-
-      window.addEventListener("resize", handleResize);
-
-      return () => {
-        cleanupInputHandlers();
-        window.removeEventListener("resize", handleResize);
-
-        drawFunctionRef.current = null;
-        updateCursorRef.current = null;
-        clearHoverCursorRef.current = null;
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-      };
+    // Early return to avoid deep nesting - check all conditions at once
+    if (
+      !canvas ||
+      !selectedDate ||
+      ephemeraItems.length === 0 ||
+      isLoadingEphemera ||
+      isLoadingComm ||
+      isLoadingPhotography ||
+      isLoadingYoutube
+    ) {
+      return;
     }
+
+    const timelineData: TimelineDayData = {
+      commItems,
+      photographyItems,
+      youtubeItems,
+      dayNight,
+      selectedDate: selectedDate || "",
+    };
+
+    const { drawPaperItems, cleanupInputHandlers, updateCursor, clearHoverCursor } =
+      initializePaperCanvas({
+        canvasElement: canvas,
+        canvasWidth,
+        canvasHeight,
+        data: timelineData,
+        onTimelineClick: setClock,
+        hoverSecondsSetter: setHoverSeconds,
+      });
+
+    // Store the draw function for later use
+    drawFunctionRef.current = drawPaperItems;
+    updateCursorRef.current = updateCursor;
+    clearHoverCursorRef.current = clearHoverCursor;
+
+    const handleResize = () => {
+      // Just redraw with the existing Paper.js setup
+      if (drawFunctionRef.current) {
+        drawFunctionRef.current();
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      cleanupInputHandlers();
+      window.removeEventListener("resize", handleResize);
+
+      drawFunctionRef.current = null;
+      updateCursorRef.current = null;
+      clearHoverCursorRef.current = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [
     canvasWidth,
     canvasHeight,
+    selectedDate,
     ephemeraItems,
     commItems,
     photographyItems,
     youtubeItems,
     dayNight,
-    selectedDate,
+    isLoadingEphemera,
+    isLoadingComm,
+    isLoadingPhotography,
+    isLoadingYoutube,
     setClock,
     setHoverSeconds,
-  ]); // Removed clock state dependencies to prevent constant re-initialization
+  ]); // Wait for all loading states to complete before initializing
 
   // Force redraw on mount to handle hot reload scenarios
   useEffect(() => {
