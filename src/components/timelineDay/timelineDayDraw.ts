@@ -22,6 +22,12 @@ export const initializePaperCanvas = ({
   updateCursor: (seconds: number) => void;
   clearHoverCursor: () => void;
 } => {
+  // Force clear any existing canvas content before creating the project
+  const ctx = canvasElement.getContext("2d");
+  if (ctx) {
+    ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+  }
+
   // Create an isolated Paper.js project for this canvas to avoid conflicts with timelineYears
   const project = new paper.Project(canvasElement);
 
@@ -123,8 +129,8 @@ export const initializePaperCanvas = ({
 
   // Function to clear hover cursor - will be called from container level
   const clearHoverCursor = () => {
-    hoverCursorGroup.removeChildren();
     if (project && project.view) {
+      hoverCursorGroup.removeChildren();
       project.view.update();
     }
   };
@@ -377,6 +383,11 @@ export const initializePaperCanvas = ({
 
     clockCursorGroup.addChild(textBg);
     clockCursorGroup.addChild(timeText);
+
+    // Ensure the view is updated after drawing clock cursor
+    if (project && project.view) {
+      project.view.update();
+    }
   };
 
   const drawHoverCursor = (seconds: number): void => {
@@ -415,10 +426,16 @@ export const initializePaperCanvas = ({
 
     hoverCursorGroup.addChild(textBg);
     hoverCursorGroup.addChild(timeText);
+
+    // Ensure the view is updated after drawing hover cursor
+    if (project && project.view) {
+      project.view.update();
+    }
   };
 
   // Create updateCursor function that can be called externally
   const updateCursor = (seconds: number): void => {
+    // Only proceed if project and view are still valid
     if (project && project.view) {
       project.activate();
       // Reactivate the tool to ensure it's bound to the correct project
@@ -428,12 +445,11 @@ export const initializePaperCanvas = ({
       // Ensure seconds is within valid range for a day
       const validSeconds = Math.max(0, Math.min(seconds, SECONDS_IN_24_HOURS - 1));
       drawClockCursor(validSeconds);
-      project.view.update();
     }
   };
 
   const drawPaperItems = () => {
-    if (canvasElement && project.view && project) {
+    if (canvasElement && project && project.view) {
       try {
         // Activate this project before making changes
         project.activate();
@@ -460,6 +476,12 @@ export const initializePaperCanvas = ({
         clockCursorGroup.removeChildren();
         hoverCursorGroup.removeChildren();
 
+        // Force a canvas clear to ensure we start fresh
+        const ctx = canvasElement.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, displayWidth, displayHeight);
+        }
+
         // Draw background
         const background = new paper.Path.Rectangle(
           new paper.Point(0, 0),
@@ -469,22 +491,12 @@ export const initializePaperCanvas = ({
         timelineGroup.addChild(background);
 
         if (data) {
-          // Log data for debugging
-          console.log("Timeline draw data:", {
-            commItems: data.commItems?.length || 0,
-            photographyItems: data.photographyItems?.length || 0,
-            youtubeItems: data.youtubeItems?.length || 0,
-            dayNight: data.dayNight?.length || 0,
-            selectedDate: data.selectedDate,
-          });
-
           // Draw time ticks
           timelineGroup.addChild(drawTimeTicks());
 
           // Draw each data row
           DATA_ROWS.forEach((rowConfig, index) => {
             const items = data[rowConfig.key as keyof TimelineDayData] as unknown[];
-            console.log(`Drawing row ${rowConfig.label}:`, items?.length || 0, "items");
             timelineGroup.addChild(drawDataRow(index, rowConfig, items || []));
           });
         } else {
@@ -500,8 +512,14 @@ export const initializePaperCanvas = ({
           timelineGroup.addChild(noDataText);
         }
 
-        // Update the view
-        project.view.update();
+        // Force view update and render
+        if (project && project.view) {
+          project.view.update();
+          // Additional render call to ensure the canvas is properly drawn
+          if (project.view.element) {
+            project.view.requestUpdate();
+          }
+        }
       } catch (error) {
         console.error("Error in timelineDay drawPaperItems:", error);
       }
@@ -512,6 +530,17 @@ export const initializePaperCanvas = ({
   drawPaperItems();
 
   const cleanupInputHandlers = () => {
+    // Clear all group children before removing project
+    if (timelineGroup) {
+      timelineGroup.removeChildren();
+    }
+    if (clockCursorGroup) {
+      clockCursorGroup.removeChildren();
+    }
+    if (hoverCursorGroup) {
+      hoverCursorGroup.removeChildren();
+    }
+
     // Clean up tool
     if (tool) {
       tool.remove();

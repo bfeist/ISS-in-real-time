@@ -127,7 +127,7 @@ export const initializePaperCanvas = ({
   tool.activate();
 
   const drawPaperItems = () => {
-    if (canvasElement && project.view && project) {
+    if (canvasElement && project && project.view) {
       try {
         // Activate this project before making changes
         project.activate();
@@ -196,6 +196,18 @@ export const initializePaperCanvas = ({
       hoveredDayBox.strokeWidth = originalStrokeWidth;
       hoveredDayBox = null;
     }
+
+    // Clear group children before removing project
+    if (uiGroup) {
+      uiGroup.removeChildren();
+    }
+    if (dataGroup) {
+      dataGroup.removeChildren();
+    }
+
+    // Clear the day box map
+    dayBoxMap.clear();
+
     if (tool) {
       tool.remove();
     }
