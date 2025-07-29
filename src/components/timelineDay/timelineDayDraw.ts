@@ -47,15 +47,13 @@ export const initializePaperCanvas = ({
   const LEFT_MARGIN = 70; // Space for data labels
   const RIGHT_MARGIN = 5; // Space at the right edge
   const TOP_MARGIN = 0; // No margin at top - start data rows at the very top
-  const ROW_HEIGHT = 17.5; // Reduced to fit 4 rows in 70px (100px total - 30px for time ticks)
-  const TIMELINE_HEIGHT = 17.5;
 
-  // Data row configuration in requested order
+  // Data row configuration in requested order with individual heights
   const DATA_ROWS = [
-    { key: "youtubeItems", label: "Video", color: "#dc2626" },
-    { key: "photographyItems", label: "Photos", color: "#28B463" },
-    { key: "commItems", label: "Comm", color: "#cc5500" },
-    { key: "dayNight", label: "Day/Night", color: "#dbc275" },
+    { key: "youtubeItems", label: "Video", color: "#dc2626", height: 17.5 },
+    { key: "photographyItems", label: "Photos", color: "#28B463", height: 17.5 },
+    { key: "commItems", label: "Comm", color: "#cc5500", height: 22 }, // Taller comm row
+    { key: "dayNight", label: "Day/Night", color: "#dbc275", height: 5 }, // Very thin day/night row
   ];
 
   // Channel colors mapping (from comm.module.css)
@@ -70,6 +68,20 @@ export const initializePaperCanvas = ({
   // Utility functions
   const getTimelineWidth = () => canvasWidth - LEFT_MARGIN - RIGHT_MARGIN;
   const getPixelsPerSecond = () => getTimelineWidth() / SECONDS_IN_24_HOURS;
+
+  // Calculate Y position for a given row index
+  const getRowY = (rowIndex: number) => {
+    let y = TOP_MARGIN;
+    for (let i = 0; i < rowIndex; i++) {
+      y += DATA_ROWS[i].height;
+    }
+    return y;
+  };
+
+  // Calculate total height of all data rows
+  const getTotalDataRowsHeight = () => {
+    return DATA_ROWS.reduce((total, row) => total + row.height, 0);
+  };
 
   // Activate this project to ensure tools work with it
   project.activate();
@@ -107,7 +119,7 @@ export const initializePaperCanvas = ({
     }
 
     // Check if click is within the data rows area
-    const timelineBottom = TOP_MARGIN + DATA_ROWS.length * ROW_HEIGHT;
+    const timelineBottom = TOP_MARGIN + getTotalDataRowsHeight();
     if (event.point.y < TOP_MARGIN || event.point.y > timelineBottom) {
       return;
     }
@@ -139,7 +151,7 @@ export const initializePaperCanvas = ({
     const group = new paper.Group();
     const _timelineWidth = getTimelineWidth();
     const pixelsPerSecond = getPixelsPerSecond();
-    const timelineBottom = TOP_MARGIN + DATA_ROWS.length * ROW_HEIGHT;
+    const timelineBottom = TOP_MARGIN + getTotalDataRowsHeight();
 
     // Draw time ticks every hour
     for (let hour = 0; hour < 24; hour++) {
@@ -175,13 +187,14 @@ export const initializePaperCanvas = ({
     items: unknown[]
   ): paper.Group => {
     const group = new paper.Group();
-    const y = TOP_MARGIN + rowIndex * ROW_HEIGHT;
+    const y = getRowY(rowIndex);
+    const rowHeight = rowConfig.height;
     const timelineWidth = getTimelineWidth();
     const pixelsPerSecond = getPixelsPerSecond();
 
     // Draw row label
     const labelText = new paper.PointText({
-      point: new paper.Point(LEFT_MARGIN - 10, y + TIMELINE_HEIGHT / 2 + 3),
+      point: new paper.Point(LEFT_MARGIN - 10, y + rowHeight / 2 + 3),
       content: rowConfig.label,
       fillColor: "#333333",
       fontSize: 12,
@@ -193,7 +206,7 @@ export const initializePaperCanvas = ({
     // Draw timeline background
     const timelineBg = new paper.Path.Rectangle(
       new paper.Point(LEFT_MARGIN, y),
-      new paper.Size(timelineWidth, TIMELINE_HEIGHT)
+      new paper.Size(timelineWidth, rowHeight)
     );
     timelineBg.fillColor = new paper.Color("#f0f0f0");
     timelineBg.strokeColor = new paper.Color("#cccccc");
@@ -226,7 +239,7 @@ export const initializePaperCanvas = ({
 
         const segment = new paper.Path.Rectangle(
           new paper.Point(startX, y + 1),
-          new paper.Size(endX - startX, TIMELINE_HEIGHT - 2)
+          new paper.Size(endX - startX, rowHeight - 2)
         );
         segment.fillColor = new paper.Color(fillColor);
         group.addChild(segment);
@@ -273,7 +286,7 @@ export const initializePaperCanvas = ({
             // Draw duration bar
             const durationBar = new paper.Path.Rectangle(
               new paper.Point(startX, y + 2),
-              new paper.Size(Math.max(endX - startX, 2), TIMELINE_HEIGHT - 4) // Minimum width of 2px
+              new paper.Size(Math.max(endX - startX, 2), rowHeight - 4) // Minimum width of 2px
             );
             durationBar.fillColor = new paper.Color(tickColor);
             durationBar.opacity = 0.7;
@@ -300,7 +313,7 @@ export const initializePaperCanvas = ({
           // Draw tick mark for comm item
           const tick = new paper.Path.Line(
             new paper.Point(x, y + 1),
-            new paper.Point(x, y + TIMELINE_HEIGHT - 1)
+            new paper.Point(x, y + rowHeight - 1)
           );
           tick.strokeColor = new paper.Color(tickColor);
           tick.strokeWidth = 2;
@@ -337,7 +350,7 @@ export const initializePaperCanvas = ({
         // Draw tick mark
         const tick = new paper.Path.Line(
           new paper.Point(x, y + 1),
-          new paper.Point(x, y + TIMELINE_HEIGHT - 1)
+          new paper.Point(x, y + rowHeight - 1)
         );
         tick.strokeColor = new paper.Color(tickColor);
         tick.strokeWidth = 2;
@@ -352,7 +365,7 @@ export const initializePaperCanvas = ({
     clockCursorGroup.removeChildren();
 
     const x = LEFT_MARGIN + seconds * getPixelsPerSecond();
-    const timelineBottom = TOP_MARGIN + DATA_ROWS.length * ROW_HEIGHT;
+    const timelineBottom = TOP_MARGIN + getTotalDataRowsHeight();
 
     // Draw cursor line
     const cursorLine = new paper.Path.Line(
@@ -394,7 +407,7 @@ export const initializePaperCanvas = ({
     hoverCursorGroup.removeChildren();
 
     const x = LEFT_MARGIN + seconds * getPixelsPerSecond();
-    const timelineBottom = TOP_MARGIN + DATA_ROWS.length * ROW_HEIGHT;
+    const timelineBottom = TOP_MARGIN + getTotalDataRowsHeight();
 
     // Draw cursor line
     const cursorLine = new paper.Path.Line(
