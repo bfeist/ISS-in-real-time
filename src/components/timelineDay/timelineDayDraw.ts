@@ -50,20 +50,21 @@ export const initializePaperCanvas = ({
 
   // Data row configuration in requested order with individual heights
   const DATA_ROWS = [
-    { key: "youtubeItems", label: "Video", color: "#dc2626", height: 17.5 },
-    { key: "photographyItems", label: "Photos", color: "#28B463", height: 17.5 },
-    { key: "commItems", label: "Comm", color: "#cc5500", height: 22 }, // Taller comm row
-    { key: "dayNight", label: "Day/Night", color: "#dbc275", height: 5 }, // Very thin day/night row
+    { key: "youtubeItems", label: "Video", color: "#dc2626", height: 15 },
+    { key: "photographyItems", label: "Photos", color: "#28B463", height: 15 },
+    { key: "commItems", label: "Comm", color: "#cc5500", height: 22 }, // Comm row with 5 subrows
+    { key: "dayNight", label: "Day/Night", color: "#dbc275", height: 6 }, // Very thin day/night row
   ];
 
-  // Channel colors mapping (from comm.module.css)
-  const CHANNEL_COLORS = {
-    "1": "#1e3a8a", // Channel 1 - Dark Blue
-    "2": "#166534", // Channel 2 - Dark Green
-    "3": "#991b1b", // Channel 3 - Dark Red
-    "4": "#581c87", // Channel 4 - Dark Purple
-    "5": "#c2410c", // Channel 5 - Dark Orange
-  };
+  // Comm subrow configuration - 5 channels, each with its own subrow
+  const COMM_SUBROW_HEIGHT = 4.4; // 22 total height / 5 = 4.4 per subrow
+  const COMM_CHANNELS = [
+    { number: "1", label: "Ch 1", color: "#1e3a8a" },
+    { number: "2", label: "Ch 2", color: "#166534" },
+    { number: "3", label: "Ch 3", color: "#991b1b" },
+    { number: "4", label: "Ch 4", color: "#581c87" },
+    { number: "5", label: "Ch 5", color: "#c2410c" },
+  ];
 
   // Utility functions
   const getTimelineWidth = () => canvasWidth - LEFT_MARGIN - RIGHT_MARGIN;
@@ -181,6 +182,78 @@ export const initializePaperCanvas = ({
     return group;
   };
 
+  const drawCommSubrows = (
+    rowIndex: number,
+    rowConfig: (typeof DATA_ROWS)[0],
+    items: unknown[]
+  ): paper.Group => {
+    const group = new paper.Group();
+    const y = getRowY(rowIndex);
+    const timelineWidth = getTimelineWidth();
+    const pixelsPerSecond = getPixelsPerSecond();
+
+    // Draw main row label
+    const labelText = new paper.PointText({
+      point: new paper.Point(LEFT_MARGIN - 10, y + rowConfig.height / 2 + 3),
+      content: rowConfig.label,
+      fillColor: "#333333",
+      fontSize: 12,
+      fontFamily: "Arial, sans-serif",
+      justification: "right",
+    });
+    group.addChild(labelText);
+
+    // Group comm items by channel
+    const commItemsByChannel: { [key: string]: CommItem[] } = {};
+    const safeItems = items || [];
+
+    safeItems.forEach((item: unknown) => {
+      const commItem = item as CommItem;
+      const channelInfo = extractChannelInfoFromFilename(commItem.filename);
+      if (channelInfo) {
+        const channelNumber = channelInfo.number;
+        if (!commItemsByChannel[channelNumber]) {
+          commItemsByChannel[channelNumber] = [];
+        }
+        commItemsByChannel[channelNumber].push(commItem);
+      }
+    });
+
+    // Draw each channel subrow
+    COMM_CHANNELS.forEach((channel, subrowIndex) => {
+      const subrowY = y + subrowIndex * COMM_SUBROW_HEIGHT;
+
+      // Draw subrow background
+      const subrowBg = new paper.Path.Rectangle(
+        new paper.Point(LEFT_MARGIN, subrowY),
+        new paper.Size(timelineWidth, COMM_SUBROW_HEIGHT)
+      );
+      subrowBg.fillColor = new paper.Color("#f0f0f0");
+      subrowBg.strokeColor = new paper.Color("#cccccc");
+      subrowBg.strokeWidth = 0.5;
+      group.addChild(subrowBg);
+
+      // Draw comm items for this channel
+      const channelItems = commItemsByChannel[channel.number] || [];
+      channelItems.forEach((commItem: CommItem) => {
+        // Convert utteranceTime (HH:MM:SS format) to seconds since midnight
+        const seconds = appSecondsFromTimeStr(commItem.utteranceTime);
+        const x = LEFT_MARGIN + seconds * pixelsPerSecond;
+
+        // Draw tick mark for comm item in this channel's subrow
+        const tick = new paper.Path.Line(
+          new paper.Point(x, subrowY + 0.5),
+          new paper.Point(x, subrowY + COMM_SUBROW_HEIGHT - 0.5)
+        );
+        tick.strokeColor = new paper.Color(channel.color);
+        tick.strokeWidth = 2;
+        group.addChild(tick);
+      });
+    });
+
+    return group;
+  };
+
   const drawDataRow = (
     rowIndex: number,
     rowConfig: (typeof DATA_ROWS)[0],
@@ -191,6 +264,11 @@ export const initializePaperCanvas = ({
     const rowHeight = rowConfig.height;
     const timelineWidth = getTimelineWidth();
     const pixelsPerSecond = getPixelsPerSecond();
+
+    // Special handling for comm items - draw as subrows
+    if (rowConfig.key === "commItems") {
+      return drawCommSubrows(rowIndex, rowConfig, items);
+    }
 
     // Draw row label
     const labelText = new paper.PointText({
@@ -248,7 +326,7 @@ export const initializePaperCanvas = ({
       // Draw ticks for other data types
       safeItems.forEach((item: unknown) => {
         let itemTime: Date | null = null;
-        let tickColor = rowConfig.color;
+        const tickColor = rowConfig.color;
 
         // Extract time based on item type
         if (rowConfig.key === "youtubeItems") {
@@ -296,29 +374,6 @@ export const initializePaperCanvas = ({
         } else if (rowConfig.key === "photographyItems") {
           const photoItem = item as EarthPhotographyItem;
           itemTime = new Date(photoItem.dateTaken);
-        } else if (rowConfig.key === "commItems") {
-          const commItem = item as CommItem;
-          // For comm items, use utteranceTime directly and get channel-specific color
-          const channelInfo = extractChannelInfoFromFilename(commItem.filename);
-          if (channelInfo) {
-            const channelNumber = channelInfo.number;
-            tickColor =
-              CHANNEL_COLORS[channelNumber as keyof typeof CHANNEL_COLORS] || rowConfig.color;
-          }
-
-          // Convert utteranceTime (HH:MM:SS format) to seconds since midnight
-          const seconds = appSecondsFromTimeStr(commItem.utteranceTime);
-          const x = LEFT_MARGIN + seconds * pixelsPerSecond;
-
-          // Draw tick mark for comm item
-          const tick = new paper.Path.Line(
-            new paper.Point(x, y + 1),
-            new paper.Point(x, y + rowHeight - 1)
-          );
-          tick.strokeColor = new paper.Color(tickColor);
-          tick.strokeWidth = 2;
-          group.addChild(tick);
-          return; // Skip the date-based processing below
         }
 
         if (!itemTime || isNaN(itemTime.getTime())) {
