@@ -55,7 +55,7 @@ describe("Date Time Slug Utils", () => {
     });
 
     it("should handle edge cases", () => {
-      expect(parseDateTimeSlug("2020-02-29~00:00:00")).toEqual({
+      expect(parseDateTimeSlug("2020-02-29T00:00:00")).toEqual({
         date: "2020-02-29",
         time: "00:00:00",
       });
@@ -70,15 +70,15 @@ describe("Date Time Slug Utils", () => {
       expect(parseDateTimeSlug("")).toBe(null);
       expect(parseDateTimeSlug("invalid")).toBe(null);
       expect(parseDateTimeSlug("2023-12-25")).toBe(null); // missing time
-      expect(parseDateTimeSlug("2023-12-25~24:00:00")).toBe(null); // invalid hour
+      expect(parseDateTimeSlug("2023-12-25T24:00:00")).toBe(null); // invalid hour
       expect(parseDateTimeSlug("2023-13-25/12:00:00")).toBe(null); // invalid month
     });
   });
 
   describe("createDateTimeSlug", () => {
-    it("should create valid slugs with ~ separator", () => {
-      expect(createDateTimeSlug("2023-12-25", "14:30:15")).toBe("2023-12-25~14:30:15");
-      expect(createDateTimeSlug("2020-02-29", "00:00:00")).toBe("2020-02-29~00:00:00");
+    it("should create valid slugs with T separator", () => {
+      expect(createDateTimeSlug("2023-12-25", "14:30:15")).toBe("2023-12-25T14:30:15");
+      expect(createDateTimeSlug("2020-02-29", "00:00:00")).toBe("2020-02-29T00:00:00");
     });
 
     it("should throw for invalid inputs", () => {
