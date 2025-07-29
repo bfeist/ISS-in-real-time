@@ -73,5 +73,5 @@ export const createDateTimeSlug = (date: string, time: string): string => {
   }
 
   // Use ~ separator to avoid URL encoding issues with /
-  return `${date}~${time}`;
+  return `${date}T${time}`;
 };
