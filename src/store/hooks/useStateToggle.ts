@@ -6,6 +6,8 @@ export const useStateToggle = (): {
   setGlobalMute: (mute: boolean) => void;
   showGlobe: boolean;
   setShowGlobe: (show: boolean) => void;
+  showTimelineYears: boolean;
+  setShowTimelineYears: (show: boolean) => void;
 } =>
   useAppStore(
     useShallow((state) => ({
@@ -13,5 +15,7 @@ export const useStateToggle = (): {
       setGlobalMute: state.setGlobalMute,
       showGlobe: state.showGlobe,
       setShowGlobe: state.setShowGlobe,
+      showTimelineYears: state.showTimelineYears,
+      setShowTimelineYears: state.setShowTimelineYears,
     }))
   );

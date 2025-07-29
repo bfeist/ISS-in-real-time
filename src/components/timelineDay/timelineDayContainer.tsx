@@ -10,6 +10,7 @@ import { useGeneralYoutubeData } from "api/useGeneralData";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
+import { useStateToggle } from "store/hooks/useStateToggle";
 import { calcDayNight } from "utils/day-night";
 import { findClosestEphemeraItem } from "utils/map";
 
@@ -17,6 +18,7 @@ const TimelineDayContainer = (): JSX.Element => {
   const { selectedDate } = useStateSelectedDate();
   const { setClock, appSecondsAtStartStop, isRunning, startStopTimestamp } = useStateClock();
   const { setHoverSeconds } = useStateHover();
+  const { showTimelineYears } = useStateToggle();
   const { data: ephemeraItems = [], isLoading: isLoadingEphemera } = useDateEphemera(
     selectedDate || ""
   );
@@ -68,6 +70,7 @@ const TimelineDayContainer = (): JSX.Element => {
   const drawFunctionRef = useRef<(() => void) | null>(null);
   const updateCursorRef = useRef<((seconds: number) => void) | null>(null);
   const clearHoverCursorRef = useRef<(() => void) | null>(null);
+  const reactivateHoverToolsRef = useRef<(() => void) | null>(null);
 
   // Clock interval effect - similar to ClockInterval component
   const lastSecondsRef = useRef<number>(-1);
@@ -181,20 +184,26 @@ const TimelineDayContainer = (): JSX.Element => {
       selectedDate: selectedDate || "",
     };
 
-    const { drawPaperItems, cleanupInputHandlers, updateCursor, clearHoverCursor } =
-      initializePaperCanvas({
-        canvasElement: canvas,
-        canvasWidth,
-        canvasHeight,
-        data: timelineData,
-        onTimelineClick: setClock,
-        hoverSecondsSetter: setHoverSeconds,
-      });
+    const {
+      drawPaperItems,
+      cleanupInputHandlers,
+      updateCursor,
+      clearHoverCursor,
+      reactivateHoverTools,
+    } = initializePaperCanvas({
+      canvasElement: canvas,
+      canvasWidth,
+      canvasHeight,
+      data: timelineData,
+      onTimelineClick: setClock,
+      hoverSecondsSetter: setHoverSeconds,
+    });
 
     // Store the draw function for later use
     drawFunctionRef.current = drawPaperItems;
     updateCursorRef.current = updateCursor;
     clearHoverCursorRef.current = clearHoverCursor;
+    reactivateHoverToolsRef.current = reactivateHoverTools;
 
     const handleResize = () => {
       // Just redraw with the existing Paper.js setup
@@ -212,6 +221,7 @@ const TimelineDayContainer = (): JSX.Element => {
       drawFunctionRef.current = null;
       updateCursorRef.current = null;
       clearHoverCursorRef.current = null;
+      reactivateHoverToolsRef.current = null;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -240,6 +250,20 @@ const TimelineDayContainer = (): JSX.Element => {
       drawFunctionRef.current();
     }
   }, []);
+
+  // Reactivate hover tools when year timeline is closed and day is selected
+  useEffect(() => {
+    if (!showTimelineYears && selectedDate && reactivateHoverToolsRef.current) {
+      // Small delay to ensure Paper.js project is ready
+      const timer = setTimeout(() => {
+        if (reactivateHoverToolsRef.current) {
+          reactivateHoverToolsRef.current();
+        }
+      }, 50);
+
+      return () => clearTimeout(timer);
+    }
+  }, [showTimelineYears, selectedDate]);
 
   // Show loading state if critical data is still loading
   if (isLoading && selectedDate) {

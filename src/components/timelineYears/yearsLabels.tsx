@@ -1,5 +1,6 @@
 import { FunctionComponent, JSX, useMemo } from "react";
 import styles from "./yearsLabels.module.css";
+import { useStateToggle } from "store/hooks/useStateToggle";
 
 interface YearsLabelsProps {
   canvasWidth: number;
@@ -7,7 +8,6 @@ interface YearsLabelsProps {
   onClick?: () => void;
   hoveredDate?: string | null;
   selectedDate?: string | null;
-  showTimeline?: boolean;
 }
 
 const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
@@ -15,8 +15,8 @@ const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
   onClick,
   hoveredDate,
   selectedDate,
-  showTimeline = false,
 }): JSX.Element => {
+  const { showTimelineYears } = useStateToggle();
   const yearPositions = useMemo(() => {
     // Use the same epoch and calculation logic as the canvas
     const epochYear = 2000;
@@ -162,7 +162,7 @@ const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
       )}
 
       {/* Open indicator - only show when timeline is closed */}
-      {!showTimeline && (
+      {!showTimelineYears && (
         <div className={styles.openIndicator}>
           <span className={styles.arrow}>▾</span>
           <span className={styles.indicatorText}>OPEN</span>

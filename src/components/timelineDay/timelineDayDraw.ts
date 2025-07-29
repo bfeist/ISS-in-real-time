@@ -21,6 +21,7 @@ export const initializePaperCanvas = ({
   cleanupInputHandlers: () => void;
   updateCursor: (seconds: number) => void;
   clearHoverCursor: () => void;
+  reactivateHoverTools: () => void;
 } => {
   // Force clear any existing canvas content before creating the project
   const ctx = canvasElement.getContext("2d");
@@ -144,6 +145,16 @@ export const initializePaperCanvas = ({
   const clearHoverCursor = () => {
     if (project && project.view) {
       hoverCursorGroup.removeChildren();
+      project.view.update();
+    }
+  };
+
+  // Function to reactivate hover tools - will be called when year timeline closes
+  const reactivateHoverTools = () => {
+    if (project && project.view && tool) {
+      project.activate();
+      tool.activate();
+      // Ensure the view is updated
       project.view.update();
     }
   };
@@ -620,5 +631,11 @@ export const initializePaperCanvas = ({
     }
   };
 
-  return { drawPaperItems, cleanupInputHandlers, updateCursor, clearHoverCursor };
+  return {
+    drawPaperItems,
+    cleanupInputHandlers,
+    updateCursor,
+    clearHoverCursor,
+    reactivateHoverTools,
+  };
 };

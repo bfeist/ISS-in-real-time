@@ -28,10 +28,12 @@ interface HoverState {
 interface ToggleState {
   globalMute: boolean;
   showGlobe: boolean;
+  showTimelineYears: boolean;
 
   // Actions
   setGlobalMute: (mute: boolean) => void;
   setShowGlobe: (show: boolean) => void;
+  setShowTimelineYears: (show: boolean) => void;
 }
 
 interface CrewSelectionState {

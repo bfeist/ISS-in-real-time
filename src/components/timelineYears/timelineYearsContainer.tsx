@@ -18,6 +18,7 @@ import { useStateCrewSelection } from "store/hooks/useStateCrewSelection";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
+import { useStateToggle } from "store/hooks/useStateToggle";
 import {
   useCommFirstData,
   useGeneralCrewArrDep,
@@ -46,6 +47,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const { hoveredDate, setHoveredDate } = useStateHover();
   const { selectedCrewMember } = useStateCrewSelection();
   const { contentHighlights } = useStateContentHighlights();
+  const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -53,13 +55,6 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-
-  const [showTimeline, setShowTimeline] = useState(() => {
-    // Don't open timeline by default if there was a dateTimeSlug parameter
-    if (dateTimeSlug) return false;
-    // Otherwise, open if no date is selected
-    return selectedDate === null || selectedDate === undefined;
-  });
 
   const [canvasWidth, setCanvasWidth] = useState(() => Math.max(window.innerWidth, 1500));
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
@@ -69,6 +64,17 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
   // Scroll arrow interaction states
   const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize showTimeline state based on selectedDate and dateTimeSlug
+  useEffect(() => {
+    // Don't open timeline by default if there was a dateTimeSlug parameter
+    if (dateTimeSlug) {
+      setShowTimelineYears(false);
+    } else {
+      // Otherwise, open if no date is selected
+      setShowTimelineYears(selectedDate === null || selectedDate === undefined);
+    }
+  }, [dateTimeSlug, selectedDate, setShowTimelineYears]); // Run when dependencies change
 
   // Hover callback that was moved from index.tsx
   const hoverCallback = useCallback(
@@ -107,25 +113,37 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
       // For mouse devices, proceed with normal click behavior
       setSelectedDate(clickedDate);
 
+      // Stop any playing audio when a date is selected
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+
       // Close the dropdown when a date is selected
       if (clickedDate) {
-        setShowTimeline(false);
+        setShowTimelineYears(false);
       }
     },
-    [setSelectedDate, setShowTimeline]
+    [setSelectedDate, setShowTimelineYears]
   );
 
   // Handle touch "Go" button click
   const handleTouchGo = useCallback(() => {
     if (pendingTouchDate) {
       setSelectedDate(pendingTouchDate);
-      setShowTimeline(false);
+      setShowTimelineYears(false);
       setPendingTouchDate(null);
       setIsTouchInteraction(false);
       setHoveredDate(null);
       setCursorPosition(null);
+
+      // Stop any playing audio when a date is selected
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
     }
-  }, [pendingTouchDate, setSelectedDate, setHoveredDate]);
+  }, [pendingTouchDate, setSelectedDate, setHoveredDate, setShowTimelineYears]);
 
   // Handle touch "Cancel" button click
   const handleTouchCancel = useCallback(() => {
@@ -206,10 +224,10 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   }, []);
 
   const handleYearsScroll = useCallback(() => {
-    if (scrollContainerRef.current && yearsScrollContainerRef.current && showTimeline) {
+    if (scrollContainerRef.current && yearsScrollContainerRef.current && showTimelineYears) {
       scrollContainerRef.current.scrollLeft = yearsScrollContainerRef.current.scrollLeft;
     }
-  }, [showTimeline]);
+  }, [showTimelineYears]);
 
   const selectedCrewStays = useMemo(() => {
     if (!crewArrDep || crewArrDep.length === 0 || !selectedCrewMember) return [];
@@ -405,7 +423,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
   // Update canvas when timeline becomes visible - reinitialize Paper.js properly
   useEffect(() => {
-    if (showTimeline && canvasRef.current && dataAvailabilityItems && !isLoading) {
+    if (showTimelineYears && canvasRef.current && dataAvailabilityItems && !isLoading) {
       // When timeline becomes visible, we need to reinitialize the canvas properly
       // because display:none makes Paper.js lose track of dimensions
 
@@ -438,7 +456,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
       return () => clearTimeout(timer);
     }
-  }, [showTimeline, dataAvailabilityItems, canvasWidth, isLoading]);
+  }, [showTimelineYears, dataAvailabilityItems, canvasWidth, isLoading]);
 
   // Format date for tooltip display
   const formatTooltipDate = useCallback((dateString: string): string => {
@@ -519,10 +537,10 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     if (selectedDate === null || selectedDate === undefined) {
       // Don't auto-open if there was a dateTimeSlug parameter
       if (!dateTimeSlug) {
-        setShowTimeline(true);
+        setShowTimelineYears(true);
       }
     }
-  }, [selectedDate, dateTimeSlug]);
+  }, [selectedDate, dateTimeSlug, setShowTimelineYears]);
 
   // Cleanup scroll interval on unmount
   useEffect(() => {
@@ -634,17 +652,16 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
               canvasWidth={canvasWidth}
               onClick={() => {
                 // Toggle timeline visibility
-                setShowTimeline(!showTimeline);
+                setShowTimelineYears(!showTimelineYears);
               }}
               hoveredDate={hoveredDate}
               selectedDate={selectedDate}
-              showTimeline={showTimeline}
             />
           </div>
         </div>
 
         {/* Timeline canvas dropdown */}
-        <div className={`${styles.timelineDropdown} ${!showTimeline ? styles.hidden : ""}`}>
+        <div className={`${styles.timelineDropdown} ${!showTimelineYears ? styles.hidden : ""}`}>
           <div
             ref={scrollContainerRef}
             className={styles.canvasScrollContainer}
@@ -652,7 +669,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
           >
             <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
           </div>
-          <HoverAndSearch onClose={() => setShowTimeline(false)} />
+          <HoverAndSearch onClose={() => setShowTimelineYears(false)} />
         </div>
       </div>
 
