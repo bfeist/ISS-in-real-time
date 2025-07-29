@@ -36,7 +36,7 @@ export const parseDateTimeSlug = (slug: string): ParsedDateTimeSlug | null => {
   if (!slug) return null;
 
   // Expected format: YYYY-MM-DD/HH:MM:SS but encoded as YYYY-MM-DD%2FHH%3AMM%3ASS
-  // or YYYY-MM-DD~HH-MM-SS (using ~ as separator to avoid URL encoding issues)
+  // or YYYY-MM-DDTHH:MM:SS (using T as separator to avoid URL encoding issues)
   let datePart: string;
   let timePart: string;
 
@@ -47,8 +47,8 @@ export const parseDateTimeSlug = (slug: string): ParsedDateTimeSlug | null => {
     if (parts.length === 2) {
       [datePart, timePart] = parts;
     } else {
-      // Try alternative format with ~ separator (YYYY-MM-DD~HH:MM:SS)
-      const altParts = slug.split("~");
+      // Try alternative format with T separator (YYYY-MM-DDTHH:MM:SS)
+      const altParts = slug.split("T");
       if (altParts.length === 2) {
         [datePart, timePart] = altParts;
       } else {
@@ -72,6 +72,6 @@ export const createDateTimeSlug = (date: string, time: string): string => {
     throw new Error("Invalid date or time format");
   }
 
-  // Use ~ separator to avoid URL encoding issues with /
+  // Use T separator to avoid URL encoding issues with /
   return `${date}T${time}`;
 };

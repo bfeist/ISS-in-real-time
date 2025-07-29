@@ -38,8 +38,8 @@ describe("Date Time Slug Utils", () => {
   });
 
   describe("parseDateTimeSlug", () => {
-    it("should parse valid slugs correctly with ~ separator", () => {
-      const result = parseDateTimeSlug("2023-12-25~14:30:15");
+    it("should parse valid slugs correctly with T separator", () => {
+      const result = parseDateTimeSlug("2023-12-25T14:30:15");
       expect(result).toEqual({
         date: "2023-12-25",
         time: "14:30:15",
