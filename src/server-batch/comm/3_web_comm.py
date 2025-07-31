@@ -63,8 +63,9 @@ def create_daily_transcript(root_dir, date_str, output_dir):
 
     print(f"Processing transcripts for {date_str}...")
 
-    # Initialize a list to collect data
+    # Initialize a list to collect data and AAC files to copy
     data_list = []
+    aac_files_to_copy = []
 
     # Loop over JSON files in the directory
     for filename in os.listdir(dir_path):
@@ -121,20 +122,12 @@ def create_daily_transcript(root_dir, date_str, output_dir):
                     }
                 )
 
-                # Copy corresponding AAC file to output directory
+                # Collect AAC file for batch copying later
                 aac_filename = json_data.get("filename", "")
                 if aac_filename:
                     aac_file_path = os.path.join(dir_path, aac_filename)
                     if os.path.exists(aac_file_path):
-                        dest_dir = os.path.join(output_dir, year, month, day)
-                        os.makedirs(dest_dir, exist_ok=True)
-                        if not os.path.exists(os.path.join(dest_dir, aac_filename)):
-                            shutil.copy(aac_file_path, dest_dir)
-
-                        # Also copy AAC file to second location
-                        copy_to_second_location(
-                            aac_file_path, year, month, day, COMM_WEB2
-                        )
+                        aac_files_to_copy.append((aac_file_path, aac_filename))
 
     # Write the data to a pipe-delimited file
     output_file = os.path.join(
@@ -157,6 +150,47 @@ def create_daily_transcript(root_dir, date_str, output_dir):
         for data in data_list:
             row = [data[field] for field in fieldnames]
             txtfile.write("|".join(row) + "\n")
+
+    # Now bulk copy all AAC files using subprocess for maximum efficiency
+    if aac_files_to_copy:
+        dest_dir = os.path.join(output_dir, year, month, day)
+        os.makedirs(dest_dir, exist_ok=True)
+
+        dest_dir2 = os.path.join(COMM_WEB2, year, month, day)
+        os.makedirs(dest_dir2, exist_ok=True)
+
+        # Use subprocess to copy all AAC files at once (Windows compatible)
+        import subprocess
+
+        try:
+            # Use Windows copy command to bulk copy all .aac files
+            # Copy all .aac files from source to destination 1
+            subprocess.run(
+                ["cmd", "/c", f'copy "{dir_path}\\*.aac" "{dest_dir}\\" >nul 2>&1'],
+                shell=True,
+                check=False,
+            )
+
+            # Copy all .aac files from source to destination 2
+            subprocess.run(
+                ["cmd", "/c", f'copy "{dir_path}\\*.aac" "{dest_dir2}\\" >nul 2>&1'],
+                shell=True,
+                check=False,
+            )
+
+            print(f"Bulk copied AAC files for {date_str}")
+
+        except Exception as e:
+            print(f"Bulk copy failed, using fallback method: {e}")
+            # Fallback to individual copying if bulk copy fails
+            for aac_file_path, aac_filename in aac_files_to_copy:
+                dest_file1 = os.path.join(dest_dir, aac_filename)
+                dest_file2 = os.path.join(dest_dir2, aac_filename)
+
+                if not os.path.exists(dest_file1):
+                    shutil.copy(aac_file_path, dest_file1)
+                if not os.path.exists(dest_file2):
+                    shutil.copy(aac_file_path, dest_file2)
 
     # Copy CSV file to second location
     copy_to_second_location(output_file, year, month, day, COMM_WEB2)

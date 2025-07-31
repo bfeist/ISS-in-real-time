@@ -1,6 +1,7 @@
 import os
 import json
 import csv
+import argparse
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -151,13 +152,13 @@ def get_dates_with_comm(web_assets_root):
     return dates_with_comm
 
 
-def create_first_comm_json(comm_web_dir, output_file):
+def create_first_comm_json(comm_web_dir, output_file, override=False):
     """Create a JSON file with the first communication entry for each date."""
     print("Creating first comm JSON file...")
 
-    # Read existing data if the output file exists
+    # Read existing data if the output file exists and not overriding
     first_comm_data = {}
-    if os.path.exists(output_file):
+    if os.path.exists(output_file) and not override:
         try:
             with open(output_file, "r", encoding="utf-8") as f:
                 first_comm_data = json.load(f)
@@ -166,22 +167,36 @@ def create_first_comm_json(comm_web_dir, output_file):
             print(f"Warning: Could not read existing file {output_file}: {e}")
             print("Starting with empty data...")
             first_comm_data = {}
+    elif override:
+        print("Override mode: Starting with empty data (will reprocess all dates)")
 
     # Get dates with comm data from data_availability.csv
     dates_with_comm = get_dates_with_comm(WEB_ASSETS_ROOT)
 
-    # Filter to only process missing dates
-    missing_dates = [date for date in dates_with_comm if date not in first_comm_data]
+    if override:
+        # Process all dates when overriding
+        dates_to_process = dates_with_comm
+        print(
+            f"Override mode: Processing all {len(dates_to_process)} dates with comm data..."
+        )
+    else:
+        # Filter to only process missing dates
+        dates_to_process = [
+            date for date in dates_with_comm if date not in first_comm_data
+        ]
 
-    if not missing_dates:
-        print("No missing dates to process. All dates already have first comm data.")
-        return first_comm_data
+        if not dates_to_process:
+            print(
+                "No missing dates to process. All dates already have first comm data."
+            )
+            return first_comm_data
 
-    # Process only missing dates
-    print(
-        f"Processing {len(missing_dates)} missing dates out of {len(dates_with_comm)} total dates with comm data..."
-    )
-    for date_str in missing_dates:
+        # Process only missing dates
+        print(
+            f"Incremental mode: Processing {len(dates_to_process)} missing dates out of {len(dates_with_comm)} total dates with comm data..."
+        )
+
+    for date_str in dates_to_process:
         first_comm = get_first_comm_for_date(comm_web_dir, date_str)
         if first_comm:
             first_comm_data[date_str] = first_comm
@@ -198,5 +213,19 @@ def create_first_comm_json(comm_web_dir, output_file):
 
 
 if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Create JSON file with first communication entry for each date"
+    )
+    parser.add_argument(
+        "-o",
+        "--override",
+        action="store_true",
+        help="Override mode: reprocess all dates instead of only adding missing ones",
+    )
+    args = parser.parse_args()
+
     output_file = os.path.join(WEB_ASSETS_ROOT, "comm_first.json")
-    first_comm_data = create_first_comm_json(COMM_WEB, output_file)
+    first_comm_data = create_first_comm_json(
+        COMM_WEB, output_file, override=args.override
+    )
