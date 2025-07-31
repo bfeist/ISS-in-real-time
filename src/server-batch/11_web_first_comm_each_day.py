@@ -155,14 +155,33 @@ def create_first_comm_json(comm_web_dir, output_file):
     """Create a JSON file with the first communication entry for each date."""
     print("Creating first comm JSON file...")
 
+    # Read existing data if the output file exists
     first_comm_data = {}
+    if os.path.exists(output_file):
+        try:
+            with open(output_file, "r", encoding="utf-8") as f:
+                first_comm_data = json.load(f)
+            print(f"Loaded existing data: {len(first_comm_data)} dates")
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"Warning: Could not read existing file {output_file}: {e}")
+            print("Starting with empty data...")
+            first_comm_data = {}
 
     # Get dates with comm data from data_availability.csv
     dates_with_comm = get_dates_with_comm(WEB_ASSETS_ROOT)
 
-    # Process only dates that have comm data according to CSV
-    print(f"Processing {len(dates_with_comm)} dates with comm data...")
-    for date_str in dates_with_comm:
+    # Filter to only process missing dates
+    missing_dates = [date for date in dates_with_comm if date not in first_comm_data]
+
+    if not missing_dates:
+        print("No missing dates to process. All dates already have first comm data.")
+        return first_comm_data
+
+    # Process only missing dates
+    print(
+        f"Processing {len(missing_dates)} missing dates out of {len(dates_with_comm)} total dates with comm data..."
+    )
+    for date_str in missing_dates:
         first_comm = get_first_comm_for_date(comm_web_dir, date_str)
         if first_comm:
             first_comm_data[date_str] = first_comm

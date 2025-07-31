@@ -16,6 +16,7 @@ load_dotenv(dotenv_path="../../../.env")
 
 COMM_RAW = os.getenv("RAW_FOLDER") + "comm_transcripts_aacs/"
 COMM_WEB = os.getenv("WEB_ASSETS_FOLDER") + "comm/"
+COMM_WEB2 = os.getenv("WEB_ASSETS_FOLDER2") + "comm/"
 
 
 def is_invalid_utterance(text):
@@ -40,6 +41,19 @@ def is_invalid_utterance(text):
         "MMMMMMMM",
     ]
     return text in textStringsIndicateInvalidUtterance
+
+
+def copy_to_second_location(source_file, year, month, day, second_output_dir):
+    """Copy a file to the second web assets folder with the same directory structure."""
+    dest_dir = os.path.join(second_output_dir, year, month, day)
+    os.makedirs(dest_dir, exist_ok=True)
+
+    filename = os.path.basename(source_file)
+    dest_file = os.path.join(dest_dir, filename)
+
+    if not os.path.exists(dest_file):
+        shutil.copy(source_file, dest_file)
+        print(f"Copied {filename} to second location: {dest_file}")
 
 
 def create_daily_transcript(root_dir, date_str, output_dir):
@@ -117,6 +131,11 @@ def create_daily_transcript(root_dir, date_str, output_dir):
                         if not os.path.exists(os.path.join(dest_dir, aac_filename)):
                             shutil.copy(aac_file_path, dest_dir)
 
+                        # Also copy AAC file to second location
+                        copy_to_second_location(
+                            aac_file_path, year, month, day, COMM_WEB2
+                        )
+
     # Write the data to a pipe-delimited file
     output_file = os.path.join(
         output_dir, year, month, day, f"_transcript_{date_str}.csv"
@@ -138,6 +157,9 @@ def create_daily_transcript(root_dir, date_str, output_dir):
         for data in data_list:
             row = [data[field] for field in fieldnames]
             txtfile.write("|".join(row) + "\n")
+
+    # Copy CSV file to second location
+    copy_to_second_location(output_file, year, month, day, COMM_WEB2)
 
     print(f"Transcript for {date_str} has been created: {output_file}")
     return date_str
