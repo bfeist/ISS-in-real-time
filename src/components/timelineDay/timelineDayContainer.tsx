@@ -10,15 +10,14 @@ import { useGeneralYoutubeData } from "api/useGeneralData";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
-import { useStateToggle } from "store/hooks/useStateToggle";
 import { calcDayNight } from "utils/day-night";
 import { findClosestEphemeraItem } from "utils/map";
+import paper from "paper";
 
 const TimelineDayContainer = (): JSX.Element => {
   const { selectedDate } = useStateSelectedDate();
   const { setClock, appSecondsAtStartStop, isRunning, startStopTimestamp } = useStateClock();
   const { setHoverSeconds } = useStateHover();
-  const { showTimelineYears } = useStateToggle();
   const { data: ephemeraItems = [], isLoading: isLoadingEphemera } = useDateEphemera(
     selectedDate || ""
   );
@@ -42,26 +41,12 @@ const TimelineDayContainer = (): JSX.Element => {
     return result;
   }, [ephemeraItems, selectedDate]);
 
-  // Log data for debugging (will be used for rendering later)
-  useEffect(() => {
-    if (!isLoading) {
-      console.log("Timeline Day Data for", selectedDate, {
-        isLoading,
-        dataLoaded: {
-          ephemeraItems: ephemeraItems.length,
-          commItems: commItems.length,
-          photographyItems: photographyItems.length,
-          youtubeItems: youtubeItems.length,
-          dayNightSegments: dayNight.length,
-        },
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading]);
-
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const scopeRef = useRef<paper.PaperScope | null>(null);
+  const toolRef = useRef<paper.Tool | null>(null);
+  const isInitializedRef = useRef<boolean>(false); // Track initialization state
 
   const [canvasWidth, setCanvasWidth] = useState(() => window.innerWidth);
   const canvasHeight = 100; // Fixed height for now
@@ -70,7 +55,6 @@ const TimelineDayContainer = (): JSX.Element => {
   const drawFunctionRef = useRef<(() => void) | null>(null);
   const updateCursorRef = useRef<((seconds: number) => void) | null>(null);
   const clearHoverCursorRef = useRef<(() => void) | null>(null);
-  const reactivateHoverToolsRef = useRef<(() => void) | null>(null);
 
   // Clock interval effect - similar to ClockInterval component
   const lastSecondsRef = useRef<number>(-1);
@@ -158,79 +142,169 @@ const TimelineDayContainer = (): JSX.Element => {
     };
   }, [handleMouseLeave]);
 
-  // Initialize Paper.js canvas - single initialization following timelineYears pattern
-  // Only initialize when we have essential data and all loading is complete
+  // Initialize Paper.js canvas with dedicated scope
   useEffect(() => {
-    const canvas = canvasRef.current;
+    // Function to initialize canvas when conditions are met
+    const initializeCanvas = () => {
+      const canvas = canvasRef.current;
 
-    // Early return to avoid deep nesting - check all conditions at once
-    if (
-      !canvas ||
-      !selectedDate ||
-      ephemeraItems.length === 0 ||
-      isLoadingEphemera ||
-      isLoadingComm ||
-      isLoadingPhotography ||
-      isLoadingYoutube
-    ) {
-      return;
+      // Check all conditions
+      if (
+        !canvas ||
+        !selectedDate ||
+        isLoadingEphemera ||
+        isLoadingComm ||
+        isLoadingPhotography ||
+        isLoadingYoutube
+      ) {
+        return false;
+      }
+
+      // Prevent multiple initializations - check if already initialized
+      if (isInitializedRef.current && scopeRef.current) {
+        return true; // Already initialized
+      }
+
+      // Clean up any existing scope and tool before creating new ones
+      if (toolRef.current) {
+        toolRef.current.remove();
+        toolRef.current = null;
+      }
+      if (scopeRef.current) {
+        if (scopeRef.current.project) {
+          scopeRef.current.project.remove();
+        }
+        scopeRef.current = null;
+      }
+
+      // Create a dedicated scope for this canvas
+      scopeRef.current = new paper.PaperScope();
+      scopeRef.current.setup(canvas);
+
+      // Create tool after scope is activated
+      scopeRef.current.activate();
+      toolRef.current = new scopeRef.current.Tool();
+
+      isInitializedRef.current = true;
+
+      const timelineData: TimelineDayData = {
+        commItems,
+        photographyItems,
+        youtubeItems,
+        dayNight,
+        selectedDate: selectedDate || "",
+      };
+
+      const { drawPaperItems, updateCursor, clearHoverCursor } = initializePaperCanvas({
+        canvasElement: canvas,
+        canvasWidth,
+        canvasHeight,
+        data: timelineData,
+        onTimelineClick: setClock,
+        hoverSecondsSetter: setHoverSeconds,
+        paperScope: scopeRef.current,
+        tool: toolRef.current,
+      });
+
+      // Store the draw function for later use
+      drawFunctionRef.current = drawPaperItems;
+      updateCursorRef.current = updateCursor;
+      clearHoverCursorRef.current = clearHoverCursor;
+
+      const handleResize = () => {
+        if (drawFunctionRef.current) {
+          drawFunctionRef.current();
+        }
+      };
+
+      window.addEventListener("resize", handleResize);
+      return true;
+    };
+
+    // Try to initialize immediately
+    if (initializeCanvas()) {
+      return () => {
+        // Cleanup function for successful initialization
+        if (toolRef.current) {
+          toolRef.current.remove();
+          toolRef.current = null;
+        }
+        if (scopeRef.current) {
+          window.removeEventListener("resize", () => {
+            if (drawFunctionRef.current) {
+              drawFunctionRef.current();
+            }
+          });
+
+          if (scopeRef.current.project) {
+            scopeRef.current.project.remove();
+          }
+          scopeRef.current = null;
+          isInitializedRef.current = false;
+        }
+
+        drawFunctionRef.current = null;
+        updateCursorRef.current = null;
+        clearHoverCursorRef.current = null;
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      };
     }
 
-    const timelineData: TimelineDayData = {
-      commItems,
-      photographyItems,
-      youtubeItems,
-      dayNight,
-      selectedDate: selectedDate || "",
-    };
-
-    const {
-      drawPaperItems,
-      cleanupInputHandlers,
-      updateCursor,
-      clearHoverCursor,
-      reactivateHoverTools,
-    } = initializePaperCanvas({
-      canvasElement: canvas,
-      canvasWidth,
-      canvasHeight,
-      data: timelineData,
-      onTimelineClick: setClock,
-      hoverSecondsSetter: setHoverSeconds,
-    });
-
-    // Store the draw function for later use
-    drawFunctionRef.current = drawPaperItems;
-    updateCursorRef.current = updateCursor;
-    clearHoverCursorRef.current = clearHoverCursor;
-    reactivateHoverToolsRef.current = reactivateHoverTools;
-
-    const handleResize = () => {
-      // Just redraw with the existing Paper.js setup
-      if (drawFunctionRef.current) {
-        drawFunctionRef.current();
+    // If immediate initialization failed, try with polling until canvas is ready
+    const pollInterval = setInterval(() => {
+      if (initializeCanvas()) {
+        clearInterval(pollInterval);
       }
-    };
-
-    window.addEventListener("resize", handleResize);
+    }, 100);
 
     return () => {
-      cleanupInputHandlers();
-      window.removeEventListener("resize", handleResize);
-
+      clearInterval(pollInterval);
+      // Cleanup any existing scope and tool
+      if (toolRef.current) {
+        toolRef.current.remove();
+        toolRef.current = null;
+      }
+      if (scopeRef.current) {
+        if (scopeRef.current.project) {
+          scopeRef.current.project.remove();
+        }
+        scopeRef.current = null;
+        isInitializedRef.current = false;
+      }
       drawFunctionRef.current = null;
       updateCursorRef.current = null;
       clearHoverCursorRef.current = null;
-      reactivateHoverToolsRef.current = null;
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     canvasWidth,
     canvasHeight,
     selectedDate,
+    setClock,
+    setHoverSeconds,
+    isLoadingEphemera,
+    isLoadingComm,
+    isLoadingPhotography,
+    isLoadingYoutube,
+  ]); // Put loading states back in dependencies
+
+  // Separate effect to redraw when data changes
+  useEffect(() => {
+    // Only redraw if we have the canvas setup and data is ready
+    if (
+      drawFunctionRef.current &&
+      !isLoadingEphemera &&
+      !isLoadingComm &&
+      !isLoadingPhotography &&
+      !isLoadingYoutube &&
+      selectedDate
+    ) {
+      drawFunctionRef.current();
+    }
+  }, [
     ephemeraItems,
     commItems,
     photographyItems,
@@ -240,9 +314,8 @@ const TimelineDayContainer = (): JSX.Element => {
     isLoadingComm,
     isLoadingPhotography,
     isLoadingYoutube,
-    setClock,
-    setHoverSeconds,
-  ]); // Wait for all loading states to complete before initializing
+    selectedDate,
+  ]);
 
   // Force redraw on mount to handle hot reload scenarios
   useEffect(() => {
@@ -250,20 +323,6 @@ const TimelineDayContainer = (): JSX.Element => {
       drawFunctionRef.current();
     }
   }, []);
-
-  // Reactivate hover tools when year timeline is closed and day is selected
-  useEffect(() => {
-    if (!showTimelineYears && selectedDate && reactivateHoverToolsRef.current) {
-      // Small delay to ensure Paper.js project is ready
-      const timer = setTimeout(() => {
-        if (reactivateHoverToolsRef.current) {
-          reactivateHoverToolsRef.current();
-        }
-      }, 50);
-
-      return () => clearTimeout(timer);
-    }
-  }, [showTimelineYears, selectedDate]);
 
   // Show loading state if critical data is still loading
   if (isLoading && selectedDate) {
@@ -276,7 +335,7 @@ const TimelineDayContainer = (): JSX.Element => {
 
   return (
     <div ref={containerRef} className={styles.container}>
-      <canvas ref={canvasRef} className={styles.canvas} />
+      <canvas ref={canvasRef} className={styles.canvas} width={canvasWidth} height={canvasHeight} />
     </div>
   );
 };

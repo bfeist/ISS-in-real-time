@@ -9,6 +9,8 @@ export const initializePaperCanvas = ({
   data,
   onTimelineClick,
   hoverSecondsSetter,
+  paperScope,
+  tool,
 }: {
   canvasElement: HTMLCanvasElement;
   canvasWidth?: number;
@@ -16,32 +18,26 @@ export const initializePaperCanvas = ({
   data?: TimelineDayData;
   onTimelineClick: (seconds: number) => void;
   hoverSecondsSetter: (seconds: number | null) => void;
+  paperScope: paper.PaperScope;
+  tool: paper.Tool;
 }): {
   drawPaperItems: () => void;
   cleanupInputHandlers: () => void;
   updateCursor: (seconds: number) => void;
   clearHoverCursor: () => void;
-  reactivateHoverTools: () => void;
 } => {
-  // Force clear any existing canvas content before creating the project
-  const ctx = canvasElement.getContext("2d");
-  if (ctx) {
-    ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-  }
+  // Activate the passed scope immediately for all operations
+  paperScope.activate();
 
-  // Create an isolated Paper.js project for this canvas to avoid conflicts with timelineYears
-  const project = new paper.Project(canvasElement);
+  const project = paperScope.project;
 
   // Use the project's view and create groups within this project
-  const timelineGroup = new paper.Group();
-  const clockCursorGroup = new paper.Group(); // Red cursor for clock time
-  const hoverCursorGroup = new paper.Group(); // Yellow cursor for hover
+  const timelineGroup = new paperScope.Group();
+  const clockCursorGroup = new paperScope.Group(); // Red cursor for clock time
+  const hoverCursorGroup = new paperScope.Group(); // Yellow cursor for hover
   project.activeLayer.addChild(timelineGroup);
   project.activeLayer.addChild(clockCursorGroup);
   project.activeLayer.addChild(hoverCursorGroup);
-
-  // Initialize tool for mouse interaction handling
-  let tool: paper.Tool | null = null;
 
   // Timeline constants
   const SECONDS_IN_24_HOURS = 86400;
@@ -85,13 +81,13 @@ export const initializePaperCanvas = ({
     return DATA_ROWS.reduce((total, row) => total + row.height, 0);
   };
 
-  // Activate this project to ensure tools work with it
-  project.activate();
-  tool = new paper.Tool();
-  tool.activate();
+  // Create tool after scope is activated
+  // Tools are automatically associated with the current project when created
 
   // Mouse event handlers
   const handleMouseMove = (event: paper.MouseEvent) => {
+    paperScope.activate(); // Activate scope for mouse events
+
     const _timelineWidth = getTimelineWidth();
     const pixelsPerSecond = getPixelsPerSecond();
 
@@ -112,6 +108,8 @@ export const initializePaperCanvas = ({
   };
 
   const handleMouseClick = (event: paper.MouseEvent) => {
+    paperScope.activate(); // Activate scope for mouse events
+
     const _timelineWidth = getTimelineWidth();
     const pixelsPerSecond = getPixelsPerSecond();
 
@@ -144,23 +142,14 @@ export const initializePaperCanvas = ({
   // Function to clear hover cursor - will be called from container level
   const clearHoverCursor = () => {
     if (project && project.view) {
+      paperScope.activate();
       hoverCursorGroup.removeChildren();
       project.view.update();
     }
   };
 
-  // Function to reactivate hover tools - will be called when year timeline closes
-  const reactivateHoverTools = () => {
-    if (project && project.view && tool) {
-      project.activate();
-      tool.activate();
-      // Ensure the view is updated
-      project.view.update();
-    }
-  };
-
   const drawTimeTicks = (): paper.Group => {
-    const group = new paper.Group();
+    const group = new paperScope.Group();
     const _timelineWidth = getTimelineWidth();
     const pixelsPerSecond = getPixelsPerSecond();
     const timelineBottom = TOP_MARGIN + getTotalDataRowsHeight();
@@ -171,17 +160,17 @@ export const initializePaperCanvas = ({
       const x = LEFT_MARGIN + seconds * pixelsPerSecond;
 
       // Draw tick line at the bottom
-      const tickLine = new paper.Path.Line(
-        new paper.Point(x, timelineBottom),
-        new paper.Point(x, timelineBottom + 10)
+      const tickLine = new paperScope.Path.Line(
+        new paperScope.Point(x, timelineBottom),
+        new paperScope.Point(x, timelineBottom + 10)
       );
-      tickLine.strokeColor = new paper.Color("#505050");
+      tickLine.strokeColor = new paperScope.Color("#505050");
       tickLine.strokeWidth = 1;
       group.addChild(tickLine);
 
       // Draw hour label below the tick
-      const hourText = new paper.PointText({
-        point: new paper.Point(x - 6, timelineBottom + 25),
+      const hourText = new paperScope.PointText({
+        point: new paperScope.Point(x - 6, timelineBottom + 25),
         content: `${hour}Z`,
         fillColor: "#7b7b7b",
         fontSize: 12,
@@ -198,14 +187,14 @@ export const initializePaperCanvas = ({
     rowConfig: (typeof DATA_ROWS)[0],
     items: unknown[]
   ): paper.Group => {
-    const group = new paper.Group();
+    const group = new paperScope.Group();
     const y = getRowY(rowIndex);
     const timelineWidth = getTimelineWidth();
     const pixelsPerSecond = getPixelsPerSecond();
 
     // Draw main row label
-    const labelText = new paper.PointText({
-      point: new paper.Point(LEFT_MARGIN - 10, y + rowConfig.height / 2 + 3),
+    const labelText = new paperScope.PointText({
+      point: new paperScope.Point(LEFT_MARGIN - 10, y + rowConfig.height / 2 + 3),
       content: rowConfig.label,
       fillColor: "#333333",
       fontSize: 12,
@@ -235,12 +224,12 @@ export const initializePaperCanvas = ({
       const subrowY = y + subrowIndex * COMM_SUBROW_HEIGHT;
 
       // Draw subrow background
-      const subrowBg = new paper.Path.Rectangle(
-        new paper.Point(LEFT_MARGIN, subrowY),
-        new paper.Size(timelineWidth, COMM_SUBROW_HEIGHT)
+      const subrowBg = new paperScope.Path.Rectangle(
+        new paperScope.Point(LEFT_MARGIN, subrowY),
+        new paperScope.Size(timelineWidth, COMM_SUBROW_HEIGHT)
       );
-      subrowBg.fillColor = new paper.Color("#f0f0f0");
-      subrowBg.strokeColor = new paper.Color("#cccccc");
+      subrowBg.fillColor = new paperScope.Color("#f0f0f0");
+      subrowBg.strokeColor = new paperScope.Color("#cccccc");
       subrowBg.strokeWidth = 0.5;
       group.addChild(subrowBg);
 
@@ -252,11 +241,11 @@ export const initializePaperCanvas = ({
         const x = LEFT_MARGIN + seconds * pixelsPerSecond;
 
         // Draw tick mark for comm item in this channel's subrow
-        const tick = new paper.Path.Line(
-          new paper.Point(x, subrowY + 0.5),
-          new paper.Point(x, subrowY + COMM_SUBROW_HEIGHT - 0.5)
+        const tick = new paperScope.Path.Line(
+          new paperScope.Point(x, subrowY + 0.5),
+          new paperScope.Point(x, subrowY + COMM_SUBROW_HEIGHT - 0.5)
         );
-        tick.strokeColor = new paper.Color(channel.color);
+        tick.strokeColor = new paperScope.Color(channel.color);
         tick.strokeWidth = 2;
         group.addChild(tick);
       });
@@ -270,7 +259,7 @@ export const initializePaperCanvas = ({
     rowConfig: (typeof DATA_ROWS)[0],
     items: unknown[]
   ): paper.Group => {
-    const group = new paper.Group();
+    const group = new paperScope.Group();
     const y = getRowY(rowIndex);
     const rowHeight = rowConfig.height;
     const timelineWidth = getTimelineWidth();
@@ -282,8 +271,8 @@ export const initializePaperCanvas = ({
     }
 
     // Draw row label
-    const labelText = new paper.PointText({
-      point: new paper.Point(LEFT_MARGIN - 10, y + rowHeight / 2 + 3),
+    const labelText = new paperScope.PointText({
+      point: new paperScope.Point(LEFT_MARGIN - 10, y + rowHeight / 2 + 3),
       content: rowConfig.label,
       fillColor: "#333333",
       fontSize: 12,
@@ -293,12 +282,12 @@ export const initializePaperCanvas = ({
     group.addChild(labelText);
 
     // Draw timeline background
-    const timelineBg = new paper.Path.Rectangle(
-      new paper.Point(LEFT_MARGIN, y),
-      new paper.Size(timelineWidth, rowHeight)
+    const timelineBg = new paperScope.Path.Rectangle(
+      new paperScope.Point(LEFT_MARGIN, y),
+      new paperScope.Size(timelineWidth, rowHeight)
     );
-    timelineBg.fillColor = new paper.Color("#f0f0f0");
-    timelineBg.strokeColor = new paper.Color("#cccccc");
+    timelineBg.fillColor = new paperScope.Color("#f0f0f0");
+    timelineBg.strokeColor = new paperScope.Color("#cccccc");
     timelineBg.strokeWidth = 1;
     group.addChild(timelineBg);
 
@@ -326,11 +315,11 @@ export const initializePaperCanvas = ({
           fillColor = "#ff8c00";
         }
 
-        const segment = new paper.Path.Rectangle(
-          new paper.Point(startX, y + 1),
-          new paper.Size(endX - startX, rowHeight - 2)
+        const segment = new paperScope.Path.Rectangle(
+          new paperScope.Point(startX, y + 1),
+          new paperScope.Size(endX - startX, rowHeight - 2)
         );
-        segment.fillColor = new paper.Color(fillColor);
+        segment.fillColor = new paperScope.Color(fillColor);
         group.addChild(segment);
       }
     } else {
@@ -373,11 +362,11 @@ export const initializePaperCanvas = ({
             const endX = LEFT_MARGIN + endSeconds * pixelsPerSecond;
 
             // Draw duration bar
-            const durationBar = new paper.Path.Rectangle(
-              new paper.Point(startX, y + 2),
-              new paper.Size(Math.max(endX - startX, 2), rowHeight - 4) // Minimum width of 2px
+            const durationBar = new paperScope.Path.Rectangle(
+              new paperScope.Point(startX, y + 2),
+              new paperScope.Size(Math.max(endX - startX, 2), rowHeight - 4) // Minimum width of 2px
             );
-            durationBar.fillColor = new paper.Color(tickColor);
+            durationBar.fillColor = new paperScope.Color(tickColor);
             durationBar.opacity = 0.7;
             group.addChild(durationBar);
           }
@@ -414,11 +403,11 @@ export const initializePaperCanvas = ({
         const x = LEFT_MARGIN + seconds * pixelsPerSecond;
 
         // Draw tick mark
-        const tick = new paper.Path.Line(
-          new paper.Point(x, y + 1),
-          new paper.Point(x, y + rowHeight - 1)
+        const tick = new paperScope.Path.Line(
+          new paperScope.Point(x, y + 1),
+          new paperScope.Point(x, y + rowHeight - 1)
         );
-        tick.strokeColor = new paper.Color(tickColor);
+        tick.strokeColor = new paperScope.Color(tickColor);
         tick.strokeWidth = 2;
         group.addChild(tick);
       });
@@ -428,23 +417,26 @@ export const initializePaperCanvas = ({
   };
 
   const drawClockCursor = (seconds: number): void => {
+    // Activate scope before drawing
+    paperScope.activate();
+
     clockCursorGroup.removeChildren();
 
     const x = LEFT_MARGIN + seconds * getPixelsPerSecond();
     const timelineBottom = TOP_MARGIN + getTotalDataRowsHeight();
 
     // Draw cursor line
-    const cursorLine = new paper.Path.Line(
-      new paper.Point(x, TOP_MARGIN - 5),
-      new paper.Point(x, timelineBottom + 10)
+    const cursorLine = new paperScope.Path.Line(
+      new paperScope.Point(x, TOP_MARGIN - 5),
+      new paperScope.Point(x, timelineBottom + 10)
     );
-    cursorLine.strokeColor = new paper.Color("#d10b0b"); // Red for clock
+    cursorLine.strokeColor = new paperScope.Color("#d10b0b"); // Red for clock
     cursorLine.strokeWidth = 2;
     clockCursorGroup.addChild(cursorLine);
 
     // Draw time display at the bottom, over the time ticks
-    const timeText = new paper.PointText({
-      point: new paper.Point(x, timelineBottom + 20),
+    const timeText = new paperScope.PointText({
+      point: new paperScope.Point(x, timelineBottom + 20),
       content: hhmmssFromAppSeconds(seconds) + "Z",
       fillColor: "white",
       fontSize: 14,
@@ -453,11 +445,11 @@ export const initializePaperCanvas = ({
     });
 
     // Background for time text
-    const textBg = new paper.Path.Rectangle(
-      new paper.Point(x - 40, timelineBottom + 5),
-      new paper.Size(80, 20)
+    const textBg = new paperScope.Path.Rectangle(
+      new paperScope.Point(x - 40, timelineBottom + 5),
+      new paperScope.Size(80, 20)
     );
-    textBg.fillColor = new paper.Color("#d10b0b"); // Red for clock
+    textBg.fillColor = new paperScope.Color("#d10b0b"); // Red for clock
     textBg.opacity = 0.8;
 
     clockCursorGroup.addChild(textBg);
@@ -470,24 +462,27 @@ export const initializePaperCanvas = ({
   };
 
   const drawHoverCursor = (seconds: number): void => {
+    // Activate scope before drawing
+    paperScope.activate();
+
     hoverCursorGroup.removeChildren();
 
     const x = LEFT_MARGIN + seconds * getPixelsPerSecond();
     const timelineBottom = TOP_MARGIN + getTotalDataRowsHeight();
 
     // Draw cursor line
-    const cursorLine = new paper.Path.Line(
-      new paper.Point(x, TOP_MARGIN - 5),
-      new paper.Point(x, timelineBottom + 10)
+    const cursorLine = new paperScope.Path.Line(
+      new paperScope.Point(x, TOP_MARGIN - 5),
+      new paperScope.Point(x, timelineBottom + 10)
     );
-    cursorLine.strokeColor = new paper.Color("#ffd700"); // Yellow for hover
+    cursorLine.strokeColor = new paperScope.Color("#ffd700"); // Yellow for hover
     cursorLine.strokeWidth = 2;
     cursorLine.opacity = 0.8; // Slightly transparent
     hoverCursorGroup.addChild(cursorLine);
 
     // Draw time display at the bottom, over the time ticks
-    const timeText = new paper.PointText({
-      point: new paper.Point(x, timelineBottom + 20),
+    const timeText = new paperScope.PointText({
+      point: new paperScope.Point(x, timelineBottom + 20),
       content: hhmmssFromAppSeconds(seconds) + "Z",
       fillColor: "black",
       fontSize: 14,
@@ -496,11 +491,11 @@ export const initializePaperCanvas = ({
     });
 
     // Background for time text - same size as clock cursor
-    const textBg = new paper.Path.Rectangle(
-      new paper.Point(x - 40, timelineBottom + 5),
-      new paper.Size(80, 20)
+    const textBg = new paperScope.Path.Rectangle(
+      new paperScope.Point(x - 40, timelineBottom + 5),
+      new paperScope.Size(80, 20)
     );
-    textBg.fillColor = new paper.Color("#ffd700"); // Yellow for hover
+    textBg.fillColor = new paperScope.Color("#ffd700"); // Yellow for hover
     textBg.opacity = 0.9;
 
     hoverCursorGroup.addChild(textBg);
@@ -516,11 +511,8 @@ export const initializePaperCanvas = ({
   const updateCursor = (seconds: number): void => {
     // Only proceed if project and view are still valid
     if (project && project.view) {
-      project.activate();
-      // Reactivate the tool to ensure it's bound to the correct project
-      if (tool) {
-        tool.activate();
-      }
+      // Use the dedicated scope instead of global activate
+      paperScope.activate();
       // Ensure seconds is within valid range for a day
       const validSeconds = Math.max(0, Math.min(seconds, SECONDS_IN_24_HOURS - 1));
       drawClockCursor(validSeconds);
@@ -530,13 +522,8 @@ export const initializePaperCanvas = ({
   const drawPaperItems = () => {
     if (canvasElement && project && project.view) {
       try {
-        // Activate this project before making changes
-        project.activate();
-
-        // Reactivate the tool to ensure it's bound to the correct project
-        if (tool) {
-          tool.activate();
-        }
+        // Activate the dedicated scope before any drawing operations
+        paperScope.activate();
 
         const displayWidth = canvasWidth;
         const displayHeight = canvasHeight;
@@ -548,12 +535,10 @@ export const initializePaperCanvas = ({
         canvasElement.style.height = `${displayHeight}px`;
 
         // Set Paper.js view size to match canvas dimensions
-        project.view.viewSize = new paper.Size(displayWidth, displayHeight);
+        project.view.viewSize = new paperScope.Size(displayWidth, displayHeight);
 
-        // Clear existing content
+        // Clear existing content but preserve cursor groups
         timelineGroup.removeChildren();
-        clockCursorGroup.removeChildren();
-        hoverCursorGroup.removeChildren();
 
         // Force a canvas clear to ensure we start fresh
         const ctx = canvasElement.getContext("2d");
@@ -562,11 +547,11 @@ export const initializePaperCanvas = ({
         }
 
         // Draw background
-        const background = new paper.Path.Rectangle(
-          new paper.Point(0, 0),
-          new paper.Size(displayWidth, displayHeight)
+        const background = new paperScope.Path.Rectangle(
+          new paperScope.Point(0, 0),
+          new paperScope.Size(displayWidth, displayHeight)
         );
-        background.fillColor = new paper.Color("#ffffff");
+        background.fillColor = new paperScope.Color("#ffffff");
         timelineGroup.addChild(background);
 
         if (data) {
@@ -580,8 +565,8 @@ export const initializePaperCanvas = ({
           });
         } else {
           // Fallback when no data is provided
-          const noDataText = new paper.PointText({
-            point: new paper.Point(displayWidth / 2, displayHeight / 2),
+          const noDataText = new paperScope.PointText({
+            point: new paperScope.Point(displayWidth / 2, displayHeight / 2),
             content: "No timeline data available",
             fillColor: "#999999",
             fontSize: 14,
@@ -602,6 +587,12 @@ export const initializePaperCanvas = ({
       } catch (error) {
         console.error("Error in timelineDay drawPaperItems:", error);
       }
+    } else {
+      console.log("drawPaperItems conditions not met:", {
+        hasCanvasElement: !!canvasElement,
+        hasProject: !!project,
+        hasView: !!project?.view,
+      });
     }
   };
 
@@ -609,6 +600,9 @@ export const initializePaperCanvas = ({
   drawPaperItems();
 
   const cleanupInputHandlers = () => {
+    // Activate scope before cleanup operations
+    paperScope.activate();
+
     // Clear all group children before removing project
     if (timelineGroup) {
       timelineGroup.removeChildren();
@@ -620,15 +614,8 @@ export const initializePaperCanvas = ({
       hoverCursorGroup.removeChildren();
     }
 
-    // Clean up tool
-    if (tool) {
-      tool.remove();
-      tool = null;
-    }
-    // Remove the project when cleaning up to prevent memory leaks
-    if (project) {
-      project.remove();
-    }
+    // Note: Tool cleanup is handled by the component that created it
+    // Note: Don't remove the project here - it will be removed by the scope cleanup in the container
   };
 
   return {
@@ -636,6 +623,5 @@ export const initializePaperCanvas = ({
     cleanupInputHandlers,
     updateCursor,
     clearHoverCursor,
-    reactivateHoverTools,
   };
 };

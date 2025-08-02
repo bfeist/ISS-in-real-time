@@ -10,6 +10,7 @@ export const initializePaperCanvas = ({
   hoverCallback,
   clickCallback,
   canvasWidth = 1500,
+  paperScope,
 }: {
   canvasElement: HTMLCanvasElement;
   selectedDate: string | null;
@@ -19,22 +20,22 @@ export const initializePaperCanvas = ({
   hoverCallback: ({ hoveredDate }: { hoveredDate: string | null }) => void;
   clickCallback: ({ clickedDate }: { clickedDate: string | null }) => void;
   canvasWidth?: number;
+  paperScope: paper.PaperScope;
 }): {
   drawPaperItems: () => void;
   cleanupInputHandlers: () => void;
-  project: paper.Project;
 } => {
-  // Create an isolated Paper.js project for timelineYears to avoid conflicts with timelineDay
-  const project = new paper.Project(canvasElement);
+  // Use the passed scope instead of creating a new project
+  const project = paperScope.project;
 
-  // Activate this project to ensure all operations work within its scope
+  // Activate the project to ensure it's the current context
   project.activate();
 
   // Constants - simplified without scroll handling
   const YEARS_AREA_HEIGHT = 0; // Years will be handled externally
 
-  const uiGroup = new paper.Group();
-  const dataGroup = new paper.Group();
+  const uiGroup = new paperScope.Group();
+  const dataGroup = new paperScope.Group();
 
   project.activeLayer.addChildren([dataGroup, uiGroup]);
 
@@ -43,7 +44,7 @@ export const initializePaperCanvas = ({
   let originalStrokeColor: paper.Color | null = null; // Store original stroke color
   let originalStrokeWidth: number = 0; // Store original stroke width
   const dayBoxMap: Map<string, paper.Path.Rectangle> = new Map(); // Map dates to day boxes
-  const tool = new paper.Tool();
+  const tool = new paperScope.Tool();
 
   tool.onMouseMove = (event: paper.ToolEvent) => {
     // Calculate the hovered date
@@ -124,19 +125,13 @@ export const initializePaperCanvas = ({
 
   document.addEventListener("mousemove", handleDocumentMouseMove);
 
-  tool.activate();
+  // Do NOT activate the tool globally - each project should manage its own tools independently
 
   const drawPaperItems = () => {
     if (canvasElement && project && project.view) {
       try {
-        // Activate this project before making changes
+        // Activate the project to ensure it's the current context
         project.activate();
-
-        // Reactivate the tool to ensure it's bound to the correct project
-        if (tool) {
-          tool.activate();
-        }
-
         const displayWidth = canvasWidth;
         const displayHeight = canvasElement.clientHeight;
 
@@ -146,7 +141,7 @@ export const initializePaperCanvas = ({
         canvasElement.style.width = `${displayWidth}px`;
         canvasElement.style.height = `${displayHeight}px`;
 
-        // Set Paper.js view size to match canvas dimensions
+        // Set paperScope.js view size to match canvas dimensions
         project.view.viewSize = new paper.Size(displayWidth, displayHeight);
 
         uiGroup.removeChildren();
@@ -163,7 +158,8 @@ export const initializePaperCanvas = ({
           YEARS_AREA_HEIGHT,
           selectedCrewStays,
           contentHighlights,
-          dayBoxMap
+          dayBoxMap,
+          project.view
         );
 
         // Then highlight the selected date's day box if a date is selected
@@ -180,13 +176,14 @@ export const initializePaperCanvas = ({
             // Continue without the selected date highlight
           }
         }
+
+        // Force view update to ensure rendering
+        project.view.update();
       } catch (error) {
         console.error("Error in drawPaperItems:", error);
       }
     }
   };
-
-  drawPaperItems();
 
   const cleanupInputHandlers = () => {
     document.removeEventListener("mousemove", handleDocumentMouseMove);
@@ -211,13 +208,10 @@ export const initializePaperCanvas = ({
     if (tool) {
       tool.remove();
     }
-    // Remove the project when cleaning up to prevent memory leaks
-    if (project) {
-      project.remove();
-    }
+    // Don't remove the project here - it will be removed by the scope cleanup
   };
 
-  return { drawPaperItems, cleanupInputHandlers, project };
+  return { drawPaperItems, cleanupInputHandlers };
 };
 
 function drawCalendar(
@@ -227,7 +221,8 @@ function drawCalendar(
   yearsAreaHeight: number,
   selectedCrewStays: CrewArrDepItem[],
   contentHighlights: string[],
-  dayBoxMap: Map<string, paper.Path.Rectangle>
+  dayBoxMap: Map<string, paper.Path.Rectangle>,
+  projectView: paper.View
 ): void {
   // epoch is Nov 2, 2000.
   const epochYear = 2000;
@@ -263,7 +258,7 @@ function drawCalendar(
   // Calculate day height based on maximum possible days in a month (31)
   const maxDaysInMonth = 31;
   const dayMarkerTopOffset = yearsAreaHeight;
-  const dayHeight = (paper.view.bounds.height - dayMarkerTopOffset) / maxDaysInMonth;
+  const dayHeight = (projectView.bounds.height - dayMarkerTopOffset) / maxDaysInMonth;
 
   // Draw months and days
   for (const month of allMonths) {
@@ -281,6 +276,7 @@ function drawCalendar(
       selectedCrewStays,
       contentHighlights,
       dayBoxMap,
+      projectView,
     });
   }
 }
@@ -296,6 +292,7 @@ function drawDaysForMonth({
   selectedCrewStays,
   contentHighlights,
   dayBoxMap,
+  projectView,
 }: {
   group: paper.Group;
   month: { date: Date; daysInMonth: number };
@@ -307,6 +304,7 @@ function drawDaysForMonth({
   selectedCrewStays: CrewArrDepItem[];
   contentHighlights: string[];
   dayBoxMap: Map<string, paper.Path.Rectangle>;
+  projectView: paper.View;
 }): void {
   // Define colors based on data availability
   const colors = {
@@ -361,7 +359,7 @@ function drawDaysForMonth({
   // Draw day boxes within this month
   for (let day = 1; day <= maxDaysInMonth; day++) {
     // Y position - day 1 at top + offset
-    const dayY = paper.view.bounds.top + dayMarkerTopOffset + (day - 1) * dayHeight;
+    const dayY = projectView.bounds.top + dayMarkerTopOffset + (day - 1) * dayHeight;
 
     // Only add day marker if this month actually has this day
     if (day <= month.daysInMonth) {
@@ -414,7 +412,7 @@ function drawDaysForMonth({
         strokeWidth: strokeWidth,
       });
 
-      // Set the date data after creation (Paper.js sometimes doesn't set data in constructor properly)
+      // Set the date data after creation (paperScope.js sometimes doesn't set data in constructor properly)
       dayBox.data = { dayDate: dateString };
 
       // Store in our map for quick lookup during hover

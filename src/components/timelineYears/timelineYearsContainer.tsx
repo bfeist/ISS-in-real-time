@@ -50,6 +50,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const scopeRef = useRef<paper.PaperScope | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const yearsScrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -238,15 +239,18 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
   // Store the draw function to reuse when timeline becomes visible
   const drawFunctionRef = useRef<(() => void) | null>(null);
-  const projectRef = useRef<paper.Project | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
 
     // Only initialize canvas when all data is loaded
     if (canvas && dataAvailabilityItems && !isLoading) {
-      // Initialize canvas regardless of showTimeline state to prevent delay
-      const { drawPaperItems, cleanupInputHandlers, project } = initializePaperCanvas({
+      // Create a dedicated scope for this canvas
+      scopeRef.current = new paper.PaperScope();
+      scopeRef.current.setup(canvas);
+
+      // Initialize canvas with the dedicated scope
+      const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
         canvasElement: canvas,
         selectedDate,
         dataAvailabilityItems,
@@ -255,11 +259,11 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
         hoverCallback,
         clickCallback: handleCanvasClick,
         canvasWidth,
+        paperScope: scopeRef.current,
       });
 
-      // Store the draw function and project for later use
+      // Store the draw function for later use
       drawFunctionRef.current = drawPaperItems;
-      projectRef.current = project;
 
       const handleResize = () => {
         drawPaperItems();
@@ -270,8 +274,14 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
       return () => {
         window.removeEventListener("resize", handleResize);
         cleanupInputHandlers();
+
+        // Clean up the scope
+        if (scopeRef.current && scopeRef.current.project) {
+          scopeRef.current.project.remove();
+          scopeRef.current = null;
+        }
+
         drawFunctionRef.current = null;
-        projectRef.current = null;
       };
     }
   }, [
@@ -421,20 +431,14 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     };
   }, [hoveredDate, pendingTouchDate]); // Only re-setup when hoveredDate or pendingTouchDate changes
 
-  // Update canvas when timeline becomes visible - reinitialize Paper.js properly
+  // Update canvas when timeline becomes visible
   useEffect(() => {
     if (showTimelineYears && canvasRef.current && dataAvailabilityItems && !isLoading) {
-      // When timeline becomes visible, we need to reinitialize the canvas properly
-      // because display:none makes Paper.js lose track of dimensions
-
       const timer = setTimeout(() => {
         const canvas = canvasRef.current;
-        if (canvas && drawFunctionRef.current && projectRef.current) {
-          // Activate the specific timelineYears project
-          projectRef.current.activate();
-
-          // Force Paper.js to recognize the canvas is visible again
-          if (projectRef.current.view) {
+        if (canvas && drawFunctionRef.current && scopeRef.current) {
+          // Use the scope's view
+          if (scopeRef.current.view) {
             // Get actual canvas dimensions now that it's visible
             const displayWidth = Math.max(canvasWidth, 1500);
             const displayHeight = canvas.clientHeight || 150;
@@ -445,8 +449,8 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
             canvas.style.width = `${displayWidth}px`;
             canvas.style.height = `${displayHeight}px`;
 
-            // Update Paper.js view size for this specific project
-            projectRef.current.view.viewSize = new paper.Size(displayWidth, displayHeight);
+            // Update Paper.js view size for this specific scope
+            scopeRef.current.view.viewSize = new paper.Size(displayWidth, displayHeight);
 
             // Now redraw
             drawFunctionRef.current();
