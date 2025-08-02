@@ -21,57 +21,65 @@ const HeaderTelemetry: FunctionComponent = () => {
   const calcTelemetryAnimationFrame = useCallback(
     (satrec: satellite.SatRec, baseTime: Date, isRunning: boolean): (() => void) => {
       let frameId: number;
+      let errorCount = 0;
+      const MAX_ERRORS = 10; // Stop after 10 consecutive errors
 
       const animationFrame = () => {
         if (!isRunning) {
-          // If not running, don't update and don't request a new frame
           return;
         }
 
-        // Calculate current time with millisecond precision directly
-        const currentTimeMs =
-          Date.parse(startStopTimestamp) +
-          appSecondsAtStartStop * 1000 +
-          (Date.now() - Date.parse(startStopTimestamp));
-        const currentTime = new Date(currentTimeMs);
+        // Stop infinite error loops
+        if (errorCount >= MAX_ERRORS) {
+          console.error("Too many satellite propagation errors, stopping animation");
+          return;
+        }
 
-        // Convert JS date to required time format
+        // Calculate current time with millisecond precision based on the selected date and app time
+        const currentAppMs =
+          appSecondsAtStartStop * 1000 + (Date.now() - Date.parse(startStopTimestamp));
+        const currentAppSeconds = Math.floor(currentAppMs / 1000);
+        const selectedDateTime = new Date(
+          `${selectedDate}T${hhmmssFromAppSeconds(currentAppSeconds)}Z`
+        );
+
+        // Add millisecond precision for smooth animation
+        const msInCurrentSecond = currentAppMs % 1000;
+        const currentTime = new Date(selectedDateTime.getTime() + msInCurrentSecond);
+
+        // Calculate satellite position
         const positionAndVelocity = satellite.propagate(satrec, currentTime);
-        const gmst = satellite.gstime(currentTime);
 
-        if (!positionAndVelocity || !positionAndVelocity.position) {
+        if (!positionAndVelocity?.position) {
+          errorCount++;
           frameId = requestAnimationFrame(animationFrame);
           return;
         }
 
-        const positionEci = positionAndVelocity.position;
+        // Reset error count on successful propagation
+        errorCount = 0;
 
-        // Convert ECI to geodetic coordinates
+        const gmst = satellite.gstime(currentTime);
+        const positionEci = positionAndVelocity.position;
         const positionGd = satellite.eciToGeodetic(positionEci, gmst);
 
         // Get latitude, longitude, height in degrees/km
         const latitude = satellite.degreesLat(positionGd.latitude);
         const longitude = satellite.degreesLong(positionGd.longitude);
         const altitude = positionGd.height;
+
         // Calculate velocity magnitude (km/hr)
         let velocity = 0;
         if (positionAndVelocity.velocity) {
           const v = positionAndVelocity.velocity;
-          velocity = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) * 3600; // Convert from km/s to km/h
+          velocity = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) * 3600;
         }
 
-        if (velocityRef.current && velocityRef.current.innerText !== velocity.toFixed(3)) {
-          velocityRef.current.innerText = velocity.toFixed(3);
-        }
-        if (altitudeRef.current && altitudeRef.current.innerText !== altitude.toFixed(3)) {
-          altitudeRef.current.innerText = altitude.toFixed(3);
-        }
-        if (latRef.current && latRef.current.innerText !== latitude.toFixed(3)) {
-          latRef.current.innerText = latitude.toFixed(3);
-        }
-        if (lngRef.current && lngRef.current.innerText !== longitude.toFixed(3)) {
-          lngRef.current.innerText = longitude.toFixed(3);
-        }
+        // Update DOM
+        if (velocityRef.current) velocityRef.current.innerText = velocity.toFixed(3);
+        if (altitudeRef.current) altitudeRef.current.innerText = altitude.toFixed(3);
+        if (latRef.current) latRef.current.innerText = latitude.toFixed(3);
+        if (lngRef.current) lngRef.current.innerText = longitude.toFixed(3);
 
         frameId = requestAnimationFrame(animationFrame);
       };
@@ -79,7 +87,15 @@ const HeaderTelemetry: FunctionComponent = () => {
       frameId = requestAnimationFrame(animationFrame);
       return () => cancelAnimationFrame(frameId);
     },
-    [velocityRef, altitudeRef, latRef, lngRef, appSecondsAtStartStop, startStopTimestamp]
+    [
+      velocityRef,
+      altitudeRef,
+      latRef,
+      lngRef,
+      appSecondsAtStartStop,
+      startStopTimestamp,
+      selectedDate,
+    ]
   );
 
   useEffect(() => {
@@ -93,19 +109,35 @@ const HeaderTelemetry: FunctionComponent = () => {
     const startTime = new Date(`${selectedDate}T${hhmmssFromAppSeconds(currentAppSeconds)}Z`);
     const ephemeris = findClosestEphemeraItem(startTime, ephemeraItems);
 
-    // Parse TLE into a satellite record
-    const satrec = satellite.twoline2satrec(ephemeris.tle_line1, ephemeris.tle_line2);
-    const baseTime = new Date(`${selectedDate}T${hhmmssFromAppSeconds(currentAppSeconds)}Z`);
+    // Check if we found valid ephemeris data
+    if (!ephemeris || !ephemeris.tle_line1 || !ephemeris.tle_line2) {
+      // Set fallback values
+      if (velocityRef.current) velocityRef.current.innerText = "N/A";
+      if (altitudeRef.current) altitudeRef.current.innerText = "N/A";
+      if (latRef.current) latRef.current.innerText = "N/A";
+      if (lngRef.current) lngRef.current.innerText = "N/A";
+      return;
+    }
 
-    // Only start the animation if isRunning is true.
-    // The cleanup function will handle stopping it if isRunning becomes false or other dependencies change.
+    // Parse TLE into a satellite record
+    let satrec: satellite.SatRec;
+    try {
+      satrec = satellite.twoline2satrec(ephemeris.tle_line1, ephemeris.tle_line2);
+      if (!satrec || satrec.error) {
+        return;
+      }
+    } catch (error) {
+      return;
+    }
+
+    // Only start the animation if isRunning is true
     let cleanup = () => {};
     if (isRunning) {
-      cleanup = calcTelemetryAnimationFrame(satrec, baseTime, isRunning);
+      cleanup = calcTelemetryAnimationFrame(satrec, startTime, isRunning);
     }
 
     return () => {
-      cleanup(); // This will cancel the animation frame when the component unmounts or dependencies change
+      cleanup();
     };
   }, [
     selectedDate,
