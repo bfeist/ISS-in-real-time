@@ -16,7 +16,7 @@
     "noImplicitAny": true,
     "noUnusedLocals": false, // no unused vars is enforce with eslint, so no need here
     "noUnusedParameters": false,
-    "types": ["node", "jest", "@testing-library/jest-dom"],
+    "types": ["node", "@testing-library/jest-dom"],
     "allowImportingTsExtensions": true,
     "skipLibCheck": true /* Skip type checking all .d.ts files. */,
     "lib": ["dom", "dom.iterable", "es2022"],

@@ -1,8 +1,9 @@
 import { expect } from "vitest";
+import "@testing-library/jest-dom";
 
 /**
  * Custom matchers for the vitest testing framework.
- * see typings/index.d.ts for the TS interface
+ * Migrated from jest-extends.ts
  */
 
 // Compare clock times
@@ -15,6 +16,21 @@ expect.extend({
       message: () => `Received time ${x} is not within 1 second of ${y}${z ? ` ${z}` : ""}`,
     };
   },
+});
+
+// Mock globals that were in jest config
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: (query: string): MediaQueryList => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }),
 });
 
 export {};

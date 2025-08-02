@@ -1,4 +1,5 @@
 import { findClosestEphemeraItem } from "../utils/map";
+import { describe, expect, it } from "vitest";
 
 describe("findClosestEphemeraItem", () => {
   it("should return undefined when ephemeraItems is empty", () => {

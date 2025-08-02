@@ -1,4 +1,5 @@
 import SunCalc from "utils/suncalc";
+import { describe, expect, test } from "vitest";
 
 describe("SunCalc", () => {
   test("getPosition returns azimuth and altitude", () => {
