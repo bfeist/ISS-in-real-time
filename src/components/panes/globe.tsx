@@ -28,14 +28,14 @@ const Globe: FunctionComponent = () => {
   const { selectedDate } = useStateSelectedDate();
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
 
-  const startStopDate = new Date(startStopTimestamp);
-  const appSeconds = appSecondsAtStartStop + (Date.now() - startStopDate.getTime()) / 1000;
-
-  const startTime = useMemo(
-    () => new Date(`${selectedDate}T${hhmmssFromAppSeconds(appSeconds)}Z`),
-    [selectedDate, appSeconds]
-  );
-  const julianDate = JulianDate.fromDate(startTime);
+  const { startTime, julianDate } = useMemo(() => {
+    const appSeconds = isRunning
+      ? appSecondsAtStartStop + (Date.now() - new Date(startStopTimestamp).getTime()) / 1000
+      : appSecondsAtStartStop;
+    const st = new Date(`${selectedDate}T${hhmmssFromAppSeconds(appSeconds)}Z`);
+    const jd = JulianDate.fromDate(st);
+    return { startTime: st, julianDate: jd };
+  }, [isRunning, selectedDate, startStopTimestamp, appSecondsAtStartStop]);
 
   const [tle, setTle] = useState<string[]>();
 
@@ -130,10 +130,9 @@ const Globe: FunctionComponent = () => {
 
   // Memoize terrain provider to prevent creating new promises on each render
   const terrainProvider = useMemo(() => createWorldTerrainAsync(), []);
+  const contextOptions = useMemo(() => ({ webgl: { alpha: true } }), []);
 
   const issEntityRef = useRef<CesiumComponentRef<Cesium.Entity>>(null);
-  const sceneRef = useRef(null);
-  const cameraRef = useRef(null);
   const viewerRef = useRef(null);
 
   // Component cleanup effect
@@ -158,6 +157,7 @@ const Globe: FunctionComponent = () => {
 
     // set globe lighting
     viewerRef.current.cesiumElement.scene.globe.enableLighting = true;
+    viewerRef.current.cesiumElement.scene.skyAtmosphere.show = false;
 
     const viewer = viewerRef.current.cesiumElement;
     const camera = viewer.scene.camera;
@@ -210,9 +210,13 @@ const Globe: FunctionComponent = () => {
 
     // Cleanup function to restore original camera functions
     return () => {
-      if (camera && originalZoomInRef.current && originalZoomOutRef.current) {
+      if (camera && originalZoomInRef.current) {
         camera.zoomIn = originalZoomInRef.current;
+        originalZoomInRef.current = null;
+      }
+      if (camera && originalZoomOutRef.current) {
         camera.zoomOut = originalZoomOutRef.current;
+        originalZoomOutRef.current = null;
       }
     };
   }, [cesiumReady]);
@@ -245,10 +249,10 @@ const Globe: FunctionComponent = () => {
         selectionIndicator={false}
         infoBox={false}
         skyBox={false}
-        // contextOptions={{ webgl: { alpha: true } }}
+        contextOptions={contextOptions}
       >
-        <Scene ref={sceneRef} backgroundColor={Color.TRANSPARENT}>
-          <Camera ref={cameraRef} />
+        <Scene backgroundColor={Color.TRANSPARENT}>
+          <Camera />
         </Scene>
         <Entity
           tracked={true}
