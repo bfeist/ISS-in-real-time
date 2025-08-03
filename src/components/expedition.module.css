@@ -1,6 +1,7 @@
 .expeditions {
   overflow-y: auto;
   padding: 1em;
+  position: relative;
 }
 
 .expedition {
@@ -8,6 +9,25 @@
   display: flex;
   flex-direction: column;
   margin-bottom: 16px;
+}
+
+.expeditionsContainer {
+  position: relative;
+}
+
+.expeditionCycling {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  margin-bottom: 0;
+  opacity: 0; /* Start with opacity 0 to avoid flash of unstyled content */
+}
+
+.expeditionPlaceholder {
+  visibility: hidden;
+  margin-bottom: 0;
 }
 
 .expeditionHeader {
@@ -39,17 +59,12 @@
   line-clamp: 3;
   -webkit-line-clamp: 3;
   overflow: hidden;
+  overflow-wrap: break-word;
   margin-bottom: 4px;
 }
 
 .expeditionDates {
   font-size: 0.9em;
   color: #1d1d1d;
+  overflow-wrap: break-word;
 }
-
-/* .expedition:hover .expeditionBlurb {
-  display: block;
-  line-clamp: unset;
-  -webkit-line-clamp: unset;
-  overflow: visible;
-} */
