@@ -36,3 +36,33 @@ pre,
 .mono {
   font-family: var(--font-mono);
 }
+
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #484c68;
+}
+
+::-webkit-scrollbar-thumb {
+  background: white;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #f0f0f0;
+}
+
+/* Hide scrollbar arrows */
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: white #484c68;
+}
