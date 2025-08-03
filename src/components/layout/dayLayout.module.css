@@ -115,14 +115,3 @@
   min-height: 200px;
   overflow: hidden;
 }
-
-.expeditionsAndCrewOnboard {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: #b6b6b6;
-  width: 100%;
-  height: 100%;
-  overflow-y: auto;
-  min-height: 0;
-}

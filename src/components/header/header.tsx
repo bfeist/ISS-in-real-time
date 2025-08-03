@@ -4,7 +4,7 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { hhmmssFromAppSeconds } from "utils/time";
-import ClockInterval from "../clockInterval";
+import ClockInterval from "../panes/clockInterval";
 import HeaderTelemetry from "./headerTelemetry";
 import ShareButton from "./share";
 

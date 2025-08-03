@@ -4,16 +4,15 @@ import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { useDateDataAvailability } from "api/useDateSpecificData";
 import { useDateCacheManagement } from "api/useDateCacheManagement";
-import Comm from "components/comm";
-import Articles from "components/articles";
-import Globe from "components/globe";
-import Map from "components/map";
-import CrewOnboard from "components/crewOnboard";
-import Expeditions from "components/expedition";
-import EvaInfo from "components/evaInfo";
-import YouTubeComponent from "components/youtube";
-import EarthPhotography from "components/earthPhotography";
+import Comm from "components/panes/comm";
+import Articles from "components/panes/articles";
+import Globe from "components/panes/globe";
+import Map from "components/panes/map";
+import EvaInfo from "components/panes/evaInfo";
+import YouTubeComponent from "components/panes/youtube";
+import EarthPhotography from "components/panes/earthPhotography";
 import TimelineDayContainer from "components/timelineDay/timelineDayContainer";
+import ExpeditionAndCrewOnboard from "components/panes/expeditionsAndCrew/expeditionsAndCrew";
 
 // Custom hook to detect viewport width
 const useViewport = () => {
@@ -235,15 +234,6 @@ const NoPhotosOrVideo: FunctionComponent<{
 const GlobeOrMap: FunctionComponent = () => {
   const { showGlobe } = useStateToggle();
   return <>{showGlobe ? <Globe /> : <Map />}</>;
-};
-
-const ExpeditionAndCrewOnboard: FunctionComponent = () => {
-  return (
-    <div className={styles.expeditionsAndCrewOnboard}>
-      <Expeditions />
-      <CrewOnboard />
-    </div>
-  );
 };
 
 const Layout: FunctionComponent = () => {

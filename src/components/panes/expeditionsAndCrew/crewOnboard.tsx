@@ -1,7 +1,7 @@
 import { FunctionComponent, useEffect, useState } from "react";
 import styles from "./crewOnboard.module.css"; // ensure this CSS file exists or adjust accordingly
 import { ddhhmmssBetweenDateStrings, dateTimeStrFromDateAppSeconds } from "utils/time";
-import ClockInterval from "./clockInterval";
+import ClockInterval from "../clockInterval";
 import { flagUrlByCountryName } from "utils/countries";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useGeneralCrewArrDep } from "api/useGeneralData";
