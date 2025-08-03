@@ -239,7 +239,9 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
   // Store the draw function to reuse when timeline becomes visible
   const drawFunctionRef = useRef<(() => void) | null>(null);
+  const cleanupInputHandlersRef = useRef<(() => void) | null>(null);
 
+  // Canvas initialization effect - only runs when canvas/basic data is available
   useEffect(() => {
     const canvas = canvasRef.current;
 
@@ -264,6 +266,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
       // Store the draw function for later use
       drawFunctionRef.current = drawPaperItems;
+      cleanupInputHandlersRef.current = cleanupInputHandlers;
 
       const handleResize = () => {
         drawPaperItems();
@@ -273,7 +276,9 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
       return () => {
         window.removeEventListener("resize", handleResize);
-        cleanupInputHandlers();
+        if (cleanupInputHandlersRef.current) {
+          cleanupInputHandlersRef.current();
+        }
 
         // Clean up the scope
         if (scopeRef.current && scopeRef.current.project) {
@@ -282,17 +287,59 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
         }
 
         drawFunctionRef.current = null;
+        cleanupInputHandlersRef.current = null;
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     dataAvailabilityItems,
-    selectedDate,
-    selectedCrewStays,
-    contentHighlights,
     hoverCallback,
     handleCanvasClick,
     canvasWidth,
-    isLoading, // Add isLoading as a dependency
+    isLoading, // Only depend on basic initialization data, NOT selectedCrewStays
+  ]);
+
+  // Separate effect for redrawing when dependent data changes
+  useEffect(() => {
+    if (drawFunctionRef.current && scopeRef.current && dataAvailabilityItems && !isLoading) {
+      // Reinitialize the canvas with new data but keep the same scope
+      const canvas = canvasRef.current;
+      if (canvas) {
+        // Clean up the old input handlers first
+        if (cleanupInputHandlersRef.current) {
+          cleanupInputHandlersRef.current();
+        }
+
+        // Reinitialize with updated data
+        const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
+          canvasElement: canvas,
+          selectedDate,
+          dataAvailabilityItems,
+          selectedCrewStays,
+          contentHighlights,
+          hoverCallback,
+          clickCallback: handleCanvasClick,
+          canvasWidth,
+          paperScope: scopeRef.current, // Reuse existing scope
+        });
+
+        // Update the stored references
+        drawFunctionRef.current = drawPaperItems;
+        cleanupInputHandlersRef.current = cleanupInputHandlers;
+
+        // Trigger a redraw
+        drawPaperItems();
+      }
+    }
+  }, [
+    selectedDate,
+    selectedCrewStays,
+    contentHighlights,
+    dataAvailabilityItems,
+    hoverCallback,
+    handleCanvasClick,
+    canvasWidth,
+    isLoading,
   ]);
 
   // Debounced audio playback when hoveredDate changes
