@@ -6,6 +6,8 @@ import { flagUrlByCountryName } from "utils/countries";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useGeneralCrewArrDep } from "api/useGeneralData";
 import { getCrewMembersOnboardByDate } from "utils/onboard";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowDown, faArrowUp } from "@fortawesome/free-solid-svg-icons";
 
 const CrewOnboard: FunctionComponent = () => {
   const { selectedDate } = useStateSelectedDate();
@@ -28,23 +30,32 @@ const CrewOnboard: FunctionComponent = () => {
     <div className={styles.crewOnboard}>
       <ClockInterval setAppSeconds={setAppSeconds} />
       {crewOnboard.map((crewItem) => (
-        <div key={`${crewItem.arrivalDate}_${crewItem.name_first}_${crewItem.name_last}`}>
-          <div>
+        <div
+          key={`${crewItem.arrivalDate}_${crewItem.name_first}_${crewItem.name_last}`}
+          className={styles.crewItem}
+        >
+          <img
+            className={styles.flag}
+            src={flagUrlByCountryName[crewItem.nationality]}
+            alt={crewItem.nationality}
+          />
+          <div className={styles.crewText}>
             <div className={styles.crewName}>
-              <img
-                className={styles.flag}
-                src={flagUrlByCountryName[crewItem.nationality]}
-                alt={crewItem.nationality}
-              />
               {crewItem.name_first} {crewItem.name_last}
             </div>
-            <div>Onboard: {ddhhmmssBetweenDateStrings(crewItem.arrivalDate, currentTimeStr)}</div>
-            <div>
-              {crewItem.departureDate !== null && (
-                <>
-                  Departing in: {ddhhmmssBetweenDateStrings(currentTimeStr, crewItem.departureDate)}
-                </>
-              )}
+            <div className={styles.timeOnboard}>
+              <div>
+                <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowUp} />
+                {ddhhmmssBetweenDateStrings(crewItem.arrivalDate, currentTimeStr)}
+              </div>
+              <div>
+                {crewItem.departureDate !== null && (
+                  <>
+                    <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowDown} />
+                    {ddhhmmssBetweenDateStrings(currentTimeStr, crewItem.departureDate)}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

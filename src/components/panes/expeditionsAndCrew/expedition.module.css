@@ -89,6 +89,6 @@
 .expeditionDates {
   font-family: var(--font-mono);
   font-size: 0.8em;
-  color: #c5c5c5;
+  color: var(--grey3);
   overflow-wrap: break-word;
 }

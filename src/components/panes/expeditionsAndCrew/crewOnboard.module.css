@@ -1,17 +1,52 @@
 .crewOnboard {
   display: flex;
   flex-direction: column;
-  padding: 1em;
   overflow-y: auto;
   gap: 10px;
 }
 
-.crewName {
-  font-size: 1em;
-  font-weight: 600;
+.crewItem {
+  display: flex;
+  flex-direction: row;
 }
 
 .flag {
+  flex: 0 0 auto;
   width: 25px;
   margin-right: 5px;
+  object-fit: contain;
+  object-position: top;
+}
+
+.crewText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 5px;
+}
+
+.crewName {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9em;
+  font-weight: 500;
+  color: var(--text-highlight);
+}
+
+.timeOnboard {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--grey3);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.arrowIcon {
+  color: white;
+  text-shadow:
+    0 0 1px white,
+    0 0 2px white;
+  filter: drop-shadow(0 0 1px white);
 }
