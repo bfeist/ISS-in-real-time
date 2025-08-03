@@ -6,8 +6,12 @@ import CrewOnboard from "./crewOnboard";
 const ExpeditionAndCrewOnboard: FunctionComponent = () => {
   return (
     <div className={styles.expeditionsAndCrewOnboard}>
-      <Expeditions />
-      <CrewOnboard />
+      <div className={styles.expeditions}>
+        <Expeditions />
+      </div>
+      <div className={styles.crewOnboard}>
+        <CrewOnboard />
+      </div>
     </div>
   );
 };

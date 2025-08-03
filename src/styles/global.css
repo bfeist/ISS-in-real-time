@@ -17,8 +17,11 @@ p {
 
 :root {
   --font-mono: "Roboto Mono", monospace;
-  --font-sans: roboto, sans-serif;
+  --font-sans: "Inter", sans-serif;
   --radius: 4px;
+
+  /* Colors */
+  --text-highlight: #ffd600;
 }
 
 #root {

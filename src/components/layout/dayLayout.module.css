@@ -2,7 +2,7 @@
   flex: 1;
   min-height: 0;
   background-color: #797979;
-  font-family: Arial, sans-serif;
+  font-family: var(--font-sans);
   margin: 0;
   padding: 0;
   display: flex;

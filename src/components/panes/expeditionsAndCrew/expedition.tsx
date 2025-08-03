@@ -41,77 +41,63 @@ const Expeditions: FunctionComponent = () => {
     })
     .join("\n");
 
-  const renderExpedition = (expedition: ExpeditionInfo, index?: number) => {
-    const isMultiple = expeditions.length > 1;
-
-    const expeditionClasses = isMultiple
-      ? `${styles.expedition} ${styles.expeditionCycling}`
-      : styles.expedition;
-
-    const expeditionStyle =
-      isMultiple && index !== undefined
-        ? {
-            animation: `expedition-fade-${index} ${totalCycleDuration}s infinite`,
-          }
-        : {};
-
-    return (
-      <div key={expedition.expedition} className={expeditionClasses} style={expeditionStyle}>
-        <div className={styles.expeditionHeader}>
-          <img
-            className={styles.patchImg}
-            src={expedition.patchUrl}
-            alt={expedition.expedition.toString()}
-          />
-          <div className={styles.expeditionTitle}>Expedition {expedition.expedition}</div>
-        </div>
-        <div className={styles.expeditionContent}>
-          <div className={styles.expeditionBlurb}>{expedition.expeditionBlurb}</div>
-          <div className={styles.expeditionDates}>
-            {new Date(expedition.start).toISOString().split("T")[0]} -{" "}
-            {expedition.end === null
-              ? "Active"
-              : new Date(expedition.end).toISOString().split("T")[0]}
-          </div>
+  const renderExpedition = (expedition: ExpeditionInfo) => (
+    <>
+      <div className={styles.expeditionPatchContainer}>
+        <img
+          className={styles.patchImg}
+          src={expedition.patchUrl}
+          alt={expedition.expedition.toString()}
+        />
+      </div>
+      <div className={styles.expeditionContent}>
+        <div className={styles.expeditionTitle}>Expedition {expedition.expedition}</div>
+        <div className={styles.expeditionBlurb}>{expedition.expeditionBlurb}</div>
+        <div className={styles.expeditionDates}>
+          {new Date(expedition.start).toISOString().split("T")[0]} -{" "}
+          {expedition.end === null
+            ? "Active"
+            : new Date(expedition.end).toISOString().split("T")[0]}
         </div>
       </div>
-    );
-  };
-
-  const containerContent =
-    expeditions.length > 1
-      ? expeditions.map((expedition, index) => renderExpedition(expedition, index))
-      : expeditions.map((expedition) => renderExpedition(expedition));
+    </>
+  );
 
   return (
-    <div className={styles.expeditions}>
-      {expeditions.length > 1 ? (
-        <>
-          <style>{keyframes}</style>
-          <div className={styles.expeditionsContainer}>
+    <>
+      {expeditions.length > 1 && <style>{keyframes}</style>}
+      <div className={styles.expeditionsContainer}>
+        <div className={styles.expeditionSideText}>
+          <span className={styles.expeditionSideTextInner}>
+            Active Expedition{expeditions.length > 1 ? "s" : ""}
+          </span>
+        </div>
+        {expeditions.length > 1 ? (
+          <>
             {/* Placeholder to maintain container height */}
             <div className={`${styles.expedition} ${styles.expeditionPlaceholder}`}>
-              <div className={styles.expeditionHeader}>
-                <img className={styles.patchImg} src={expeditions[0].patchUrl} alt="" />
-                <div className={styles.expeditionTitle}>Expedition {expeditions[0].expedition}</div>
-              </div>
-              <div className={styles.expeditionContent}>
-                <div className={styles.expeditionBlurb}>{expeditions[0].expeditionBlurb}</div>
-                <div className={styles.expeditionDates}>
-                  {new Date(expeditions[0].start).toISOString().split("T")[0]} -{" "}
-                  {expeditions[0].end === null
-                    ? "Active"
-                    : new Date(expeditions[0].end).toISOString().split("T")[0]}
-                </div>
-              </div>
+              {renderExpedition(expeditions[0])}
             </div>
-            {containerContent}
+            {/* Cycling expeditions */}
+            {expeditions.map((expedition, index) => (
+              <div
+                key={expedition.expedition}
+                className={`${styles.expedition} ${styles.expeditionCycling}`}
+                style={{
+                  animation: `expedition-fade-${index} ${totalCycleDuration}s infinite`,
+                }}
+              >
+                {renderExpedition(expedition)}
+              </div>
+            ))}
+          </>
+        ) : (
+          <div className={styles.expedition}>
+            {expeditions.map((expedition) => renderExpedition(expedition))}
           </div>
-        </>
-      ) : (
-        containerContent
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 
