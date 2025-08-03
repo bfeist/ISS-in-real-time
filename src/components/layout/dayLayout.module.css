@@ -1,7 +1,10 @@
 .dayLayout {
   flex: 1;
   min-height: 0;
-  background-color: #797979;
+  background:
+    linear-gradient(rgb(0 0 0 / 50%), rgb(0 0 0 / 50%)),
+    url("images/backgrounds/ISS072-E-577880.jpeg") no-repeat center center;
+  background-size: cover;
   font-family: var(--font-sans);
   margin: 0;
   padding: 0;
