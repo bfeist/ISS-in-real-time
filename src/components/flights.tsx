@@ -74,7 +74,7 @@ const CrewedFlights: FunctionComponent = (): JSX.Element | null => {
 
   return (
     <>
-      <h3 className={styles.sectionHeader}>Active Crewed Missions</h3>
+      <h3 className={styles.sectionHeader}>Active Crew Transport Vehicles</h3>
       {activeFlights.map((flight) => {
         const currentDate = new Date(selectedDate);
         const flightIsDocked = isFlightCurrentlyDocked(flight, currentDate);
@@ -206,7 +206,7 @@ const SupplyFlights: FunctionComponent = () => {
 
   return (
     <>
-      <h3 className={styles.sectionHeader}>Active Supply Missions</h3>
+      <h3 className={styles.sectionHeader}>Active Supply Vehicles</h3>
       <div>
         {activeSupplyFlights.map((supply) => {
           const currentDate = new Date(selectedDate);

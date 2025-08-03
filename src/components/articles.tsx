@@ -1,11 +1,10 @@
 import { FunctionComponent } from "react";
-import styles from "./blog.module.css";
+import styles from "./articles.module.css";
 import { useDateActivitySummary, useDateBlogArticles } from "api/useDateSpecificData";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
+import Flights from "./flights";
 
-const Blog: FunctionComponent<{
-  showArticles?: boolean;
-}> = ({ showArticles }) => {
+const Blog: FunctionComponent = () => {
   const { selectedDate } = useStateSelectedDate();
 
   const { data: blogArticles, isLoading: articlesIsLoading } = useDateBlogArticles(selectedDate);
@@ -14,16 +13,6 @@ const Blog: FunctionComponent<{
 
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
   const [year, month, day] = selectedDate.split("-");
-
-  if (!showArticles) {
-    return (
-      <div className={styles.blogContainer}>
-        <div className={styles.blogEntry}>
-          <div>Articles are unavailable for this date</div>
-        </div>
-      </div>
-    );
-  }
 
   if (articlesIsLoading || summaryIsLoading) {
     return <div className={styles.blogContainer}>Loading...</div>;
@@ -109,6 +98,7 @@ const Blog: FunctionComponent<{
           )}
         </div>
       )}
+      <Flights />
     </div>
   );
 };

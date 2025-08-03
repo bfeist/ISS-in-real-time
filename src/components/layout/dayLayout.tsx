@@ -5,10 +5,9 @@ import { useStateToggle } from "store/hooks/useStateToggle";
 import { useDateDataAvailability } from "api/useDateSpecificData";
 import { useDateCacheManagement } from "api/useDateCacheManagement";
 import Comm from "components/comm";
-import Blog from "components/blog";
+import Articles from "components/articles";
 import Globe from "components/globe";
 import Map from "components/map";
-import Flights from "components/flights";
 import CrewOnboard from "components/crewOnboard";
 import Expeditions from "components/expedition";
 import EvaInfo from "components/evaInfo";
@@ -30,23 +29,14 @@ const useViewport = () => {
 };
 
 // Mobile layout with tabs
-type TabName =
-  | "video"
-  | "photos"
-  | "globe"
-  | "comm"
-  | "articles"
-  | "flights"
-  | "exp/onboard"
-  | "eva";
+type TabName = "video" | "photos" | "globe" | "comm" | "articles" | "exp/onboard" | "eva";
 
 const MobileLayout: FunctionComponent<{
   showVideo: boolean;
   showPhotos: boolean;
-  showArticles: boolean;
   showEVA: boolean;
   showComm: boolean;
-}> = ({ showVideo, showPhotos, showArticles, showEVA, showComm }) => {
+}> = ({ showVideo, showPhotos, showEVA, showComm }) => {
   const [activeTab, setActiveTab] = useState<TabName>(
     showVideo ? "video" : showPhotos ? "photos" : "globe"
   );
@@ -57,8 +47,7 @@ const MobileLayout: FunctionComponent<{
   if (showPhotos) availableTabs.push("photos");
   availableTabs.push("globe");
   if (showComm) availableTabs.push("comm");
-  if (showArticles) availableTabs.push("articles");
-  availableTabs.push("flights");
+  availableTabs.push("articles");
   availableTabs.push("exp/onboard");
   if (showEVA) availableTabs.push("eva");
 
@@ -67,14 +56,13 @@ const MobileLayout: FunctionComponent<{
     if (
       (activeTab === "video" && !showVideo) ||
       (activeTab === "photos" && !showPhotos) ||
-      (activeTab === "articles" && !showArticles) ||
       (activeTab === "eva" && !showEVA) ||
       (activeTab === "comm" && !showComm)
     ) {
       setActiveTab(availableTabs[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showVideo, showPhotos, showArticles, showEVA, showComm, activeTab]);
+  }, [showVideo, showPhotos, showEVA, showComm, activeTab]);
 
   return (
     <div className={styles.dayLayout}>
@@ -98,8 +86,7 @@ const MobileLayout: FunctionComponent<{
           {activeTab === "photos" && showPhotos && <EarthPhotography />}
           {activeTab === "globe" && <GlobeOrMap />}
           {activeTab === "comm" && showComm && <Comm showComm={showComm} />}
-          {activeTab === "articles" && showArticles && <Blog showArticles={showArticles} />}
-          {activeTab === "flights" && <Flights />}
+          {activeTab === "articles" && <Articles />}
           {activeTab === "exp/onboard" && <ExpeditionAndCrewOnboard />}
           {activeTab === "eva" && showEVA && <EvaInfo />}
         </div>
@@ -111,8 +98,7 @@ const MobileLayout: FunctionComponent<{
 const VideoPhotos: FunctionComponent<{
   showEVA: boolean;
   showComm: boolean;
-  showArticles: boolean;
-}> = ({ showEVA, showComm, showArticles }) => {
+}> = ({ showEVA, showComm }) => {
   return (
     <div className={styles.dayLayout}>
       <div className={styles.dayTimeline}>
@@ -124,8 +110,7 @@ const VideoPhotos: FunctionComponent<{
             <YouTubeComponent />
           </div>
           <div className={styles.bodyLeftBottom}>
-            <Blog showArticles={showArticles} />
-            <Flights />
+            <Articles />
             <ExpeditionAndCrewOnboard />
             {showEVA && <EvaInfo />}
           </div>
@@ -149,8 +134,7 @@ const VideoPhotos: FunctionComponent<{
 const VideoOnly: FunctionComponent<{
   showEVA: boolean;
   showComm: boolean;
-  showArticles: boolean;
-}> = ({ showEVA, showComm, showArticles }) => {
+}> = ({ showEVA, showComm }) => {
   return (
     <div className={styles.dayLayout}>
       <div className={styles.dayTimeline}>
@@ -162,14 +146,13 @@ const VideoOnly: FunctionComponent<{
             <YouTubeComponent />
           </div>
           <div className={styles.bodyLeftBottom}>
-            <Flights />
             <ExpeditionAndCrewOnboard />
             {showEVA && <EvaInfo />}
           </div>
         </div>
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
-            <Blog showArticles={showArticles} />
+            <Articles />
           </div>
           <div className={styles.bodyCenterBottom}>
             <GlobeOrMap />
@@ -186,8 +169,7 @@ const VideoOnly: FunctionComponent<{
 const PhotosOnly: FunctionComponent<{
   showEVA: boolean;
   showComm: boolean;
-  showArticles: boolean;
-}> = ({ showEVA, showComm, showArticles }) => {
+}> = ({ showEVA, showComm }) => {
   return (
     <div className={styles.dayLayout}>
       <div className={styles.dayTimeline}>
@@ -199,14 +181,13 @@ const PhotosOnly: FunctionComponent<{
             <EarthPhotography />
           </div>
           <div className={styles.bodyLeftBottom}>
-            <Flights />
             <ExpeditionAndCrewOnboard />
             {showEVA && <EvaInfo />}
           </div>
         </div>
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
-            <Blog showArticles={showArticles} />
+            <Articles />
           </div>
           <div className={styles.bodyCenterBottom}>
             <GlobeOrMap />
@@ -224,8 +205,7 @@ const PhotosOnly: FunctionComponent<{
 const NoPhotosOrVideo: FunctionComponent<{
   showEVA: boolean;
   showComm: boolean;
-  showArticles: boolean;
-}> = ({ showEVA, showComm, showArticles }) => {
+}> = ({ showEVA, showComm }) => {
   return (
     <div className={styles.dayLayout}>
       <div className={styles.dayTimeline}>
@@ -233,11 +213,10 @@ const NoPhotosOrVideo: FunctionComponent<{
       </div>
       <div className={styles.body}>
         <div className={styles.bodyLeft}>
-          <Blog showArticles={showArticles} />
+          <Articles />
         </div>
         <div className={styles.bodyCenter}>
           <div className={styles.bodyCenterTop}>
-            <Flights />
             <ExpeditionAndCrewOnboard />
             {showEVA && <EvaInfo />}
           </div>
@@ -279,7 +258,6 @@ const Layout: FunctionComponent = () => {
 
   const showVideo = dataAvailability?.youtube || false;
   const showPhotos = dataAvailability?.earthPhotography || false;
-  const showArticles = dataAvailability?.blog || dataAvailability?.activitySummary || false;
   const showEVA = dataAvailability?.eva || false;
   const showComm = dataAvailability?.comm || dataAvailability?.vvComm || false;
 
@@ -290,7 +268,6 @@ const Layout: FunctionComponent = () => {
       <MobileLayout
         showVideo={showVideo}
         showPhotos={showPhotos}
-        showArticles={showArticles}
         showEVA={showEVA}
         showComm={showComm}
       />
@@ -298,15 +275,13 @@ const Layout: FunctionComponent = () => {
   } else {
     // Use desktop layouts
     if (showVideo && showPhotos) {
-      content = <VideoPhotos showEVA={showEVA} showComm={showComm} showArticles={showArticles} />;
+      content = <VideoPhotos showEVA={showEVA} showComm={showComm} />;
     } else if (showVideo) {
-      content = <VideoOnly showEVA={showEVA} showComm={showComm} showArticles={showArticles} />;
+      content = <VideoOnly showEVA={showEVA} showComm={showComm} />;
     } else if (showPhotos) {
-      content = <PhotosOnly showEVA={showEVA} showComm={showComm} showArticles={showArticles} />;
+      content = <PhotosOnly showEVA={showEVA} showComm={showComm} />;
     } else {
-      content = (
-        <NoPhotosOrVideo showEVA={showEVA} showComm={showComm} showArticles={showArticles} />
-      );
+      content = <NoPhotosOrVideo showEVA={showEVA} showComm={showComm} />;
     }
   }
 
