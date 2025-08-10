@@ -58,7 +58,7 @@
     "@types/react-test-renderer": "^19.1.0",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
-    "@vitejs/plugin-react-swc": "^3.11.0",
+    "@vitejs/plugin-react-swc": "^4.0.0",
     "@vitest/ui": "^3.2.4",
     "concurrently": "^9.2.0",
     "eslint-config-prettier": "^10.1.8",
