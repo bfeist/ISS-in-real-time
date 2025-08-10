@@ -42,4 +42,19 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "@tanstack/react-query",
+      "zustand",
+      "ol",
+      "satellite.js",
+      "tle.js",
+      "paper",
+      "react-youtube",
+      "resium",
+    ],
+  },
 });
