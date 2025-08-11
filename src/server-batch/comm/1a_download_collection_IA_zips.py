@@ -9,8 +9,8 @@ import re
 load_dotenv(dotenv_path="../../../.env")
 
 # Base paths for files
-issSpaceToGroundsBasePath = r"F:/ISSiRT_assets/_raw/InternetArchive_space_to_grounds/"
-issDragonCommBasePath = r"F:/ISSiRT_assets/_raw/InternetArchive_dragon_cst_to_grounds/"
+issSpaceToGroundsBasePath = os.getenv("IA_ZIP_SG_FOLDER")
+issDragonCommBasePath = os.getenv("IA_ZIP_AG_FOLDER")
 
 # Create directories if they don't exist
 os.makedirs(issSpaceToGroundsBasePath, exist_ok=True)

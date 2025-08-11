@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path="../../../.env")
 
 # issAudioBasePath = r"O:/ISS/Internet_Archive/space_to_grounds/"
-issSpaceToGroundsBasePath = r"F:/ISSiRT_assets/_raw/InternetArchive_space_to_grounds/"
-issDragonCommBasePath = r"F:/ISSiRT_assets/_raw/InternetArchive_dragon_cst_to_grounds/"
+issSpaceToGroundsBasePath = os.getenv("IA_ZIP_SG_FOLDER")
+issDragonCommBasePath = os.getenv("IA_ZIP_AG_FOLDER")
 search = search_items("creator:(john.l.stoll@nasa.gov)")
 
 # Filter identifiers for "Space-to" or "Space to" results
