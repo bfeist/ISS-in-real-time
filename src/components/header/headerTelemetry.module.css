@@ -1,4 +1,5 @@
 .telemetry {
-  font-family: "Courier New", Courier, monospace;
+  font-size: 0.8rem;
+  font-family: "Roboto Mono", monospace;
   margin: 0 10px 0 0;
 }

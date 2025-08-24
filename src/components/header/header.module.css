@@ -1,29 +1,60 @@
 .header {
-  flex: 0;
-  background-color: rgb(230 230 230);
+  flex: 0 0 50px;
   display: flex;
-  border-bottom: 1px solid #cccccc;
+  align-items: center;
 }
 
 .left {
   display: flex;
   margin: 0 0 0 10px;
+  flex-shrink: 0;
 }
 
-.title {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #333333;
-  margin-right: 20px;
+.titleContainer {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 10px;
+}
+
+.titleContainer .logo {
+  width: 30px;
+  height: 30px;
   align-self: center;
+}
+
+.titleContainer .title {
+  font-size: 1.7rem;
+  font-family: Exo, sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  color: var(--highlight);
+  align-self: center;
+}
+
+.titleContainer .blurb {
+  font-size: 0.7rem;
+  font-family: Inter, sans-serif;
+  font-weight: 300;
+  align-self: center;
+}
+
+.center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.dateTimeContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  font-family: "Roboto Mono", sans-serif;
+  margin: 0 10px 0 0;
 }
 
 .right {
   display: flex;
-  margin-left: auto;
-}
-
-.dateTime {
-  font-family: "Courier New", Courier, monospace;
-  margin: 0 10px 0 0;
+  flex-shrink: 0;
 }

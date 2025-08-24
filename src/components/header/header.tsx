@@ -20,10 +20,19 @@ const Header: FunctionComponent = () => {
     <div className={styles.header}>
       <ClockInterval setAppSeconds={setAppSeconds} />
       <div className={styles.left}>
-        <div className={styles.title}>ISS in Real Time</div>
-        <div className={styles.dateTime}>
-          <div>Date: {selectedDate}</div>
-          <div>Time: {hhmmssFromAppSeconds(appSeconds)}</div>
+        <div className={styles.titleContainer}>
+          <img src="/images/header/ISS_logo.png" alt="ISS Logo" className={styles.logo} />
+          <div className={styles.title}>ISS in Real Time</div>
+          <div className={styles.blurb}>
+            Flight follow the International <br />
+            Space Station in Real Time
+          </div>
+        </div>
+      </div>
+      <div className={styles.center}>
+        <div className={styles.dateTimeContainer}>
+          <div>{selectedDate}</div>
+          <div>+{hhmmssFromAppSeconds(appSeconds)} Z</div>
         </div>
         <button
           onClick={() => {
