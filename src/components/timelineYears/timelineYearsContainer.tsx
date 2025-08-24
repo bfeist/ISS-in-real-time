@@ -30,6 +30,9 @@ import { useParams } from "react-router-dom";
 // Configure dayjs to use UTC plugin
 dayjs.extend(utc);
 
+// Canvas minimum width from CSS
+const CANVAS_MIN_WIDTH = 1500;
+
 const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const dataAvailabilityQuery = useGeneralDataAvailabilities();
   const {
@@ -739,7 +742,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
                 onScroll={handleYearsScroll}
               >
                 <YearsLabels
-                  canvasWidth={canvasWidth}
+                  canvasWidth={Math.max(canvasWidth, CANVAS_MIN_WIDTH)} // Match canvas min-width from CSS
                   onClick={() => {
                     // Toggle timeline visibility
                     setShowTimelineYears(!showTimelineYears);
@@ -751,6 +754,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
             </div>
           ) : (
             // Narrow window case - no wrapper, direct scroll containers
+            // Use window width instead of canvasWidth for years labels to match timeline
             <>
               {/* Scroll arrows for years */}
               <div
@@ -782,7 +786,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
                 onScroll={handleYearsScroll}
               >
                 <YearsLabels
-                  canvasWidth={canvasWidth}
+                  canvasWidth={Math.max(canvasWidth, CANVAS_MIN_WIDTH)} // Match canvas min-width from CSS
                   onClick={() => {
                     // Toggle timeline visibility
                     setShowTimelineYears(!showTimelineYears);
