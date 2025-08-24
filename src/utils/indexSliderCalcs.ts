@@ -1,6 +1,48 @@
 // Constants
 export const YEAR_GAP_PX = 3; // Gap before January of each year
 
+// Calculate optimal maximum width based on current timeline data
+export const calculateOptimalMaxWidth = (): number => {
+  const { totalYearGaps } = buildMonthStructure();
+
+  // Calculate months since epoch
+  const epochYear = 2000;
+  const epochMonth = 10; // November (0-indexed)
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+  const totalMonthsSinceEpoch = (currentYear - epochYear) * 12 + (currentMonth - epochMonth) + 1;
+
+  // Base calculation: ~6 pixels per month to target around 2000px for current timeline
+  const pixelsPerMonth = 6;
+  const baseWidth = totalMonthsSinceEpoch * pixelsPerMonth;
+
+  // Add space for year gaps
+  const gapSpace = totalYearGaps * YEAR_GAP_PX;
+
+  // Add some padding for comfortable viewing and UI elements
+  const padding = 200;
+
+  // Calculate the total optimal width
+  const optimalWidth = Math.ceil(baseWidth + gapSpace + padding);
+
+  return optimalWidth;
+};
+
+// Calculate minimum width for scrolling paradigm
+export const calculateMinimumWidth = (): number => {
+  // Base minimum on about 15 years of timeline (reasonable for scrolling)
+  const minimumMonths = 15 * 12; // 15 years worth of months
+  const pixelsPerMonth = 6; // Same as max calculation for consistency
+  const minimumYearGaps = 15; // Approximate gaps for 15 years
+  const padding = 200;
+
+  const baseWidth = minimumMonths * pixelsPerMonth;
+  const gapSpace = minimumYearGaps * YEAR_GAP_PX;
+
+  return Math.ceil(baseWidth + gapSpace + padding);
+};
+
 const calculateDayByY = (
   y: number | null,
   currentCanvasHeight: number | null,

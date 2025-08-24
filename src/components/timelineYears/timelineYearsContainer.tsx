@@ -14,6 +14,7 @@ import styles from "./timelineYearsContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
 import { initializePaperCanvas } from "./timelineYearsDraw";
+import { calculateOptimalMaxWidth, calculateMinimumWidth } from "../../utils/indexSliderCalcs";
 import { useStateCrewSelection } from "store/hooks/useStateCrewSelection";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
@@ -57,7 +58,23 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const [canvasWidth, setCanvasWidth] = useState(() => Math.max(window.innerWidth, 1500));
+  const [canvasWidth, setCanvasWidth] = useState(() => {
+    const windowWidth = window.innerWidth;
+    const optimalMaxWidth = calculateOptimalMaxWidth();
+    const minimumWidth = calculateMinimumWidth();
+
+    // Use browser width normally, but constrain between min and max
+    if (windowWidth < minimumWidth) {
+      // Browser too narrow - use minimum width (will scroll)
+      return minimumWidth;
+    } else if (windowWidth > optimalMaxWidth) {
+      // Browser very wide - cap at maximum width (will be centered)
+      return optimalMaxWidth;
+    } else {
+      // Normal case - use browser width
+      return windowWidth;
+    }
+  });
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [isTouchInteraction, setIsTouchInteraction] = useState(false);
   const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
@@ -207,7 +224,20 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   useEffect(() => {
     const updateCanvasWidth = () => {
       const windowWidth = window.innerWidth;
-      setCanvasWidth(Math.max(windowWidth, 1500));
+      const optimalMaxWidth = calculateOptimalMaxWidth();
+      const minimumWidth = calculateMinimumWidth();
+
+      // Use browser width normally, but constrain between min and max
+      if (windowWidth < minimumWidth) {
+        // Browser too narrow - use minimum width (will scroll)
+        setCanvasWidth(minimumWidth);
+      } else if (windowWidth > optimalMaxWidth) {
+        // Browser very wide - cap at maximum width (will be centered)
+        setCanvasWidth(optimalMaxWidth);
+      } else {
+        // Normal case - use browser width
+        setCanvasWidth(windowWidth);
+      }
     };
 
     window.addEventListener("resize", updateCanvasWidth);
@@ -487,7 +517,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
           // Use the scope's view
           if (scopeRef.current.view) {
             // Get actual canvas dimensions now that it's visible
-            const displayWidth = Math.max(canvasWidth, 1500);
+            const displayWidth = canvasWidth; // Use the calculated canvas width directly
             const displayHeight = canvas.clientHeight || 150;
 
             // Update canvas dimensions
@@ -670,57 +700,134 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
       >
         {/* Years labels row */}
         <div className={styles.yearsRow}>
-          {/* Scroll arrows for years */}
-          <div
-            className={`${styles.scrollArrow} ${styles.scrollArrowLeft}`}
-            onMouseDown={() => startScrolling("left", "years")}
-            onMouseUp={stopScrolling}
-            onMouseLeave={stopScrolling}
-            onTouchStart={() => startScrolling("left", "years")}
-            onTouchEnd={stopScrolling}
-            role="button"
-            tabIndex={0}
-            aria-label="Scroll years left"
-          ></div>
-          <div
-            className={`${styles.scrollArrow} ${styles.scrollArrowRight}`}
-            onMouseDown={() => startScrolling("right", "years")}
-            onMouseUp={stopScrolling}
-            onMouseLeave={stopScrolling}
-            onTouchStart={() => startScrolling("right", "years")}
-            onTouchEnd={stopScrolling}
-            role="button"
-            tabIndex={0}
-            aria-label="Scroll years right"
-          ></div>
-
-          <div
-            ref={yearsScrollContainerRef}
-            className={styles.yearsScrollContainer}
-            onScroll={handleYearsScroll}
-          >
-            <YearsLabels
-              canvasWidth={canvasWidth}
-              onClick={() => {
-                // Toggle timeline visibility
-                setShowTimelineYears(!showTimelineYears);
+          {canvasWidth <= window.innerWidth ? (
+            // Normal case or centering case - use wrapper
+            <div
+              className={styles.timelineContentWrapper}
+              style={{
+                width: `${canvasWidth}px`,
+                margin: canvasWidth < window.innerWidth ? "0 auto" : "0",
               }}
-              hoveredDate={hoveredDate}
-              selectedDate={selectedDate}
-            />
-          </div>
+            >
+              {/* Scroll arrows for years */}
+              <div
+                className={`${styles.scrollArrow} ${styles.scrollArrowLeft}`}
+                onMouseDown={() => startScrolling("left", "years")}
+                onMouseUp={stopScrolling}
+                onMouseLeave={stopScrolling}
+                onTouchStart={() => startScrolling("left", "years")}
+                onTouchEnd={stopScrolling}
+                role="button"
+                tabIndex={0}
+                aria-label="Scroll years left"
+              ></div>
+              <div
+                className={`${styles.scrollArrow} ${styles.scrollArrowRight}`}
+                onMouseDown={() => startScrolling("right", "years")}
+                onMouseUp={stopScrolling}
+                onMouseLeave={stopScrolling}
+                onTouchStart={() => startScrolling("right", "years")}
+                onTouchEnd={stopScrolling}
+                role="button"
+                tabIndex={0}
+                aria-label="Scroll years right"
+              ></div>
+
+              <div
+                ref={yearsScrollContainerRef}
+                className={styles.yearsScrollContainer}
+                onScroll={handleYearsScroll}
+              >
+                <YearsLabels
+                  canvasWidth={canvasWidth}
+                  onClick={() => {
+                    // Toggle timeline visibility
+                    setShowTimelineYears(!showTimelineYears);
+                  }}
+                  hoveredDate={hoveredDate}
+                  selectedDate={selectedDate}
+                />
+              </div>
+            </div>
+          ) : (
+            // Narrow window case - no wrapper, direct scroll containers
+            <>
+              {/* Scroll arrows for years */}
+              <div
+                className={`${styles.scrollArrow} ${styles.scrollArrowLeft}`}
+                onMouseDown={() => startScrolling("left", "years")}
+                onMouseUp={stopScrolling}
+                onMouseLeave={stopScrolling}
+                onTouchStart={() => startScrolling("left", "years")}
+                onTouchEnd={stopScrolling}
+                role="button"
+                tabIndex={0}
+                aria-label="Scroll years left"
+              ></div>
+              <div
+                className={`${styles.scrollArrow} ${styles.scrollArrowRight}`}
+                onMouseDown={() => startScrolling("right", "years")}
+                onMouseUp={stopScrolling}
+                onMouseLeave={stopScrolling}
+                onTouchStart={() => startScrolling("right", "years")}
+                onTouchEnd={stopScrolling}
+                role="button"
+                tabIndex={0}
+                aria-label="Scroll years right"
+              ></div>
+
+              <div
+                ref={yearsScrollContainerRef}
+                className={styles.yearsScrollContainer}
+                onScroll={handleYearsScroll}
+              >
+                <YearsLabels
+                  canvasWidth={canvasWidth}
+                  onClick={() => {
+                    // Toggle timeline visibility
+                    setShowTimelineYears(!showTimelineYears);
+                  }}
+                  hoveredDate={hoveredDate}
+                  selectedDate={selectedDate}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Timeline canvas dropdown */}
         <div className={`${styles.timelineDropdown} ${!showTimelineYears ? styles.hidden : ""}`}>
-          <div
-            ref={scrollContainerRef}
-            className={styles.canvasScrollContainer}
-            onScroll={handleCanvasScroll}
-          >
-            <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
-          </div>
-          <HoverAndSearch onClose={() => setShowTimelineYears(false)} />
+          {canvasWidth <= window.innerWidth ? (
+            // Normal case or centering case - use wrapper
+            <div
+              className={styles.timelineContentWrapper}
+              style={{
+                width: `${canvasWidth}px`,
+                margin: canvasWidth < window.innerWidth ? "0 auto" : "0",
+              }}
+            >
+              <div
+                ref={scrollContainerRef}
+                className={styles.canvasScrollContainer}
+                onScroll={handleCanvasScroll}
+              >
+                <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
+              </div>
+              <HoverAndSearch onClose={() => setShowTimelineYears(false)} />
+            </div>
+          ) : (
+            // Narrow window case - no wrapper, direct scroll containers
+            <>
+              <div
+                ref={scrollContainerRef}
+                className={styles.canvasScrollContainer}
+                onScroll={handleCanvasScroll}
+              >
+                <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
+              </div>
+              <HoverAndSearch onClose={() => setShowTimelineYears(false)} />
+            </>
+          )}
         </div>
       </div>
 

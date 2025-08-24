@@ -3,6 +3,11 @@
   width: 100%;
 }
 
+.timelineContentWrapper {
+  position: relative;
+  /* Width and margin will be set inline based on canvas width */
+}
+
 .yearsRow {
   position: relative;
   width: 100%;

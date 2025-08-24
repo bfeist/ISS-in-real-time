@@ -11,7 +11,7 @@ export const initializePaperCanvas = ({
   contentHighlights,
   hoverCallback,
   clickCallback,
-  canvasWidth = 1500,
+  canvasWidth = 1500, // Default fallback, but should be calculated dynamically
   paperScope,
 }: {
   canvasElement: HTMLCanvasElement;
