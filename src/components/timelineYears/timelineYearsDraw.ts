@@ -336,8 +336,8 @@ function drawDaysForMonth({
 }): void {
   // Define colors based on data availability
   const colors = {
-    noData: new paper.Color("rgba(0, 0, 0, 0.3)"),
-    someData: new paper.Color("rgba(69, 71, 91, 0.4)"),
+    noData: new paper.Color("#5b5d77ff"),
+    someData: new paper.Color("#6d7090"),
   };
 
   // Helper function to check if a date is within crew member's time on board
@@ -408,34 +408,28 @@ function drawDaysForMonth({
       // Check if this date is within selected crew member's time on board
       const isCrewOnboard = isDateInCrewPeriod(new Date(currentDate));
 
-      // Add circular background for crew onboard periods
-      if (isCrewOnboard) {
-        const backgroundRadius = boxSideSize * 0.8; // Slightly larger than the day box
-        const centerX = dayX + boxSideSize / 2;
-        const centerY = dayY + (dayHeight - boxSideSize) / 2 + boxSideSize / 2;
-
-        const backgroundCircle = new paper.Path.Circle({
-          center: new paper.Point(centerX, centerY),
-          radius: backgroundRadius,
-          fillColor: new paper.Color("rgba(255, 215, 0, 0.4)"), // Gold with transparency
-          strokeColor: null,
-          strokeWidth: 0,
-        });
-        group.addChild(backgroundCircle);
-      }
-
-      // Determine stroke properties based on content highlights
+      // Determine color properties based on content highlights and crew onboard status
       const satisfiesHighlights = doesDaySatisfyContentHighlights(dayItem);
       const strokeColor = satisfiesHighlights
-        ? new paper.Color("green")
-        : new paper.Color("rgba(0, 0, 0, 0.1)"); // Very light stroke instead of transparent
+        ? new paper.Color("#C500AB")
+        : new paper.Color("rgba(0, 0, 0, 0)"); // Very light stroke instead of transparent
       const strokeWidth = 1; // Always have stroke width of 1 so hover can work
+
+      // Priority: crew onboard > content highlights > default data availability
+      let fillColor: paper.Color;
+      if (isCrewOnboard) {
+        fillColor = new paper.Color("#E2DB00");
+      } else if (satisfiesHighlights) {
+        fillColor = new paper.Color("#D9D9D9");
+      } else {
+        fillColor = dayColor;
+      }
 
       // Create a small box for each day
       const dayBox = new paper.Path.Rectangle({
         point: new paper.Point(dayX, dayY + (dayHeight - boxSideSize) / 2),
         size: new paper.Size(boxSideSize, boxSideSize),
-        fillColor: dayColor,
+        fillColor,
         strokeColor: strokeColor,
         strokeWidth: strokeWidth,
       });
