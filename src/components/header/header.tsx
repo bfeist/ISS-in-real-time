@@ -33,9 +33,9 @@ const Header: FunctionComponent = () => {
           <img src="/images/header/ISS_logo.png" alt="ISS Logo" className={styles.logo} />
           <div className={styles.title}>ISS in Real Time</div>
           <div className={styles.blurb}>
-            Flight follow 25 years on the International
+            Explore 25 years onboard the
             <br />
-            Space Station in Real Time
+            International Space Station
           </div>
         </div>
       </div>
