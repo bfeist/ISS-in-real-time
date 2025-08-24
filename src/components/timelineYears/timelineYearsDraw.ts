@@ -49,11 +49,12 @@ export const initializePaperCanvas = ({
   const tool = new paperScope.Tool();
 
   tool.onMouseMove = (event: paper.ToolEvent) => {
-    // Calculate the hovered date
+    // Calculate the hovered date using actual canvas dimensions
+    const actualCanvasWidth = canvasElement.clientWidth || canvasWidth;
     const hoveredDate = calculateDateFromPosition(
       event.point.x,
       event.point.y,
-      canvasWidth,
+      actualCanvasWidth,
       project.view?.bounds.height || null,
       YEARS_AREA_HEIGHT
     );
@@ -89,11 +90,12 @@ export const initializePaperCanvas = ({
   };
 
   tool.onMouseUp = (event: paper.ToolEvent) => {
-    // Calculate the clicked date
+    // Calculate the clicked date using actual canvas dimensions
+    const actualCanvasWidth = canvasElement.clientWidth || canvasWidth;
     const clickedDate = calculateDateFromPosition(
       event.point.x,
       event.point.y,
-      canvasWidth,
+      actualCanvasWidth,
       project.view?.bounds.height || null,
       YEARS_AREA_HEIGHT
     );
@@ -156,7 +158,7 @@ export const initializePaperCanvas = ({
         drawCalendar(
           dataGroup,
           dataAvailabilityItems,
-          canvasWidth,
+          displayWidth, // Use actual display width instead of canvasWidth parameter
           YEARS_AREA_HEIGHT,
           selectedCrewStays,
           contentHighlights,
