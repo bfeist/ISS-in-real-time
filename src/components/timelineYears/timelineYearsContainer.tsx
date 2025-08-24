@@ -51,7 +51,8 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const { hoveredDate, setHoveredDate } = useStateHover();
   const { selectedCrewMember } = useStateCrewSelection();
   const { contentHighlights } = useStateContentHighlights();
-  const { showTimelineYears, setShowTimelineYears } = useStateToggle();
+  const { showTimelineYears, setShowTimelineYears, hoveringYearsLabels, setHoveringYearsLabels } =
+    useStateToggle();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scopeRef = useRef<paper.PaperScope | null>(null);
@@ -542,6 +543,27 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     }
   }, [showTimelineYears, dataAvailabilityItems, canvasWidth, isLoading]);
 
+  // Helper function to render content with or without wrapper
+  const renderWithOptionalWrapper = (content: React.ReactNode) => {
+    if (canvasWidth <= window.innerWidth) {
+      // Normal case or centering case - use wrapper
+      return (
+        <div
+          className={styles.timelineContentWrapper}
+          style={{
+            width: `${canvasWidth}px`,
+            margin: canvasWidth < window.innerWidth ? "0 auto" : "0",
+          }}
+        >
+          {content}
+        </div>
+      );
+    } else {
+      // Narrow window case - no wrapper, direct scroll containers
+      return <>{content}</>;
+    }
+  };
+
   // Format date for tooltip display
   const formatTooltipDate = useCallback((dateString: string): string => {
     try {
@@ -703,69 +725,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
       >
         {/* Years labels row */}
         <div className={styles.yearsRow}>
-          {canvasWidth <= window.innerWidth ? (
-            // Normal case or centering case - use wrapper
-            <div
-              className={styles.timelineContentWrapper}
-              style={{
-                width: `${canvasWidth}px`,
-                margin: canvasWidth < window.innerWidth ? "0 auto" : "0",
-              }}
-            >
-              {/* Scroll arrows for years */}
-              <div
-                className={`${styles.scrollArrow} ${styles.scrollArrowLeft}`}
-                onMouseDown={() => startScrolling("left", "years")}
-                onMouseUp={stopScrolling}
-                onMouseLeave={stopScrolling}
-                onTouchStart={() => startScrolling("left", "years")}
-                onTouchEnd={stopScrolling}
-                role="button"
-                tabIndex={0}
-                aria-label="Scroll years left"
-              >
-                <FontAwesomeIcon icon={faChevronLeft} />
-              </div>
-              <div
-                className={`${styles.scrollArrow} ${styles.scrollArrowRight}`}
-                onMouseDown={() => startScrolling("right", "years")}
-                onMouseUp={stopScrolling}
-                onMouseLeave={stopScrolling}
-                onTouchStart={() => startScrolling("right", "years")}
-                onTouchEnd={stopScrolling}
-                role="button"
-                tabIndex={0}
-                aria-label="Scroll years right"
-              >
-                <FontAwesomeIcon icon={faChevronRight} />
-              </div>
-
-              <div
-                ref={yearsScrollContainerRef}
-                className={styles.yearsScrollContainer}
-                onScroll={handleYearsScroll}
-              >
-                <YearsLabels
-                  canvasWidth={canvasWidth} // Use calculated canvas width directly
-                  onClick={() => {
-                    // Toggle timeline visibility
-                    setShowTimelineYears(!showTimelineYears);
-                  }}
-                  hoveredDate={hoveredDate}
-                  selectedDate={selectedDate}
-                />
-                {/* Show open indicator when timeline is closed */}
-                {!showTimelineYears && (
-                  <OpenCloseIndicators
-                    isOpen={showTimelineYears}
-                    onToggle={() => setShowTimelineYears(!showTimelineYears)}
-                  />
-                )}
-              </div>
-            </div>
-          ) : (
-            // Narrow window case - no wrapper, direct scroll containers
-            // Use window width instead of canvasWidth for years labels to match timeline
+          {renderWithOptionalWrapper(
             <>
               {/* Scroll arrows for years */}
               <div
@@ -799,18 +759,18 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
                 ref={yearsScrollContainerRef}
                 className={styles.yearsScrollContainer}
                 onScroll={handleYearsScroll}
+                onMouseEnter={() => setHoveringYearsLabels(true)}
+                onMouseLeave={() => setHoveringYearsLabels(false)}
               >
                 <YearsLabels
-                  canvasWidth={canvasWidth} // Use calculated canvas width directly
+                  canvasWidth={canvasWidth}
                   onClick={() => {
-                    // Toggle timeline visibility
                     setShowTimelineYears(!showTimelineYears);
                   }}
                   hoveredDate={hoveredDate}
                   selectedDate={selectedDate}
                 />
-                {/* Show open indicator when timeline is closed */}
-                {!showTimelineYears && (
+                {!showTimelineYears && hoveringYearsLabels && (
                   <OpenCloseIndicators
                     isOpen={showTimelineYears}
                     onToggle={() => setShowTimelineYears(!showTimelineYears)}
@@ -823,30 +783,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
         {/* Timeline canvas dropdown */}
         <div className={`${styles.timelineDropdown} ${!showTimelineYears ? styles.hidden : ""}`}>
-          {canvasWidth <= window.innerWidth ? (
-            // Normal case or centering case - use wrapper
-            <div
-              className={styles.timelineContentWrapper}
-              style={{
-                width: `${canvasWidth}px`,
-                margin: canvasWidth < window.innerWidth ? "0 auto" : "0",
-              }}
-            >
-              <div
-                ref={scrollContainerRef}
-                className={styles.canvasScrollContainer}
-                onScroll={handleCanvasScroll}
-              >
-                <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
-              </div>
-              <HoverAndSearch />
-              <OpenCloseIndicators
-                isOpen={showTimelineYears}
-                onToggle={() => setShowTimelineYears(!showTimelineYears)}
-              />
-            </div>
-          ) : (
-            // Narrow window case - no wrapper, direct scroll containers
+          {renderWithOptionalWrapper(
             <>
               <div
                 ref={scrollContainerRef}

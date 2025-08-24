@@ -4,7 +4,6 @@ import { YEAR_GAP_PX } from "../../utils/indexSliderCalcs";
 
 interface YearsLabelsProps {
   canvasWidth: number;
-  onHover?: (isHovering: boolean) => void;
   onClick?: () => void;
   hoveredDate?: string | null;
   selectedDate?: string | null;
