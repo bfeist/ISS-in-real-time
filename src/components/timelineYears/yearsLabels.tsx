@@ -1,6 +1,7 @@
 import { FunctionComponent, JSX, useMemo } from "react";
 import styles from "./yearsLabels.module.css";
 import { useStateToggle } from "store/hooks/useStateToggle";
+import { YEAR_GAP_PX } from "../../utils/indexSliderCalcs";
 
 interface YearsLabelsProps {
   canvasWidth: number;
@@ -28,9 +29,12 @@ const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
     const totalMonthsSinceEpoch = (currentYear - epochYear) * 12 + (currentMonth - epochMonth) + 1;
 
     let totalDaysSinceEpoch = 0;
+    let totalYearGaps = 0;
     const years: Array<{ year: number; position: number; startDay: number }> = [];
 
-    // Calculate positions for each year
+    // First pass: calculate total days and total gaps
+    let tempTotalDaysSinceEpoch = 0;
+    let tempTotalYearGaps = 0;
     for (let i = 0; i < totalMonthsSinceEpoch; i++) {
       const monthDate = new Date(epochYear, epochMonth + i, 1);
       const nextMonth = new Date(monthDate);
@@ -38,23 +42,39 @@ const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
       nextMonth.setDate(0);
       const daysInMonth = nextMonth.getDate();
 
+      // Add gap before this month if it's January (but not the first month)
+      const isJanuary = monthDate.getMonth() === 0;
+      const isFirstMonth = i === 0;
+      if (isJanuary && !isFirstMonth) {
+        tempTotalYearGaps++;
+      }
+
+      tempTotalDaysSinceEpoch += daysInMonth;
+    }
+
+    // Calculate available width (canvas width minus total gap space)
+    const availableWidth = canvasWidth - tempTotalYearGaps * YEAR_GAP_PX;
+
+    // Second pass: calculate year positions
+    for (let i = 0; i < totalMonthsSinceEpoch; i++) {
+      const monthDate = new Date(epochYear, epochMonth + i, 1);
+      const nextMonth = new Date(monthDate);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      nextMonth.setDate(0);
+      const daysInMonth = nextMonth.getDate();
+
+      // Add gap before this month if it's January (but not the first month)
+      const isJanuary = monthDate.getMonth() === 0;
+      const isFirstMonth = i === 0;
+      if (isJanuary && !isFirstMonth) {
+        totalYearGaps++;
+      }
+
       // If this is January (month 0), record the year position
-      if (monthDate.getMonth() === 0) {
-        const position =
-          (totalDaysSinceEpoch /
-            (() => {
-              // Calculate total days to match canvas logic
-              let tempTotal = 0;
-              for (let j = 0; j < totalMonthsSinceEpoch; j++) {
-                const tempMonthDate = new Date(epochYear, epochMonth + j, 1);
-                const tempNextMonth = new Date(tempMonthDate);
-                tempNextMonth.setMonth(tempNextMonth.getMonth() + 1);
-                tempNextMonth.setDate(0);
-                tempTotal += tempNextMonth.getDate();
-              }
-              return tempTotal;
-            })()) *
-          canvasWidth;
+      if (isJanuary) {
+        const basePosition = (totalDaysSinceEpoch / tempTotalDaysSinceEpoch) * availableWidth;
+        const gapOffset = totalYearGaps * YEAR_GAP_PX;
+        const position = basePosition + gapOffset;
 
         years.push({
           year: monthDate.getFullYear(),
@@ -84,6 +104,7 @@ const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
         (currentYear - epochYear) * 12 + (currentMonth - epochMonth) + 1;
 
       let totalDaysSinceEpoch = 0;
+      let totalYearGaps = 0;
       const allMonths = [];
 
       // Build the same month structure as the drawing code
@@ -94,10 +115,21 @@ const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
         nextMonth.setDate(0);
         const daysInMonth = nextMonth.getDate();
 
+        // If this is January (month 0), add a year gap (except for the very first month)
+        const isJanuary = monthDate.getMonth() === 0;
+        const isFirstMonth = i === 0;
+
+        // Add gap before this month if it's January (but not the first month)
+        if (isJanuary && !isFirstMonth) {
+          totalYearGaps++;
+        }
+
         allMonths.push({
           date: monthDate,
           daysInMonth,
           startDay: totalDaysSinceEpoch,
+          yearGapsBefore: totalYearGaps,
+          hasYearGapBefore: isJanuary && !isFirstMonth,
         });
 
         totalDaysSinceEpoch += daysInMonth;
@@ -119,8 +151,12 @@ const YearsLabels: FunctionComponent<YearsLabelsProps> = ({
       // Calculate the day index within the timeline
       const dayIndex = monthEntry.startDay + targetDay - 1; // -1 because targetDay is 1-indexed
 
-      // Calculate position proportional to canvas width
-      const position = (dayIndex / totalDaysSinceEpoch) * canvasWidth;
+      // Calculate position proportional to canvas width, accounting for year gaps
+      // The available width for timeline content is reduced by the total gap space
+      const availableWidth = canvasWidth - totalYearGaps * YEAR_GAP_PX;
+      const basePosition = (dayIndex / totalDaysSinceEpoch) * availableWidth;
+      const gapOffset = monthEntry.yearGapsBefore * YEAR_GAP_PX;
+      const position = basePosition + gapOffset;
 
       return position;
     };

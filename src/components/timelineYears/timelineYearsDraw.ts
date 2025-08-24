@@ -1,5 +1,7 @@
 import paper from "paper";
-import { calculateDateFromPosition } from "../../utils/indexSliderCalcs";
+import { calculateDateFromPosition, YEAR_GAP_PX } from "../../utils/indexSliderCalcs";
+
+// Constants
 
 export const initializePaperCanvas = ({
   canvasElement,
@@ -235,9 +237,10 @@ function drawCalendar(
   const totalMonthsSinceEpoch = (currentYear - epochYear) * 12 + (currentMonth - epochMonth) + 1;
 
   let totalDaysSinceEpoch = 0;
+  let totalYearGaps = 0; // Track the number of year gaps
   const allMonths = [];
 
-  // First calculate total days and store month info
+  // First calculate total days and store month info, accounting for year gaps
   for (let i = 0; i < totalMonthsSinceEpoch; i++) {
     const monthDate = new Date(epochYear, epochMonth + i, 1);
     // Get last day of this month
@@ -246,14 +249,28 @@ function drawCalendar(
     nextMonth.setDate(0); // Last day of current month
     const daysInMonth = nextMonth.getDate();
 
+    // If this is January (month 0), add a year gap (except for the very first month)
+    const isJanuary = monthDate.getMonth() === 0;
+    const isFirstMonth = i === 0;
+
+    // Add gap before this month if it's January (but not the first month)
+    if (isJanuary && !isFirstMonth) {
+      totalYearGaps++;
+    }
+
     allMonths.push({
       date: monthDate,
       daysInMonth,
       startDay: totalDaysSinceEpoch,
+      yearGapsBefore: totalYearGaps,
+      hasYearGapBefore: isJanuary && !isFirstMonth,
     });
 
     totalDaysSinceEpoch += daysInMonth;
   }
+
+  // Calculate the available width for timeline content (reduced by total gap space)
+  const availableWidth = canvasLogicalWidth - totalYearGaps * YEAR_GAP_PX;
 
   // Calculate day height based on maximum possible days in a month (31)
   const maxDaysInMonth = 31;
@@ -262,7 +279,10 @@ function drawCalendar(
 
   // Draw months and days
   for (const month of allMonths) {
-    const monthStartX = (month.startDay / totalDaysSinceEpoch) * canvasLogicalWidth;
+    // Calculate month start position including accumulated gaps
+    const basePosition = (month.startDay / totalDaysSinceEpoch) * availableWidth;
+    const gapOffset = month.yearGapsBefore * YEAR_GAP_PX;
+    const monthStartX = basePosition + gapOffset;
 
     // Draw days for this month (year text will be handled externally)
     drawDaysForMonth({
@@ -295,7 +315,13 @@ function drawDaysForMonth({
   projectView,
 }: {
   group: paper.Group;
-  month: { date: Date; daysInMonth: number };
+  month: {
+    date: Date;
+    daysInMonth: number;
+    startDay: number;
+    yearGapsBefore: number;
+    hasYearGapBefore: boolean;
+  };
   monthStartX: number;
   dayHeight: number;
   dayMarkerTopOffset: number;

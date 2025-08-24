@@ -1,6 +1,6 @@
 .yearsContainer {
   position: relative;
-  height: 30px;
+  height: 18px;
   overflow: visible;
   background-color: rgb(230 230 230);
   cursor: pointer;
@@ -13,12 +13,11 @@
   color: black;
   font-size: 13px;
   font-weight: bold;
-  padding: 2px 4px;
   margin: 0;
   min-width: 40px;
   text-align: left;
   pointer-events: none; /* Year labels are not interactive individually */
-  transform: rotate(-30deg);
+  /* transform: rotate(-30deg); */
 }
 
 .hoveredDateLine {

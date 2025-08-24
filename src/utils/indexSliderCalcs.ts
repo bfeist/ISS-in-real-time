@@ -1,3 +1,6 @@
+// Constants
+export const YEAR_GAP_PX = 3; // Gap before January of each year
+
 const calculateDayByY = (
   y: number | null,
   currentCanvasHeight: number | null,
@@ -43,6 +46,7 @@ const buildMonthStructure = () => {
   const totalMonthsSinceEpoch = (currentYear - epochYear) * 12 + (currentMonth - epochMonth) + 1;
 
   let totalDaysSinceEpoch = 0;
+  let totalYearGaps = 0;
   const allMonths = [];
 
   for (let i = 0; i < totalMonthsSinceEpoch; i++) {
@@ -52,21 +56,38 @@ const buildMonthStructure = () => {
     nextMonth.setDate(0);
     const daysInMonth = nextMonth.getDate();
 
+    // If this is January (month 0), add a year gap (except for the very first month)
+    const isJanuary = monthDate.getMonth() === 0;
+    const isFirstMonth = i === 0;
+
+    // Add gap before this month if it's January (but not the first month)
+    if (isJanuary && !isFirstMonth) {
+      totalYearGaps++;
+    }
+
     allMonths.push({
       date: monthDate,
       daysInMonth,
       startDay: totalDaysSinceEpoch,
+      yearGapsBefore: totalYearGaps,
+      hasYearGapBefore: isJanuary && !isFirstMonth,
     });
 
     totalDaysSinceEpoch += daysInMonth;
   }
 
-  return { allMonths, totalDaysSinceEpoch };
+  return { allMonths, totalDaysSinceEpoch, totalYearGaps };
 };
 
 // Helper function to find month data by year and month
 const findMonthData = (
-  allMonths: Array<{ date: Date; daysInMonth: number; startDay: number }>,
+  allMonths: Array<{
+    date: Date;
+    daysInMonth: number;
+    startDay: number;
+    yearGapsBefore: number;
+    hasYearGapBefore: boolean;
+  }>,
   year: number,
   month: number
 ) => {
@@ -86,7 +107,7 @@ export const calculatePositionFromDate = (
   const targetDate = new Date(dateString);
   if (isNaN(targetDate.getTime())) return null;
 
-  const { allMonths, totalDaysSinceEpoch } = buildMonthStructure();
+  const { allMonths, totalDaysSinceEpoch, totalYearGaps } = buildMonthStructure();
 
   // Find the month that contains our target date
   const targetYear = targetDate.getFullYear();
@@ -110,9 +131,13 @@ export const calculatePositionFromDate = (
     return null;
   }
 
-  // Calculate X position
+  // Calculate X position accounting for year gaps
+  // The available width for timeline content is reduced by the total gap space
+  const availableWidth = canvasWidth - totalYearGaps * YEAR_GAP_PX;
   const dayIndex = monthData.startDay + (targetDay - 1);
-  const x = (dayIndex / totalDaysSinceEpoch) * canvasWidth;
+  const basePosition = (dayIndex / totalDaysSinceEpoch) * availableWidth;
+  const gapOffset = monthData.yearGapsBefore * YEAR_GAP_PX;
+  const x = basePosition + gapOffset;
 
   // Calculate Y position using the same logic as the drawing code
   const maxDaysInMonth = 31;
@@ -121,7 +146,7 @@ export const calculatePositionFromDate = (
   const y = yearsAreaHeight + (targetDay - 1) * dayHeight + dayHeight / 2;
 
   // Validate calculated position
-  if (x < 0 || x > canvasWidth || y < yearsAreaHeight || y > canvasHeight) {
+  if (x < 0 || y < yearsAreaHeight || y > canvasHeight) {
     console.warn(`Calculated position (${x}, ${y}) is outside canvas bounds`);
     return null;
   }
@@ -140,20 +165,34 @@ export const calculateDateFromPosition = (
     return null;
   }
 
-  const { allMonths, totalDaysSinceEpoch } = buildMonthStructure();
+  const { allMonths, totalDaysSinceEpoch, totalYearGaps } = buildMonthStructure();
 
-  // Calculate which day we're hovering over using the same logic as drawing
-  const dayProportion = x / currentCanvasWidth;
-  const hoveredDayIndex = Math.floor(dayProportion * totalDaysSinceEpoch);
-
-  // Find which month this day belongs to
+  // Calculate which day we're hovering over, accounting for year gaps
+  // The available width for timeline content is reduced by the total gap space
+  const availableWidth = currentCanvasWidth - totalYearGaps * YEAR_GAP_PX;
   let targetMonth = null;
   let dayWithinMonth = 0;
 
+  // We need to find which month this x position corresponds to
+  // by iterating through months and calculating their adjusted positions
   for (const month of allMonths) {
-    if (hoveredDayIndex >= month.startDay && hoveredDayIndex < month.startDay + month.daysInMonth) {
+    const basePosition = (month.startDay / totalDaysSinceEpoch) * availableWidth;
+    const gapOffset = month.yearGapsBefore * YEAR_GAP_PX;
+    const monthStartX = basePosition + gapOffset;
+
+    // Calculate the end position of this month
+    const nextMonthStartDay = month.startDay + month.daysInMonth;
+    const nextBasePosition = (nextMonthStartDay / totalDaysSinceEpoch) * availableWidth;
+    const monthEndX = nextBasePosition + gapOffset;
+
+    // Check if x falls within this month's range
+    if (x >= monthStartX && x < monthEndX) {
       targetMonth = month;
-      dayWithinMonth = hoveredDayIndex - month.startDay + 1; // +1 because days are 1-indexed
+      // Calculate day within the month based on position within the month
+      const positionInMonth = x - monthStartX;
+      const monthWidth = monthEndX - monthStartX;
+      const dayProportion = positionInMonth / monthWidth;
+      dayWithinMonth = Math.floor(dayProportion * month.daysInMonth) + 1;
       break;
     }
   }
