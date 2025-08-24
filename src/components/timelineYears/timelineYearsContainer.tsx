@@ -10,9 +10,12 @@ import React, {
 import paper from "paper";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import styles from "./timelineYearsContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import HoverAndSearch from "./subcomponents/hoverAndSearch";
+import OpenCloseIndicators from "./subcomponents/openCloseIndicators";
 import { initializePaperCanvas } from "./timelineYearsDraw";
 import { calculateOptimalMaxWidth, calculateMinimumWidth } from "../../utils/indexSliderCalcs";
 import { useStateCrewSelection } from "store/hooks/useStateCrewSelection";
@@ -720,7 +723,9 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
                 role="button"
                 tabIndex={0}
                 aria-label="Scroll years left"
-              ></div>
+              >
+                <FontAwesomeIcon icon={faChevronLeft} />
+              </div>
               <div
                 className={`${styles.scrollArrow} ${styles.scrollArrowRight}`}
                 onMouseDown={() => startScrolling("right", "years")}
@@ -731,7 +736,9 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
                 role="button"
                 tabIndex={0}
                 aria-label="Scroll years right"
-              ></div>
+              >
+                <FontAwesomeIcon icon={faChevronRight} />
+              </div>
 
               <div
                 ref={yearsScrollContainerRef}
@@ -747,6 +754,13 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
                   hoveredDate={hoveredDate}
                   selectedDate={selectedDate}
                 />
+                {/* Show open indicator when timeline is closed */}
+                {!showTimelineYears && (
+                  <OpenCloseIndicators
+                    isOpen={showTimelineYears}
+                    onToggle={() => setShowTimelineYears(!showTimelineYears)}
+                  />
+                )}
               </div>
             </div>
           ) : (
@@ -764,7 +778,9 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
                 role="button"
                 tabIndex={0}
                 aria-label="Scroll years left"
-              ></div>
+              >
+                <FontAwesomeIcon icon={faChevronLeft} />
+              </div>
               <div
                 className={`${styles.scrollArrow} ${styles.scrollArrowRight}`}
                 onMouseDown={() => startScrolling("right", "years")}
@@ -775,7 +791,9 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
                 role="button"
                 tabIndex={0}
                 aria-label="Scroll years right"
-              ></div>
+              >
+                <FontAwesomeIcon icon={faChevronRight} />
+              </div>
 
               <div
                 ref={yearsScrollContainerRef}
@@ -791,6 +809,13 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
                   hoveredDate={hoveredDate}
                   selectedDate={selectedDate}
                 />
+                {/* Show open indicator when timeline is closed */}
+                {!showTimelineYears && (
+                  <OpenCloseIndicators
+                    isOpen={showTimelineYears}
+                    onToggle={() => setShowTimelineYears(!showTimelineYears)}
+                  />
+                )}
               </div>
             </>
           )}
@@ -814,7 +839,11 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
               >
                 <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
               </div>
-              <HoverAndSearch onClose={() => setShowTimelineYears(false)} />
+              <HoverAndSearch />
+              <OpenCloseIndicators
+                isOpen={showTimelineYears}
+                onToggle={() => setShowTimelineYears(!showTimelineYears)}
+              />
             </div>
           ) : (
             // Narrow window case - no wrapper, direct scroll containers
@@ -826,7 +855,11 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
               >
                 <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
               </div>
-              <HoverAndSearch onClose={() => setShowTimelineYears(false)} />
+              <HoverAndSearch />
+              <OpenCloseIndicators
+                isOpen={showTimelineYears}
+                onToggle={() => setShowTimelineYears(!showTimelineYears)}
+              />
             </>
           )}
         </div>

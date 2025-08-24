@@ -2,17 +2,17 @@
   position: relative;
   height: 18px;
   overflow: visible;
-  background-color: rgb(230 230 230);
+  background-color: var(--grey2);
   cursor: pointer;
   user-select: none;
 }
 
 .yearLabel {
   position: absolute;
-  top: 3px;
-  color: black;
-  font-size: 13px;
-  font-weight: bold;
+  top: 1px;
+  color: white;
+  font-size: 0.9em;
+  font-weight: 500;
   margin: 0;
   min-width: 40px;
   text-align: left;
@@ -38,45 +38,4 @@
   background-color: red;
   pointer-events: none;
   z-index: 11;
-}
-
-.openIndicator {
-  position: absolute;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background-color: rgb(255 255 255 / 90%);
-  border: 1px solid #cccccc;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 10px;
-  font-weight: bold;
-  color: #333333;
-  cursor: pointer;
-  z-index: 20;
-  white-space: nowrap;
-  transition: background-color 0.2s ease;
-}
-
-.openIndicator:hover {
-  background-color: rgb(240 240 240 / 95%);
-  border-color: #999999;
-}
-
-.openIndicator:focus {
-  outline: 2px solid #007acc;
-  outline-offset: 1px;
-}
-
-.arrow {
-  font-size: 8px;
-  color: #666666;
-}
-
-.indicatorText {
-  font-size: 9px;
-  letter-spacing: 0.5px;
 }

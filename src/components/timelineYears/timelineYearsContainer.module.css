@@ -35,10 +35,7 @@
   left: 0;
   right: 0;
   z-index: 10;
-  background-color: white;
-  border: 1px solid #cccccc;
-  border-top: none;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+  background-color: var(--grey2);
 }
 
 .canvasScrollContainer {
@@ -56,10 +53,8 @@
 .dateTooltip {
   position: fixed;
   padding: 8px 12px;
-  background-color: rgb(255 255 255 / 80%);
   border: 1px solid red;
   border-radius: 6px;
-  color: black;
   font-family: "Courier New", Courier, monospace;
   font-size: 14px;
   font-weight: 500;
@@ -87,7 +82,6 @@
   border: 1px solid #007acc;
   border-radius: 4px;
   background-color: #007acc;
-  color: white;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -141,24 +135,16 @@
 
 .errorMessage {
   color: #d73027;
-  background-color: #fdf2f2;
-  border: 1px solid #f5c6cb;
   border-radius: 4px;
   margin: 8px;
 }
 
 .loadingMessage {
-  color: #856404;
-  background-color: #fff3cd;
-  border: 1px solid #ffeaa7;
   border-radius: 4px;
   margin: 8px;
 }
 
 .noDataMessage {
-  color: #6c757d;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
   border-radius: 4px;
   margin: 8px;
 }
@@ -174,14 +160,13 @@
   transform: translateY(-50%);
   width: 30px;
   height: 30px;
-  background-color: rgb(255 255 255 / 90%);
+  background-color: var(--grey3);
   border: 1px solid #cccccc;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  color: #666666;
+  font-size: 14px;
   z-index: 5;
   pointer-events: auto;
   cursor: pointer;
@@ -193,11 +178,11 @@
 }
 
 .scrollArrow:hover {
-  background-color: rgb(240 240 240 / 90%);
+  background-color: var(--grey1);
 }
 
 .scrollArrow:active {
-  background-color: rgb(220 220 220 / 90%);
+  background-color: var(--grey1);
 }
 
 .scrollArrowLeft {
@@ -206,27 +191,6 @@
 
 .scrollArrowRight {
   right: 4px;
-}
-
-.scrollArrow::before {
-  content: "";
-  width: 0;
-  height: 0;
-  border-style: solid;
-}
-
-.scrollArrowLeft::before {
-  border-left: 0;
-  border-right: 6px solid #666666;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-}
-
-.scrollArrowRight::before {
-  border-left: 6px solid #666666;
-  border-right: 0;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
 }
 
 /* Hide arrows on desktop */

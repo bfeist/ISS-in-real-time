@@ -336,8 +336,8 @@ function drawDaysForMonth({
 }): void {
   // Define colors based on data availability
   const colors = {
-    noData: new paper.Color("rgba(0, 0, 0, 0.2)"),
-    someData: new paper.Color("rgba(0, 0, 0, 0.4)"),
+    noData: new paper.Color("rgba(0, 0, 0, 0.3)"),
+    someData: new paper.Color("rgba(69, 71, 91, 0.4)"),
   };
 
   // Helper function to check if a date is within crew member's time on board

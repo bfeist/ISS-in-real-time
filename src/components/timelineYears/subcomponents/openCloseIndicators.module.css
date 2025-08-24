@@ -1,0 +1,40 @@
+.indicator {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--grey2);
+  border: 1px solid var(--grey2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.8em;
+  font-weight: 500;
+  cursor: pointer;
+  z-index: 20;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.indicator:hover {
+  border-color: var(--grey3);
+}
+
+.indicator:focus {
+  outline: 2px solid #007acc;
+  outline-offset: 1px;
+}
+
+.indicatorClosed {
+  bottom: -25px;
+}
+
+.indicatorOpen {
+  bottom: -1px;
+  border: 1px solid white;
+}
+
+.indicatorIcon {
+  font-size: 1em;
+}

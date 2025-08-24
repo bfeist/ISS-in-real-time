@@ -15,9 +15,7 @@ import {
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
 
-const HoverAndSearch: FunctionComponent<{
-  onClose?: () => void;
-}> = ({ onClose }) => {
+const HoverAndSearch: FunctionComponent = () => {
   const { hoveredDate } = useStateHover();
   const { contentHighlights, toggleContentHighlight } = useStateContentHighlights();
 
@@ -168,24 +166,6 @@ const HoverAndSearch: FunctionComponent<{
           </div>
         </div>
         <CrewSearch />
-      </div>
-
-      {/* Close indicator at the bottom */}
-      <div
-        className={styles.closeIndicator}
-        onClick={() => onClose?.()}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            onClose?.();
-          }
-        }}
-        tabIndex={0}
-        role="button"
-        aria-label="Close timeline"
-      >
-        <span className={styles.arrow}>▴</span>
-        <span className={styles.indicatorText}>CLOSE</span>
-        <span className={styles.arrow}>▴</span>
       </div>
     </div>
   );

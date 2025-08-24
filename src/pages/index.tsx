@@ -5,6 +5,7 @@ import Layout from "../components/layout/dayLayout";
 import TimelineYearsContainer from "../components/timelineYears/timelineYearsContainer";
 import { useStateSelectedDate } from "../store/hooks/useStateSelectedDate";
 import { useStateClock } from "../store/hooks/useStateClock";
+import { useStateToggle } from "../store/hooks/useStateToggle";
 import Header from "components/header/header";
 import NoDateSelected from "../components/layout/noDateSelected";
 import { parseDateTimeSlug } from "../utils/params";
@@ -14,6 +15,7 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
   const { dateTimeSlug } = useParams();
   const { selectedDate, setSelectedDate } = useStateSelectedDate();
   const { setClock } = useStateClock();
+  const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
   // Handle slug parameter to set date and time in Zustand state
   useEffect(() => {
@@ -30,7 +32,24 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
     <div className={styles.page}>
       <Header />
       <TimelineYearsContainer />
-      {selectedDate ? <Layout /> : <NoDateSelected />}
+      <div className={styles.contentWrapper}>
+        {selectedDate ? <Layout /> : <NoDateSelected />}
+        {showTimelineYears && (
+          <div
+            className={styles.overlay}
+            onClick={() => setShowTimelineYears(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setShowTimelineYears(false);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Close timeline overlay"
+          />
+        )}
+      </div>
     </div>
   );
 };

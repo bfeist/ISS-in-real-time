@@ -22,7 +22,10 @@ p {
 
   /* Colors */
   --text-highlight: #ffd600;
-  --grey3: #c5c5c5;
+  --grey1: #10111e;
+  --grey2: #292b3a;
+  --grey2-40a: rgb(69 71 91 / 40%);
+  --grey3: #6d7090;
 }
 
 #root {
