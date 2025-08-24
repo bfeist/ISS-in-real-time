@@ -41,33 +41,39 @@ const Header: FunctionComponent = () => {
       </div>
       <div className={styles.centerContainer}>
         <div className={styles.centerWithBackground}>
-          <div className={styles.dateTimeContainer}>
-            <div>{selectedDate}</div>
-            <div>+{hhmmssFromAppSeconds(appSeconds)} Z</div>
-          </div>
-          <div className={styles.buttons}>
-            <IconButton
-              icon={isRunning ? faPause : faPlay}
-              onClick={() => {
-                if (isRunning) {
-                  stopClock();
-                } else {
-                  startClock();
-                }
-              }}
-            />
-            <IconButton
-              icon={globalMute ? faVolumeMute : faVolumeUp}
-              onClick={() => {
-                setGlobalMute(!globalMute);
-              }}
-            />
-            <IconButton
-              icon={showGlobe ? faMap : faGlobe}
-              onClick={() => setShowGlobe(!showGlobe)}
-            />
-            <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
-          </div>
+          {selectedDate ? (
+            <>
+              <div className={styles.dateTimeContainer}>
+                <div>{selectedDate}</div>
+                <div>+{hhmmssFromAppSeconds(appSeconds)} Z</div>
+              </div>
+              <div className={styles.buttons}>
+                <IconButton
+                  icon={isRunning ? faPause : faPlay}
+                  onClick={() => {
+                    if (isRunning) {
+                      stopClock();
+                    } else {
+                      startClock();
+                    }
+                  }}
+                />
+                <IconButton
+                  icon={globalMute ? faVolumeMute : faVolumeUp}
+                  onClick={() => {
+                    setGlobalMute(!globalMute);
+                  }}
+                />
+                <IconButton
+                  icon={showGlobe ? faMap : faGlobe}
+                  onClick={() => setShowGlobe(!showGlobe)}
+                />
+                <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
+              </div>
+            </>
+          ) : (
+            <div className={styles.noDateSelectedMessage}>Please select a date</div>
+          )}
         </div>
       </div>
       <div className={styles.right}>

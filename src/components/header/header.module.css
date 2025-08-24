@@ -71,6 +71,14 @@
   margin: 0 10px 0 0;
 }
 
+.noDateSelectedMessage {
+  font-family: "Roboto Mono", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--highlight);
+  text-align: center;
+}
+
 .buttons {
   display: flex;
   flex-direction: row;
