@@ -24,38 +24,41 @@ const Header: FunctionComponent = () => {
           <img src="/images/header/ISS_logo.png" alt="ISS Logo" className={styles.logo} />
           <div className={styles.title}>ISS in Real Time</div>
           <div className={styles.blurb}>
-            Flight follow the International <br />
+            Flight follow 25 years on the International
+            <br />
             Space Station in Real Time
           </div>
         </div>
       </div>
-      <div className={styles.center}>
-        <div className={styles.dateTimeContainer}>
-          <div>{selectedDate}</div>
-          <div>+{hhmmssFromAppSeconds(appSeconds)} Z</div>
+      <div className={styles.centerContainer}>
+        <div className={styles.centerWithBackground}>
+          <div className={styles.dateTimeContainer}>
+            <div>{selectedDate}</div>
+            <div>+{hhmmssFromAppSeconds(appSeconds)} Z</div>
+          </div>
+          <button
+            onClick={() => {
+              if (isRunning) {
+                stopClock();
+                setGlobalMute(true);
+              } else {
+                startClock();
+                setGlobalMute(false);
+              }
+            }}
+          >
+            {isRunning ? "Pause" : "Play"}
+          </button>
+          <button
+            onClick={() => {
+              setGlobalMute(!globalMute);
+            }}
+          >
+            {globalMute ? "Unmute" : "Mute"}
+          </button>
+          <button onClick={() => setShowGlobe(!showGlobe)}>{showGlobe ? "Map" : "Globe"}</button>
+          <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
         </div>
-        <button
-          onClick={() => {
-            if (isRunning) {
-              stopClock();
-              setGlobalMute(true);
-            } else {
-              startClock();
-              setGlobalMute(false);
-            }
-          }}
-        >
-          {isRunning ? "Pause" : "Play"}
-        </button>
-        <button
-          onClick={() => {
-            setGlobalMute(!globalMute);
-          }}
-        >
-          {globalMute ? "Unmute" : "Mute"}
-        </button>
-        <button onClick={() => setShowGlobe(!showGlobe)}>{showGlobe ? "Map" : "Globe"}</button>
-        <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
       </div>
       <div className={styles.right}>
         <HeaderTelemetry />
