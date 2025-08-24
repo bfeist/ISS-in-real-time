@@ -518,6 +518,9 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
       const timer = setTimeout(() => {
         const canvas = canvasRef.current;
         if (canvas && drawFunctionRef.current && scopeRef.current) {
+          // Ensure the scope is active when timeline becomes visible
+          scopeRef.current.activate();
+
           // Use the scope's view
           if (scopeRef.current.view) {
             // Get actual canvas dimensions now that it's visible

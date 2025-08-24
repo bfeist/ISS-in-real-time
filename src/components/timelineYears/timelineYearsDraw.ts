@@ -48,6 +48,9 @@ export const initializePaperCanvas = ({
   const dayBoxMap: Map<string, paper.Path.Rectangle> = new Map(); // Map dates to day boxes
   const tool = new paperScope.Tool();
 
+  // Activate the tool to ensure it receives mouse events
+  tool.activate();
+
   tool.onMouseMove = (event: paper.ToolEvent) => {
     // Calculate the hovered date using actual canvas dimensions
     const actualCanvasWidth = canvasElement.clientWidth || canvasWidth;
