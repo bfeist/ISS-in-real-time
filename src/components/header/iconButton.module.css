@@ -1,0 +1,46 @@
+/* Base icon button styles */
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 3px;
+  border: 1px solid var(--headerbutton);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: Inter, sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  outline: none;
+  position: relative;
+  color: var(--headerbutton);
+  background: transparent;
+}
+
+/* Icon-only button (no label) */
+.iconButton:not(:has(.label)) {
+  aspect-ratio: 1;
+}
+
+.iconButton:hover {
+  background-color: var(--grey3);
+}
+
+.iconButton:active {
+  transform: translateY(0);
+}
+
+.iconButton:focus-visible {
+  box-shadow: 0 0 0 2px var(--highlight);
+}
+
+.iconButton:disabled {
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Label styles */
+.label {
+  font-size: 0.875rem;
+  white-space: nowrap;
+}

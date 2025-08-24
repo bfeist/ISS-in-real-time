@@ -1,8 +1,9 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
+import { faShare } from "@fortawesome/free-solid-svg-icons";
 import styles from "./share.module.css";
 import { createDateTimeSlug } from "utils/params";
 import { hhmmssFromAppSeconds } from "utils/time";
-
+import IconButton from "./iconButton";
 const ShareModal: FunctionComponent<{
   isOpen: boolean;
   onClose: () => void;
@@ -109,7 +110,11 @@ const ShareButton: FunctionComponent<ShareButtonProps> = ({ selectedDate, appSec
 
   return (
     <>
-      <button onClick={() => setIsModalOpen(true)}>Share</button>
+      <IconButton
+        icon={faShare}
+        onClick={() => setIsModalOpen(true)}
+        aria-label="Share current view"
+      />
       <ShareModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

@@ -54,7 +54,10 @@
   background-repeat: no-repeat;
   background-size: 100% 100%;
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 12px;
+  padding: 0 20px;
 }
 
 .dateTimeContainer {
@@ -65,7 +68,14 @@
   font-size: 1.1rem;
   font-weight: 400;
   color: var(--highlight);
-  margin: 6px 10px 0 0;
+  margin: 0 10px 0 0;
+}
+
+.buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+  margin: 0 10px 0 0;
 }
 
 .right {

@@ -4,9 +4,18 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { hhmmssFromAppSeconds } from "utils/time";
+import {
+  faPlay,
+  faPause,
+  faVolumeUp,
+  faVolumeMute,
+  faGlobe,
+  faMap,
+} from "@fortawesome/free-solid-svg-icons";
 import ClockInterval from "../panes/clockInterval";
 import HeaderTelemetry from "./headerTelemetry";
 import ShareButton from "./share";
+import IconButton from "./iconButton";
 
 const Header: FunctionComponent = () => {
   const { isRunning, startClock, stopClock } = useStateClock();
@@ -36,28 +45,29 @@ const Header: FunctionComponent = () => {
             <div>{selectedDate}</div>
             <div>+{hhmmssFromAppSeconds(appSeconds)} Z</div>
           </div>
-          <button
-            onClick={() => {
-              if (isRunning) {
-                stopClock();
-                setGlobalMute(true);
-              } else {
-                startClock();
-                setGlobalMute(false);
-              }
-            }}
-          >
-            {isRunning ? "Pause" : "Play"}
-          </button>
-          <button
-            onClick={() => {
-              setGlobalMute(!globalMute);
-            }}
-          >
-            {globalMute ? "Unmute" : "Mute"}
-          </button>
-          <button onClick={() => setShowGlobe(!showGlobe)}>{showGlobe ? "Map" : "Globe"}</button>
-          <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
+          <div className={styles.buttons}>
+            <IconButton
+              icon={isRunning ? faPause : faPlay}
+              onClick={() => {
+                if (isRunning) {
+                  stopClock();
+                } else {
+                  startClock();
+                }
+              }}
+            />
+            <IconButton
+              icon={globalMute ? faVolumeMute : faVolumeUp}
+              onClick={() => {
+                setGlobalMute(!globalMute);
+              }}
+            />
+            <IconButton
+              icon={showGlobe ? faMap : faGlobe}
+              onClick={() => setShowGlobe(!showGlobe)}
+            />
+            <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
+          </div>
         </div>
       </div>
       <div className={styles.right}>
