@@ -165,7 +165,9 @@ const HoverAndSearch: FunctionComponent = () => {
             ))}
           </div>
         </div>
-        <CrewSearch />
+        <div className={styles.dataItem}>
+          <CrewSearch />
+        </div>
       </div>
     </div>
   );

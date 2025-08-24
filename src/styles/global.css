@@ -21,8 +21,7 @@ p {
   --radius: 4px;
 
   /* Colors */
-  --text-highlight: #ffd600;
-  --hightlight: #e2db00;
+  --highlight: #ffd600;
   --grey1: #10111e;
   --grey2: #292b3a;
   --grey2-40a: rgb(69 71 91 / 40%);

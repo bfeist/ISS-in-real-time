@@ -31,7 +31,7 @@
   flex-direction: column;
   font-size: 0.9em;
   font-weight: 500;
-  color: var(--text-highlight);
+  color: var(--highlight);
 }
 
 .timeOnboard {

@@ -53,6 +53,7 @@
 .dateTooltip {
   position: fixed;
   padding: 8px 12px;
+  background-color: var(--grey2);
   border: 1px solid red;
   border-radius: 6px;
   font-family: "Courier New", Courier, monospace;

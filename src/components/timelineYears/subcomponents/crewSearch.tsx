@@ -71,7 +71,7 @@ const CrewSearch: FunctionComponent = () => {
   };
 
   return (
-    <div className={styles.container}>
+    <>
       <div className={styles.searchBox}>
         <div className={styles.searchInputWrapper}>
           <input
@@ -115,7 +115,7 @@ const CrewSearch: FunctionComponent = () => {
           <div className={styles.noResults}>No crew members found</div>
         )}
       </div>
-    </div>
+    </>
   );
 };
 
