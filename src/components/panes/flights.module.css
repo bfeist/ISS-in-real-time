@@ -2,11 +2,12 @@
   flex: 1;
   padding: 1em;
   overflow-y: auto;
-  background-color: hsl(0deg 0% 98%);
 }
 
 .flight,
 .supplyFlight {
+  font-size: 0.8rem;
+  font-weight: 300;
   border-radius: 4px;
   margin-bottom: 20px;
 }

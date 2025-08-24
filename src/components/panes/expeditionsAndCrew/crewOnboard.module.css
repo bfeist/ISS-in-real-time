@@ -3,6 +3,7 @@
   flex-direction: column;
   overflow-y: auto;
   gap: 10px;
+  backdrop-filter: blur(2px);
 }
 
 .crewItem {
@@ -37,7 +38,7 @@
 .timeOnboard {
   font-family: var(--font-mono);
   font-size: 0.8em;
-  color: var(--grey3);
+  color: var(--grey4);
   display: flex;
   align-items: center;
   gap: 5px;

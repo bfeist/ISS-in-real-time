@@ -1,8 +1,8 @@
 .evaDetails {
   flex: 1;
   padding: 1em;
+  font-size: 0.8em;
   overflow-y: auto;
-  background-color: #f0f0f0;
 }
 
 .evaDetail {

@@ -1,18 +1,18 @@
 .blogContainer {
   flex: 1;
-  background-color: #cccccc;
   border: 1px solid #e0e0e0;
   padding: 16px;
   width: 100%;
   height: 100%;
   overflow-y: auto;
   min-height: 0;
+  backdrop-filter: blur(2px);
 }
 
 .sectionTitle {
   margin-top: 0;
   margin-bottom: 16px;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   border-bottom: 1px solid #e0e0e0;
   padding-bottom: 8px;
 }
@@ -31,7 +31,7 @@
 
 .blogEntry h3 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
 }
 
 .imageContainer {
@@ -53,19 +53,21 @@
 }
 
 .imageCaption {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-style: italic;
   margin-top: 6px;
   color: #cccccc;
 }
 
 .content p {
+  font-size: 0.8rem;
+  font-weight: 300;
   margin: 8px 0;
   line-height: 1.5;
 }
 
 .content p a {
-  color: black;
+  color: rgb(131 153 255);
   text-decoration: underline;
 }
 
@@ -95,6 +97,8 @@
 }
 
 .activityItem {
+  font-size: 0.8rem;
+  font-weight: 300;
   margin-bottom: 8px;
   line-height: 1.4;
 }
