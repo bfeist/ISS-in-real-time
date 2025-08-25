@@ -45,22 +45,27 @@ export const initializePaperCanvas = ({
   const RIGHT_MARGIN = 5; // Space at the right edge
   const TOP_MARGIN = 0; // No margin at top - start data rows at the very top
 
+  // Color constants
+  const CLOCK_CURSOR_COLOR = "#d10b0b"; // Red for clock cursor
+  const HOVER_CURSOR_COLOR = "#ffd700"; // Yellow for hover cursor
+  const TIMELINE_STROKE_COLOR = "#858585"; // Gray for timeline borders
+
   // Data row configuration in requested order with individual heights
   const DATA_ROWS = [
     { key: "youtubeItems", label: "Video", color: "#dc2626", height: 15 },
     { key: "photographyItems", label: "Photos", color: "#28B463", height: 15 },
-    { key: "commItems", label: "Comm", color: "#cc5500", height: 22 }, // Comm row with 5 subrows
+    { key: "commItems", label: "Comm", color: null, height: 22 }, // Comm row with 5 subrows
     { key: "dayNight", label: "Day/Night", color: "#dbc275", height: 6 }, // Very thin day/night row
   ];
 
   // Comm subrow configuration - 5 channels, each with its own subrow
   const COMM_SUBROW_HEIGHT = 4.4; // 22 total height / 5 = 4.4 per subrow
   const COMM_CHANNELS = [
-    { number: "1", label: "Ch 1", color: "#1e3a8a" },
-    { number: "2", label: "Ch 2", color: "#166534" },
-    { number: "3", label: "Ch 3", color: "#991b1b" },
-    { number: "4", label: "Ch 4", color: "#581c87" },
-    { number: "5", label: "Ch 5", color: "#c2410c" },
+    { number: "1", label: "Ch 1", color: "#315fdfff" },
+    { number: "2", label: "Ch 2", color: "#2bc566ff" },
+    { number: "3", label: "Ch 3", color: "#ce2525ff" },
+    { number: "4", label: "Ch 4", color: "#922edfff" },
+    { number: "5", label: "Ch 5", color: "#df490dff" },
   ];
 
   // Utility functions
@@ -164,7 +169,7 @@ export const initializePaperCanvas = ({
         new paperScope.Point(x, timelineBottom),
         new paperScope.Point(x, timelineBottom + 10)
       );
-      tickLine.strokeColor = new paperScope.Color("#505050");
+      tickLine.strokeColor = new paperScope.Color(TIMELINE_STROKE_COLOR);
       tickLine.strokeWidth = 1;
       group.addChild(tickLine);
 
@@ -172,7 +177,7 @@ export const initializePaperCanvas = ({
       const hourText = new paperScope.PointText({
         point: new paperScope.Point(x - 6, timelineBottom + 25),
         content: `${hour}Z`,
-        fillColor: "#7b7b7b",
+        fillColor: "#ffffff",
         fontSize: 12,
         fontFamily: "Arial, sans-serif",
       });
@@ -196,7 +201,7 @@ export const initializePaperCanvas = ({
     const labelText = new paperScope.PointText({
       point: new paperScope.Point(LEFT_MARGIN - 10, y + rowConfig.height / 2 + 3),
       content: rowConfig.label,
-      fillColor: "#333333",
+      fillColor: "#ffffff",
       fontSize: 12,
       fontFamily: "Arial, sans-serif",
       justification: "right",
@@ -228,8 +233,8 @@ export const initializePaperCanvas = ({
         new paperScope.Point(LEFT_MARGIN, subrowY),
         new paperScope.Size(timelineWidth, COMM_SUBROW_HEIGHT)
       );
-      subrowBg.fillColor = new paperScope.Color("#f0f0f0");
-      subrowBg.strokeColor = new paperScope.Color("#cccccc");
+      // subrowBg.fillColor = new paperScope.Color("#f0f0f0");
+      subrowBg.strokeColor = new paperScope.Color(TIMELINE_STROKE_COLOR);
       subrowBg.strokeWidth = 0.5;
       group.addChild(subrowBg);
 
@@ -274,7 +279,7 @@ export const initializePaperCanvas = ({
     const labelText = new paperScope.PointText({
       point: new paperScope.Point(LEFT_MARGIN - 10, y + rowHeight / 2 + 3),
       content: rowConfig.label,
-      fillColor: "#333333",
+      fillColor: "#ffffff",
       fontSize: 12,
       fontFamily: "Arial, sans-serif",
       justification: "right",
@@ -286,8 +291,8 @@ export const initializePaperCanvas = ({
       new paperScope.Point(LEFT_MARGIN, y),
       new paperScope.Size(timelineWidth, rowHeight)
     );
-    timelineBg.fillColor = new paperScope.Color("#f0f0f0");
-    timelineBg.strokeColor = new paperScope.Color("#cccccc");
+    // timelineBg.fillColor = new paperScope.Color("#f0f0f0");
+    timelineBg.strokeColor = new paperScope.Color(TIMELINE_STROKE_COLOR);
     timelineBg.strokeWidth = 1;
     group.addChild(timelineBg);
 
@@ -430,11 +435,11 @@ export const initializePaperCanvas = ({
       new paperScope.Point(x, TOP_MARGIN - 5),
       new paperScope.Point(x, timelineBottom + 10)
     );
-    cursorLine.strokeColor = new paperScope.Color("#d10b0b"); // Red for clock
+    cursorLine.strokeColor = new paperScope.Color(CLOCK_CURSOR_COLOR);
     cursorLine.strokeWidth = 2;
     clockCursorGroup.addChild(cursorLine);
 
-    // Draw time display at the bottom, over the time ticks
+    // Draw time display at the bottom of the cursor
     const timeText = new paperScope.PointText({
       point: new paperScope.Point(x, timelineBottom + 20),
       content: hhmmssFromAppSeconds(seconds) + "Z",
@@ -449,7 +454,7 @@ export const initializePaperCanvas = ({
       new paperScope.Point(x - 40, timelineBottom + 5),
       new paperScope.Size(80, 20)
     );
-    textBg.fillColor = new paperScope.Color("#d10b0b"); // Red for clock
+    textBg.fillColor = new paperScope.Color(CLOCK_CURSOR_COLOR);
     textBg.opacity = 0.8;
 
     clockCursorGroup.addChild(textBg);
@@ -475,7 +480,7 @@ export const initializePaperCanvas = ({
       new paperScope.Point(x, TOP_MARGIN - 5),
       new paperScope.Point(x, timelineBottom + 10)
     );
-    cursorLine.strokeColor = new paperScope.Color("#ffd700"); // Yellow for hover
+    cursorLine.strokeColor = new paperScope.Color(HOVER_CURSOR_COLOR);
     cursorLine.strokeWidth = 2;
     cursorLine.opacity = 0.8; // Slightly transparent
     hoverCursorGroup.addChild(cursorLine);
@@ -495,7 +500,7 @@ export const initializePaperCanvas = ({
       new paperScope.Point(x - 40, timelineBottom + 5),
       new paperScope.Size(80, 20)
     );
-    textBg.fillColor = new paperScope.Color("#ffd700"); // Yellow for hover
+    textBg.fillColor = new paperScope.Color(HOVER_CURSOR_COLOR);
     textBg.opacity = 0.9;
 
     hoverCursorGroup.addChild(textBg);
@@ -551,7 +556,6 @@ export const initializePaperCanvas = ({
           new paperScope.Point(0, 0),
           new paperScope.Size(displayWidth, displayHeight)
         );
-        background.fillColor = new paperScope.Color("#ffffff");
         timelineGroup.addChild(background);
 
         if (data) {
@@ -568,7 +572,7 @@ export const initializePaperCanvas = ({
           const noDataText = new paperScope.PointText({
             point: new paperScope.Point(displayWidth / 2, displayHeight / 2),
             content: "No timeline data available",
-            fillColor: "#999999",
+            // fillColor: "#999999",
             fontSize: 14,
             fontFamily: "Arial, sans-serif",
             justification: "center",
