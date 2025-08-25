@@ -50,6 +50,7 @@ const Header: FunctionComponent = () => {
               <div className={styles.buttons}>
                 <IconButton
                   icon={isRunning ? faPause : faPlay}
+                  flash={!isRunning}
                   onClick={() => {
                     if (isRunning) {
                       stopClock();

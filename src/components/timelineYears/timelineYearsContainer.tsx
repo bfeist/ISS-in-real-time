@@ -378,7 +378,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
   // Debounced audio playback when hoveredDate changes
   useEffect(() => {
-    if (!hoveredDate || !commFirstData || !audioRef.current) {
+    if (!hoveredDate || !commFirstData || !audioRef.current || !showTimelineYears) {
       return;
     }
 
@@ -422,7 +422,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     return () => {
       clearTimeout(timer);
     };
-  }, [hoveredDate, commFirstData, hasUserInteracted]);
+  }, [hoveredDate, commFirstData, hasUserInteracted, showTimelineYears]);
 
   // Track user interaction to enable audio playback
   useEffect(() => {
@@ -580,7 +580,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
   // Calculate tooltip position
   const getTooltipStyle = useCallback((): React.CSSProperties => {
-    if (!cursorPosition || !hoveredDate) {
+    if (!cursorPosition || !hoveredDate || !showTimelineYears) {
       return { pointerEvents: "none", visibility: "hidden" };
     }
 
@@ -638,7 +638,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
       visibility: "visible",
       pointerEvents: isTouchInteraction ? "auto" : "none", // Enable pointer events for touch interactions
     };
-  }, [cursorPosition, hoveredDate, isTouchInteraction]);
+  }, [cursorPosition, hoveredDate, isTouchInteraction, showTimelineYears]);
 
   // Update showTimeline when selectedDate changes
   useEffect(() => {

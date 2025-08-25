@@ -7,6 +7,7 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon: IconDefinition;
   label?: string;
   style?: React.CSSProperties;
+  flash?: boolean;
 }
 
 const IconButton: FunctionComponent<IconButtonProps> = ({
@@ -14,9 +15,12 @@ const IconButton: FunctionComponent<IconButtonProps> = ({
   label,
   className,
   style,
+  flash = false,
   ...props
 }) => {
-  const buttonClasses = [styles.iconButton, className].filter(Boolean).join(" ");
+  const buttonClasses = [styles.iconButton, flash && styles.flash, className]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <button className={buttonClasses} style={style} aria-label={label} {...props}>
