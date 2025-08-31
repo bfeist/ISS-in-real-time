@@ -45,7 +45,6 @@ const TimelineDayContainer = (): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const scopeRef = useRef<paper.PaperScope | null>(null);
-  const toolRef = useRef<paper.Tool | null>(null);
   const isInitializedRef = useRef<boolean>(false); // Track initialization state
 
   const [canvasWidth, setCanvasWidth] = useState(() => window.innerWidth);
@@ -165,11 +164,7 @@ const TimelineDayContainer = (): JSX.Element => {
         return true; // Already initialized
       }
 
-      // Clean up any existing scope and tool before creating new ones
-      if (toolRef.current) {
-        toolRef.current.remove();
-        toolRef.current = null;
-      }
+      // Clean up any existing scope before creating new ones
       if (scopeRef.current) {
         if (scopeRef.current.project) {
           scopeRef.current.project.remove();
@@ -181,9 +176,8 @@ const TimelineDayContainer = (): JSX.Element => {
       scopeRef.current = new paper.PaperScope();
       scopeRef.current.setup(canvas);
 
-      // Create tool after scope is activated
+      // Activate the scope
       scopeRef.current.activate();
-      toolRef.current = new scopeRef.current.Tool();
 
       isInitializedRef.current = true;
 
@@ -203,7 +197,6 @@ const TimelineDayContainer = (): JSX.Element => {
         onTimelineClick: setClock,
         hoverSecondsSetter: setHoverSeconds,
         paperScope: scopeRef.current,
-        tool: toolRef.current,
       });
 
       // Store the draw function for later use
@@ -225,10 +218,6 @@ const TimelineDayContainer = (): JSX.Element => {
     if (initializeCanvas()) {
       return () => {
         // Cleanup function for successful initialization
-        if (toolRef.current) {
-          toolRef.current.remove();
-          toolRef.current = null;
-        }
         if (scopeRef.current) {
           window.removeEventListener("resize", () => {
             if (drawFunctionRef.current) {
@@ -262,11 +251,7 @@ const TimelineDayContainer = (): JSX.Element => {
 
     return () => {
       clearInterval(pollInterval);
-      // Cleanup any existing scope and tool
-      if (toolRef.current) {
-        toolRef.current.remove();
-        toolRef.current = null;
-      }
+      // Cleanup any existing scope
       if (scopeRef.current) {
         if (scopeRef.current.project) {
           scopeRef.current.project.remove();

@@ -363,6 +363,12 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
         // Trigger a redraw
         drawPaperItems();
+
+        // Ensure the scope and tool are properly activated after the redraw
+        // This is critical for when crew selection changes trigger a canvas reinit
+        if (scopeRef.current) {
+          scopeRef.current.activate();
+        }
       }
     }
   }, [

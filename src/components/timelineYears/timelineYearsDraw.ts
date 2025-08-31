@@ -46,17 +46,21 @@ export const initializePaperCanvas = ({
   let originalStrokeColor: paper.Color | null = null; // Store original stroke color
   let originalStrokeWidth: number = 0; // Store original stroke width
   const dayBoxMap: Map<string, paper.Path.Rectangle> = new Map(); // Map dates to day boxes
-  const tool = new paperScope.Tool();
 
-  // Activate the tool to ensure it receives mouse events
-  tool.activate();
+  // Instead of using Paper.js tool events, use direct canvas event handlers
+  // This avoids tool activation issues that occur during canvas reinitializations
+  const handleCanvasMouseMove = (event: MouseEvent) => {
+    if (!project.view) return;
 
-  tool.onMouseMove = (event: paper.ToolEvent) => {
+    const rect = canvasElement.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
     // Calculate the hovered date using actual canvas dimensions
     const actualCanvasWidth = canvasElement.clientWidth || canvasWidth;
     const hoveredDate = calculateDateFromPosition(
-      event.point.x,
-      event.point.y,
+      x,
+      y,
       actualCanvasWidth,
       project.view?.bounds.height || null,
       YEARS_AREA_HEIGHT
@@ -92,12 +96,18 @@ export const initializePaperCanvas = ({
     }
   };
 
-  tool.onMouseUp = (event: paper.ToolEvent) => {
+  const handleCanvasClick = (event: MouseEvent) => {
+    if (!project.view) return;
+
+    const rect = canvasElement.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
     // Calculate the clicked date using actual canvas dimensions
     const actualCanvasWidth = canvasElement.clientWidth || canvasWidth;
     const clickedDate = calculateDateFromPosition(
-      event.point.x,
-      event.point.y,
+      x,
+      y,
       actualCanvasWidth,
       project.view?.bounds.height || null,
       YEARS_AREA_HEIGHT
@@ -130,6 +140,9 @@ export const initializePaperCanvas = ({
     }
   };
 
+  // Add event listeners directly to the canvas
+  canvasElement.addEventListener("mousemove", handleCanvasMouseMove);
+  canvasElement.addEventListener("mouseup", handleCanvasClick);
   document.addEventListener("mousemove", handleDocumentMouseMove);
 
   // Do NOT activate the tool globally - each project should manage its own tools independently
@@ -139,6 +152,7 @@ export const initializePaperCanvas = ({
       try {
         // Activate the project to ensure it's the current context
         project.activate();
+
         const displayWidth = canvasWidth;
         const displayHeight = canvasElement.clientHeight;
 
@@ -193,7 +207,11 @@ export const initializePaperCanvas = ({
   };
 
   const cleanupInputHandlers = () => {
+    // Remove canvas event listeners
+    canvasElement.removeEventListener("mousemove", handleCanvasMouseMove);
+    canvasElement.removeEventListener("mouseup", handleCanvasClick);
     document.removeEventListener("mousemove", handleDocumentMouseMove);
+
     // Reset any hovered day box before cleanup
     if (hoveredDayBox) {
       hoveredDayBox.strokeColor = originalStrokeColor;
@@ -211,10 +229,6 @@ export const initializePaperCanvas = ({
 
     // Clear the day box map
     dayBoxMap.clear();
-
-    if (tool) {
-      tool.remove();
-    }
     // Don't remove the project here - it will be removed by the scope cleanup
   };
 
