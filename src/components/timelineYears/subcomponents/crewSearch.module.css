@@ -14,8 +14,15 @@
   font-size: 0.9rem;
   font-weight: 500;
   background-color: var(--grey2);
-  border: 1px solid #cccccc;
+  border: 1px solid #4a5568;
   border-radius: 4px;
+  color: white;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 1px #007acc;
 }
 
 .clearButton {
@@ -28,6 +35,11 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
+  color: white;
+}
+
+.clearButton:hover {
+  background-color: rgb(255 255 255 / 10%);
 }
 
 .listContainer {
