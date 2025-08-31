@@ -368,17 +368,13 @@ function drawDaysForMonth({
     return contentHighlights.every((highlight) => {
       switch (highlight.toLowerCase()) {
         case "comm":
-          return dayItem.comm;
-        case "vvcomm":
-          return dayItem.vvComm;
+          return dayItem.comm || dayItem.vvComm; // Comm includes both comm and vvComm
         case "youtube":
-          return dayItem.youtube;
+          return dayItem.youtube; // Now labeled as "Video"
         case "eva":
           return dayItem.eva;
         case "blog":
-          return dayItem.blog;
-        case "activitysummary":
-          return dayItem.activitySummary;
+          return dayItem.blog || dayItem.activitySummary; // Articles includes both blog and activitySummary
         case "earthphotography":
           return dayItem.earthPhotography;
         default:

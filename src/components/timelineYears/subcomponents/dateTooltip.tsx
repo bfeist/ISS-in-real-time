@@ -7,12 +7,14 @@ import {
   useGeneralExpeditionInfo,
   useGeneralFlights,
   useGeneralFlightsSupply,
+  useGeneralDataAvailabilities,
 } from "api/useGeneralData";
 import {
   getCrewMembersOnboardByDate,
   getActiveFlightsByDate,
   getActiveSupplyFlightsByDate,
 } from "utils/onboard";
+import { flagUrlByCountryName } from "utils/countries";
 
 // Configure dayjs to use UTC plugin
 dayjs.extend(utc);
@@ -43,6 +45,7 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
   const { data: expeditionInfo } = useGeneralExpeditionInfo();
   const { data: flights } = useGeneralFlights();
   const { data: flightsSupply } = useGeneralFlightsSupply();
+  const { data: dataAvailabilityItems } = useGeneralDataAvailabilities();
 
   // Memoized calculations based on hoveredDate and data
   const expeditionsOnHoveredDate = useMemo(() => {
@@ -55,26 +58,10 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
 
   const crewOnboardList = useMemo(() => {
     if (!hoveredDate || !crewArrDep) return [];
-    const crewOnboard = getCrewMembersOnboardByDate({
+    return getCrewMembersOnboardByDate({
       crewArrDep,
       dateStr: hoveredDate,
     });
-    if (crewOnboard.length === 0) return [];
-
-    return crewOnboard
-      .sort((a, b) => {
-        // First sort by arrival date (earliest first)
-        const arrivalDateA = a.arrivalDate || "";
-        const arrivalDateB = b.arrivalDate || "";
-        if (arrivalDateA !== arrivalDateB) {
-          return arrivalDateA.localeCompare(arrivalDateB);
-        }
-        // If arrival dates are the same, sort by name
-        const nameA = `${a.name_first} ${a.name_last}` || "";
-        const nameB = `${b.name_first} ${b.name_last}` || "";
-        return nameA.localeCompare(nameB);
-      })
-      .map((crewMember) => `${crewMember.name_first} ${crewMember.name_last}`);
   }, [hoveredDate, crewArrDep]);
 
   const flightsDocked = useMemo(() => {
@@ -106,6 +93,45 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
       .sort((a, b) => a.flight_no.localeCompare(b.flight_no))
       .map((flight) => flight.flight_no + (flight.spacecraft ? " - " + flight.spacecraft : ""));
   }, [hoveredDate, flightsSupply]);
+
+  // Get content availability for the hovered date
+  const contentAvailability = useMemo(() => {
+    if (!hoveredDate || !dataAvailabilityItems) return null;
+    return dataAvailabilityItems.find((item) => item.date === hoveredDate);
+  }, [hoveredDate, dataAvailabilityItems]);
+
+  // Define content types with their availability
+  const contentTypes = useMemo(() => {
+    if (!contentAvailability) return [];
+
+    return [
+      {
+        key: "comm",
+        label: "Comm",
+        available: contentAvailability.comm || contentAvailability.vvComm,
+      },
+      {
+        key: "youtube",
+        label: "Video",
+        available: contentAvailability.youtube,
+      },
+      {
+        key: "eva",
+        label: "EVA",
+        available: contentAvailability.eva,
+      },
+      {
+        key: "blog",
+        label: "Article",
+        available: contentAvailability.blog || contentAvailability.activitySummary,
+      },
+      {
+        key: "earthPhotography",
+        label: "Earth Photography",
+        available: contentAvailability.earthPhotography,
+      },
+    ];
+  }, [contentAvailability]);
 
   // Format date for tooltip display
   const formatTooltipDate = useCallback((dateString: string): string => {
@@ -219,9 +245,19 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
 
               <div className={styles.columnContent}>
                 {crewOnboardList.length > 0 ? (
-                  crewOnboardList.map((name) => (
-                    <div key={name} className={styles.crewItem}>
-                      {name}
+                  crewOnboardList.map((crewMember) => (
+                    <div
+                      key={`${crewMember.arrivalDate}_${crewMember.name_first}_${crewMember.name_last}`}
+                      className={styles.crewItem}
+                    >
+                      <img
+                        className={styles.flag}
+                        src={flagUrlByCountryName[crewMember.nationality]}
+                        alt={crewMember.nationality}
+                      />
+                      <span className={styles.crewName}>
+                        {crewMember.name_first} {crewMember.name_last}
+                      </span>
                     </div>
                   ))
                 ) : (
@@ -259,6 +295,24 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Content Indicators */}
+          {contentTypes.length > 0 && (
+            <div className={styles.contentIndicators}>
+              <div className={styles.contentIndicatorsList}>
+                {contentTypes.map((contentType) => (
+                  <span
+                    key={contentType.key}
+                    className={`${styles.contentIndicator} ${
+                      contentType.available ? styles.available : styles.unavailable
+                    }`}
+                  >
+                    {contentType.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
