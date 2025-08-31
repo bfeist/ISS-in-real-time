@@ -14,7 +14,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import styles from "./timelineYearsContainer.module.css";
 import YearsLabels from "./yearsLabels";
-import HoverAndSearch from "./subcomponents/hoverAndSearch";
+import SearchComponent from "./subcomponents/searchComponent";
+import DateTooltip from "./subcomponents/dateTooltip";
 import OpenCloseIndicators from "./subcomponents/openCloseIndicators";
 import { initializePaperCanvas } from "./timelineYearsDraw";
 import { calculateOptimalMaxWidth, calculateMinimumWidth } from "../../utils/indexSliderCalcs";
@@ -59,7 +60,6 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const yearsScrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const [canvasWidth, setCanvasWidth] = useState(() => {
@@ -567,78 +567,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     }
   };
 
-  // Format date for tooltip display
-  const formatTooltipDate = useCallback((dateString: string): string => {
-    try {
-      // Parse the date string as UTC and format it
-      const date = dayjs.utc(dateString);
-      return date.format("ddd, MMM DD, YYYY");
-    } catch {
-      return dateString;
-    }
-  }, []);
-
-  // Calculate tooltip position
-  const getTooltipStyle = useCallback((): React.CSSProperties => {
-    if (!cursorPosition || !hoveredDate || !showTimelineYears) {
-      return { pointerEvents: "none", visibility: "hidden" };
-    }
-
-    const offset = 10;
-    const tooltipElement = tooltipRef.current;
-    // Adjust height estimate for touch tooltip with buttons
-    const tooltipHeight = tooltipElement
-      ? tooltipElement.offsetHeight || (isTouchInteraction ? 80 : 50)
-      : isTouchInteraction
-        ? 80
-        : 50;
-    const tooltipWidth = tooltipElement
-      ? tooltipElement.offsetWidth || (isTouchInteraction ? 200 : 180)
-      : isTouchInteraction
-        ? 200
-        : 180;
-
-    // Get container position for relative boundary calculation
-    const container = containerRef.current;
-    const containerRect = container ? container.getBoundingClientRect() : null;
-    const containerTop = containerRect ? containerRect.top : 0;
-
-    let x = cursorPosition.x + offset;
-    let y = cursorPosition.y - tooltipHeight - offset; // Default to above cursor
-
-    // Check if tooltip would be too close to top of viewport OR container
-    const topBoundary = Math.max(
-      window.scrollY + 20, // Viewport boundary
-      containerTop + 10 // Container boundary
-    );
-
-    if (y < topBoundary) {
-      y = cursorPosition.y + offset; // Switch to below cursor
-    }
-
-    // Check if tooltip would go off bottom of viewport
-    const bottomBoundary = window.scrollY + window.innerHeight - tooltipHeight - 20;
-    if (y > bottomBoundary) {
-      y = cursorPosition.y - tooltipHeight - offset; // Force above cursor
-    }
-
-    // Check if tooltip would go off right edge of screen
-    if (x + tooltipWidth > window.innerWidth) {
-      x = cursorPosition.x - tooltipWidth - offset; // Switch to left side
-    }
-
-    // Check if tooltip would go off left edge of screen
-    if (x < 10) {
-      x = 10; // Keep it on screen
-    }
-
-    return {
-      left: `${x}px`,
-      top: `${y}px`,
-      visibility: "visible",
-      pointerEvents: isTouchInteraction ? "auto" : "none", // Enable pointer events for touch interactions
-    };
-  }, [cursorPosition, hoveredDate, isTouchInteraction, showTimelineYears]);
+  // Helper function to render content with or without wrapper
 
   // Update showTimeline when selectedDate changes
   useEffect(() => {
@@ -695,29 +624,16 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
 
   return (
     <>
-      {/* Floating date tooltip - always render it but control visibility with CSS */}
-      <div ref={tooltipRef} className={styles.dateTooltip} style={getTooltipStyle()}>
-        {hoveredDate && (
-          <>
-            <div className={styles.tooltipDate}>{formatTooltipDate(hoveredDate)}</div>
-            {isTouchInteraction && (
-              <div className={styles.tooltipButtons}>
-                <button className={styles.tooltipGoButton} onClick={handleTouchGo} type="button">
-                  Go
-                </button>
-                <button
-                  className={styles.tooltipCancelButton}
-                  onClick={handleTouchCancel}
-                  type="button"
-                  title="Close"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {/* Floating date tooltip */}
+      <DateTooltip
+        hoveredDate={hoveredDate}
+        cursorPosition={cursorPosition}
+        isTouchInteraction={isTouchInteraction}
+        showTimelineYears={showTimelineYears}
+        onTouchGo={handleTouchGo}
+        onTouchCancel={handleTouchCancel}
+        containerRef={containerRef}
+      />
 
       <div
         ref={containerRef}
@@ -795,7 +711,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
               >
                 <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
               </div>
-              <HoverAndSearch />
+              <SearchComponent />
               <OpenCloseIndicators
                 isOpen={showTimelineYears}
                 onToggle={() => setShowTimelineYears(!showTimelineYears)}

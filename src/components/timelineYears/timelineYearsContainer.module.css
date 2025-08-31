@@ -50,68 +50,6 @@
 
 /* Hide horizontal scrollbar when window width is greater than 1500px */
 
-.dateTooltip {
-  position: fixed;
-  padding: 8px 12px;
-  background-color: var(--grey2);
-  border: 1px solid red;
-  border-radius: 6px;
-  font-family: "Courier New", Courier, monospace;
-  font-size: 14px;
-  font-weight: 500;
-  pointer-events: none;
-  z-index: 1000;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
-  transition: opacity 0.2s ease;
-}
-
-.tooltipDate {
-  margin-bottom: 0;
-  display: inline;
-}
-
-.tooltipButtons {
-  display: inline-flex;
-  gap: 8px;
-  margin-left: 12px;
-  align-items: center;
-}
-
-.tooltipGoButton {
-  padding: 4px 8px;
-  border: 1px solid #007acc;
-  border-radius: 4px;
-  background-color: #007acc;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.tooltipGoButton:hover {
-  background-color: #005999;
-}
-
-.tooltipCancelButton {
-  background: none;
-  border: none;
-  color: #666666;
-  font-size: 16px;
-  font-weight: bold;
-  padding: 0;
-  min-width: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-
-.tooltipCancelButton:hover {
-  color: #333333;
-}
-
 @media screen and (width >= 1501px) {
   .canvasScrollContainer {
     overflow-x: hidden;
