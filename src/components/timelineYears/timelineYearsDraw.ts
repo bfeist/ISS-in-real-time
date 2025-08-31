@@ -2,6 +2,17 @@ import paper from "paper";
 import { calculateDateFromPosition, YEAR_GAP_PX } from "../../utils/indexSliderCalcs";
 
 // Constants
+const COLORS = {
+  hover: new paper.Color("red"),
+  selected: new paper.Color("red"),
+  noData: new paper.Color("#5b5d77ff"),
+  someData: new paper.Color("#6d7090"),
+  commData: new paper.Color("#7a7ea5ff"),
+  contentHighlightStroke: new paper.Color("#C500AB"),
+  transparent: new paper.Color("rgba(0, 0, 0, 0)"),
+  crewOnboard: new paper.Color("#E2DB00"),
+  satisfiesHighlights: new paper.Color("#D9D9D9"),
+} as const;
 
 export const initializePaperCanvas = ({
   canvasElement,
@@ -85,7 +96,7 @@ export const initializePaperCanvas = ({
           originalStrokeWidth = foundDayBox.strokeWidth;
 
           // Apply hover highlight - subtle red stroke
-          foundDayBox.strokeColor = new paper.Color("red");
+          foundDayBox.strokeColor = COLORS.hover;
           foundDayBox.strokeWidth = 1.5; // Thin but visible stroke
           hoveredDayBox = foundDayBox;
         }
@@ -189,7 +200,7 @@ export const initializePaperCanvas = ({
             const selectedDayBox = dayBoxMap.get(selectedDate);
             if (selectedDayBox) {
               // Apply red stroke to the selected date's day box
-              selectedDayBox.strokeColor = new paper.Color("red");
+              selectedDayBox.strokeColor = COLORS.selected;
               selectedDayBox.strokeWidth = 1.5; // Same as hover effect
             }
           } catch (error) {
@@ -351,12 +362,6 @@ function drawDaysForMonth({
   dayBoxMap: Map<string, paper.Path.Rectangle>;
   projectView: paper.View;
 }): void {
-  // Define colors based on data availability
-  const colors = {
-    noData: new paper.Color("#5b5d77ff"),
-    someData: new paper.Color("#6d7090"),
-  };
-
   // Helper function to check if a date is within crew member's time on board
   const isDateInCrewPeriod = (checkDate: Date): boolean => {
     if (!selectedCrewStays || selectedCrewStays.length === 0) return false;
@@ -415,7 +420,14 @@ function drawDaysForMonth({
       const dayItem = dataAvailabilityItems.find((item) => item.date === dateString);
 
       // Determine color based on data availability
-      const dayColor = dayItem ? colors.someData : colors.noData;
+      let dayColor: paper.Color;
+      if (!dayItem) {
+        dayColor = COLORS.noData;
+      } else if (dayItem.comm || dayItem.vvComm) {
+        dayColor = COLORS.commData; // Slightly brighter grey for comm data
+      } else {
+        dayColor = COLORS.someData;
+      }
       const boxSideSize = 4;
 
       // Check if this date is within selected crew member's time on board
@@ -423,17 +435,15 @@ function drawDaysForMonth({
 
       // Determine color properties based on content highlights and crew onboard status
       const satisfiesHighlights = doesDaySatisfyContentHighlights(dayItem);
-      const strokeColor = satisfiesHighlights
-        ? new paper.Color("#C500AB")
-        : new paper.Color("rgba(0, 0, 0, 0)"); // Very light stroke instead of transparent
+      const strokeColor = satisfiesHighlights ? COLORS.contentHighlightStroke : COLORS.transparent; // Very light stroke instead of transparent
       const strokeWidth = 1; // Always have stroke width of 1 so hover can work
 
       // Priority: crew onboard > content highlights > default data availability
       let fillColor: paper.Color;
       if (isCrewOnboard) {
-        fillColor = new paper.Color("#E2DB00");
+        fillColor = COLORS.crewOnboard;
       } else if (satisfiesHighlights) {
-        fillColor = new paper.Color("#D9D9D9");
+        fillColor = COLORS.satisfiesHighlights;
       } else {
         fillColor = dayColor;
       }
