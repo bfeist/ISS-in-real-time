@@ -19,9 +19,9 @@
   transition: opacity 0.2s ease;
   width: 600px;
   min-height: 200px;
-  max-height: 400px;
+  max-height: 80vh;
   white-space: normal;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .tooltipHeader {
@@ -35,7 +35,7 @@
 
 .tooltipDate {
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 500;
   color: #e2e8f0;
   margin: 0;
 }
@@ -63,74 +63,6 @@
 
 .columnHeader:last-child {
   border-right: none;
-}
-
-.columnContent {
-  padding: 12px;
-  border-right: 1px solid #4a5568;
-  min-height: 120px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.columnContent:last-child {
-  border-right: none;
-}
-
-.expeditionItem {
-  margin-bottom: 4px;
-  color: #e2e8f0;
-  font-size: 12px;
-}
-
-.crewItem {
-  margin-bottom: 3px;
-  color: #e2e8f0;
-  font-size: 12px;
-  line-height: 1.3;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.flag {
-  width: 14px;
-  height: 10px;
-  object-fit: cover;
-  border: 1px solid #4a5568;
-  flex-shrink: 0;
-}
-
-.crewName {
-  color: #e2e8f0;
-}
-
-.vehicleSection {
-  margin-bottom: 8px;
-}
-
-.vehicleType {
-  font-weight: bold;
-  color: #a0aec0;
-  font-size: 10px;
-  text-transform: uppercase;
-  margin-bottom: 3px;
-}
-
-.vehicleItem {
-  margin-bottom: 2px;
-  margin-left: 12px;
-  padding-left: 12px;
-  text-indent: -12px;
-  color: #e2e8f0;
-  font-size: 12px;
-  line-height: 1.2;
-}
-
-.noData {
-  color: #718096;
-  font-style: italic;
-  font-size: 12px;
 }
 
 .tooltipButtons {
@@ -172,38 +104,4 @@
 
 .tooltipCancelButton:hover {
   color: #e2e8f0;
-}
-
-.contentIndicators {
-  padding: 12px 16px;
-  background-color: #1a202c;
-  border-top: 1px solid #4a5568;
-}
-
-.contentIndicatorsList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.contentIndicator {
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  transition: all 0.2s ease;
-}
-
-.contentIndicator.available {
-  background-color: #38a169;
-  color: #ffffff;
-  border: 1px solid #2f855a;
-}
-
-.contentIndicator.unavailable {
-  background-color: #4a5568;
-  color: #a0aec0;
-  border: 1px solid #2d3748;
 }

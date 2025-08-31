@@ -15,7 +15,7 @@ import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons
 import styles from "./timelineYearsContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import SearchComponent from "./subcomponents/searchComponent";
-import DateTooltip from "./subcomponents/dateTooltip";
+import DateTooltip from "./subcomponents/dateTooltip/dateTooltip";
 import OpenCloseIndicators from "./subcomponents/openCloseIndicators";
 import { initializePaperCanvas } from "./timelineYearsDraw";
 import { calculateOptimalMaxWidth, calculateMinimumWidth } from "../../utils/indexSliderCalcs";

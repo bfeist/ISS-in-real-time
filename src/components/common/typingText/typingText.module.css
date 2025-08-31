@@ -1,0 +1,23 @@
+.typingText {
+  display: inline;
+}
+
+.cursor {
+  display: inline-block;
+  background-color: currentcolor;
+  width: 2px;
+  animation: blink 1s infinite;
+  margin-left: 1px;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+
+  51%,
+  100% {
+    opacity: 0;
+  }
+}

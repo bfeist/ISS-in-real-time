@@ -42,3 +42,21 @@ export const extractChannelInfoFromFilename = (
   }
   return null;
 };
+
+/**
+ * Extracts time from filename in format 2015-05-12T135230-1_SG_1_IA.aac
+ * @param filename The filename to extract time from
+ * @returns Formatted time string (HH:MM:SS) or null if not found
+ */
+export const extractTimeFromFilename = (filename: string): string | null => {
+  const regex = /T(\d{6})/;
+  const match = filename.match(regex);
+  if (match) {
+    const timeStr = match[1]; // hhmmss
+    const hours = timeStr.substring(0, 2);
+    const minutes = timeStr.substring(2, 4);
+    const seconds = timeStr.substring(4, 6);
+    return `${hours}:${minutes}:${seconds}`;
+  }
+  return null;
+};
