@@ -1,0 +1,71 @@
+.controlsPositioner {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 0; /* slight overlap below the container */
+  z-index: 1;
+  background-color: var(--grey1);
+}
+
+.left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.center {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.centerWithBackground {
+  height: 40px;
+  width: 550px;
+  background-image: url("/images/header/header_center_background.svg");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 20px;
+  pointer-events: auto; /* enable clicks */
+}
+
+.dateTimeContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  font-family: "Roboto Mono", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--highlight);
+  margin: 0 10px 0 0;
+}
+
+.noDateSelectedMessage {
+  font-family: "Roboto Mono", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--highlight);
+  text-align: center;
+}
+
+.buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+  margin: 0 10px 0 0;
+}

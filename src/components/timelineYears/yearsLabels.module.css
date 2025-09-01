@@ -1,6 +1,6 @@
 .yearsContainer {
   position: relative;
-  height: 18px;
+  height: 40px;
   overflow: visible;
   background-color: var(--grey2);
   cursor: pointer;
@@ -9,7 +9,6 @@
 
 .yearLabel {
   position: absolute;
-  top: 1px;
   color: white;
   font-size: 0.9em;
   font-weight: 500;
@@ -17,6 +16,8 @@
   min-width: 40px;
   text-align: left;
   pointer-events: none; /* Year labels are not interactive individually */
+  top: 50%;
+  transform: translateY(-50%);
   /* transform: rotate(-30deg); */
 }
 

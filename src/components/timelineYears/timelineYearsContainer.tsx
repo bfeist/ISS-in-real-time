@@ -14,6 +14,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import styles from "./timelineYearsContainer.module.css";
 import YearsLabels from "./yearsLabels";
+import ControlsHeader from "./controlsHeader";
 import SearchComponent from "./subcomponents/searchComponent";
 import DateTooltip from "./subcomponents/dateTooltip/dateTooltip";
 import OpenCloseIndicators from "./subcomponents/openCloseIndicators";
@@ -706,6 +707,9 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
           )}
         </div>
 
+        {/* Controls below labels when closed */}
+        {!showTimelineYears && renderWithOptionalWrapper(<ControlsHeader />)}
+
         {/* Timeline canvas dropdown */}
         <div className={`${styles.timelineDropdown} ${!showTimelineYears ? styles.hidden : ""}`}>
           {renderWithOptionalWrapper(
@@ -722,6 +726,8 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
                 isOpen={showTimelineYears}
                 onToggle={() => setShowTimelineYears(!showTimelineYears)}
               />
+              {/* Controls inside dropdown when open */}
+              <ControlsHeader />
             </>
           )}
         </div>
