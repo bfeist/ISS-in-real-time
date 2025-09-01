@@ -37,16 +37,28 @@ export const initializePaperCanvas = ({
   project.activeLayer.addChild(clockCursorGroup);
   project.activeLayer.addChild(hoverCursorGroup);
 
+  // Constants
+  const COLORS = {
+    clockCursor: "#d10b0b", // Red for clock cursor
+    hoverCursor: "#ffd700", // Yellow for hover cursor
+    timelineStroke: "#858585", // Gray for timeline borders
+    labelText: "#ffffff", // White for all text labels
+    nightFill: "#000000", // Black for night segments
+    sunriseSunsetFill: "#ff8c00", // Orange for sunrise/sunset segments
+    clockCursorText: "white", // White for clock cursor text
+    hoverCursorText: "black", // Black for hover cursor text
+    commChannel1: "#315fdfff", // Blue for comm channel 1
+    commChannel2: "#2bc566ff", // Green for comm channel 2
+    commChannel3: "#ce2525ff", // Red for comm channel 3
+    commChannel4: "#922edfff", // Purple for comm channel 4
+    commChannel5: "#df490dff", // Orange for comm channel 5
+  } as const;
+
   // Timeline constants
   const SECONDS_IN_24_HOURS = 86400;
   const LEFT_MARGIN = 70; // Space for data labels
   const RIGHT_MARGIN = 5; // Space at the right edge
   const TOP_MARGIN = 0; // No margin at top - start data rows at the very top
-
-  // Color constants
-  const CLOCK_CURSOR_COLOR = "#d10b0b"; // Red for clock cursor
-  const HOVER_CURSOR_COLOR = "#ffd700"; // Yellow for hover cursor
-  const TIMELINE_STROKE_COLOR = "#858585"; // Gray for timeline borders
 
   // Data row configuration in requested order with individual heights
   const DATA_ROWS = [
@@ -59,11 +71,11 @@ export const initializePaperCanvas = ({
   // Comm subrow configuration - 5 channels, each with its own subrow
   const COMM_SUBROW_HEIGHT = 4.4; // 22 total height / 5 = 4.4 per subrow
   const COMM_CHANNELS = [
-    { number: "1", label: "Ch 1", color: "#315fdfff" },
-    { number: "2", label: "Ch 2", color: "#2bc566ff" },
-    { number: "3", label: "Ch 3", color: "#ce2525ff" },
-    { number: "4", label: "Ch 4", color: "#922edfff" },
-    { number: "5", label: "Ch 5", color: "#df490dff" },
+    { number: "1", label: "Ch 1", color: COLORS.commChannel1 },
+    { number: "2", label: "Ch 2", color: COLORS.commChannel2 },
+    { number: "3", label: "Ch 3", color: COLORS.commChannel3 },
+    { number: "4", label: "Ch 4", color: COLORS.commChannel4 },
+    { number: "5", label: "Ch 5", color: COLORS.commChannel5 },
   ];
 
   // Utility functions
@@ -173,7 +185,7 @@ export const initializePaperCanvas = ({
         new paperScope.Point(x, timelineBottom),
         new paperScope.Point(x, timelineBottom + 10)
       );
-      tickLine.strokeColor = new paperScope.Color(TIMELINE_STROKE_COLOR);
+      tickLine.strokeColor = new paperScope.Color(COLORS.timelineStroke);
       tickLine.strokeWidth = 1;
       group.addChild(tickLine);
 
@@ -181,7 +193,7 @@ export const initializePaperCanvas = ({
       const hourText = new paperScope.PointText({
         point: new paperScope.Point(x - 6, timelineBottom + 25),
         content: `${hour}Z`,
-        fillColor: "#ffffff",
+        fillColor: COLORS.labelText,
         fontSize: 12,
         fontFamily: "Arial, sans-serif",
       });
@@ -205,7 +217,7 @@ export const initializePaperCanvas = ({
     const labelText = new paperScope.PointText({
       point: new paperScope.Point(LEFT_MARGIN - 10, y + rowConfig.height / 2 + 3),
       content: rowConfig.label,
-      fillColor: "#ffffff",
+      fillColor: COLORS.labelText,
       fontSize: 12,
       fontFamily: "Arial, sans-serif",
       justification: "right",
@@ -238,7 +250,7 @@ export const initializePaperCanvas = ({
         new paperScope.Size(timelineWidth, COMM_SUBROW_HEIGHT)
       );
       // subrowBg.fillColor = new paperScope.Color("#f0f0f0");
-      subrowBg.strokeColor = new paperScope.Color(TIMELINE_STROKE_COLOR);
+      subrowBg.strokeColor = new paperScope.Color(COLORS.timelineStroke);
       subrowBg.strokeWidth = 0.5;
       group.addChild(subrowBg);
 
@@ -283,7 +295,7 @@ export const initializePaperCanvas = ({
     const labelText = new paperScope.PointText({
       point: new paperScope.Point(LEFT_MARGIN - 10, y + rowHeight / 2 + 3),
       content: rowConfig.label,
-      fillColor: "#ffffff",
+      fillColor: COLORS.labelText,
       fontSize: 12,
       fontFamily: "Arial, sans-serif",
       justification: "right",
@@ -296,7 +308,7 @@ export const initializePaperCanvas = ({
       new paperScope.Size(timelineWidth, rowHeight)
     );
     // timelineBg.fillColor = new paperScope.Color("#f0f0f0");
-    timelineBg.strokeColor = new paperScope.Color(TIMELINE_STROKE_COLOR);
+    timelineBg.strokeColor = new paperScope.Color(COLORS.timelineStroke);
     timelineBg.strokeWidth = 1;
     group.addChild(timelineBg);
 
@@ -319,9 +331,9 @@ export const initializePaperCanvas = ({
 
         let fillColor = rowConfig.color;
         if (item.daylight === "night") {
-          fillColor = "#000000";
+          fillColor = COLORS.nightFill;
         } else if (item.daylight === "sunrise" || item.daylight === "sunset") {
-          fillColor = "#ff8c00";
+          fillColor = COLORS.sunriseSunsetFill;
         }
 
         const segment = new paperScope.Path.Rectangle(
@@ -439,7 +451,7 @@ export const initializePaperCanvas = ({
       new paperScope.Point(x, TOP_MARGIN - 5),
       new paperScope.Point(x, timelineBottom + 10)
     );
-    cursorLine.strokeColor = new paperScope.Color(CLOCK_CURSOR_COLOR);
+    cursorLine.strokeColor = new paperScope.Color(COLORS.clockCursor);
     cursorLine.strokeWidth = 2;
     clockCursorGroup.addChild(cursorLine);
 
@@ -447,7 +459,7 @@ export const initializePaperCanvas = ({
     const timeText = new paperScope.PointText({
       point: new paperScope.Point(x, timelineBottom + 20),
       content: hhmmssFromAppSeconds(seconds) + "Z",
-      fillColor: "white",
+      fillColor: COLORS.clockCursorText,
       fontSize: 14,
       fontFamily: "Arial, sans-serif",
       justification: "center",
@@ -458,7 +470,7 @@ export const initializePaperCanvas = ({
       new paperScope.Point(x - 40, timelineBottom + 5),
       new paperScope.Size(80, 20)
     );
-    textBg.fillColor = new paperScope.Color(CLOCK_CURSOR_COLOR);
+    textBg.fillColor = new paperScope.Color(COLORS.clockCursor);
     textBg.opacity = 0.8;
 
     clockCursorGroup.addChild(textBg);
@@ -484,7 +496,7 @@ export const initializePaperCanvas = ({
       new paperScope.Point(x, TOP_MARGIN - 5),
       new paperScope.Point(x, timelineBottom + 10)
     );
-    cursorLine.strokeColor = new paperScope.Color(HOVER_CURSOR_COLOR);
+    cursorLine.strokeColor = new paperScope.Color(COLORS.hoverCursor);
     cursorLine.strokeWidth = 2;
     cursorLine.opacity = 0.8; // Slightly transparent
     hoverCursorGroup.addChild(cursorLine);
@@ -493,7 +505,7 @@ export const initializePaperCanvas = ({
     const timeText = new paperScope.PointText({
       point: new paperScope.Point(x, timelineBottom + 20),
       content: hhmmssFromAppSeconds(seconds) + "Z",
-      fillColor: "black",
+      fillColor: COLORS.hoverCursorText,
       fontSize: 14,
       fontFamily: "Arial, sans-serif",
       justification: "center",
@@ -504,7 +516,7 @@ export const initializePaperCanvas = ({
       new paperScope.Point(x - 40, timelineBottom + 5),
       new paperScope.Size(80, 20)
     );
-    textBg.fillColor = new paperScope.Color(HOVER_CURSOR_COLOR);
+    textBg.fillColor = new paperScope.Color(COLORS.hoverCursor);
     textBg.opacity = 0.9;
 
     hoverCursorGroup.addChild(textBg);
