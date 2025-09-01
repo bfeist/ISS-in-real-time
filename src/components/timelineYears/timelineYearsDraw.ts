@@ -38,17 +38,34 @@ export const initializePaperCanvas = ({
   drawPaperItems: () => void;
   cleanupInputHandlers: () => void;
 } => {
+  // Ensure the paperScope is valid
+  if (!paperScope || !paperScope.project) {
+    throw new Error("Invalid Paper.js scope provided. Scope must be initialized with a project.");
+  }
+
   // Use the passed scope instead of creating a new project
   const project = paperScope.project;
 
   // Activate the project to ensure it's the current context
   project.activate();
 
+  // Ensure the project has proper styling context
+  // This fixes the _currentStyle null error by ensuring project has default styles
+  if (project.activeLayer) {
+    // Force initialization of the style system by setting a default style
+    try {
+      project.activeLayer.fillColor = new paper.Color("transparent");
+    } catch (e) {
+      // Ignore style initialization errors
+    }
+  }
+
   // Constants - simplified without scroll handling
   const YEARS_AREA_HEIGHT = 0; // Years will be handled externally
 
-  const uiGroup = new paperScope.Group();
-  const dataGroup = new paperScope.Group();
+  // Create groups - Paper.js should be properly initialized at this point
+  const uiGroup = new paper.Group();
+  const dataGroup = new paper.Group();
 
   project.activeLayer.addChildren([dataGroup, uiGroup]);
 

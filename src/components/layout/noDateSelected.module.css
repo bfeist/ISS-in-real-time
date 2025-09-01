@@ -6,21 +6,10 @@
   justify-content: center;
   background-image: repeating-linear-gradient(
     45deg,
-    #f3f3f3 0,
-    #f3f3f3 5px,
-    #ffffff 5px,
-    #ffffff 10px
+    var(--grey1) 0,
+    var(--grey1) 5px,
+    var(--grey2) 5px,
+    var(--grey2) 10px
   );
   position: relative;
-}
-
-.message {
-  background-color: rgb(255 255 255 / 90%);
-  padding: 2rem 3rem;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  color: #333333;
-  text-align: center;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 30%);
 }
