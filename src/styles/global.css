@@ -19,6 +19,7 @@ p {
   --font-mono: "Roboto Mono", monospace;
   --font-sans: "Inter", sans-serif;
   --radius: 4px;
+  --panel-radius: 8px;
 
   /* Colors */
   --highlight: #ffd600;

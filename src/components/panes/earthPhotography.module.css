@@ -7,11 +7,12 @@
 
 .currentImage {
   flex: 1 1 auto;
-  height: 100%;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  border-radius: var(--panel-radius);
 }
 
 .currentImage img {
@@ -20,17 +21,18 @@
   object-fit: contain;
   width: auto;
   height: auto;
+  border-radius: var(--panel-radius);
 }
 
 .imageThumbsContainer {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: row;
   align-items: center;
   overflow-x: auto;
-  overflow-y: hidden;
-  gap: 8px;
-  margin-top: 8px;
+  overflow-y: visible;
+  margin-top: 4px;
+  gap: 4px;
 }
 
 .imageThumb {
@@ -38,16 +40,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  max-height: 56px;
+  max-height: 60px;
   cursor: pointer;
+  border-radius: var(--radius);
 }
 
 .imageThumb img {
   max-height: 56px;
   width: auto;
   object-fit: contain;
+  border-radius: var(--radius);
+  border: 2px solid transparent;
+  box-sizing: border-box;
 }
 
-.imageThumb.active {
-  border-bottom: 10px solid #22c55e;
+.imageThumb.active img {
+  border-color: var(--highlight);
 }
