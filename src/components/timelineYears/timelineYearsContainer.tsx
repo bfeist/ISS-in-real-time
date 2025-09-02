@@ -276,17 +276,38 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   const drawFunctionRef = useRef<(() => void) | null>(null);
   const cleanupInputHandlersRef = useRef<(() => void) | null>(null);
 
-  // Canvas initialization effect - only runs when canvas/basic data is available
+  // Single effect to handle all canvas initialization and updates
   useEffect(() => {
     const canvas = canvasRef.current;
 
     // Only initialize canvas when all data is loaded
     if (canvas && dataAvailabilityItems && !isLoading) {
-      // Create a dedicated scope for this canvas
-      scopeRef.current = new paper.PaperScope();
-      scopeRef.current.setup(canvas);
+      // Only create scope if it doesn't exist yet
+      if (!scopeRef.current) {
+        scopeRef.current = new paper.PaperScope();
+        scopeRef.current.setup(canvas);
+      }
 
-      // Initialize canvas with the dedicated scope
+      // Always clean up input handlers before reinitializing
+      if (cleanupInputHandlersRef.current) {
+        cleanupInputHandlersRef.current();
+      }
+
+      // Ensure proper canvas sizing before initializing
+      const displayWidth = canvasWidth;
+      const displayHeight = canvas.clientHeight || 150;
+      canvas.width = displayWidth;
+      canvas.height = displayHeight;
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
+
+      // Activate the scope and clear existing content without destroying the scope
+      scopeRef.current.activate();
+      if (scopeRef.current.project && scopeRef.current.project.activeLayer) {
+        scopeRef.current.project.activeLayer.removeChildren();
+      }
+
+      // Initialize canvas with the existing scope
       const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
         canvasElement: canvas,
         selectedDate,
@@ -303,8 +324,13 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
       drawFunctionRef.current = drawPaperItems;
       cleanupInputHandlersRef.current = cleanupInputHandlers;
 
+      // Draw immediately
+      drawPaperItems();
+
       const handleResize = () => {
-        drawPaperItems();
+        if (drawFunctionRef.current) {
+          drawFunctionRef.current();
+        }
       };
 
       window.addEventListener("resize", handleResize);
@@ -314,82 +340,33 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
         if (cleanupInputHandlersRef.current) {
           cleanupInputHandlersRef.current();
         }
-
-        // Clean up the scope
-        if (scopeRef.current && scopeRef.current.project) {
-          scopeRef.current.project.remove();
-          scopeRef.current = null;
-        }
-
+        // Don't destroy the scope on every change - only clear the references
         drawFunctionRef.current = null;
         cleanupInputHandlersRef.current = null;
       };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // Cleanup function for when component unmounts completely
+    return () => {
+      if (cleanupInputHandlersRef.current) {
+        cleanupInputHandlersRef.current();
+      }
+      if (scopeRef.current && scopeRef.current.project) {
+        scopeRef.current.project.remove();
+        scopeRef.current = null;
+      }
+      drawFunctionRef.current = null;
+      cleanupInputHandlersRef.current = null;
+    };
   }, [
     dataAvailabilityItems,
-    hoverCallback,
-    handleCanvasClick,
-    canvasWidth,
-    isLoading, // Only depend on basic initialization data, NOT selectedCrewStays
-  ]);
-
-  // Separate effect for redrawing when dependent data changes
-  useEffect(() => {
-    if (drawFunctionRef.current && scopeRef.current && dataAvailabilityItems && !isLoading) {
-      // Reinitialize the canvas with new data but keep the same scope
-      const canvas = canvasRef.current;
-      if (canvas) {
-        // Clean up the old input handlers first
-        if (cleanupInputHandlersRef.current) {
-          cleanupInputHandlersRef.current();
-        }
-
-        // Clean up the old scope completely
-        if (scopeRef.current && scopeRef.current.project) {
-          scopeRef.current.project.remove();
-        }
-
-        // Create a fresh scope to avoid any state conflicts
-        scopeRef.current = new paper.PaperScope();
-        scopeRef.current.setup(canvas);
-
-        // Reinitialize with updated data
-        const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
-          canvasElement: canvas,
-          selectedDate,
-          dataAvailabilityItems,
-          selectedCrewStays,
-          contentHighlights,
-          hoverCallback,
-          clickCallback: handleCanvasClick,
-          canvasWidth,
-          paperScope: scopeRef.current, // Reuse existing scope
-        });
-
-        // Update the stored references
-        drawFunctionRef.current = drawPaperItems;
-        cleanupInputHandlersRef.current = cleanupInputHandlers;
-
-        // Trigger a redraw
-        drawPaperItems();
-
-        // Ensure the scope and tool are properly activated after the redraw
-        // This is critical for when crew selection changes trigger a canvas reinit
-        if (scopeRef.current) {
-          scopeRef.current.activate();
-        }
-      }
-    }
-  }, [
+    isLoading,
     selectedDate,
     selectedCrewStays,
     contentHighlights,
-    dataAvailabilityItems,
-    isLoading,
-    canvasWidth,
-    handleCanvasClick,
     hoverCallback,
+    handleCanvasClick,
+    canvasWidth,
   ]);
 
   // Debounced audio playback when hoveredDate changes
@@ -531,36 +508,40 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   // Update canvas when timeline becomes visible
   useEffect(() => {
     if (showTimelineYears && canvasRef.current && dataAvailabilityItems && !isLoading) {
-      const timer = setTimeout(() => {
-        const canvas = canvasRef.current;
-        if (canvas && drawFunctionRef.current && scopeRef.current) {
-          // Ensure the scope is active when timeline becomes visible
-          scopeRef.current.activate();
+      const canvas = canvasRef.current;
+      if (canvas && drawFunctionRef.current && scopeRef.current) {
+        // Ensure the scope is active when timeline becomes visible
+        scopeRef.current.activate();
 
-          // Use the scope's view
-          if (scopeRef.current.view) {
-            // Get actual canvas dimensions now that it's visible
-            const displayWidth = canvasWidth; // Use the calculated canvas width directly
-            const displayHeight = canvas.clientHeight || 150;
+        // Use the scope's view
+        if (scopeRef.current.view) {
+          // Get actual canvas dimensions now that it's visible
+          const displayWidth = canvasWidth; // Use the calculated canvas width directly
+          const displayHeight = canvas.clientHeight || 150;
 
-            // Update canvas dimensions
-            canvas.width = displayWidth;
-            canvas.height = displayHeight;
-            canvas.style.width = `${displayWidth}px`;
-            canvas.style.height = `${displayHeight}px`;
+          // Update canvas dimensions
+          canvas.width = displayWidth;
+          canvas.height = displayHeight;
+          canvas.style.width = `${displayWidth}px`;
+          canvas.style.height = `${displayHeight}px`;
 
-            // Update Paper.js view size for this specific scope
-            scopeRef.current.view.viewSize = new paper.Size(displayWidth, displayHeight);
+          // Update Paper.js view size for this specific scope
+          scopeRef.current.view.viewSize = new paper.Size(displayWidth, displayHeight);
 
-            // Now redraw
-            drawFunctionRef.current();
-          }
+          // Now redraw
+          drawFunctionRef.current();
         }
-      }, 0);
-
-      return () => clearTimeout(timer);
+      }
     }
-  }, [showTimelineYears, dataAvailabilityItems, canvasWidth, isLoading]);
+  }, [
+    showTimelineYears,
+    dataAvailabilityItems,
+    canvasWidth,
+    isLoading,
+    contentHighlights,
+    selectedDate,
+    selectedCrewStays,
+  ]);
 
   // Helper function to render content with or without wrapper
   const renderWithOptionalWrapper = (content: React.ReactNode) => {
