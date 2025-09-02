@@ -41,9 +41,9 @@ export const initializePaperCanvas = ({
   const COLORS = {
     clockCursor: "#d10b0b", // Red for clock cursor
     hoverCursor: "#ffd700", // Yellow for hover cursor
-    timelineStroke: "#6d7090", // Grey4 for timeline borders
+    timelineStroke: "#4e5066ff", // for timeline borders
     timelineBackground: "#292b3a", // Grey2 for data row backgrounds
-    timeTicks: "#6d7090", // Grey4 for time ticks
+    timeTicks: "#4e5066ff", // for time ticks
     labelText: "#ffffff", // White for all text labels
     nightFill: "#000000", // Black for night segments
     sunriseSunsetFill: "#ff8c00", // Orange for sunrise/sunset segments
@@ -182,9 +182,12 @@ export const initializePaperCanvas = ({
       const seconds = hour * 3600;
       const x = LEFT_MARGIN + seconds * pixelsPerSecond;
 
+      // For hour 0, start tick from halfway down the timeline so the rounded corner isn't spoiled
+      const tickStartY = hour === 0 ? TOP_MARGIN + (timelineBottom - TOP_MARGIN) / 2 : TOP_MARGIN;
+
       // Draw tick line from top of video data line down to bottom
       const tickLine = new paperScope.Path.Line(
-        new paperScope.Point(x, TOP_MARGIN),
+        new paperScope.Point(x, tickStartY),
         new paperScope.Point(x, timelineBottom + 10)
       );
       tickLine.strokeColor = new paperScope.Color(COLORS.timeTicks);
@@ -307,12 +310,44 @@ export const initializePaperCanvas = ({
     group.addChild(labelText);
 
     // Draw timeline background
-    const timelineBg = new paperScope.Path.Rectangle(
-      new paperScope.Point(LEFT_MARGIN, y),
-      new paperScope.Size(timelineWidth, rowHeight)
-    );
+    let timelineBg: paper.Path;
+
+    if (rowConfig.key === "youtubeItems") {
+      // Create custom path with rounded top corners only
+      const radius = 10;
+      timelineBg = new paperScope.Path();
+
+      // Start from bottom left corner
+      timelineBg.moveTo(new paperScope.Point(LEFT_MARGIN, y + rowHeight));
+      // Left edge up to start of top-left curve
+      timelineBg.lineTo(new paperScope.Point(LEFT_MARGIN, y + radius));
+      // Top-left rounded corner
+      timelineBg.quadraticCurveTo(
+        new paperScope.Point(LEFT_MARGIN, y),
+        new paperScope.Point(LEFT_MARGIN + radius, y)
+      );
+      // Top edge to start of top-right curve
+      timelineBg.lineTo(new paperScope.Point(LEFT_MARGIN + timelineWidth - radius, y));
+      // Top-right rounded corner
+      timelineBg.quadraticCurveTo(
+        new paperScope.Point(LEFT_MARGIN + timelineWidth, y),
+        new paperScope.Point(LEFT_MARGIN + timelineWidth, y + radius)
+      );
+      // Right edge down to bottom
+      timelineBg.lineTo(new paperScope.Point(LEFT_MARGIN + timelineWidth, y + rowHeight));
+      // Bottom edge back to start
+      timelineBg.lineTo(new paperScope.Point(LEFT_MARGIN, y + rowHeight));
+      timelineBg.closePath();
+    } else {
+      // Regular rectangle for other rows
+      timelineBg = new paperScope.Path.Rectangle(
+        new paperScope.Point(LEFT_MARGIN, y),
+        new paperScope.Size(timelineWidth, rowHeight)
+      );
+    }
+
     timelineBg.fillColor = new paperScope.Color(COLORS.timelineBackground);
-    timelineBg.strokeColor = new paperScope.Color(COLORS.timeTicks);
+    timelineBg.strokeColor = new paperScope.Color(COLORS.timelineStroke);
     timelineBg.strokeWidth = 1;
     group.addChild(timelineBg);
 
