@@ -345,6 +345,15 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
           cleanupInputHandlersRef.current();
         }
 
+        // Clean up the old scope completely
+        if (scopeRef.current && scopeRef.current.project) {
+          scopeRef.current.project.remove();
+        }
+
+        // Create a fresh scope to avoid any state conflicts
+        scopeRef.current = new paper.PaperScope();
+        scopeRef.current.setup(canvas);
+
         // Reinitialize with updated data
         const { drawPaperItems, cleanupInputHandlers } = initializePaperCanvas({
           canvasElement: canvas,
@@ -377,10 +386,10 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     selectedCrewStays,
     contentHighlights,
     dataAvailabilityItems,
-    hoverCallback,
-    handleCanvasClick,
-    canvasWidth,
     isLoading,
+    canvasWidth,
+    handleCanvasClick,
+    hoverCallback,
   ]);
 
   // Debounced audio playback when hoveredDate changes
