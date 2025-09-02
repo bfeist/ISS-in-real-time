@@ -67,8 +67,7 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
     commItems.forEach((item) => {
       const channelInfo = extractChannelInfoFromFilename(item.filename);
       if (channelInfo) {
-        const channelNumber = parseInt(channelInfo.number, 10);
-        availableChannels.add(channelNumber);
+        availableChannels.add(channelInfo.routingChannel);
       }
     });
 
@@ -76,6 +75,32 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
   }, [commItems]);
 
   const availableChannels = getAvailableChannels();
+
+  // Function to determine what channel 5 toggle should display (DG-1 or AG-1)
+  const getChannel5DisplayName = useCallback((): string => {
+    let hasDG = false;
+    let hasAG = false;
+
+    commItems.forEach((item) => {
+      const channelInfo = extractChannelInfoFromFilename(item.filename);
+      if (channelInfo && channelInfo.routingChannel === 5) {
+        if (channelInfo.type === "DG") {
+          hasDG = true;
+        } else if (channelInfo.type === "AG") {
+          hasAG = true;
+        }
+      }
+    });
+
+    // DG-1 takes priority, fall back to AG-1, or default to DG-1
+    if (hasDG) {
+      return "DG-1";
+    } else if (hasAG) {
+      return "AG-1";
+    } else {
+      return "DG-1";
+    }
+  }, [commItems]);
 
   // Function to toggle channel visibility
   const toggleChannel = (channelNumber: number) => {
@@ -205,6 +230,12 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
           audioRefCh4.current.src = aacFileUrl;
           audioRefCh4.current.play();
         }
+      } else if (commItem.filename.includes("DG") || commItem.filename.includes("AG")) {
+        // SG5 channel should match any DG or AG communications
+        if (audioRefCh5.current && isRunning && channelVisibility[5]) {
+          audioRefCh5.current.src = aacFileUrl;
+          audioRefCh5.current.play();
+        }
       } else {
         if (audioRefCh5.current && isRunning && channelVisibility[5]) {
           audioRefCh5.current.src = aacFileUrl;
@@ -232,6 +263,10 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
         {[1, 2, 3, 4, 5].map((channelNum) => {
           const isChannelAvailable = availableChannels.has(channelNum);
           const isChannelVisible = channelVisibility[channelNum];
+
+          // Get display name for channel 5, otherwise use SG-{channelNum}
+          const channelDisplayName =
+            channelNum === 5 ? getChannel5DisplayName() : `SG-${channelNum}`;
 
           let toggleClassName;
           if (!isChannelAvailable) {
@@ -266,11 +301,11 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
               }}
               aria-pressed={isChannelVisible}
               aria-disabled={!isChannelAvailable}
-              aria-label={`Toggle S/G-${channelNum} channel ${
+              aria-label={`Toggle ${channelDisplayName} channel ${
                 !isChannelAvailable ? "(no data available)" : isChannelVisible ? "off" : "on"
               }`}
             >
-              SG-{channelNum}
+              {channelDisplayName}
               <FontAwesomeIcon icon={toggleIcon} className={styles.channelToggleIcon} />
             </div>
           );
@@ -325,8 +360,7 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
             .filter((item) => {
               const channelInfo = extractChannelInfoFromFilename(item.filename);
               if (!channelInfo) return false;
-              const channelNumber = parseInt(channelInfo.number, 10);
-              return channelVisibility[channelNumber];
+              return channelVisibility[channelInfo.routingChannel];
             })
             .map((item) => {
               const channelInfo = extractChannelInfoFromFilename(item.filename);
@@ -338,6 +372,10 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
               if (appSeconds >= startAppSeconds && appSeconds <= endAppSeconds) {
                 commItemActive = styles.commItemActive;
               }
+
+              // Display original channel info (DG-1, AG-1, etc.) but route to appropriate channel
+              const displayChannel = `${channelInfo.displayType}-${channelInfo.displayNumber}`;
+              const channelNumClass = styles[`channelnum${channelInfo.routingChannel}`];
 
               return (
                 <div
@@ -360,11 +398,7 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
                   aria-label={`Jump to communication at ${item.utteranceTime}`}
                 >
                   <div className={styles.commTime}>{item.utteranceTime}</div>
-                  <div
-                    className={`${styles.channelnum} ${styles[`channelnum${channelInfo.number}`]}`}
-                  >
-                    {channelInfo.type}-{channelInfo.number}
-                  </div>
+                  <div className={`${styles.channelnum} ${channelNumClass}`}>{displayChannel}</div>
                   <div className={styles.textContainer}>
                     <div>{item.text}</div>
                     {item.textOriginalLang && (

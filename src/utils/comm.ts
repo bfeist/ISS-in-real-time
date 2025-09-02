@@ -25,19 +25,36 @@ export function processCommCsv(data: string): CommItem[] {
 }
 
 /**
- * Extracts channel type (SG, DG, or AG) and number from filename
+ * Extracts channel type and number from filename
+ * Returns both original channel info for display and mapped channel for routing
  * @param filename The filename to extract from
- * @returns Object containing channel type and number, or null if not found
+ * @returns Object containing original and mapped channel info, or null if not found
  */
 export const extractChannelInfoFromFilename = (
   filename: string
-): { type: "SG" | "DG" | "AG"; number: string } | null => {
+): {
+  type: "SG" | "DG" | "AG";
+  number: string;
+  displayType: "SG" | "DG" | "AG";
+  displayNumber: string;
+  routingChannel: number;
+} | null => {
   const regex = /_(SG|DG|AG)_(\d+)/;
   const match = filename.match(regex);
   if (match) {
+    const originalType = match[1] as "SG" | "DG" | "AG";
+    const originalNumber = match[2];
+
+    // For routing: DG and AG channels go to channel 5, SG channels use their original number
+    const routingChannel =
+      originalType === "DG" || originalType === "AG" ? 5 : parseInt(originalNumber, 10);
+
     return {
-      type: match[1] as "SG" | "DG" | "AG",
-      number: match[2],
+      type: originalType,
+      number: originalNumber,
+      displayType: originalType,
+      displayNumber: originalNumber,
+      routingChannel: routingChannel,
     };
   }
   return null;
