@@ -159,10 +159,8 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
             </div>
           </div>
 
-          {/* Content Indicators */}
           <ContentIndicatorsSection hoveredDate={hoveredDate} />
 
-          {/* Communication Preview */}
           <FirstCommSection hoveredDate={hoveredDate} hasCommData={hasCommData} />
         </>
       )}

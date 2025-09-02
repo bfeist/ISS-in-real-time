@@ -74,10 +74,10 @@
 
 :root {
   /* Channel Colors */
-  --channel1-primary: #df8d8d;
+  --channel1-primary: #68bfd7;
   --channel2-primary: #59e1c6;
-  --channel3-primary: #68bfd7;
-  --channel4-primary: #9d46e0;
+  --channel3-primary: #df8d8d;
+  --channel4-primary: #b374e4;
   --channel5-primary: #ce643b;
 
   /* Inactive channel color */

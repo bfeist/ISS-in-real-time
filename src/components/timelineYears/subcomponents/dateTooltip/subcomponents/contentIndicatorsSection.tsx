@@ -17,37 +17,31 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
     return dataAvailabilityItems.find((item) => item.date === hoveredDate);
   }, [hoveredDate, dataAvailabilityItems]);
 
+  const getAvailability = (key: string, availability: DataAvailability) => {
+    switch (key) {
+      case "comm":
+        return availability.comm || availability.vvComm;
+      case "blog":
+        return availability.blog || availability.activitySummary;
+      default:
+        return availability[key as keyof DataAvailability];
+    }
+  };
+
   // Define content types with their availability
   const contentTypes = useMemo(() => {
-    if (!contentAvailability) return [];
-
-    return [
-      {
-        key: "comm",
-        label: "Comm",
-        available: contentAvailability.comm || contentAvailability.vvComm,
-      },
-      {
-        key: "youtube",
-        label: "Video",
-        available: contentAvailability.youtube,
-      },
-      {
-        key: "eva",
-        label: "EVA",
-        available: contentAvailability.eva,
-      },
-      {
-        key: "blog",
-        label: "Article",
-        available: contentAvailability.blog || contentAvailability.activitySummary,
-      },
-      {
-        key: "earthPhotography",
-        label: "Earth Photography",
-        available: contentAvailability.earthPhotography,
-      },
+    const baseTypes = [
+      { key: "comm", label: "Comm" },
+      { key: "youtube", label: "Video" },
+      { key: "eva", label: "EVA" },
+      { key: "blog", label: "Article" },
+      { key: "earthPhotography", label: "Earth Photography" },
     ];
+
+    return baseTypes.map((type) => ({
+      ...type,
+      available: contentAvailability ? getAvailability(type.key, contentAvailability) : false,
+    }));
   }, [contentAvailability]);
 
   if (contentTypes.length === 0) {
