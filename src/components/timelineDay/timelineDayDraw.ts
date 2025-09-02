@@ -500,7 +500,7 @@ export const initializePaperCanvas = ({
       content: hhmmssFromAppSeconds(seconds) + "Z",
       fillColor: COLORS.clockCursorText,
       fontSize: 14,
-      fontFamily: "Inter, Arial, sans-serif",
+      fontFamily: "Roboto Mono, Arial, sans-serif",
       justification: "center",
     });
 
@@ -546,7 +546,7 @@ export const initializePaperCanvas = ({
       content: hhmmssFromAppSeconds(seconds) + "Z",
       fillColor: COLORS.hoverCursorText,
       fontSize: 14,
-      fontFamily: "Inter, Arial, sans-serif",
+      fontFamily: "Roboto Mono, Arial, sans-serif",
       justification: "center",
     });
 

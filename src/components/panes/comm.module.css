@@ -28,7 +28,7 @@
 }
 
 .commItem:nth-child(even) {
-  background-color: rgb(255 255 255 / 15%);
+  background-color: rgb(255 255 255 / 8%);
 }
 
 .commItemActive {
