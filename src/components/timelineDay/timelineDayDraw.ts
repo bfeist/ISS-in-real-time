@@ -505,12 +505,12 @@ export const initializePaperCanvas = ({
     });
 
     // Background for time text
-    const textBg = new paperScope.Path.Rectangle(
-      new paperScope.Point(x - 40, timelineBottom + 5),
-      new paperScope.Size(80, 20)
-    );
-    textBg.fillColor = new paperScope.Color(COLORS.clockCursor);
-    textBg.opacity = 0.8;
+    const textBg = new paperScope.Path.Rectangle({
+      point: new paperScope.Point(x - 42.5, timelineBottom + 5),
+      size: new paperScope.Size(85, 20),
+      radius: 4,
+      fillColor: new paperScope.Color(COLORS.clockCursor),
+    });
 
     clockCursorGroup.addChild(textBg);
     clockCursorGroup.addChild(timeText);
@@ -551,12 +551,12 @@ export const initializePaperCanvas = ({
     });
 
     // Background for time text - same size as clock cursor
-    const textBg = new paperScope.Path.Rectangle(
-      new paperScope.Point(x - 40, timelineBottom + 5),
-      new paperScope.Size(80, 20)
-    );
-    textBg.fillColor = new paperScope.Color(COLORS.hoverCursor);
-    textBg.opacity = 0.9;
+    const textBg = new paperScope.Path.Rectangle({
+      point: new paperScope.Point(x - 42.5, timelineBottom + 5),
+      size: new paperScope.Size(85, 20),
+      radius: 4,
+      fillColor: new paperScope.Color(COLORS.hoverCursor),
+    });
 
     hoverCursorGroup.addChild(textBg);
     hoverCursorGroup.addChild(timeText);
