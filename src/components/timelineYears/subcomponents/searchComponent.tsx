@@ -9,6 +9,7 @@ const SearchComponent: FunctionComponent = () => {
   // Define the available content types for highlighting
   const contentTypes = [
     { key: "comm", label: "Comm" },
+    { key: "vvComm", label: "Comm (visiting vehicle)" },
     { key: "youtube", label: "Video" },
     { key: "eva", label: "EVA" },
     { key: "blog", label: "Articles" },

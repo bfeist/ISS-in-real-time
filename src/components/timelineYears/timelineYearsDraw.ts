@@ -404,7 +404,9 @@ function drawDaysForMonth({
     return contentHighlights.every((highlight) => {
       switch (highlight.toLowerCase()) {
         case "comm":
-          return dayItem.comm || dayItem.vvComm; // Comm includes both comm and vvComm
+          return dayItem.comm;
+        case "vvcomm":
+          return dayItem.vvComm;
         case "youtube":
           return dayItem.youtube; // Now labeled as "Video"
         case "eva":

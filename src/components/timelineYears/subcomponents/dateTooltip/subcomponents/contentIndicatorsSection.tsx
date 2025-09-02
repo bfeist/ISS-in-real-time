@@ -19,8 +19,6 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
 
   const getAvailability = (key: string, availability: DataAvailability) => {
     switch (key) {
-      case "comm":
-        return availability.comm || availability.vvComm;
       case "blog":
         return availability.blog || availability.activitySummary;
       default:
@@ -32,6 +30,7 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
   const contentTypes = useMemo(() => {
     const baseTypes = [
       { key: "comm", label: "Comm" },
+      { key: "vvComm", label: "Comm (Visiting Vehicle)" },
       { key: "youtube", label: "Video" },
       { key: "eva", label: "EVA" },
       { key: "blog", label: "Article" },

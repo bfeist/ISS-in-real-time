@@ -110,7 +110,9 @@ const TimelineYearsOptimized: React.FC = () => {
       return contentHighlights.every((highlight: string) => {
         switch (highlight.toLowerCase()) {
           case "comm":
-            return dayItem.comm || dayItem.vvComm;
+            return dayItem.comm;
+          case "vvcomm":
+            return dayItem.vvComm;
           case "youtube":
             return dayItem.youtube;
           case "eva":
