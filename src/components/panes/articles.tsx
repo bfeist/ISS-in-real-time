@@ -25,25 +25,25 @@ const Blog: FunctionComponent = () => {
           {blogArticles.map((blogArticle, index) => (
             <div key={index} className={styles.blogEntry}>
               <h3>{blogArticle.title}</h3>
-              {blogArticle.image_filename && (
-                <div className={styles.imageContainer}>
-                  <a
-                    href={`${baseStaticUrl}/blog_articles/${year}/${month}/${day}/${blogArticle.image_filename}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <img
-                      src={`${baseStaticUrl}/blog_articles/${year}/${month}/${day}/${blogArticle.image_filename}`}
-                      alt={blogArticle.image_caption || blogArticle.title}
-                      className={styles.clickableImage}
-                    />
-                  </a>
-                  {blogArticle.image_caption && (
-                    <p className={styles.imageCaption}>{blogArticle.image_caption}</p>
-                  )}
-                </div>
-              )}
               <div className={styles.content}>
+                {blogArticle.image_filename && (
+                  <div className={styles.imageContainer}>
+                    <a
+                      href={`${baseStaticUrl}/blog_articles/${year}/${month}/${day}/${blogArticle.image_filename}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <img
+                        src={`${baseStaticUrl}/blog_articles/${year}/${month}/${day}/${blogArticle.image_filename}`}
+                        alt={blogArticle.image_caption || blogArticle.title}
+                        className={styles.clickableImage}
+                      />
+                    </a>
+                    {blogArticle.image_caption && (
+                      <p className={styles.imageCaption}>{blogArticle.image_caption}</p>
+                    )}
+                  </div>
+                )}
                 {blogArticle.paragraphs.map((paragraph, i) => (
                   <p key={i} dangerouslySetInnerHTML={{ __html: paragraph }} />
                 ))}

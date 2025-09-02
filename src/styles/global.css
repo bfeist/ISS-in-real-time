@@ -50,7 +50,7 @@ pre,
 }
 
 ::-webkit-scrollbar-track {
-  background: #484c68;
+  background: var(--grey2);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -70,5 +70,5 @@ pre,
 /* Firefox scrollbar styling */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--grey5) #484c68;
+  scrollbar-color: var(--grey5) var(--grey2);
 }
