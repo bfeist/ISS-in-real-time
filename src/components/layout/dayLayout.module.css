@@ -13,6 +13,7 @@
   flex: 0 0 100px;
   display: flex;
   flex-direction: column;
+  margin-top: 15px;
 }
 
 .body {

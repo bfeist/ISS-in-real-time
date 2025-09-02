@@ -8,6 +8,8 @@ import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useDateCommTranscript, useDateDataAvailability } from "../../api/useDateSpecificData";
 import { useParams } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faVolumeHigh, faVolumeMute } from "@fortawesome/free-solid-svg-icons";
 
 // Explicitly reference dynamic CSS classes to prevent linter warnings
 // @ts-ignore - Used to prevent unused CSS class warnings
@@ -22,6 +24,7 @@ const _unusedClasses = [
   styles.channelToggle4Inactive,
   styles.channelToggle5Active,
   styles.channelToggle5Inactive,
+  styles.channelToggleDisabled,
   styles.channelnum1,
   styles.channelnum2,
   styles.channelnum3,
@@ -57,8 +60,30 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
     5: true,
   });
 
+  // Function to check if a channel has communication data
+  const getAvailableChannels = useCallback((): Set<number> => {
+    const availableChannels = new Set<number>();
+
+    commItems.forEach((item) => {
+      const channelInfo = extractChannelInfoFromFilename(item.filename);
+      if (channelInfo) {
+        const channelNumber = parseInt(channelInfo.number, 10);
+        availableChannels.add(channelNumber);
+      }
+    });
+
+    return availableChannels;
+  }, [commItems]);
+
+  const availableChannels = getAvailableChannels();
+
   // Function to toggle channel visibility
   const toggleChannel = (channelNumber: number) => {
+    // Don't allow toggling if the channel has no data
+    if (!availableChannels.has(channelNumber)) {
+      return;
+    }
+
     setChannelVisibility((prev) => ({
       ...prev,
       [channelNumber]: !prev[channelNumber],
@@ -204,19 +229,52 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
 
       {/* Channel toggle buttons */}
       <div className={styles.channelToggleContainer}>
-        {[1, 2, 3, 4, 5].map((channelNum) => (
-          <button
-            key={channelNum}
-            className={`${styles.channelToggle} ${
-              channelVisibility[channelNum]
-                ? styles[`channelToggle${channelNum}Active`]
-                : styles[`channelToggle${channelNum}Inactive`]
-            }`}
-            onClick={() => toggleChannel(channelNum)}
-          >
-            S/G-{channelNum}
-          </button>
-        ))}
+        {[1, 2, 3, 4, 5].map((channelNum) => {
+          const isChannelAvailable = availableChannels.has(channelNum);
+          const isChannelVisible = channelVisibility[channelNum];
+
+          let toggleClassName;
+          if (!isChannelAvailable) {
+            toggleClassName = styles.channelToggleDisabled;
+          } else if (isChannelVisible) {
+            toggleClassName = styles[`channelToggle${channelNum}Active`];
+          } else {
+            toggleClassName = styles[`channelToggle${channelNum}Inactive`];
+          }
+
+          let toggleIcon;
+          if (!isChannelAvailable) {
+            toggleIcon = faVolumeMute;
+          } else if (isChannelVisible) {
+            toggleIcon = faVolumeHigh;
+          } else {
+            toggleIcon = faVolumeMute;
+          }
+
+          return (
+            <div
+              key={channelNum}
+              className={`${styles.channelToggle} ${toggleClassName}`}
+              role="button"
+              tabIndex={isChannelAvailable ? 0 : -1}
+              onClick={() => toggleChannel(channelNum)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggleChannel(channelNum);
+                }
+              }}
+              aria-pressed={isChannelVisible}
+              aria-disabled={!isChannelAvailable}
+              aria-label={`Toggle S/G-${channelNum} channel ${
+                !isChannelAvailable ? "(no data available)" : isChannelVisible ? "off" : "on"
+              }`}
+            >
+              SG-{channelNum}
+              <FontAwesomeIcon icon={toggleIcon} className={styles.channelToggleIcon} />
+            </div>
+          );
+        })}
       </div>
 
       <div className={styles.commContent}>
@@ -292,10 +350,14 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
                     setLastScrolledToTimeStr(null);
                     setClock(appSecondsFromTimeStr(item.utteranceTime));
                   }}
-                  onKeyDown={() => {
-                    setLastScrolledToTimeStr(null);
-                    setClock(appSecondsFromTimeStr(item.utteranceTime));
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setLastScrolledToTimeStr(null);
+                      setClock(appSecondsFromTimeStr(item.utteranceTime));
+                    }
                   }}
+                  aria-label={`Jump to communication at ${item.utteranceTime}`}
                 >
                   <div className={styles.commTime}>{item.utteranceTime}</div>
                   <div

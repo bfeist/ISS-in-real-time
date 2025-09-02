@@ -38,17 +38,17 @@
 
 .channelnum {
   white-space: nowrap;
-  font-weight: 500;
+  font-weight: 600;
   padding: 2px 6px;
   border-radius: 3px;
-  color: white;
+  color: black;
   font-size: 0.9em;
   font-family: var(--font-mono);
 }
 
 .commTime {
   font-family: var(--font-mono);
-  font-weight: 500;
+  font-weight: 300;
   font-size: 0.9em;
   white-space: nowrap;
 }
@@ -57,10 +57,12 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  font-weight: 300;
+  color: var(--grey5);
 }
 
 .textOriginalLang {
-  color: #a7a7a7;
+  filter: brightness(0.7);
   font-size: 0.9em;
 }
 
@@ -68,100 +70,121 @@
   display: none;
 }
 
+/* Channel Toggles */
+
+:root {
+  /* Channel Colors */
+  --channel1-primary: #df8d8d;
+  --channel2-primary: #59e1c6;
+  --channel3-primary: #68bfd7;
+  --channel4-primary: #9d46e0;
+  --channel5-primary: #ce643b;
+
+  /* Inactive channel color */
+  --channel-inactive-bg: #64748b;
+}
+
 .channelToggleContainer {
   display: flex;
   gap: 8px;
   padding: 10px;
-  background-color: #a0a0a0;
-  border-bottom: 1px solid #909090;
+  background-color: var(--grey2);
+  border-bottom: 1px solid var(--grey3);
 }
 
 .channelToggle {
   padding: 6px 12px;
-  border: 1px solid #808080;
+  border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: bold;
+  font-family: var(--font-sans);
+  font-size: 0.8em;
+  font-weight: 800;
   transition: all 0.2s ease;
-  color: white;
+  color: black;
+}
+
+.channelToggleIcon {
+  margin-left: 6px;
 }
 
 .channelToggle:hover {
-  opacity: 0.8;
+  filter: brightness(1.2);
 }
 
 /* Channel 1 - Dark Blue */
 .channelToggle1Active {
-  background-color: #1e3a8a;
-  border-color: #1e40af;
+  background-color: var(--channel1-primary);
 }
 
 .channelToggle1Inactive {
-  background-color: #64748b;
-  border-color: #475569;
+  background-color: var(--channel-inactive-bg);
 }
 
 /* Channel 2 - Dark Green */
 .channelToggle2Active {
-  background-color: #166534;
-  border-color: #16a34a;
+  background-color: var(--channel2-primary);
 }
 
 .channelToggle2Inactive {
-  background-color: #64748b;
-  border-color: #475569;
+  background-color: var(--channel-inactive-bg);
 }
 
 /* Channel 3 - Dark Red */
 .channelToggle3Active {
-  background-color: #991b1b;
-  border-color: #dc2626;
+  background-color: var(--channel3-primary);
 }
 
 .channelToggle3Inactive {
-  background-color: #64748b;
-  border-color: #475569;
+  background-color: var(--channel-inactive-bg);
 }
 
 /* Channel 4 - Dark Purple */
 .channelToggle4Active {
-  background-color: #581c87;
-  border-color: #7c3aed;
+  background-color: var(--channel4-primary);
 }
 
 .channelToggle4Inactive {
-  background-color: #64748b;
-  border-color: #475569;
+  background-color: var(--channel-inactive-bg);
 }
 
 /* Channel 5 - Dark Orange */
 .channelToggle5Active {
-  background-color: #c2410c;
-  border-color: #ea580c;
+  background-color: var(--channel5-primary);
 }
 
 .channelToggle5Inactive {
-  background-color: #64748b;
-  border-color: #475569;
+  background-color: var(--channel-inactive-bg);
+}
+
+/* Disabled channel styles */
+.channelToggleDisabled {
+  background-color: #61616b;
+  color: #b2b2be;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.channelToggleDisabled:hover {
+  filter: none;
 }
 
 .channelnum1 {
-  background-color: #1e3a8a;
+  background-color: var(--channel1-primary);
 }
 
 .channelnum2 {
-  background-color: #166534;
+  background-color: var(--channel2-primary);
 }
 
 .channelnum3 {
-  background-color: #991b1b;
+  background-color: var(--channel3-primary);
 }
 
 .channelnum4 {
-  background-color: #581c87;
+  background-color: var(--channel4-primary);
 }
 
 .channelnum5 {
-  background-color: #c2410c;
+  background-color: var(--channel5-primary);
 }

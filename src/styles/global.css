@@ -27,6 +27,7 @@ p {
   --grey2: #292b3a;
   --grey3: #4a4e65;
   --grey4: #6d7090;
+  --grey5: #e0e0e0;
   --headerbutton: #00d3ff;
 }
 
@@ -53,7 +54,7 @@ pre,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: white;
+  background: var(--grey5);
   border-radius: 2px;
 }
 
@@ -69,5 +70,5 @@ pre,
 /* Firefox scrollbar styling */
 * {
   scrollbar-width: thin;
-  scrollbar-color: white #484c68;
+  scrollbar-color: var(--grey5) #484c68;
 }
