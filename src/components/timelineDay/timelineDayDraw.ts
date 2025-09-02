@@ -41,7 +41,9 @@ export const initializePaperCanvas = ({
   const COLORS = {
     clockCursor: "#d10b0b", // Red for clock cursor
     hoverCursor: "#ffd700", // Yellow for hover cursor
-    timelineStroke: "#858585", // Gray for timeline borders
+    timelineStroke: "#6d7090", // Grey4 for timeline borders
+    timelineBackground: "#292b3a", // Grey2 for data row backgrounds
+    timeTicks: "#6d7090", // Grey4 for time ticks
     labelText: "#ffffff", // White for all text labels
     nightFill: "#000000", // Black for night segments
     sunriseSunsetFill: "#ff8c00", // Orange for sunrise/sunset segments
@@ -180,22 +182,22 @@ export const initializePaperCanvas = ({
       const seconds = hour * 3600;
       const x = LEFT_MARGIN + seconds * pixelsPerSecond;
 
-      // Draw tick line at the bottom
+      // Draw tick line from top of video data line down to bottom
       const tickLine = new paperScope.Path.Line(
-        new paperScope.Point(x, timelineBottom),
+        new paperScope.Point(x, TOP_MARGIN),
         new paperScope.Point(x, timelineBottom + 10)
       );
-      tickLine.strokeColor = new paperScope.Color(COLORS.timelineStroke);
+      tickLine.strokeColor = new paperScope.Color(COLORS.timeTicks);
       tickLine.strokeWidth = 1;
       group.addChild(tickLine);
 
       // Draw hour label below the tick
       const hourText = new paperScope.PointText({
         point: new paperScope.Point(x - 6, timelineBottom + 25),
-        content: `${hour}Z`,
+        content: `${hour}`,
         fillColor: COLORS.labelText,
         fontSize: 12,
-        fontFamily: "Arial, sans-serif",
+        fontFamily: "Inter, Arial, sans-serif",
       });
       group.addChild(hourText);
     }
@@ -219,7 +221,8 @@ export const initializePaperCanvas = ({
       content: rowConfig.label,
       fillColor: COLORS.labelText,
       fontSize: 12,
-      fontFamily: "Arial, sans-serif",
+      fontFamily: "Inter, Arial, sans-serif",
+      fontWeight: "300",
       justification: "right",
     });
     group.addChild(labelText);
@@ -249,7 +252,7 @@ export const initializePaperCanvas = ({
         new paperScope.Point(LEFT_MARGIN, subrowY),
         new paperScope.Size(timelineWidth, COMM_SUBROW_HEIGHT)
       );
-      // subrowBg.fillColor = new paperScope.Color("#f0f0f0");
+      subrowBg.fillColor = new paperScope.Color(COLORS.timelineBackground);
       subrowBg.strokeColor = new paperScope.Color(COLORS.timelineStroke);
       subrowBg.strokeWidth = 0.5;
       group.addChild(subrowBg);
@@ -297,7 +300,8 @@ export const initializePaperCanvas = ({
       content: rowConfig.label,
       fillColor: COLORS.labelText,
       fontSize: 12,
-      fontFamily: "Arial, sans-serif",
+      fontFamily: "Inter, Arial, sans-serif",
+      fontWeight: "300",
       justification: "right",
     });
     group.addChild(labelText);
@@ -307,8 +311,8 @@ export const initializePaperCanvas = ({
       new paperScope.Point(LEFT_MARGIN, y),
       new paperScope.Size(timelineWidth, rowHeight)
     );
-    // timelineBg.fillColor = new paperScope.Color("#f0f0f0");
-    timelineBg.strokeColor = new paperScope.Color(COLORS.timelineStroke);
+    timelineBg.fillColor = new paperScope.Color(COLORS.timelineBackground);
+    timelineBg.strokeColor = new paperScope.Color(COLORS.timeTicks);
     timelineBg.strokeWidth = 1;
     group.addChild(timelineBg);
 
@@ -461,7 +465,7 @@ export const initializePaperCanvas = ({
       content: hhmmssFromAppSeconds(seconds) + "Z",
       fillColor: COLORS.clockCursorText,
       fontSize: 14,
-      fontFamily: "Arial, sans-serif",
+      fontFamily: "Inter, Arial, sans-serif",
       justification: "center",
     });
 
@@ -507,7 +511,7 @@ export const initializePaperCanvas = ({
       content: hhmmssFromAppSeconds(seconds) + "Z",
       fillColor: COLORS.hoverCursorText,
       fontSize: 14,
-      fontFamily: "Arial, sans-serif",
+      fontFamily: "Inter, Arial, sans-serif",
       justification: "center",
     });
 
@@ -575,14 +579,14 @@ export const initializePaperCanvas = ({
         timelineGroup.addChild(background);
 
         if (data) {
-          // Draw time ticks
-          timelineGroup.addChild(drawTimeTicks());
-
-          // Draw each data row
+          // Draw each data row first
           DATA_ROWS.forEach((rowConfig, index) => {
             const items = data[rowConfig.key as keyof TimelineDayData] as unknown[];
             timelineGroup.addChild(drawDataRow(index, rowConfig, items || []));
           });
+
+          // Draw time ticks on top of data rows
+          timelineGroup.addChild(drawTimeTicks());
         } else {
           // Fallback when no data is provided
           const noDataText = new paperScope.PointText({
@@ -590,7 +594,7 @@ export const initializePaperCanvas = ({
             content: "No timeline data available",
             // fillColor: "#999999",
             fontSize: 14,
-            fontFamily: "Arial, sans-serif",
+            fontFamily: "Inter, Arial, sans-serif",
             justification: "center",
           });
           timelineGroup.addChild(noDataText);
