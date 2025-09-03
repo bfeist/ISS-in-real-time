@@ -14,7 +14,7 @@ const EarthPhotography: FunctionComponent = () => {
 
   const { setClock } = useStateClock();
 
-  const [visibleImages, setVisibleImages] = useState<number[]>([]);
+  const [visibleImages, setVisibleImages] = useState<Set<number>>(new Set());
   const [appSeconds, setAppSeconds] = useState(0);
   const [mostRecentImage, setMostRecentImage] = useState(null);
 
@@ -26,7 +26,7 @@ const EarthPhotography: FunctionComponent = () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const index = parseInt(entry.target.getAttribute("data-index") || "0", 10);
-            setVisibleImages((prev) => [...prev, index]);
+            setVisibleImages((prev) => new Set(prev).add(index));
             observer.current?.unobserve(entry.target);
           }
         });
@@ -34,6 +34,7 @@ const EarthPhotography: FunctionComponent = () => {
       { threshold: 0.1 }
     );
 
+    // Observe all thumbnail containers (they all exist now as placeholders)
     const elements = document.querySelectorAll(".lazy-load");
     elements.forEach((el) => observer.current?.observe(el));
 
@@ -106,6 +107,7 @@ const EarthPhotography: FunctionComponent = () => {
             data-time={item.dateTaken.split("T")[1]}
           >
             <div
+              className={styles.thumbContent}
               role="button"
               tabIndex={0}
               onClick={() => {
@@ -117,8 +119,10 @@ const EarthPhotography: FunctionComponent = () => {
                 }
               }}
             >
-              {visibleImages.includes(index) && (
+              {visibleImages.has(index) ? (
                 <img src={`${imageBaseUrl}/${item.smallUrl}`} alt={item.ID} loading="lazy" />
+              ) : (
+                <div className={styles.thumbPlaceholder} />
               )}
             </div>
           </div>
