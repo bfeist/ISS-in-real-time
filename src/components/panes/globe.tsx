@@ -39,6 +39,11 @@ const Globe: FunctionComponent = () => {
 
   const [tle, setTle] = useState<string[]>();
 
+  // Reset TLE data when date changes to prevent stale data issues
+  useEffect(() => {
+    setTle(undefined);
+  }, [selectedDate]);
+
   const [cesiumReady, setCesiumReady] = useState(false);
 
   // Cleanup refs for proper memory management
@@ -84,7 +89,13 @@ const Globe: FunctionComponent = () => {
   }, [tle]);
 
   const computeSampledPositions = useMemo(() => {
-    if (!tle || tle.length === 0) {
+    // Ensure we have TLE data and it's for the current selected date
+    if (!tle || tle.length === 0 || !selectedDate) {
+      return null;
+    }
+
+    // Additional safety check: ensure ephemera is loaded for the current date
+    if (isLoading || !ephemeraItems || ephemeraItems.length === 0) {
       return null;
     }
 
@@ -107,24 +118,28 @@ const Globe: FunctionComponent = () => {
     while (JulianDate.lessThanOrEquals(time, endTimeJD)) {
       const jsDate = JulianDate.toDate(time);
       const positionAndVelocity = satellite.propagate(satrec, jsDate);
-      const positionEci = positionAndVelocity.position as satellite.EciVec3<number>;
 
-      if (positionEci) {
-        const gmst = satellite.gstime(jsDate);
-        const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-        const longitude = CesiumMath.toDegrees(positionGd.longitude);
-        const latitude = CesiumMath.toDegrees(positionGd.latitude);
-        const height = positionGd.height * 1000; // Convert km to meters
+      // Check if positionAndVelocity and its position property are valid
+      if (positionAndVelocity && positionAndVelocity.position) {
+        const positionEci = positionAndVelocity.position as satellite.EciVec3<number>;
 
-        const position = Cartesian3.fromDegrees(longitude, latitude, height);
-        positions.addSample(time, position);
+        if (positionEci) {
+          const gmst = satellite.gstime(jsDate);
+          const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+          const longitude = CesiumMath.toDegrees(positionGd.longitude);
+          const latitude = CesiumMath.toDegrees(positionGd.latitude);
+          const height = positionGd.height * 1000; // Convert km to meters
+
+          const position = Cartesian3.fromDegrees(longitude, latitude, height);
+          positions.addSample(time, position);
+        }
       }
 
       time = JulianDate.addSeconds(time, stepSeconds, new JulianDate());
     }
 
     return positions;
-  }, [tle, startTime]);
+  }, [tle, startTime, selectedDate, isLoading, ephemeraItems]);
 
   const sampledPositionProperty = computeSampledPositions;
 

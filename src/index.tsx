@@ -9,13 +9,11 @@ import {
 } from "react-router-dom";
 import App from "./App.tsx";
 import Home from "pages/home.tsx";
-import TimelineTestPage from "pages/timelineTest.tsx";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<App />}>
       <Route index element={<Home />} />
-      <Route path="timeline-test" element={<TimelineTestPage />} />
       <Route path=":dateTimeSlug" element={<Home />} />
     </Route>
   )
