@@ -232,3 +232,47 @@ interface TimelineDayData {
   dayNight: DayNightObj[];
   selectedDate: string;
 }
+
+// Layout configuration types
+type ComponentType =
+  | "video"
+  | "video-eva"
+  | "video-eva-article"
+  | "video-article"
+  | "video-eva-long"
+  | "eva"
+  | "eva-long"
+  | "eva-article"
+  | "article"
+  | "photo"
+  | "comm"
+  | "globe"
+  | "widget"
+  | "widget-tall"
+  | "widget-rest"
+  | "flights"
+  | "globe-widget"
+  | "globe-widget-rest"
+  | "photo-widget"
+  | "photo-article"
+  | "photo-eva-long";
+
+interface ComponentConfig {
+  type: ComponentType;
+  size?: number; // for flex sizing if needed
+}
+
+interface LayoutConfiguration {
+  conditions: {
+    video: boolean;
+    comm: boolean;
+    eva: boolean;
+    article: boolean;
+    photo: boolean;
+  };
+  layout: {
+    left: ComponentConfig[];
+    center: ComponentConfig[];
+    right: ComponentConfig[];
+  };
+}

@@ -1,13 +1,13 @@
 import styles from "./home.module.css";
 import { FunctionComponent, JSX, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import Layout from "../components/layout/dayLayout";
+import DayLayout2 from "../components/dayLayout/dayLayout2";
 import TimelineYearsContainer from "../components/timelineYears/timelineYearsContainer";
 import { useStateSelectedDate } from "../store/hooks/useStateSelectedDate";
 import { useStateClock } from "../store/hooks/useStateClock";
 import { useStateToggle } from "../store/hooks/useStateToggle";
 import Header from "components/header/header";
-import NoDateSelected from "../components/layout/noDateSelected";
+import NoDateSelected from "../components/dayLayout/noDateSelected";
 import { parseDateTimeSlug } from "../utils/params";
 import { appSecondsFromTimeStr } from "../utils/time";
 
@@ -33,7 +33,7 @@ const HomePage: FunctionComponent = (): JSX.Element => {
       <Header />
       <TimelineYearsContainer />
       <div className={styles.contentWrapper}>
-        {selectedDate ? <Layout /> : <NoDateSelected />}
+        {selectedDate ? <DayLayout2 /> : <NoDateSelected />}
         {showTimelineYears && (
           <div
             className={styles.overlay}

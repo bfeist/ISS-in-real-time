@@ -14,7 +14,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import styles from "./timelineYearsContainer.module.css";
 import YearsLabels from "./yearsLabels";
-import ControlsHeader from "./controlsHeader";
+import ControlsHeader from "./controlsHeader/controlsHeader";
 import SearchComponent from "./subcomponents/searchComponent";
 import DateTooltip from "./subcomponents/dateTooltip/dateTooltip";
 import OpenCloseIndicators from "./subcomponents/openCloseIndicators";

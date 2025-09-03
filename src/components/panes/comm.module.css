@@ -5,13 +5,19 @@
   height: 100%;
   min-height: 0;
   position: relative;
+  background-color: var(--grey2);
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
 }
 
 .commContent {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 0;
   backdrop-filter: blur(2px);
+  margin-right: 4px;
+  padding: 7px 0 0 0;
 }
 
 .commItem {
@@ -25,10 +31,6 @@
 
 .commItem:nth-child(odd) {
   background-color: rgb(255 255 255 / 5%);
-}
-
-.commItem:nth-child(even) {
-  background-color: rgb(255 255 255 / 8%);
 }
 
 .commItemActive {
@@ -90,6 +92,7 @@
   padding: 10px;
   background-color: var(--grey2);
   border-bottom: 1px solid var(--grey3);
+  border-radius: var(--panel-radius) var(--panel-radius) 0 0;
 }
 
 .channelToggle {
@@ -105,7 +108,7 @@
 }
 
 .channelToggleIcon {
-  margin-left: 6px;
+  margin-left: 4px;
 }
 
 .channelToggle:hover {

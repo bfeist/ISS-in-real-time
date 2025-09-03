@@ -49,11 +49,11 @@ export const initializePaperCanvas = ({
     sunriseSunsetFill: "#ff8c00", // Orange for sunrise/sunset segments
     clockCursorText: "white", // White for clock cursor text
     hoverCursorText: "black", // Black for hover cursor text
-    commChannel1: "#315fdfff", // Blue for comm channel 1
-    commChannel2: "#2bc566ff", // Green for comm channel 2
-    commChannel3: "#ce2525ff", // Red for comm channel 3
-    commChannel4: "#922edfff", // Purple for comm channel 4
-    commChannel5: "#df490dff", // Orange for comm channel 5
+    commChannel1: "#68bfd7", // Channel 1 primary color
+    commChannel2: "#59e1c6", // Channel 2 primary color
+    commChannel3: "#df8d8d", // Channel 3 primary color
+    commChannel4: "#b374e4", // Channel 4 primary color
+    commChannel5: "#ce643b", // Channel 5 primary color
   } as const;
 
   // Timeline constants
@@ -238,7 +238,8 @@ export const initializePaperCanvas = ({
       const commItem = item as CommItem;
       const channelInfo = extractChannelInfoFromFilename(commItem.filename);
       if (channelInfo) {
-        const channelNumber = channelInfo.number;
+        // Use routingChannel instead of original number - this maps DG/AG to channel 5
+        const channelNumber = channelInfo.routingChannel.toString();
         if (!commItemsByChannel[channelNumber]) {
           commItemsByChannel[channelNumber] = [];
         }

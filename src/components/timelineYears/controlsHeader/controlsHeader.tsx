@@ -12,9 +12,9 @@ import {
   faGlobe,
   faMap,
 } from "@fortawesome/free-solid-svg-icons";
-import IconButton from "../header/iconButton";
-import ShareButton from "../header/share";
-import HeaderTelemetry from "../header/headerTelemetry";
+import IconButton from "./iconButton";
+import ShareButton from "./share";
+import HeaderTelemetry from "./headerTelemetry";
 
 const ControlsHeader: FunctionComponent = () => {
   const { isRunning, startClock, stopClock, appSecondsAtStartStop, startStopTimestamp } =

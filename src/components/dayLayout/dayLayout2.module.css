@@ -1,0 +1,112 @@
+/* Main layout container */
+.dayLayout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: var(--grey1);
+}
+
+/* Timeline at the top */
+.timeline {
+  flex: 0 0 auto;
+  width: 100%;
+  margin-top: 15px;
+  z-index: 1;
+}
+
+/* Three column body layout */
+.body {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+  gap: 16px;
+  padding: 0 0 8px 0;
+  margin-top: 8px;
+}
+
+/* Left column */
+.leftColumn {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-left: 8px;
+}
+
+/* Center column */
+.centerColumn {
+  flex: 0 0 35%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Right column */
+.rightColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-right: 8px;
+}
+
+/* Placeholder styling for development */
+.placeholder {
+  padding: 20px;
+  background-color: #f5f5f5;
+  border: 2px dashed #cccccc;
+  text-align: center;
+  color: #666666;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Multi-component container */
+.multiComponent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Column content containers */
+.columnSingle {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.columnMultiple {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.columnSection {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* Remove flex: 1 to allow natural sizing */
+}
+
+/* Component-specific sizing */
+.componentNaturalSize {
+  /* For components like video that should size naturally */
+  flex: 0 0 auto;
+}
+
+.componentExpandable {
+  /* For components like articles, comm that should expand */
+  flex: 1;
+  min-height: 0;
+}
