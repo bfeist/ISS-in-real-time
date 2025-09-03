@@ -301,12 +301,24 @@ const SupplyFlights: FunctionComponent = () => {
   );
 };
 
-const Flights: FunctionComponent = () => {
-  return (
-    <div className={styles.flightsContainer}>
+const Flights: FunctionComponent<{ isStandalone?: boolean }> = ({ isStandalone = false }) => {
+  const content = (
+    <>
       <CrewedFlights />
       <SupplyFlights />
-    </div>
+    </>
+  );
+
+  if (isStandalone) {
+    return (
+      <div className={styles.flightsContainer}>
+        <div className={styles.scrollableContent}>{content}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${styles.flightsContainer} ${styles.flightsContainerNested}`}>{content}</div>
   );
 };
 

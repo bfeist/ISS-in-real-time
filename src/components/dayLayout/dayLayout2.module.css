@@ -96,7 +96,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  /* Remove flex: 1 to allow natural sizing */
+  flex: 1;
 }
 
 /* Component-specific sizing */
@@ -109,4 +109,19 @@
   /* For components like articles, comm that should expand */
   flex: 1;
   min-height: 0;
+}
+
+/* Standalone flights styling (when used outside of articles) */
+.flightsStandalone {
+  height: 100%;
+  max-height: 100%;
+  backdrop-filter: blur(2px);
+  box-sizing: border-box;
+  font-family: Inter, sans-serif;
+  background-color: var(--grey2);
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }

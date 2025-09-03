@@ -81,7 +81,9 @@ const renderComponent = (config: ComponentConfig): JSX.Element | null => {
     case "flights":
       return (
         <div className={styles.componentExpandable}>
-          <Flights />
+          <div className={styles.flightsStandalone}>
+            <Flights isStandalone={true} />
+          </div>
         </div>
       );
 
