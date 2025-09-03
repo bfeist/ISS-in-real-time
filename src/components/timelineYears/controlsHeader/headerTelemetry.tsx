@@ -153,18 +153,18 @@ const HeaderTelemetry: FunctionComponent = () => {
     <>
       <div className={styles.telemetry}>
         <div>
-          Velocity: <span ref={velocityRef} /> km/h
+          <span className={styles.label}>Velocity</span>: <span ref={velocityRef} /> km/h
         </div>
         <div>
-          Altitude: <span ref={altitudeRef} /> km
+          <span className={styles.label}>Altitude</span>: <span ref={altitudeRef} /> km
         </div>
       </div>
       <div className={styles.telemetry}>
         <div>
-          Lat: <span ref={latRef} />
+          <span className={styles.label}>Lat</span>: <span ref={latRef} />
         </div>
         <div>
-          Lng: <span ref={lngRef} />
+          <span className={styles.label}>Lng</span>: <span ref={lngRef} />
         </div>
       </div>
     </>

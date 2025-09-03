@@ -1,6 +1,11 @@
 .telemetry {
-  font-size: 0.7rem;
+  color: var(--grey5);
+  font-size: 0.8rem;
   font-family: "Roboto Mono", monospace;
   margin: 0 10px 0 0;
   align-self: center;
+}
+
+.label {
+  color: var(--highlight);
 }
