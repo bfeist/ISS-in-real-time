@@ -238,7 +238,8 @@ export const initializePaperCanvas = ({
       const commItem = item as CommItem;
       const channelInfo = extractChannelInfoFromFilename(commItem.filename);
       if (channelInfo) {
-        const channelNumber = channelInfo.number;
+        // Use routingChannel instead of original number - this maps DG/AG to channel 5
+        const channelNumber = channelInfo.routingChannel.toString();
         if (!commItemsByChannel[channelNumber]) {
           commItemsByChannel[channelNumber] = [];
         }
