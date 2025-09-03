@@ -2,8 +2,13 @@ import { FunctionComponent, useState, useEffect } from "react";
 import styles from "./dayLayout.module.css";
 import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateToggle } from "store/hooks/useStateToggle";
+import { useStateClock } from "store/hooks/useStateClock";
 import { useDateDataAvailability } from "api/useDateSpecificData";
+import { useDateCommTranscript } from "api/useDateSpecificData";
+import { useGeneralYoutubeData } from "api/useGeneralData";
 import { useDateCacheManagement } from "api/useDateCacheManagement";
+import { useParams } from "react-router-dom";
+import { appSecondsFromTimeStr } from "utils/time";
 import Comm from "components/panes/comm";
 import Articles from "components/panes/articles";
 import Globe from "components/panes/globe";
@@ -238,10 +243,47 @@ const GlobeOrMap: FunctionComponent = () => {
 
 const Layout: FunctionComponent = () => {
   const { selectedDate } = useStateSelectedDate();
+  const { startClock, setClock } = useStateClock();
+  const { dateTimeSlug } = useParams();
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
+  const { data: commItems = [] } = useDateCommTranscript(selectedDate);
+  const { data: youtubeLiveRecordings = [] } = useGeneralYoutubeData();
+
+  // Find YouTube recording for this date
+  const youtubeLiveRecording = youtubeLiveRecordings?.find((recording: YoutubeLiveRecording) =>
+    recording.startTime.startsWith(selectedDate || "")
+  );
 
   // Manage cache when date changes
   useDateCacheManagement(selectedDate);
+
+  // Set initial clock position and start the clock when a day loads
+  useEffect(() => {
+    if (!selectedDate) return;
+
+    // Handle dateTimeSlug parameter - takes highest priority
+    if (dateTimeSlug) {
+      // Note: The specific time from dateTimeSlug is already set by index.tsx
+      // We just start the clock since the position is already set
+      startClock();
+      return;
+    }
+
+    // Only set automatic clock position if no dateTimeSlug parameter was provided
+    // YouTube takes priority over comm data
+    if (youtubeLiveRecording) {
+      // Set the clock to the start time of the YouTube recording
+      const startTimeStr = youtubeLiveRecording.startTime.split("T")[1];
+      setClock(appSecondsFromTimeStr(startTimeStr));
+    } else if (commItems.length > 0) {
+      // If we have comm data and no YouTube, start 10 seconds before first comm
+      const firstComm = commItems[0];
+      setClock(appSecondsFromTimeStr(firstComm.utteranceTime) - 10);
+    }
+
+    // Start the clock after setting position
+    startClock();
+  }, [selectedDate, commItems, youtubeLiveRecording, dateTimeSlug, setClock, startClock]);
 
   const { width } = useViewport();
   const isMobile = width <= 1000;

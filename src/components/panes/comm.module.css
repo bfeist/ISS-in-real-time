@@ -32,7 +32,7 @@
 }
 
 .commItemActive {
-  background-color: #383838 !important;
+  background-color: rgb(255 255 255 / 20%) !important;
   transition: background-color 0.5s ease-in-out;
 }
 

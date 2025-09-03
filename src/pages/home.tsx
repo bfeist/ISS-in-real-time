@@ -1,4 +1,4 @@
-import styles from "./index.module.css";
+import styles from "./home.module.css";
 import { FunctionComponent, JSX, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Layout from "../components/layout/dayLayout";
@@ -11,7 +11,7 @@ import NoDateSelected from "../components/layout/noDateSelected";
 import { parseDateTimeSlug } from "../utils/params";
 import { appSecondsFromTimeStr } from "../utils/time";
 
-const SliderPage: FunctionComponent = (): JSX.Element => {
+const HomePage: FunctionComponent = (): JSX.Element => {
   const { dateTimeSlug } = useParams();
   const { selectedDate, setSelectedDate } = useStateSelectedDate();
   const { setClock } = useStateClock();
@@ -54,4 +54,4 @@ const SliderPage: FunctionComponent = (): JSX.Element => {
   );
 };
 
-export default SliderPage;
+export default HomePage;

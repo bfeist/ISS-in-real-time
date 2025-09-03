@@ -8,7 +8,7 @@ import {
   Route,
 } from "react-router-dom";
 import App from "./App.tsx";
-import Home from "pages/index.tsx";
+import Home from "pages/home.tsx";
 import TimelineTestPage from "pages/timelineTest.tsx";
 
 const router = createBrowserRouter(
