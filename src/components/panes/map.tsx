@@ -22,11 +22,18 @@ import { hhmmssFromAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
 import styles from "./map.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
+import { useStateHover } from "store/hooks/useStateHover";
 import { useDateEphemera } from "api/useDateSpecificData";
 
 const MapComponent: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
+  const { hoverSeconds } = useStateHover();
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
+
+  const [clockAppSeconds, setClockAppSeconds] = useState(0);
+
+  // Use hover seconds if available, otherwise use clock seconds
+  const appSeconds = hoverSeconds !== null ? hoverSeconds : clockAppSeconds;
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const olMapRef = useRef<Map | null>(null);
@@ -35,8 +42,6 @@ const MapComponent: FunctionComponent = () => {
   const markerLayerRef = useRef<VectorLayer | null>(null);
   const markerFeatureRef = useRef<Feature | null>(null);
   const orbitLayerRef = useRef<VectorLayer | null>(null);
-
-  const [appSeconds, setAppSeconds] = useState(0);
 
   useEffect(() => {
     const labelLayer = new TileLayer({
@@ -160,8 +165,10 @@ const MapComponent: FunctionComponent = () => {
    */
   useEffect(() => {
     if (!selectedDate || !olMapRef.current) return;
-    // Add terminator layer
-    const terminator = new Terminator({ time: new Date(selectedDate), resolution: 2 });
+
+    // Use the current app seconds (including hover) for the terminator
+    const currentTime = new Date(`${selectedDate}T${hhmmssFromAppSeconds(appSeconds)}Z`);
+    const terminator = new Terminator({ time: currentTime, resolution: 2 });
     const terminatorGeoJSON = terminator.getTerminator();
 
     const terminatorSource = new VectorSourceOL({
@@ -187,7 +194,7 @@ const MapComponent: FunctionComponent = () => {
     return () => {
       olMapRef.current.removeLayer(terminatorLayer);
     };
-  }, [selectedDate]);
+  }, [selectedDate, appSeconds]);
 
   /**
    * Update the orbit line based on the current time
@@ -227,7 +234,7 @@ const MapComponent: FunctionComponent = () => {
 
   return (
     <>
-      <ClockInterval setAppSeconds={setAppSeconds} />
+      <ClockInterval setAppSeconds={setClockAppSeconds} />
       <div ref={mapRef} className={styles.mapContainer}></div>
     </>
   );

@@ -16,6 +16,7 @@ import { Viewer, Entity } from "resium";
 import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
 import { useStateClock } from "store/hooks/useStateClock";
+import { useStateHover } from "store/hooks/useStateHover";
 import { hhmmssFromAppSeconds } from "utils/time";
 import { useDateEphemera } from "api/useDateSpecificData";
 
@@ -24,16 +25,26 @@ Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
 
 const Globe: FunctionComponent = () => {
   const { isRunning, startStopTimestamp, appSecondsAtStartStop, selectedDate } = useStateClock();
+  const { hoverSeconds } = useStateHover();
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
 
   const { startTime, julianDate } = useMemo(() => {
-    const appSeconds = isRunning
-      ? appSecondsAtStartStop + (Date.now() - new Date(startStopTimestamp).getTime()) / 1000
-      : appSecondsAtStartStop;
+    // Use hover seconds if available, otherwise use the current clock time
+    let appSeconds: number;
+
+    if (hoverSeconds !== null) {
+      appSeconds = hoverSeconds;
+    } else if (isRunning) {
+      appSeconds =
+        appSecondsAtStartStop + (Date.now() - new Date(startStopTimestamp).getTime()) / 1000;
+    } else {
+      appSeconds = appSecondsAtStartStop;
+    }
+
     const st = new Date(`${selectedDate}T${hhmmssFromAppSeconds(appSeconds)}Z`);
     const jd = JulianDate.fromDate(st);
     return { startTime: st, julianDate: jd };
-  }, [isRunning, selectedDate, startStopTimestamp, appSecondsAtStartStop]);
+  }, [isRunning, selectedDate, startStopTimestamp, appSecondsAtStartStop, hoverSeconds]);
 
   const [tle, setTle] = useState<string[]>();
 
@@ -287,7 +298,7 @@ const Globe: FunctionComponent = () => {
           stopTime={endJd}
           clockRange={ClockRange.LOOP_STOP}
           multiplier={1}
-          shouldAnimate={isRunning}
+          shouldAnimate={isRunning && hoverSeconds === null}
         />
       </Viewer>
     </div>
