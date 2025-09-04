@@ -8,6 +8,7 @@ import {
   fetchFlightsSupply,
   fetchYoutubeData,
   fetchCommFirstData,
+  fetchOrbitsDaily,
 } from "./dataFetchers";
 
 // Individual hooks for each data type
@@ -78,5 +79,14 @@ export function useCommFirstData(): UseQueryResult<Record<string, CommFirstItem>
     queryFn: fetchCommFirstData,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+  });
+}
+
+export function useGeneralOrbitsDaily(): UseQueryResult<OrbitDaily, Error> {
+  return useQuery({
+    queryKey: ["orbitsDaily"],
+    queryFn: fetchOrbitsDaily,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 }

@@ -1,16 +1,11 @@
 import React, { FunctionComponent, useRef, useCallback, useMemo } from "react";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 import styles from "./dateTooltip.module.css";
-import { useGeneralDataAvailabilities } from "api/useGeneralData";
+import { useGeneralDataAvailabilities, useGeneralOrbitsDaily } from "api/useGeneralData";
 import ExpeditionsSection from "./subcomponents/expeditionsSection";
 import CrewOnboardSection from "./subcomponents/crewOnboardSection";
 import VehiclesDockedSection from "./subcomponents/vehiclesDockedSection";
 import ContentIndicatorsSection from "./subcomponents/contentIndicatorsSection";
 import FirstCommSection from "./subcomponents/firstCommSection";
-
-// Configure dayjs to use UTC plugin
-dayjs.extend(utc);
 
 interface DateTooltipProps {
   hoveredDate: string | null;
@@ -35,6 +30,7 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
 
   // Extract data from React Query hooks
   const { data: dataAvailabilityItems } = useGeneralDataAvailabilities();
+  const { data: orbitsDaily } = useGeneralOrbitsDaily();
 
   // Get content availability for the hovered date
   const contentAvailability = useMemo(() => {
@@ -46,15 +42,21 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
   const hasCommData = contentAvailability?.comm || contentAvailability?.vvComm;
 
   // Format date for tooltip display
-  const formatTooltipDate = useCallback((dateString: string): string => {
+  const formatTooltipDate = (dateString: string): string => {
     try {
-      // Parse the date string as UTC and format it
-      const date = dayjs.utc(dateString);
-      return date.format("ddd, MMM DD, YYYY");
+      // Parse the date string and format it
+      const date = new Date(dateString + "T00:00:00Z"); // Treat as UTC
+      return date.toLocaleDateString("en-US", {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        timeZone: "UTC",
+      });
     } catch {
       return dateString;
     }
-  }, []);
+  };
 
   // Calculate tooltip position
   const getTooltipStyle = useCallback((): React.CSSProperties => {
@@ -130,21 +132,26 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
         <>
           <div className={styles.tooltipHeader}>
             <div className={styles.tooltipDate}>{formatTooltipDate(hoveredDate)}</div>
-            {isTouchInteraction && (
-              <div className={styles.tooltipButtons}>
-                <button className={styles.tooltipGoButton} onClick={onTouchGo} type="button">
-                  Go
-                </button>
-                <button
-                  className={styles.tooltipCancelButton}
-                  onClick={onTouchCancel}
-                  type="button"
-                  title="Close"
-                >
-                  ×
-                </button>
-              </div>
-            )}
+            <div className={styles.tooltipHeaderRight}>
+              {orbitsDaily && orbitsDaily[hoveredDate] && (
+                <div className={styles.tooltipOrbits}>Orbits: {orbitsDaily[hoveredDate]}</div>
+              )}
+              {isTouchInteraction && (
+                <div className={styles.tooltipButtons}>
+                  <button className={styles.tooltipGoButton} onClick={onTouchGo} type="button">
+                    Go
+                  </button>
+                  <button
+                    className={styles.tooltipCancelButton}
+                    onClick={onTouchCancel}
+                    type="button"
+                    title="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className={styles.tooltipContent}>

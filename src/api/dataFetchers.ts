@@ -82,6 +82,18 @@ export async function fetchCommFirstData(): Promise<Record<string, CommFirstItem
   return response.json();
 }
 
+export async function fetchOrbitsDaily(): Promise<OrbitDaily> {
+  const baseStaticUrl = getBaseStaticUrl();
+
+  const response = await fetch(`${baseStaticUrl}/orbits_daily.json`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch orbits daily data");
+  }
+
+  return response.json();
+}
+
 // Date-specific fetch functions
 export async function fetchCommTranscript(date: string): Promise<CommItem[]> {
   const baseStaticUrl = getBaseStaticUrl();

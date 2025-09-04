@@ -71,6 +71,18 @@
   align-items: center;
 }
 
+.tooltipHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tooltipOrbits {
+  font-family: "Roboto Mono", monospace;
+  font-size: 1em;
+  font-weight: 400;
+}
+
 .tooltipGoButton {
   padding: 4px 8px;
   border: 1px solid #007acc;

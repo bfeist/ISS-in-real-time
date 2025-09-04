@@ -218,6 +218,8 @@ type BlogArticle = {
   image_filename?: string;
 };
 
+type OrbitDaily = Record<string, number>;
+
 type Telemetry = {
   velocity: number;
   altitude: number;
