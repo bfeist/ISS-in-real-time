@@ -2,18 +2,14 @@ interface ClockState {
   startStopTimestamp: string;
   appSecondsAtStartStop: number;
   isRunning: boolean;
+  selectedDate: string | null;
 
   // Actions
   startClock: () => void;
   stopClock: () => void;
   setClock: (seconds: number) => void;
-}
-
-interface SelectedDateState {
-  selectedDate: string | null;
-
-  // Actions
   setSelectedDate: (date: string | null) => void;
+  handleDayRollover: () => void;
 }
 
 interface HoverState {
@@ -59,7 +55,6 @@ interface ContentHighlightsState {
 interface AppState
   extends ClockState,
     HoverState,
-    SelectedDateState,
     ToggleState,
     CrewSelectionState,
     ContentHighlightsState {}

@@ -1,8 +1,7 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import { faShare } from "@fortawesome/free-solid-svg-icons";
 import styles from "./share.module.css";
-import { createDateTimeSlug } from "utils/params";
-import { hhmmssFromAppSeconds } from "utils/time";
+import { generateShareUrl } from "utils/params";
 import IconButton from "./iconButton";
 const ShareModal: FunctionComponent<{
   isOpen: boolean;
@@ -92,22 +91,6 @@ interface ShareButtonProps {
 const ShareButton: FunctionComponent<ShareButtonProps> = ({ selectedDate, appSeconds }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const generateShareUrl = () => {
-    const baseUrl = window.location.origin;
-
-    if (!selectedDate) {
-      return baseUrl;
-    }
-
-    // Convert appSeconds to time string format
-    const timeStr = hhmmssFromAppSeconds(appSeconds);
-
-    // Create the date-time slug using the app's format
-    const dateTimeSlug = createDateTimeSlug(selectedDate, timeStr);
-
-    return `${baseUrl}/${dateTimeSlug}`;
-  };
-
   return (
     <>
       <IconButton
@@ -118,7 +101,7 @@ const ShareButton: FunctionComponent<ShareButtonProps> = ({ selectedDate, appSec
       <ShareModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        shareUrl={generateShareUrl()}
+        shareUrl={generateShareUrl(selectedDate, appSeconds)}
         hasSelectedDate={!!selectedDate}
       />
     </>

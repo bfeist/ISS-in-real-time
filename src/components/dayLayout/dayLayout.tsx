@@ -1,6 +1,5 @@
 import { FunctionComponent, useState, useEffect } from "react";
 import styles from "./dayLayout.module.css";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useDateDataAvailability } from "api/useDateSpecificData";
@@ -242,8 +241,7 @@ const GlobeOrMap: FunctionComponent = () => {
 };
 
 const Layout: FunctionComponent = () => {
-  const { selectedDate } = useStateSelectedDate();
-  const { startClock, setClock } = useStateClock();
+  const { selectedDate, startClock, setClock } = useStateClock();
   const { dateTimeSlug } = useParams();
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
   const { data: commItems = [] } = useDateCommTranscript(selectedDate);

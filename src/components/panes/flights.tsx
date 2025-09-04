@@ -7,7 +7,7 @@ import {
   isFlightCurrentlyDocked,
 } from "utils/onboard";
 import { capitalizeWords } from "utils/string";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
+import { useStateClock } from "store/hooks/useStateClock";
 import { useGeneralFlights, useGeneralFlightsSupply } from "api/useGeneralData";
 
 // Keep only the functions that aren't moved to onboard.ts
@@ -42,7 +42,7 @@ const getActiveDockingEvent = (
 };
 
 const CrewedFlights: FunctionComponent = (): JSX.Element | null => {
-  const { selectedDate } = useStateSelectedDate();
+  const { selectedDate } = useStateClock();
   const { data: flights = [], isLoading } = useGeneralFlights();
 
   const activeFlights = useMemo(() => {
@@ -191,7 +191,7 @@ const CrewedFlights: FunctionComponent = (): JSX.Element | null => {
 };
 
 const SupplyFlights: FunctionComponent = () => {
-  const { selectedDate } = useStateSelectedDate();
+  const { selectedDate } = useStateClock();
   const { data: flightsSupply = [], isLoading } = useGeneralFlightsSupply();
 
   const activeSupplyFlights = useMemo(() => {

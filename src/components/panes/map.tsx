@@ -21,11 +21,11 @@ import { containsCoordinate } from "ol/extent";
 import { hhmmssFromAppSeconds } from "utils/time";
 import ClockInterval from "./clockInterval";
 import styles from "./map.module.css";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
+import { useStateClock } from "store/hooks/useStateClock";
 import { useDateEphemera } from "api/useDateSpecificData";
 
 const MapComponent: FunctionComponent = () => {
-  const { selectedDate } = useStateSelectedDate();
+  const { selectedDate } = useStateClock();
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
 
   const mapRef = useRef<HTMLDivElement | null>(null);

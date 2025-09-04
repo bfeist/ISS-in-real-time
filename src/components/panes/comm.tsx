@@ -2,7 +2,6 @@ import { extractChannelInfoFromFilename } from "utils/comm";
 import { FunctionComponent, useCallback, useEffect, useRef, useState } from "react";
 import styles from "./comm.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
@@ -32,8 +31,7 @@ const _unusedClasses = [
 ];
 
 const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
-  const { isRunning, setClock } = useStateClock();
-  const { selectedDate } = useStateSelectedDate();
+  const { isRunning, setClock, selectedDate } = useStateClock();
   const { globalMute } = useStateToggle();
 
   const { isLoading: isDataAvailabilityLoading } = useDateDataAvailability(selectedDate);

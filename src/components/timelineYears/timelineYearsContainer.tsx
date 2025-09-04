@@ -22,7 +22,7 @@ import { initializePaperCanvas } from "./timelineYearsDraw";
 import { calculateOptimalMaxWidth, calculateMinimumWidth } from "../../utils/indexSliderCalcs";
 import { useStateCrewSelection } from "store/hooks/useStateCrewSelection";
 import { useStateHover } from "store/hooks/useStateHover";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
+import { useStateClock } from "store/hooks/useStateClock";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import {
@@ -49,7 +49,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
   // Check if any of the required data is still loading
   const isLoading = isLoadingDataAvailability || isLoadingCrewArrDep || isLoadingCommFirst;
 
-  const { selectedDate, setSelectedDate } = useStateSelectedDate();
+  const { selectedDate, setSelectedDate } = useStateClock();
   const { hoveredDate, setHoveredDate } = useStateHover();
   const { selectedCrewMember } = useStateCrewSelection();
   const { contentHighlights } = useStateContentHighlights();

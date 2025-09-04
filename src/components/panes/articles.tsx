@@ -1,11 +1,11 @@
 import { FunctionComponent } from "react";
 import styles from "./articles.module.css";
 import { useDateActivitySummary, useDateBlogArticles } from "api/useDateSpecificData";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
+import { useStateClock } from "store/hooks/useStateClock";
 import Flights from "./flights";
 
 const Blog: FunctionComponent = () => {
-  const { selectedDate } = useStateSelectedDate();
+  const { selectedDate } = useStateClock();
 
   const { data: blogArticles, isLoading: articlesIsLoading } = useDateBlogArticles(selectedDate);
   const { data: activitySummary, isLoading: summaryIsLoading } =

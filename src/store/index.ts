@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { createStateClock } from "./slices/stateClock";
 import { createStateHover } from "./slices/stateHover";
-import { createStateSelectedDate } from "./slices/stateSelectedDate";
 import { createStateToggle } from "./slices/stateToggle";
 import { createStateCrewSelection } from "./slices/stateCrewSelection";
 import { createStateContentHighlights } from "./slices/stateContentHighlights";
@@ -13,7 +12,6 @@ export const useAppStore = create<AppState>()(
     (...a) => ({
       ...createStateClock(...a),
       ...createStateHover(...a),
-      ...createStateSelectedDate(...a),
       ...createStateToggle(...a),
       ...createStateCrewSelection(...a),
       ...createStateContentHighlights(...a),

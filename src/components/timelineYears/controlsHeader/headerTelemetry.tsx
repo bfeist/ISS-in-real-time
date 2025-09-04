@@ -4,11 +4,10 @@ import * as satellite from "satellite.js";
 import { findClosestEphemeraItem } from "utils/map";
 import { hhmmssFromAppSeconds } from "utils/time";
 import { useStateClock } from "store/hooks/useStateClock";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useDateEphemera } from "api/useDateSpecificData";
 
 const HeaderTelemetry: FunctionComponent = () => {
-  const { selectedDate } = useStateSelectedDate();
+  const { selectedDate } = useStateClock();
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate);
 
   const velocityRef = useRef<HTMLSpanElement>(null);

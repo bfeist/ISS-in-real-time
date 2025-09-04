@@ -13,3 +13,15 @@ export const isSameDay = (date1: Date | null, date2: Date): boolean => {
     date1.getUTCDate() === date2.getUTCDate()
   );
 };
+
+/**
+ * Gets the next day from a given date string
+ *
+ * @param dateString - Date string in YYYY-MM-DD format
+ * @returns Next day as a date string in YYYY-MM-DD format
+ */
+export const getNextDay = (dateString: string): string => {
+  const date = new Date(dateString);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().split("T")[0];
+};

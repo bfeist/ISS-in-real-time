@@ -3,7 +3,6 @@ import { FunctionComponent, JSX, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import DayLayout2 from "../components/dayLayout/dayLayout2";
 import TimelineYearsContainer from "../components/timelineYears/timelineYearsContainer";
-import { useStateSelectedDate } from "../store/hooks/useStateSelectedDate";
 import { useStateClock } from "../store/hooks/useStateClock";
 import { useStateToggle } from "../store/hooks/useStateToggle";
 import Header from "components/header/header";
@@ -13,8 +12,7 @@ import { appSecondsFromTimeStr } from "../utils/time";
 
 const HomePage: FunctionComponent = (): JSX.Element => {
   const { dateTimeSlug } = useParams();
-  const { selectedDate, setSelectedDate } = useStateSelectedDate();
-  const { setClock } = useStateClock();
+  const { selectedDate, setSelectedDate, setClock } = useStateClock();
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
   // Handle slug parameter to set date and time in Zustand state

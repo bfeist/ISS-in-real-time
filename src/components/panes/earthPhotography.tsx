@@ -1,18 +1,15 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./earthPhotography.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useDateEarthPhotography } from "api/useDateSpecificData";
 
 const EarthPhotography: FunctionComponent = () => {
-  const { selectedDate } = useStateSelectedDate();
+  const { selectedDate, setClock } = useStateClock();
   const { data: imageItems = [], isLoading } = useDateEarthPhotography(selectedDate || "");
 
   const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL.replace("\\x3a", ":");
-
-  const { setClock } = useStateClock();
 
   const [visibleImages, setVisibleImages] = useState<Set<number>>(new Set());
   const [appSeconds, setAppSeconds] = useState(0);

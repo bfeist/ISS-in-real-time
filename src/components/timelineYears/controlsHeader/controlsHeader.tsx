@@ -1,7 +1,6 @@
-import { FunctionComponent, useEffect, useState } from "react";
+import { FunctionComponent, useState, useEffect, useRef } from "react";
 import styles from "./controlsHeader.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { hhmmssFromAppSeconds } from "utils/time";
 import {
@@ -15,40 +14,33 @@ import {
 import IconButton from "./iconButton";
 import ShareButton from "./share";
 import HeaderTelemetry from "./headerTelemetry";
+import ClockInterval from "../../panes/clockInterval";
 
 const ControlsHeader: FunctionComponent = () => {
-  const { isRunning, startClock, stopClock, appSecondsAtStartStop, startStopTimestamp } =
-    useStateClock();
-  const { selectedDate } = useStateSelectedDate();
+  const { isRunning, startClock, stopClock, handleDayRollover, selectedDate } = useStateClock();
   const { showGlobe, setShowGlobe, globalMute, setGlobalMute } = useStateToggle();
-  const [appSeconds, _setAppSeconds] = useState(0);
+  const [appSeconds, setAppSeconds] = useState(0);
+  const rolloverTriggeredRef = useRef(false);
 
-  // Update local appSeconds based on clock, similar to ClockInterval but inline
+  // Handle day rollover when appSeconds >= 86400 (24 hours)
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | null = null;
-    const computeSeconds = () => {
-      const secondsSinceStarted = (Date.now() - Date.parse(startStopTimestamp)) / 1000;
-      return Math.floor(appSecondsAtStartStop + secondsSinceStarted);
-    };
-
-    if (isRunning) {
-      if (!timer) {
-        timer = setInterval(() => {
-          _setAppSeconds(computeSeconds());
-        }, 100);
-      }
-    } else {
-      _setAppSeconds(computeSeconds());
+    if (appSeconds >= 86400 && selectedDate && !rolloverTriggeredRef.current) {
+      rolloverTriggeredRef.current = true;
+      handleDayRollover();
+      // Reset the flag after a short delay to allow for the next potential rollover
+      setTimeout(() => {
+        rolloverTriggeredRef.current = false;
+      }, 1000);
+    } else if (appSeconds < 86400) {
+      // Reset flag when we're back below the threshold
+      rolloverTriggeredRef.current = false;
     }
-
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [isRunning, appSecondsAtStartStop, startStopTimestamp]);
+  }, [appSeconds, selectedDate, handleDayRollover]);
 
   // When we don't have a selectedDate, we just show the message and no controls
   return (
     <div className={styles.controlsPositioner}>
+      <ClockInterval setAppSeconds={setAppSeconds} />
       <div className={styles.left}>{/* Left column - empty for now */}</div>
       <div className={styles.center}>
         <div className={styles.centerWithBackground}>

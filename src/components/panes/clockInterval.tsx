@@ -17,13 +17,15 @@ const ClockInterval: FunctionComponent<{
         intervalRef.current = setInterval(() => {
           const secondsSinceStarted = (Date.now() - Date.parse(startStopTimestamp)) / 1000;
           const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);
-          setAppSeconds(newAppSeconds);
+          // Cap at 86401 to prevent race conditions while allowing day rollover at 86400
+          setAppSeconds(Math.min(newAppSeconds, 86401));
         }, 100);
       }
     } else {
       const secondsSinceStarted = (Date.now() - Date.parse(startStopTimestamp)) / 1000;
       const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);
-      setAppSeconds(newAppSeconds);
+      // Cap at 86401 to prevent race conditions while allowing day rollover at 86400
+      setAppSeconds(Math.min(newAppSeconds, 86401));
 
       clearInterval(intervalRef.current);
       intervalRef.current = null;

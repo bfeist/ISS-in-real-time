@@ -1,6 +1,5 @@
 import { FunctionComponent, useEffect } from "react";
 import styles from "./dayLayout2.module.css";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useDateDataAvailability } from "api/useDateSpecificData";
@@ -200,8 +199,7 @@ const renderColumn = (components: ComponentConfig[]): JSX.Element => {
 };
 
 const DayLayout2: FunctionComponent = () => {
-  const { selectedDate } = useStateSelectedDate();
-  const { startClock, setClock } = useStateClock();
+  const { selectedDate, startClock, setClock } = useStateClock();
   const { dateTimeSlug } = useParams();
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
   const { data: commItems = [] } = useDateCommTranscript(selectedDate);

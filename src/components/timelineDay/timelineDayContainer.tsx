@@ -7,7 +7,6 @@ import {
   useDateEarthPhotography,
 } from "api/useDateSpecificData";
 import { useGeneralYoutubeData } from "api/useGeneralData";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { calcDayNight } from "utils/day-night";
@@ -15,8 +14,8 @@ import { findClosestEphemeraItem } from "utils/map";
 import paper from "paper";
 
 const TimelineDayContainer = (): JSX.Element => {
-  const { selectedDate } = useStateSelectedDate();
-  const { setClock, appSecondsAtStartStop, isRunning, startStopTimestamp } = useStateClock();
+  const { selectedDate, setClock, appSecondsAtStartStop, isRunning, startStopTimestamp } =
+    useStateClock();
   const { setHoverSeconds } = useStateHover();
   const { data: ephemeraItems = [], isLoading: isLoadingEphemera } = useDateEphemera(
     selectedDate || ""

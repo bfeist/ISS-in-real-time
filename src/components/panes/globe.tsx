@@ -16,7 +16,6 @@ import { Viewer, Entity } from "resium";
 import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
 import { useStateClock } from "store/hooks/useStateClock";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { hhmmssFromAppSeconds } from "utils/time";
 import { useDateEphemera } from "api/useDateSpecificData";
 
@@ -24,8 +23,7 @@ import { useDateEphemera } from "api/useDateSpecificData";
 Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
 
 const Globe: FunctionComponent = () => {
-  const { isRunning, startStopTimestamp, appSecondsAtStartStop } = useStateClock();
-  const { selectedDate } = useStateSelectedDate();
+  const { isRunning, startStopTimestamp, appSecondsAtStartStop, selectedDate } = useStateClock();
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
 
   const { startTime, julianDate } = useMemo(() => {

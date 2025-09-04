@@ -3,14 +3,14 @@ import styles from "./crewOnboard.module.css"; // ensure this CSS file exists or
 import { ddhhmmssBetweenDateStrings, dateTimeStrFromDateAppSeconds } from "utils/time";
 import ClockInterval from "../clockInterval";
 import { flagUrlByCountryName } from "utils/countries";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
+import { useStateClock } from "store/hooks/useStateClock";
 import { useGeneralCrewArrDep } from "api/useGeneralData";
 import { getCrewMembersOnboardByDate } from "utils/onboard";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowDown, faArrowUp } from "@fortawesome/free-solid-svg-icons";
 
 const CrewOnboard: FunctionComponent = () => {
-  const { selectedDate } = useStateSelectedDate();
+  const { selectedDate } = useStateClock();
   const { data: crewArrDep = [], isLoading } = useGeneralCrewArrDep();
 
   const crewOnboard = getCrewMembersOnboardByDate({ crewArrDep, dateStr: selectedDate || "" });

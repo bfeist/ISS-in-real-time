@@ -2,13 +2,12 @@ import { FunctionComponent, useEffect, useRef, useState } from "react";
 import YouTube, { YouTubePlayer, YouTubeEvent } from "react-youtube";
 import styles from "./youtube.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
-import { useStateSelectedDate } from "store/hooks/useStateSelectedDate";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useGeneralYoutubeData } from "api/useGeneralData";
 
 const YouTubeComponent: FunctionComponent = () => {
-  const { selectedDate } = useStateSelectedDate();
+  const { selectedDate } = useStateClock();
 
   const { data: youtubeLiveRecordings = [], isLoading } = useGeneralYoutubeData();
 
