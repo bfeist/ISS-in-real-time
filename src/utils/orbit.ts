@@ -41,7 +41,7 @@ export function extractMeanMotionFromTle(tleLine2: string): number {
  * @param appSeconds - Seconds since 00:00:00 UTC on the selected date
  * @param ephemeraItems - Array of TLE data for the date
  * @param orbitsDaily - Daily orbit counts object (date -> orbit count at start of day)
- * @returns Current orbit number (integer)
+ * @returns Current orbit number (with decimal precision)
  */
 export function calculateCurrentOrbitNumber(
   selectedDate: string,
@@ -64,7 +64,7 @@ export function calculateCurrentOrbitNumber(
 
   if (!closestEphemera?.tle_line2) {
     // If no TLE data, just return the base orbit count
-    return Math.round(baseOrbitCount);
+    return baseOrbitCount;
   }
 
   // Extract mean motion (orbits per day) from TLE
@@ -77,22 +77,25 @@ export function calculateCurrentOrbitNumber(
   // Calculate additional orbits completed since start of day
   const additionalOrbits = meanMotion * dayProgress;
 
-  // Add to base count and round to nearest whole orbit
+  // Add to base count (keeping decimal precision)
   const currentOrbitNumber = baseOrbitCount + additionalOrbits;
 
-  return Math.round(currentOrbitNumber);
+  return currentOrbitNumber;
 }
 
 /**
  * Get orbit number display string with proper formatting
  *
  * @param orbitNumber - The orbit number to format
- * @returns Formatted string (e.g., "123,456")
+ * @returns Formatted string to 2 decimal places (e.g., "123,456.78")
  */
 export function formatOrbitNumber(orbitNumber: number): string {
   if (orbitNumber === 0) {
     return "N/A";
   }
 
-  return orbitNumber.toLocaleString();
+  return orbitNumber.toLocaleString(undefined, {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  });
 }
