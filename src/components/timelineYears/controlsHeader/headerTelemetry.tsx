@@ -4,10 +4,12 @@ import * as satellite from "satellite.js";
 import { findClosestEphemeraItem } from "utils/map";
 import { hhmmssFromAppSeconds } from "utils/time";
 import { useStateClock } from "store/hooks/useStateClock";
+import { useStateHover } from "store/hooks/useStateHover";
 import { useDateEphemera } from "api/useDateSpecificData";
 
 const HeaderTelemetry: FunctionComponent = () => {
-  const { selectedDate } = useStateClock();
+  const { selectedDate, appSecondsAtStartStop, isRunning, startStopTimestamp } = useStateClock();
+  const { hoverSeconds } = useStateHover();
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate);
 
   const velocityRef = useRef<HTMLSpanElement>(null);
@@ -15,7 +17,50 @@ const HeaderTelemetry: FunctionComponent = () => {
   const latRef = useRef<HTMLSpanElement>(null);
   const lngRef = useRef<HTMLSpanElement>(null);
 
-  const { appSecondsAtStartStop, isRunning, startStopTimestamp } = useStateClock();
+  const updateTelemetryDOM = useCallback((currentTime: Date, satrec: satellite.SatRec) => {
+    const positionAndVelocity = satellite.propagate(satrec, currentTime);
+
+    if (!positionAndVelocity?.position) {
+      // Set fallback values for invalid position
+      if (velocityRef.current) velocityRef.current.innerText = "N/A";
+      if (altitudeRef.current) altitudeRef.current.innerText = "N/A";
+      if (latRef.current) latRef.current.innerText = "N/A";
+      if (lngRef.current) lngRef.current.innerText = "N/A";
+      return false;
+    }
+
+    const gmst = satellite.gstime(currentTime);
+    const positionEci = positionAndVelocity.position;
+    const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+
+    // Get latitude, longitude, height in degrees/km
+    const latitude = satellite.degreesLat(positionGd.latitude);
+    const longitude = satellite.degreesLong(positionGd.longitude);
+    const altitude = positionGd.height;
+
+    // Calculate velocity magnitude (km/hr)
+    let velocity = 0;
+    if (positionAndVelocity.velocity) {
+      const v = positionAndVelocity.velocity;
+      velocity = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) * 3600;
+    }
+
+    // Update DOM
+    if (velocityRef.current) velocityRef.current.innerText = velocity.toFixed(4);
+    if (altitudeRef.current) altitudeRef.current.innerText = altitude.toFixed(4);
+    if (latRef.current) latRef.current.innerText = latitude.toFixed(4);
+    if (lngRef.current) lngRef.current.innerText = longitude.toFixed(4);
+
+    return true;
+  }, []);
+
+  const calculateStaticTelemetry = useCallback(
+    (satrec: satellite.SatRec, appSeconds: number) => {
+      const selectedDateTime = new Date(`${selectedDate}T${hhmmssFromAppSeconds(appSeconds)}Z`);
+      updateTelemetryDOM(selectedDateTime, satrec);
+    },
+    [selectedDate, updateTelemetryDOM]
+  );
 
   const calcTelemetryAnimationFrame = useCallback(
     (satrec: satellite.SatRec, baseTime: Date, isRunning: boolean): (() => void) => {
@@ -46,39 +91,15 @@ const HeaderTelemetry: FunctionComponent = () => {
         const msInCurrentSecond = currentAppMs % 1000;
         const currentTime = new Date(selectedDateTime.getTime() + msInCurrentSecond);
 
-        // Calculate satellite position
-        const positionAndVelocity = satellite.propagate(satrec, currentTime);
+        // Use shared telemetry calculation function
+        const success = updateTelemetryDOM(currentTime, satrec);
 
-        if (!positionAndVelocity?.position) {
+        if (!success) {
           errorCount++;
-          frameId = requestAnimationFrame(animationFrame);
-          return;
+        } else {
+          // Reset error count on successful propagation
+          errorCount = 0;
         }
-
-        // Reset error count on successful propagation
-        errorCount = 0;
-
-        const gmst = satellite.gstime(currentTime);
-        const positionEci = positionAndVelocity.position;
-        const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-
-        // Get latitude, longitude, height in degrees/km
-        const latitude = satellite.degreesLat(positionGd.latitude);
-        const longitude = satellite.degreesLong(positionGd.longitude);
-        const altitude = positionGd.height;
-
-        // Calculate velocity magnitude (km/hr)
-        let velocity = 0;
-        if (positionAndVelocity.velocity) {
-          const v = positionAndVelocity.velocity;
-          velocity = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) * 3600;
-        }
-
-        // Update DOM
-        if (velocityRef.current) velocityRef.current.innerText = velocity.toFixed(3);
-        if (altitudeRef.current) altitudeRef.current.innerText = altitude.toFixed(3);
-        if (latRef.current) latRef.current.innerText = latitude.toFixed(3);
-        if (lngRef.current) lngRef.current.innerText = longitude.toFixed(3);
 
         frameId = requestAnimationFrame(animationFrame);
       };
@@ -86,24 +107,25 @@ const HeaderTelemetry: FunctionComponent = () => {
       frameId = requestAnimationFrame(animationFrame);
       return () => cancelAnimationFrame(frameId);
     },
-    [
-      velocityRef,
-      altitudeRef,
-      latRef,
-      lngRef,
-      appSecondsAtStartStop,
-      startStopTimestamp,
-      selectedDate,
-    ]
+    [appSecondsAtStartStop, startStopTimestamp, selectedDate, updateTelemetryDOM]
   );
 
   useEffect(() => {
     if (isLoading || !ephemeraItems.length || !selectedDate) return;
 
     // Calculate current app seconds for finding ephemeris
-    const currentAppSeconds = isRunning
-      ? Math.floor(appSecondsAtStartStop + (Date.now() - Date.parse(startStopTimestamp)) / 1000)
-      : appSecondsAtStartStop;
+    let currentAppSeconds: number;
+
+    // Use hover seconds if available, otherwise use the current clock time
+    if (hoverSeconds !== null) {
+      currentAppSeconds = hoverSeconds;
+    } else if (isRunning) {
+      currentAppSeconds = Math.floor(
+        appSecondsAtStartStop + (Date.now() - Date.parse(startStopTimestamp)) / 1000
+      );
+    } else {
+      currentAppSeconds = appSecondsAtStartStop;
+    }
 
     const startTime = new Date(`${selectedDate}T${hhmmssFromAppSeconds(currentAppSeconds)}Z`);
     const ephemeris = findClosestEphemeraItem(startTime, ephemeraItems);
@@ -129,10 +151,19 @@ const HeaderTelemetry: FunctionComponent = () => {
       return;
     }
 
-    // Only start the animation if isRunning is true
+    // If we have hover seconds, show static telemetry for that time
+    if (hoverSeconds !== null) {
+      calculateStaticTelemetry(satrec, hoverSeconds);
+      return;
+    }
+
+    // Only start the animation if isRunning is true and no hover time
     let cleanup = () => {};
     if (isRunning) {
       cleanup = calcTelemetryAnimationFrame(satrec, startTime, isRunning);
+    } else {
+      // Show static telemetry for the current stopped time
+      calculateStaticTelemetry(satrec, currentAppSeconds);
     }
 
     return () => {
@@ -142,31 +173,39 @@ const HeaderTelemetry: FunctionComponent = () => {
     selectedDate,
     ephemeraItems,
     isLoading,
+    hoverSeconds,
     calcTelemetryAnimationFrame,
+    calculateStaticTelemetry,
     isRunning,
     appSecondsAtStartStop,
     startStopTimestamp,
   ]);
 
   return (
-    <>
-      <div className={styles.telemetry}>
-        <div>
-          <span className={styles.label}>Velocity</span>: <span ref={velocityRef} /> km/h
+    <div className={styles.telemetryContainer}>
+      <div className={styles.telemetryGroup}>
+        <div className={styles.telemetryItem}>
+          <span className={styles.label}>Velocity</span>
+          <span className={styles.valueLeft} ref={velocityRef} />
+          <span className={styles.unit}>km/h</span>
         </div>
-        <div>
-          <span className={styles.label}>Altitude</span>: <span ref={altitudeRef} /> km
-        </div>
-      </div>
-      <div className={styles.telemetry}>
-        <div>
-          <span className={styles.label}>Lat</span>: <span ref={latRef} />
-        </div>
-        <div>
-          <span className={styles.label}>Lng</span>: <span ref={lngRef} />
+        <div className={styles.telemetryItem}>
+          <span className={styles.label}>Altitude</span>
+          <span className={styles.valueLeft} ref={altitudeRef} />
+          <span className={styles.unit}>km</span>
         </div>
       </div>
-    </>
+      <div className={styles.telemetryGroup}>
+        <div className={styles.telemetryItem}>
+          <span className={styles.label}>Lat</span>
+          <span className={styles.value} ref={latRef} />
+        </div>
+        <div className={styles.telemetryItem}>
+          <span className={styles.label}>Lng</span>
+          <span className={styles.value} ref={lngRef} />
+        </div>
+      </div>
+    </div>
   );
 };
 

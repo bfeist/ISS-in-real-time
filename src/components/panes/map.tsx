@@ -233,10 +233,10 @@ const MapComponent: FunctionComponent = () => {
   }
 
   return (
-    <>
+    <div className={styles.mapContainer}>
       <ClockInterval setAppSeconds={setClockAppSeconds} />
-      <div ref={mapRef} className={styles.mapContainer}></div>
-    </>
+      <div ref={mapRef} className={styles.map}></div>
+    </div>
   );
 };
 

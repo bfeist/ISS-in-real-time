@@ -164,7 +164,7 @@ const renderComponent = (config: ComponentConfig): JSX.Element | null => {
           <div className={styles.componentExpandable}>
             <GlobeOrMap />
           </div>
-          <div className={styles.componentExpandable}>
+          <div className={styles.componentNaturalSize}>
             <ExpeditionAndCrewOnboard />
           </div>
         </div>

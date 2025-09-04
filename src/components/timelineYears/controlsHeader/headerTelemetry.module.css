@@ -1,11 +1,55 @@
-.telemetry {
+.telemetryContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.telemetryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   color: var(--grey5);
   font-size: 0.8rem;
   font-family: "Roboto Mono", monospace;
-  margin: 0 10px 0 0;
   align-self: center;
+}
+
+.telemetryGroup:first-child {
+  min-width: 200px;
+}
+
+.telemetryGroup:last-child {
+  min-width: 120px;
+}
+
+.telemetryItem {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .label {
   color: var(--highlight);
+  min-width: fit-content;
+}
+
+.label::after {
+  content: ":";
+}
+
+.value {
+  font-weight: 500;
+  min-width: 60px;
+  text-align: right;
+}
+
+.valueLeft {
+  font-weight: 500;
+  min-width: 60px;
+  text-align: left;
+}
+
+.unit {
+  font-size: 0.75em;
+  opacity: 0.8;
 }
