@@ -1,21 +1,22 @@
 .telemetryContainer {
   display: flex;
   flex-direction: row;
-  gap: 10px;
+  gap: 20px;
 }
 
 .telemetryGroup {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
   color: var(--grey5);
   font-size: 0.8rem;
   font-family: "Roboto Mono", monospace;
-  align-self: center;
+  align-self: flex-start;
 }
 
 .telemetryGroup:first-child {
-  min-width: 200px;
+  min-width: 240px;
 }
 
 .telemetryGroup:last-child {
