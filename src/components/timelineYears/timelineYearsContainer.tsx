@@ -15,7 +15,8 @@ import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons
 import styles from "./timelineYearsContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import ControlsHeader from "./controlsHeader/controlsHeader";
-import SearchComponent from "./subcomponents/searchComponent";
+import SearchComponent from "components/timelineYears/subcomponents/searchComponent";
+import LayoutTestComponent from "components/timelineYears/layoutTestComponent";
 import DateTooltip from "./subcomponents/dateTooltip/dateTooltip";
 import OpenCloseIndicators from "./subcomponents/openCloseIndicators";
 import { initializePaperCanvas } from "./timelineYearsDraw";
@@ -711,7 +712,10 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
               >
                 <canvas ref={canvasRef} className={styles.timelineCanvas} style={{ height: 150 }} />
               </div>
-              <SearchComponent />
+              <div className={styles.componentsContainer}>
+                <SearchComponent />
+                <LayoutTestComponent />
+              </div>
               <OpenCloseIndicators
                 isOpen={showTimelineYears}
                 onToggle={() => setShowTimelineYears(!showTimelineYears)}

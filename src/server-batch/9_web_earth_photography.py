@@ -17,7 +17,7 @@ API_ENDPOINT = (
 BASE_URL = "https://eol.jsc.nasa.gov/DatabaseImages"
 IMAGES_FOLDER = os.getenv("WEB_ASSETS_FOLDER") + "earth_photography/"
 
-START_DATE = "2000-12-01"
+START_DATE = "2000-11-01"
 END_DATE = datetime.now().strftime("%Y-%m-%d")
 
 # Load .env file from two directories up

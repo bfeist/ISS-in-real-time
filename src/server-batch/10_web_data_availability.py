@@ -10,7 +10,7 @@ load_dotenv(dotenv_path="../../.env")
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 COMM_FOLDER = WEB_ASSETS_FOLDER + "comm/"
 
-START_DATE = "2000-10-01"
+START_DATE = "2000-11-01"
 END_DATE = datetime.now().strftime("%Y-%m-%d")
 
 

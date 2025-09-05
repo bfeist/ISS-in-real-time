@@ -138,3 +138,18 @@
     display: none;
   }
 }
+
+/* Container for search and layout test components */
+.componentsContainer {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* Responsive: stack components on smaller screens */
+@media screen and (width <= 900px) {
+  .componentsContainer {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
