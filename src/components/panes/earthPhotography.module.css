@@ -7,8 +7,7 @@
 
 .currentImage {
   flex: 1 1 auto;
-  min-height: 0;
-  max-height: 35vh; /* Prevent portrait images from breaking page layout */
+  min-height: 0;  
   display: flex;
   align-items: center;
   justify-content: center;

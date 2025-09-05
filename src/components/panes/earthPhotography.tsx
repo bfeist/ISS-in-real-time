@@ -5,7 +5,9 @@ import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useDateEarthPhotography } from "api/useDateSpecificData";
 
-const EarthPhotography: FunctionComponent = () => {
+const EarthPhotography: FunctionComponent<{ height?: "tall" | "short" }> = ({
+  height = "short",
+}) => {
   const { selectedDate, setClock } = useStateClock();
   const { data: imageItems = [], isLoading } = useDateEarthPhotography(selectedDate || "");
 
@@ -78,6 +80,7 @@ const EarthPhotography: FunctionComponent = () => {
       <ClockInterval setAppSeconds={setAppSeconds} />
       <div
         className={styles.currentImage}
+        style={height === "short" ? { maxHeight: "35vh" } : undefined}
         role="button"
         tabIndex={0}
         onClick={() => window.open(`${imageBaseUrl}/${mostRecentImage?.largeUrl}`, "_blank")}

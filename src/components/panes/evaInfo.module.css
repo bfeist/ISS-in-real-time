@@ -1,32 +1,58 @@
 .evaDetails {
   flex: 1;
-  padding: 1em;
-  font-size: 0.8em;
-  overflow-y: auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  backdrop-filter: blur(2px);
+  box-sizing: border-box;
+  font-family: Inter, sans-serif;
+  background-color: var(--grey2);
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+  display: flex;
+  flex-direction: column;
 }
 
-.evaDetail {
-  margin-bottom: 10px;
+.scrollableContent {
+  flex: 1;
+  padding: 7px;
+  margin: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
 
 .evaTitle {
-  font-weight: bold;
-  margin-bottom: 5px;
+  font-weight: 500;
+  font-size: 1.1em;
+  color: var(--highlight);
+  margin-bottom: 12px;
 }
 
 .evaCrew,
 .evaGroundCrew {
-  margin: 5px 0;
+  margin: 8px 0;
   display: flex;
   flex-direction: column;
   gap: 5px;
+  font-size: 0.9em;
+  font-weight: 200;
+}
+
+.evaCrew strong,
+.evaGroundCrew strong {
+  font-weight: 600;
 }
 
 .crewMember {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-left: 20px;
+  margin-left: 10px;
+  color: var(--highlight);
+  font-size: 0.9em;
+  font-weight: 500;
+  line-height: 1.3;
 }
 
 .flag {
@@ -36,15 +62,98 @@
 
 .evaDescription {
   margin: 10px 0;
+  font-size: 0.8em;
+  font-weight: 300;
+  line-height: 1.4;
+}
+
+.evaDescription p {
+  margin: 8px 0;
 }
 
 .evaDescription a {
-  color: black;
+  color: rgb(201 211 255);
+  text-decoration: underline;
+}
+
+.blurbShort a {
+  color: rgb(201 211 255);
+}
+
+.blurbShort a:hover {
+  text-decoration: underline;
+}
+
+.evaDescription a:hover {
   text-decoration: underline;
 }
 
 .evaTimes {
   font-size: 0.9em;
-  border-top: 1px solid #444444;
-  padding-top: 5px;
+  font-weight: 200;
+  line-height: 1.3;
+  border-top: 1px solid var(--grey3);
+  padding-top: 8px;
+  margin-top: 10px;
+  color: var(--grey5);
+}
+
+.evaTimes div {
+  margin-bottom: 4px;
+}
+
+.evaDetail {
+  margin-bottom: 1px;
+}
+
+.evaDetailShort {
+  margin-bottom: 8px;
+}
+
+.evaShortContent {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.evaShortHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.evaShortTitle {
+  font-weight: 500;
+  color: var(--highlight);
+  white-space: nowrap;
+}
+
+.evaShortCrew {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.crewMemberShort {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--highlight);
+  font-size: 0.9em;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.flagShort {
+  width: 20px;
+  height: auto;
+}
+
+.blurbShort {
+  font-size: 0.8em;
+  font-weight: 300;
+  line-height: 1.4;
 }

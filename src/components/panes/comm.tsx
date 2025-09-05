@@ -30,7 +30,7 @@ const _unusedClasses = [
   styles.channelnum5,
 ];
 
-const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
+const Comm: FunctionComponent = () => {
   const { isRunning, setClock, selectedDate } = useStateClock();
   const { globalMute } = useStateToggle();
 
@@ -223,15 +223,6 @@ const Comm: FunctionComponent<{ showComm: boolean }> = ({ showComm }) => {
     }
   }, [appSeconds, commItems, audioRefCh1, selectedDate, isRunning, channelVisibility]);
 
-  if (!showComm) {
-    return (
-      <div className={styles.comm}>
-        <div className={styles.commItem}>
-          <div>Communications audio and transcripts are unavailable for this date</div>
-        </div>
-      </div>
-    );
-  }
   return (
     <div className={styles.comm}>
       <ClockInterval setAppSeconds={setAppSeconds} />

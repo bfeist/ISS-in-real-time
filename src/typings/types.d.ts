@@ -238,30 +238,22 @@ interface TimelineDayData {
 // Layout configuration types
 type ComponentType =
   | "video"
-  | "video-eva"
-  | "video-eva-article"
-  | "video-article"
-  | "video-eva-long"
   | "eva"
   | "eva-long"
-  | "eva-article"
   | "article"
   | "photo"
+  | "photo-tall"
   | "comm"
   | "globe"
   | "widget"
   | "widget-tall"
   | "widget-rest"
-  | "flights"
-  | "globe-widget"
-  | "globe-widget-rest"
-  | "photo-widget"
-  | "photo-article"
-  | "photo-eva-long";
+  | "flights";
 
 interface ComponentConfig {
   type: ComponentType;
   size?: number; // for flex sizing if needed
+  styleClass?: "componentExpandable" | "componentNaturalSize"; // styling control
 }
 
 interface LayoutConfiguration {
