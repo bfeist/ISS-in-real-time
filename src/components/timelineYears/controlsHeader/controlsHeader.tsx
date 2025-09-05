@@ -11,7 +11,7 @@ import {
   faGlobe,
   faMap,
 } from "@fortawesome/free-solid-svg-icons";
-import IconButton from "./iconButton";
+import IconButton from "../../common/iconButton";
 import ShareButton from "./share";
 import HeaderTelemetry from "./headerTelemetry";
 import ClockInterval from "../../panes/clockInterval";

@@ -2,7 +2,7 @@ import { FunctionComponent, useEffect, useRef, useState } from "react";
 import { faShare } from "@fortawesome/free-solid-svg-icons";
 import styles from "./share.module.css";
 import { generateShareUrl } from "utils/params";
-import IconButton from "./iconButton";
+import IconButton from "../../common/iconButton";
 const ShareModal: FunctionComponent<{
   isOpen: boolean;
   onClose: () => void;

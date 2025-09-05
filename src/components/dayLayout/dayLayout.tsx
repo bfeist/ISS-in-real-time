@@ -1,4 +1,4 @@
-import { FunctionComponent, useEffect } from "react";
+import { FunctionComponent, useEffect, useState } from "react";
 import styles from "./dayLayout.module.css";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { useStateClock } from "store/hooks/useStateClock";
@@ -20,6 +20,19 @@ import EarthPhotography from "components/panes/earthPhotography";
 import ExpeditionAndCrewOnboard from "components/panes/expCrewFlightWidget/expeditionsAndCrew";
 import Flights from "components/panes/expCrewFlightWidget/flights";
 import Widget from "components/panes/expCrewFlightWidget/widget";
+
+// Custom hook to detect viewport width
+const useViewport = () => {
+  const [width, setWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return { width };
+};
 
 // Component mapping for layout system
 const GlobeOrMap: FunctionComponent = () => {
@@ -148,6 +161,8 @@ const DayLayout: FunctionComponent = () => {
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
   const { data: commItems = [] } = useDateCommTranscript(selectedDate);
   const { data: youtubeLiveRecordings = [] } = useGeneralYoutubeData();
+  const { width } = useViewport();
+  const isMobile = width < 768;
 
   // Find YouTube recording for this date
   const youtubeLiveRecording = youtubeLiveRecordings?.find((recording: YoutubeLiveRecording) =>
@@ -195,20 +210,120 @@ const DayLayout: FunctionComponent = () => {
   // Resolve the layout based on data availability
   const layout = resolveLayout(dataAvailability);
 
+  // Determine what content should be shown for mobile layout
+  const showVideo =
+    layout.layout.left.some((comp) => comp.type === "video") ||
+    layout.layout.center.some((comp) => comp.type === "video") ||
+    layout.layout.right.some((comp) => comp.type === "video");
+  const showPhotos =
+    layout.layout.left.some((comp) => comp.type === "photo" || comp.type === "photo-tall") ||
+    layout.layout.center.some((comp) => comp.type === "photo" || comp.type === "photo-tall") ||
+    layout.layout.right.some((comp) => comp.type === "photo" || comp.type === "photo-tall");
+  const showEVA =
+    layout.layout.left.some((comp) => comp.type === "eva" || comp.type === "eva-long") ||
+    layout.layout.center.some((comp) => comp.type === "eva" || comp.type === "eva-long") ||
+    layout.layout.right.some((comp) => comp.type === "eva" || comp.type === "eva-long");
+  const showComm =
+    layout.layout.left.some((comp) => comp.type === "comm") ||
+    layout.layout.center.some((comp) => comp.type === "comm") ||
+    layout.layout.right.some((comp) => comp.type === "comm");
+
+  let content = null;
+  if (isMobile) {
+    // Use mobile tabbed layout
+    content = (
+      <MobileLayout
+        showVideo={showVideo}
+        showPhotos={showPhotos}
+        showEVA={showEVA}
+        showComm={showComm}
+      />
+    );
+  } else {
+    content = (
+      <div className={styles.dayLayout}>
+        {/* Timeline at the top */}
+        <div className={styles.timeline}>
+          <TimelineDayContainer />
+        </div>
+
+        {/* Three column body layout */}
+        <div className={styles.body}>
+          {renderColumn(layout.layout.left, styles.leftColumn)}
+
+          {renderColumn(layout.layout.center, styles.centerColumn)}
+
+          {renderColumn(layout.layout.right, styles.rightColumn)}
+        </div>
+      </div>
+    );
+  }
+
+  return content;
+};
+
+// Mobile layout with tabs
+type TabName = "video" | "photos" | "globe" | "comm" | "articles" | "exp/onboard" | "eva";
+
+const MobileLayout: FunctionComponent<{
+  showVideo: boolean;
+  showPhotos: boolean;
+  showEVA: boolean;
+  showComm: boolean;
+}> = ({ showVideo, showPhotos, showEVA, showComm }) => {
+  const [activeTab, setActiveTab] = useState<TabName>(
+    showVideo ? "video" : showPhotos ? "photos" : "globe"
+  );
+
+  // Filter available tabs based on what should be shown
+  const availableTabs: TabName[] = [];
+  if (showVideo) availableTabs.push("video");
+  if (showPhotos) availableTabs.push("photos");
+  availableTabs.push("globe");
+  if (showComm) availableTabs.push("comm");
+  availableTabs.push("articles");
+  availableTabs.push("exp/onboard");
+  if (showEVA) availableTabs.push("eva");
+
+  // If active tab is not available anymore, select the first available tab
+  useEffect(() => {
+    if (
+      (activeTab === "video" && !showVideo) ||
+      (activeTab === "photos" && !showPhotos) ||
+      (activeTab === "eva" && !showEVA) ||
+      (activeTab === "comm" && !showComm)
+    ) {
+      setActiveTab(availableTabs[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showVideo, showPhotos, showEVA, showComm, activeTab]);
+
   return (
     <div className={styles.dayLayout}>
-      {/* Timeline at the top */}
-      <div className={styles.timeline}>
+      <div className={styles.dayTimeline}>
         <TimelineDayContainer />
       </div>
-
-      {/* Three column body layout */}
-      <div className={styles.body}>
-        {renderColumn(layout.layout.left, styles.leftColumn)}
-
-        {renderColumn(layout.layout.center, styles.centerColumn)}
-
-        {renderColumn(layout.layout.right, styles.rightColumn)}
+      <div className={styles.mobileBody}>
+        <div className={styles.tabs}>
+          {availableTabs.map((tab) => (
+            <button
+              key={tab}
+              className={`${styles.tab} ${activeTab === tab ? styles.activeTab : ""}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        <div className={styles.tabContent}>
+          {activeTab === "video" && showVideo && <YouTubeComponent />}
+          {activeTab === "photos" && showPhotos && <EarthPhotography />}
+          {activeTab === "globe" && <GlobeOrMap />}
+          {activeTab === "comm" && showComm && <Comm />}
+          {activeTab === "articles" && <Articles />}
+          {activeTab === "exp/onboard" && <Widget />}
+          {activeTab === "eva" && showEVA && <EvaInfo long={false} />}
+        </div>
       </div>
     </div>
   );
