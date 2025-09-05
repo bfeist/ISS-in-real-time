@@ -1,11 +1,26 @@
+.expeditionsContainer {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  padding-left: 15px;
+}
+
 .expedition {
   flex: 1;
   backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
 .expeditionBody {
-  overflow: auto; /* Create a new block formatting context to contain the float */
   margin-left: 10px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden; /* To contain the scrolling blurb */
 }
 
 .expedition.expeditionCycling {
@@ -14,15 +29,12 @@
   left: 15px;
   right: 0;
   width: calc(100% - 15px);
+  height: 100%;
   margin-bottom: 0;
   opacity: 0; /* Start with opacity 0 to avoid flash of unstyled content */
-}
-
-.expeditionsContainer {
-  position: relative;
   display: flex;
-  flex-direction: row;
-  padding-left: 15px;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .expedition.expeditionPlaceholder {
@@ -58,8 +70,10 @@
 
 .patchImg {
   width: 70px;
-  float: left;
   padding: 0 10px 5px 0;
+  margin: 0;
+  flex-shrink: 0;
+  align-self: flex-start; /* Align image to the top */
 }
 
 .expeditionTitle {
@@ -68,11 +82,17 @@
   color: var(--highlight);
   margin-left: 10px;
   margin-bottom: 5px;
+  flex-shrink: 0; /* Prevent title from shrinking */
 }
 
 .expeditionBlurb {
   font-size: 0.8em;
-  font-weight: 300;
+  font-weight: 200;
   color: white;
   overflow-wrap: break-word;
+  padding-right: 5px;
+  margin: 0;
+  overflow-y: auto; /* Allow only the blurb to scroll */
+  flex: 1;
+  min-height: 0;
 }

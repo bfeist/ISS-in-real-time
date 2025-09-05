@@ -39,11 +39,13 @@ const CrewOnboard: FunctionComponent = () => {
               key={`${crewItem.arrivalDate}_${crewItem.name_first}_${crewItem.name_last}`}
               className={styles.crewItem}
             >
-              <img
-                className={styles.flag}
-                src={flagUrlByCountryName[crewItem.nationality]}
-                alt={crewItem.nationality}
-              />
+              <div className={styles.flagContainer}>
+                <img
+                  className={styles.flag}
+                  src={flagUrlByCountryName[crewItem.nationality]}
+                  alt={crewItem.nationality}
+                />
+              </div>
               <div className={styles.crewText}>
                 <div className={styles.crewName}>
                   {crewItem.name_first} {crewItem.name_last}

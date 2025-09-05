@@ -68,17 +68,17 @@
 }
 
 .imageCaption {
-  font-size: 0.9em;
+  font-size: 1em;
   font-style: italic;
   margin-top: 6px;
   color: #cccccc;
 }
 
 .content p {
-  font-size: 0.8em;
+  font-size: 0.9em;
   font-weight: 300;
   margin: 8px 0;
-  line-height: 1.4;
+  line-height: 1.2;
 }
 
 .content p a {

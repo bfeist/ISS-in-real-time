@@ -50,7 +50,9 @@ const Expeditions: FunctionComponent = () => {
           src={expedition.patchUrl}
           alt={expedition.expedition.toString()}
         />
-        <div className={styles.expeditionBlurb}>{expedition.expeditionBlurb}</div>
+        <div className={styles.expeditionBlurb}>
+          <p>{expedition.expeditionBlurb}</p>
+        </div>
       </div>
     </>
   );

@@ -41,10 +41,7 @@ const EvaInfo: FunctionComponent<{
     <div className={styles.evaDetails}>
       <div className={styles.scrollableContent}>
         {evaDetailsForDate.map((evaDetail) => (
-          <div
-            key={evaDetail.startTime}
-            className={long ? styles.evaDetail : styles.evaDetailShort}
-          >
+          <div key={evaDetail.startTime} className={long ? styles.evaDetail : null}>
             {long ? (
               // Long layout (existing full layout)
               <>
@@ -72,9 +69,9 @@ const EvaInfo: FunctionComponent<{
               // Short layout (compact horizontal layout)
               <div className={styles.evaShortContent}>
                 <div className={styles.evaShortHeader}>
-                  <span className={styles.evaShortTitle}>
+                  <div className={styles.evaShortTitle}>
                     {evaDetail.mission} EVA #{evaDetail.missionEvaNum}
-                  </span>
+                  </div>
                   <div className={styles.evaShortCrew}>
                     {(evaDetail.crew || []).map((c) => (
                       <div key={c.name} className={styles.crewMemberShort}>

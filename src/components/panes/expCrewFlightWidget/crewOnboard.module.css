@@ -50,10 +50,17 @@
   flex-direction: row;
 }
 
+.flagContainer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+}
+
 .flag {
   flex: 0 0 auto;
   width: 25px;
-  margin-right: 5px;
   object-fit: contain;
   object-position: top;
 }
