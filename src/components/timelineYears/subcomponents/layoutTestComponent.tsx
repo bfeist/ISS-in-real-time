@@ -173,10 +173,33 @@ const LayoutTestComponent: FunctionComponent = () => {
       const layoutKey = getLayoutKey(perm);
 
       let foundDate: string | null = null;
-      for (const dataItem of dataAvailabilityItems) {
-        if (matchesPermutation(dataItem, perm)) {
-          foundDate = dataItem.date;
-          break;
+
+      // Special handling for "none" permutation - look for missing dates
+      if (layoutKey === "none") {
+        // Generate a comprehensive date range and find missing dates
+        const startDate = new Date("2000-11-02"); // ISS first occupied
+        const endDate = new Date();
+        const existingDates = new Set(dataAvailabilityItems.map((item) => item.date));
+
+        // Look for the first missing date using day-by-day iteration
+        const startTime = startDate.getTime();
+        const endTime = endDate.getTime();
+        const dayInMs = 24 * 60 * 60 * 1000;
+
+        for (let timeMs = startTime; timeMs <= endTime; timeMs += dayInMs) {
+          const dateStr = new Date(timeMs).toISOString().split("T")[0];
+          if (!existingDates.has(dateStr)) {
+            foundDate = dateStr;
+            break;
+          }
+        }
+      } else {
+        // For all other permutations, search through existing data
+        for (const dataItem of dataAvailabilityItems) {
+          if (matchesPermutation(dataItem, perm)) {
+            foundDate = dataItem.date;
+            break;
+          }
         }
       }
 
@@ -185,6 +208,13 @@ const LayoutTestComponent: FunctionComponent = () => {
 
     return results;
   }, [dataAvailabilityItems]);
+
+  // Debug logging for the "none" permutation
+  if (layoutTestData["none"]) {
+    console.log(`🎨 Layout test: Found "none" permutation date: ${layoutTestData["none"]}`);
+  } else {
+    console.log("🎨 Layout test: No date found for 'none' permutation");
+  }
 
   // Count available and missing permutations
   const { availableCount, missingCount } = useMemo(() => {

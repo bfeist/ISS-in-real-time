@@ -16,7 +16,7 @@ import styles from "./timelineYearsContainer.module.css";
 import YearsLabels from "./yearsLabels";
 import ControlsHeader from "./controlsHeader/controlsHeader";
 import SearchComponent from "components/timelineYears/subcomponents/searchComponent";
-import LayoutTestComponent from "components/timelineYears/layoutTestComponent";
+import LayoutTestComponent from "components/timelineYears/subcomponents/layoutTestComponent";
 import DateTooltip from "./subcomponents/dateTooltip/dateTooltip";
 import OpenCloseIndicators from "./subcomponents/openCloseIndicators";
 import { initializePaperCanvas } from "./timelineYearsDraw";
