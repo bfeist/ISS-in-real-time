@@ -102,9 +102,7 @@ const renderComponent = (config: ComponentConfig): JSX.Element | null => {
     case "flights":
       return (
         <div className={componentClass}>
-          <div className={styles.flightsStandalone}>
-            <Flights />
-          </div>
+          <Flights />
         </div>
       );
 
@@ -115,18 +113,18 @@ const renderComponent = (config: ComponentConfig): JSX.Element | null => {
 };
 
 // Helper function to render multiple components in a column
-const renderColumn = (components: ComponentConfig[]): JSX.Element => {
+const renderColumn = (components: ComponentConfig[], columnClass: string): JSX.Element => {
   if (components.length === 0) {
-    return <div className={styles.placeholder}>Empty Column</div>;
+    return <div className={`${columnClass} ${styles.placeholder}`}>Empty Column</div>;
   }
 
   if (components.length === 1) {
-    return <div className={styles.columnSingle}>{renderComponent(components[0])}</div>;
+    return <div className={columnClass}>{renderComponent(components[0])}</div>;
   }
 
   // Multiple components - stack them vertically
   return (
-    <div className={styles.columnMultiple}>
+    <div className={`${columnClass} ${styles.column}`}>
       {components.map((component, index) => {
         // Determine section class based on component styleClass
         const sectionClass =
@@ -206,11 +204,11 @@ const DayLayout: FunctionComponent = () => {
 
       {/* Three column body layout */}
       <div className={styles.body}>
-        <div className={styles.leftColumn}>{renderColumn(layout.layout.left)}</div>
+        {renderColumn(layout.layout.left, styles.leftColumn)}
 
-        <div className={styles.centerColumn}>{renderColumn(layout.layout.center)}</div>
+        {renderColumn(layout.layout.center, styles.centerColumn)}
 
-        <div className={styles.rightColumn}>{renderColumn(layout.layout.right)}</div>
+        {renderColumn(layout.layout.right, styles.rightColumn)}
       </div>
     </div>
   );

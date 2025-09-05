@@ -8,6 +8,7 @@
   background-color: var(--grey2);
   border: 1px solid var(--grey3);
   border-radius: var(--panel-radius);
+  box-sizing: border-box;
 }
 
 .commContent {

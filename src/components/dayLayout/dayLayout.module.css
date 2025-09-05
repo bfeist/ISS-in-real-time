@@ -22,9 +22,10 @@
   flex: 1;
   width: 100%;
   overflow: hidden;
-  gap: 16px;
-  padding: 0 0 8px 0;
-  margin-top: 8px;
+  gap: 8px;
+  padding: 8px;
+  padding-top: 0;
+  box-sizing: border-box;
 }
 
 /* Left column */
@@ -33,7 +34,6 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  margin-left: 8px;
 }
 
 /* Center column */
@@ -50,7 +50,6 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  margin-right: 8px;
 }
 
 /* Placeholder styling for development */
@@ -67,20 +66,9 @@
   justify-content: center;
 }
 
-/* Column content containers */
-.columnSingle {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-.columnMultiple {
-  display: flex;
-  flex-direction: column;
+/* Column content containers - now used as modifiers combined with column classes */
+.column {
   gap: 8px;
-  flex: 1;
-  min-height: 0;
 }
 
 .columnSection {
@@ -110,19 +98,4 @@
   /* For components like articles, comm that should expand */
   flex: 1;
   min-height: 0;
-}
-
-/* Standalone flights styling (when used outside of articles) */
-.flightsStandalone {
-  height: 100%;
-  max-height: 100%;
-  backdrop-filter: blur(2px);
-  box-sizing: border-box;
-  font-family: Inter, sans-serif;
-  background-color: var(--grey2);
-  border: 1px solid var(--grey3);
-  border-radius: var(--panel-radius);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }

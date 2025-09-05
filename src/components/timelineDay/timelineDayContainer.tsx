@@ -47,7 +47,7 @@ const TimelineDayContainer = (): JSX.Element => {
   const isInitializedRef = useRef<boolean>(false); // Track initialization state
 
   const [canvasWidth, setCanvasWidth] = useState(() => window.innerWidth);
-  const canvasHeight = 100; // Fixed height for now
+  const canvasHeight = 90; // Fixed height for now
 
   // Store the draw function to reuse when needed - following timelineYears pattern
   const drawFunctionRef = useRef<(() => void) | null>(null);

@@ -75,7 +75,7 @@ export const noCommLayouts: Record<string, LayoutConfiguration> = {
   photo: {
     conditions: { video: false, comm: false, eva: false, article: false, photo: true },
     layout: {
-      left: [{ type: "photo", styleClass: "componentNaturalSize" }],
+      left: [{ type: "photo-tall", styleClass: "componentExpandable" }],
       center: [
         { type: "globe", styleClass: "componentExpandable" },
         { type: "widget-rest", styleClass: "componentExpandable" },

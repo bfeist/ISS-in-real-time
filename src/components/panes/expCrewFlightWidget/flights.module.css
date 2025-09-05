@@ -9,6 +9,7 @@
   border: 1px solid var(--grey3);
   border-radius: var(--panel-radius);
   padding: 7px;
+  box-sizing: border-box;
 }
 
 .scrollableContent {
