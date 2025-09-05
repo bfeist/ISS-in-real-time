@@ -69,3 +69,11 @@
   gap: 5px;
   margin: 0 10px 0 0;
 }
+
+.closeDayButton {
+  cursor: pointer;
+  color: var(--warning);
+  font-size: 1.2rem;
+  margin-left: 20px;
+  transition: color 0.2s ease-in-out;
+}

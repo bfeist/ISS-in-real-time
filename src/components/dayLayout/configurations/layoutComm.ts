@@ -90,7 +90,7 @@ export const commLayouts: Record<string, LayoutConfiguration> = {
   "comm-photo": {
     conditions: { video: false, comm: true, eva: false, article: false, photo: true },
     layout: {
-      left: [{ type: "photo-tall", styleClass: "componentNaturalSize" }],
+      left: [{ type: "photo-tall", styleClass: "componentExpandable" }],
       center: [
         { type: "globe", styleClass: "componentExpandable" },
         { type: "widget", styleClass: "componentExpandable" },

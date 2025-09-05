@@ -3,14 +3,22 @@ import styles from "./controlsHeader.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { hhmmssFromAppSeconds } from "utils/time";
-import { faPlay, faPause, faVolumeUp, faVolumeMute } from "@fortawesome/free-solid-svg-icons";
+import {
+  faPlay,
+  faPause,
+  faVolumeUp,
+  faVolumeMute,
+  faClose,
+} from "@fortawesome/free-solid-svg-icons";
 import IconButton from "../../common/iconButton";
 import ShareButton from "./share";
 import HeaderTelemetry from "./headerTelemetry";
 import ClockInterval from "../../panes/clockInterval";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const ControlsHeader: FunctionComponent = () => {
-  const { isRunning, startClock, stopClock, handleDayRollover, selectedDate } = useStateClock();
+  const { isRunning, startClock, stopClock, handleDayRollover, selectedDate, setSelectedDate } =
+    useStateClock();
   const { globalMute, setGlobalMute } = useStateToggle();
   const [appSeconds, setAppSeconds] = useState(0);
   const rolloverTriggeredRef = useRef(false);
@@ -55,6 +63,11 @@ const ControlsHeader: FunctionComponent = () => {
                 />
                 <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
               </div>
+              <FontAwesomeIcon
+                icon={faClose}
+                className={styles.closeDayButton}
+                onClick={() => setSelectedDate(null)}
+              />
             </>
           ) : (
             <div className={styles.noDateSelectedMessage}>Please select a date</div>
