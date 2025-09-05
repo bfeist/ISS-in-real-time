@@ -1,17 +1,19 @@
 .expedition {
   flex: 1;
-  display: flex;
-  flex-direction: row;
   backdrop-filter: blur(2px);
+}
+
+.expeditionBody {
+  overflow: auto; /* Create a new block formatting context to contain the float */
+  margin-left: 10px;
 }
 
 .expedition.expeditionCycling {
   position: absolute;
   top: 0;
-  left: 0;
+  left: 15px;
   right: 0;
-  width: calc(100% - 25px);
-  margin-left: 25px;
+  width: calc(100% - 15px);
   margin-bottom: 0;
   opacity: 0; /* Start with opacity 0 to avoid flash of unstyled content */
 }
@@ -20,77 +22,57 @@
   position: relative;
   display: flex;
   flex-direction: row;
-  margin-top: 10px;
+  padding-left: 15px;
 }
 
 .expedition.expeditionPlaceholder {
   visibility: hidden;
-  margin-left: 25px;
   margin-bottom: 0;
 }
 
 .expeditionSideText {
-  flex: 0 0 25px;
+  flex: 0 0 10px;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   overflow: visible;
-  position: relative;
-  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  z-index: 10;
   color: var(--highlight);
-  font-size: 0.8em;
+  font-weight: 600;
+  font-size: 0.7em;
   text-transform: uppercase;
 }
 
 .expeditionSideTextInner {
   white-space: nowrap;
   position: absolute;
-  top: 65px;
+  top: 55px;
   left: 50%;
   transform: translateX(-50%) rotate(-90deg);
 }
 
-.expeditionPatchContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  margin-left: 10px;
-}
-
 .patchImg {
-  flex: 0 0 70px;
   width: 70px;
-  align-self: center;
-  padding: 0 10px 0 0;
+  float: left;
+  padding: 0 10px 5px 0;
 }
 
 .expeditionTitle {
   font-size: 1em;
   font-weight: 500;
   color: var(--highlight);
-}
-
-.expeditionContent {
-  display: flex;
-  flex-direction: column;
+  margin-left: 10px;
+  margin-bottom: 5px;
 }
 
 .expeditionBlurb {
-  font-size: 0.9em;
+  font-size: 0.8em;
   font-weight: 300;
   color: white;
-  overflow-wrap: break-word;
-  display: -webkit-box;
-  -webkit-line-clamp: 9;
-  line-clamp: 9;
-  /* stylelint-disable-next-line property-no-deprecated */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.expeditionDates {
-  font-family: var(--font-mono);
-  font-size: 0.8em;
-  color: var(--grey3);
   overflow-wrap: break-word;
 }

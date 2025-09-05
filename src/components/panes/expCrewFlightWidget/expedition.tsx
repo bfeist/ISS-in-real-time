@@ -43,22 +43,14 @@ const Expeditions: FunctionComponent = () => {
 
   const renderExpedition = (expedition: ExpeditionInfo) => (
     <>
-      <div className={styles.expeditionPatchContainer}>
+      <div className={styles.expeditionTitle}>Expedition {expedition.expedition}</div>
+      <div className={styles.expeditionBody}>
         <img
           className={styles.patchImg}
           src={expedition.patchUrl}
           alt={expedition.expedition.toString()}
         />
-      </div>
-      <div className={styles.expeditionContent}>
-        <div className={styles.expeditionTitle}>Expedition {expedition.expedition}</div>
         <div className={styles.expeditionBlurb}>{expedition.expeditionBlurb}</div>
-        <div className={styles.expeditionDates}>
-          {new Date(expedition.start).toISOString().split("T")[0]} -{" "}
-          {expedition.end === null
-            ? "Active"
-            : new Date(expedition.end).toISOString().split("T")[0]}
-        </div>
       </div>
     </>
   );

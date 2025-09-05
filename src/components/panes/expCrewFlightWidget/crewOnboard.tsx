@@ -27,21 +27,28 @@ const CrewOnboard: FunctionComponent = () => {
   }
 
   return (
-    <div className={styles.crewOnboard}>
-      <ClockInterval setAppSeconds={setAppSeconds} />
-      {crewOnboard.map((crewItem) => (
-        <div
-          key={`${crewItem.arrivalDate}_${crewItem.name_first}_${crewItem.name_last}`}
-          className={styles.crewItem}
-        >
-          <img
-            className={styles.flag}
-            src={flagUrlByCountryName[crewItem.nationality]}
-            alt={crewItem.nationality}
-          />
-          <div className={styles.crewText}>
-            <div className={styles.crewName}>
-              {crewItem.name_first} {crewItem.name_last}
+    <div className={styles.crewOnboardContainer}>
+      <div className={styles.crewSideText}>
+        <span className={styles.crewSideTextInner}>Crew Onboard ({crewOnboard.length})</span>
+      </div>
+      <div className={styles.crewOnboard}>
+        <ClockInterval setAppSeconds={setAppSeconds} />
+        {crewOnboard.map((crewItem) => (
+          <>
+            <div
+              key={`${crewItem.arrivalDate}_${crewItem.name_first}_${crewItem.name_last}`}
+              className={styles.crewItem}
+            >
+              <img
+                className={styles.flag}
+                src={flagUrlByCountryName[crewItem.nationality]}
+                alt={crewItem.nationality}
+              />
+              <div className={styles.crewText}>
+                <div className={styles.crewName}>
+                  {crewItem.name_first} {crewItem.name_last}
+                </div>
+              </div>
             </div>
             <div className={styles.timeOnboard}>
               <div>
@@ -57,9 +64,9 @@ const CrewOnboard: FunctionComponent = () => {
                 )}
               </div>
             </div>
-          </div>
-        </div>
-      ))}
+          </>
+        ))}
+      </div>
     </div>
   );
 };

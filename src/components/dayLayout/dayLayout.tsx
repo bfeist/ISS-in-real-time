@@ -16,7 +16,7 @@ import EvaInfo from "components/panes/evaInfo";
 import YouTubeComponent from "components/panes/youtube";
 import EarthPhotography from "components/panes/earthPhotography";
 import TimelineDayContainer from "components/timelineDay/timelineDayContainer";
-import ExpeditionAndCrewOnboard from "components/panes/expeditionsAndCrew/expeditionsAndCrew";
+import ExpeditionAndCrewOnboard from "components/panes/expCrewFlightWidget/expeditionsAndCrew";
 
 // Custom hook to detect viewport width
 const useViewport = () => {

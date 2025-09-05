@@ -17,8 +17,9 @@ import Map from "components/panes/map";
 import EvaInfo from "components/panes/evaInfo";
 import YouTubeComponent from "components/panes/youtube";
 import EarthPhotography from "components/panes/earthPhotography";
-import ExpeditionAndCrewOnboard from "components/panes/expeditionsAndCrew/expeditionsAndCrew";
-import Flights from "components/panes/flights";
+import ExpeditionAndCrewOnboard from "components/panes/expCrewFlightWidget/expeditionsAndCrew";
+import Flights from "components/panes/expCrewFlightWidget/flights";
+import Widget from "components/panes/expCrewFlightWidget/widget";
 
 // Component mapping for layout system
 const GlobeOrMap: FunctionComponent = () => {
@@ -71,6 +72,11 @@ const renderComponent = (config: ComponentConfig): JSX.Element | null => {
       );
     case "widget":
     case "widget-tall":
+      return (
+        <div className={styles.componentExpandable}>
+          <Widget />
+        </div>
+      );
     case "widget-rest":
       return (
         <div className={styles.componentExpandable}>
@@ -81,7 +87,7 @@ const renderComponent = (config: ComponentConfig): JSX.Element | null => {
       return (
         <div className={styles.componentExpandable}>
           <div className={styles.flightsStandalone}>
-            <Flights isStandalone={true} />
+            <Flights />
           </div>
         </div>
       );
@@ -112,7 +118,7 @@ const renderComponent = (config: ComponentConfig): JSX.Element | null => {
     case "eva-article":
       return (
         <div className={styles.multiComponent}>
-          <div className={styles.componentExpandable}>
+          <div className={styles.componentNaturalSize}>
             <EvaInfo />
           </div>
           <div className={styles.componentExpandable}>
@@ -128,7 +134,7 @@ const renderComponent = (config: ComponentConfig): JSX.Element | null => {
             <EarthPhotography />
           </div>
           <div className={styles.componentExpandable}>
-            <ExpeditionAndCrewOnboard />
+            <Widget />
           </div>
         </div>
       );
@@ -158,6 +164,16 @@ const renderComponent = (config: ComponentConfig): JSX.Element | null => {
       );
 
     case "globe-widget":
+      return (
+        <div className={styles.multiComponent}>
+          <div className={styles.componentExpandable}>
+            <GlobeOrMap />
+          </div>
+          <div className={styles.componentNaturalSize}>
+            <Widget />
+          </div>
+        </div>
+      );
     case "globe-widget-rest":
       return (
         <div className={styles.multiComponent}>

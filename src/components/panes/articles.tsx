@@ -2,7 +2,6 @@ import { FunctionComponent } from "react";
 import styles from "./articles.module.css";
 import { useDateActivitySummary, useDateBlogArticles } from "api/useDateSpecificData";
 import { useStateClock } from "store/hooks/useStateClock";
-import Flights from "./flights";
 
 const Blog: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
@@ -103,7 +102,6 @@ const Blog: FunctionComponent = () => {
             )}
           </div>
         )}
-        <Flights />
       </div>
     </div>
   );
