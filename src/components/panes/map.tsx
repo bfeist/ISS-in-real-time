@@ -24,6 +24,7 @@ import styles from "./map.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useDateEphemera } from "api/useDateSpecificData";
+import GlobeMapToggle from "../common/globeMapToggle";
 
 const MapComponent: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
@@ -31,6 +32,7 @@ const MapComponent: FunctionComponent = () => {
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
 
   const [clockAppSeconds, setClockAppSeconds] = useState(0);
+  const [isHovering, setIsHovering] = useState(false);
 
   // Use hover seconds if available, otherwise use clock seconds
   const appSeconds = hoverSeconds !== null ? hoverSeconds : clockAppSeconds;
@@ -233,7 +235,12 @@ const MapComponent: FunctionComponent = () => {
   }
 
   return (
-    <div className={styles.mapContainer}>
+    <div
+      className={styles.mapContainer}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
+      <GlobeMapToggle isVisible={isHovering} />
       <ClockInterval setAppSeconds={setClockAppSeconds} />
       <div ref={mapRef} className={styles.map}></div>
     </div>

@@ -19,6 +19,7 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { hhmmssFromAppSeconds } from "utils/time";
 import { useDateEphemera } from "api/useDateSpecificData";
+import GlobeMapToggle from "../common/globeMapToggle";
 
 // Set Cesium Ion access token
 Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
@@ -27,6 +28,8 @@ const Globe: FunctionComponent = () => {
   const { isRunning, startStopTimestamp, appSecondsAtStartStop, selectedDate } = useStateClock();
   const { hoverSeconds } = useStateHover();
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
+
+  const [isHovering, setIsHovering] = useState(false);
 
   const { startTime, julianDate } = useMemo(() => {
     // Use hover seconds if available, otherwise use the current clock time
@@ -257,7 +260,12 @@ const Globe: FunctionComponent = () => {
   }
 
   return (
-    <div className={styles.globeContainer}>
+    <div
+      className={styles.globeContainer}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
+      <GlobeMapToggle isVisible={isHovering} />
       <Viewer
         style={{ width: "100%", height: "100%" }}
         ref={viewerRef}

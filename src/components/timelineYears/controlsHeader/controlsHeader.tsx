@@ -3,14 +3,7 @@ import styles from "./controlsHeader.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { hhmmssFromAppSeconds } from "utils/time";
-import {
-  faPlay,
-  faPause,
-  faVolumeUp,
-  faVolumeMute,
-  faGlobe,
-  faMap,
-} from "@fortawesome/free-solid-svg-icons";
+import { faPlay, faPause, faVolumeUp, faVolumeMute } from "@fortawesome/free-solid-svg-icons";
 import IconButton from "../../common/iconButton";
 import ShareButton from "./share";
 import HeaderTelemetry from "./headerTelemetry";
@@ -18,7 +11,7 @@ import ClockInterval from "../../panes/clockInterval";
 
 const ControlsHeader: FunctionComponent = () => {
   const { isRunning, startClock, stopClock, handleDayRollover, selectedDate } = useStateClock();
-  const { showGlobe, setShowGlobe, globalMute, setGlobalMute } = useStateToggle();
+  const { globalMute, setGlobalMute } = useStateToggle();
   const [appSeconds, setAppSeconds] = useState(0);
   const rolloverTriggeredRef = useRef(false);
 
@@ -59,10 +52,6 @@ const ControlsHeader: FunctionComponent = () => {
                 <IconButton
                   icon={globalMute ? faVolumeMute : faVolumeUp}
                   onClick={() => setGlobalMute(!globalMute)}
-                />
-                <IconButton
-                  icon={showGlobe ? faMap : faGlobe}
-                  onClick={() => setShowGlobe(!showGlobe)}
                 />
                 <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
               </div>
