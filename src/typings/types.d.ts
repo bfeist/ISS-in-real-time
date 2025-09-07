@@ -227,6 +227,60 @@ type Telemetry = {
   lng: number;
 };
 
+type VideoIaItem = {
+  date: string;
+  time: string;
+  filename: string;
+};
+
+type Stats = {
+  comm: {
+    total_days_with_transcripts: number;
+    total_days_with_vv_transcripts: number;
+    total_utterances: number;
+    avg_utterances_per_day: number;
+    total_words: number;
+    total_languages: number;
+    languages: Record<string, number>;
+    channels: Record<string, number>;
+  };
+  photos: {
+    total_photos: number;
+    total_days_with_photos: number;
+    avg_photos_per_day: number;
+    max_photos_per_day: number;
+    min_photos_per_day: number;
+    date_range: {
+      start: string | null;
+      end: string | null;
+    };
+    coverage_percentage: number;
+    missions: Record<string, number>;
+    years: Record<string, number>;
+    months: Record<string, number>;
+    most_productive_mission: string | null;
+    most_productive_year: string | null;
+    most_productive_month: string | null;
+  };
+  videos: {
+    youtube: {
+      total_videos: number;
+      total_duration_seconds: number;
+      videos_by_year: Record<string, number>;
+    };
+    ia: {
+      total_videos: number;
+      videos_by_date: Record<string, number>;
+    };
+  };
+  data_availability: {
+    total_days: number;
+    counts: Record<string, number>;
+    avg_data_types_per_day: number;
+  };
+  generated_at: string;
+};
+
 interface TimelineDayData {
   commItems: CommItem[];
   photographyItems: EarthPhotographyItem[];

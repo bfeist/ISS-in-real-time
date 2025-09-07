@@ -238,3 +238,25 @@ export function processDataAvailabilities({
   });
   return dataAvailabilities;
 }
+
+export async function fetchVideoIa(): Promise<VideoIaItem[]> {
+  const baseStaticUrl = getBaseStaticUrl();
+  const response = await fetch(`${baseStaticUrl}/ia_videos.json`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch IA Videos");
+  }
+
+  return response.json();
+}
+
+export async function fetchStats(): Promise<Stats> {
+  const baseStaticUrl = getBaseStaticUrl();
+  const response = await fetch(`${baseStaticUrl}/stats.json`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch Stats");
+  }
+
+  return response.json();
+}
