@@ -12,7 +12,9 @@ Features:
   * Copy video + transcode audio (if only audio needs adjustment)
   * Transcode video + transcode audio (if video needs adjustment)
   * Copy entire file (if both meet requirements)
-- Target: 480p resolution, < 1000 kb/s video bitrate, ≤ 96 kb/s audio bitrate
+- Target: 480p resolution, ≤ 1100 kb/s video bitrate, ≤ 101 kb/s audio bitrate
+- Uses constant bitrate (CBR) encoding for consistent web streaming
+- Includes tolerance for bitrate variations (±10% for video, ±5% for audio)
 - Filename cleanup (removes _lowres suffix)
 - Error handling and detailed logging
 """
@@ -37,14 +39,14 @@ from rich.text import Text
 # Configuration Constants
 TARGET_VIDEO_BITRATE = 1000  # kb/s - Maximum video bitrate for web delivery
 TARGET_AUDIO_BITRATE = 96  # kb/s - Maximum audio bitrate for web delivery
+VIDEO_BITRATE_TOLERANCE = 1.1  # Allow 10% tolerance above target bitrate
+AUDIO_BITRATE_TOLERANCE = 1.05  # Allow 5% tolerance above target bitrate
 DEFAULT_VIDEO_BITRATE = "1000k"  # Default ffmpeg video bitrate string
 DEFAULT_AUDIO_BITRATE = "96k"  # Default ffmpeg audio bitrate string
 
 # FFmpeg Encoding Parameters
 GPU_PRESET = "fast"  # NVENC preset for GPU encoding
-GPU_CQ = "23"  # Constant quality for NVENC (lower = higher quality)
 CPU_PRESET = "medium"  # x264 preset for CPU encoding
-CPU_CRF = "23"  # Constant rate factor for CPU encoding (lower = higher quality)
 
 # Video Quality Thresholds
 MAX_HEIGHT = 480  # Maximum video height in pixels (480p)
@@ -98,11 +100,27 @@ def get_video_info(video_path, console: Console = None):
         return None
 
 
-def is_480p_or_lower(width, height):
+def is_compliant(media_info):
     """
-    Check if video is 480p (854x480) or lower resolution.
+    Check if media info complies with target requirements.
+    Allows some tolerance for bitrate variations due to encoding.
     """
-    return height <= MAX_HEIGHT
+    if not media_info or not media_info["resolution"]:
+        return False
+
+    width, height = media_info["resolution"]
+    if height > MAX_HEIGHT:
+        return False
+
+    video_bitrate = media_info["video_bitrate"]
+    if video_bitrate and video_bitrate > TARGET_VIDEO_BITRATE * VIDEO_BITRATE_TOLERANCE:
+        return False
+
+    audio_bitrate = media_info["audio_bitrate"]
+    if audio_bitrate and audio_bitrate > TARGET_AUDIO_BITRATE * AUDIO_BITRATE_TOLERANCE:
+        return False
+
+    return True
 
 
 def get_output_filename(input_filename):
@@ -206,6 +224,7 @@ def transcode_to_480p(
 ):
     """
     Transcode video to 480p with specified bitrates using GPU acceleration (with CPU fallback).
+    Uses constant bitrate (CBR) mode for consistent web streaming performance.
     """
     import subprocess
 
@@ -224,6 +243,8 @@ def transcode_to_480p(
             "hwupload_cuda,scale_cuda=-2:480",  # Upload to GPU then scale
             "-c:v",
             "h264_nvenc",  # NVIDIA H.264 encoder
+            "-rc",
+            "cbr",  # Constant bitrate mode for web streaming
             "-b:v",
             video_bitrate,
             "-c:a",
@@ -232,8 +253,6 @@ def transcode_to_480p(
             audio_bitrate,
             "-preset",
             GPU_PRESET,  # NVENC preset
-            "-cq",
-            GPU_CQ,  # Constant quality mode
             "-y",  # Overwrite output file
             str(dst_path),
         ]
@@ -267,14 +286,16 @@ def transcode_to_480p(
                 "libx264",  # CPU H.264 encoder
                 "-b:v",
                 video_bitrate,
+                "-maxrate",
+                video_bitrate,  # Same as target bitrate for near-CBR
+                "-bufsize",
+                f"{int(video_bitrate.rstrip('k')) * 2}k",  # 2x target bitrate for buffer
                 "-c:a",
                 "aac",
                 "-b:a",
                 audio_bitrate,
                 "-preset",
                 CPU_PRESET,  # CPU preset
-                "-crf",
-                CPU_CRF,  # CPU quality setting
                 "-y",  # Overwrite output file
                 str(dst_path),
             ]
@@ -456,17 +477,24 @@ def process_videos(raw_folder, web_folder, console: Console):
             output_filename = get_output_filename(input_file.name)
             output_file = web_path / output_filename
 
-            # Skip if output file already exists and is newer
-            if (
-                output_file.exists()
-                and output_file.stat().st_mtime > input_file.stat().st_mtime
-            ):
-                console.print(
-                    f"[dim]⏭️  Skipping {input_file.name} - output file is up to date[/dim]"
-                )
-                skipped += 1
-                progress.advance(overall_task)
-                continue
+            # Check if output file already exists
+            if output_file.exists():
+                output_media_info = get_video_info(output_file, console)
+                if (
+                    output_media_info
+                    and is_compliant(output_media_info)
+                    and output_file.stat().st_mtime > input_file.stat().st_mtime
+                ):
+                    console.print(
+                        f"[dim]⏭️  Skipping {input_file.name} - output file is compliant and up to date[/dim]"
+                    )
+                    skipped += 1
+                    progress.advance(overall_task)
+                    continue
+                else:
+                    console.print(
+                        f"[dim]Output file exists but not compliant or outdated - will transcode[/dim]"
+                    )
 
             # Get video and audio information
             media_info = get_video_info(input_file, console)
@@ -499,16 +527,20 @@ def process_videos(raw_folder, web_folder, console: Console):
 
             # Decide what transcoding is needed
             video_needs_transcoding = height > MAX_HEIGHT or (  # Higher than 480p
-                current_video_bitrate and current_video_bitrate >= target_video_bitrate
+                current_video_bitrate
+                and current_video_bitrate
+                > TARGET_VIDEO_BITRATE * VIDEO_BITRATE_TOLERANCE
             )
             audio_needs_transcoding = (
-                current_audio_bitrate and current_audio_bitrate > target_audio_bitrate
+                current_audio_bitrate
+                and current_audio_bitrate
+                > TARGET_AUDIO_BITRATE * AUDIO_BITRATE_TOLERANCE
             )
 
             if video_needs_transcoding:
                 # Video needs transcoding, so transcode both video and audio to targets
                 console.print(
-                    f"[dim]Transcoding video to 480p @ < {target_video_bitrate} kb/s and audio to {target_audio_bitrate} kb/s[/dim]"
+                    f"[dim]Transcoding video to 480p @ {target_video_bitrate} kb/s CBR and audio to {target_audio_bitrate} kb/s[/dim]"
                 )
                 success = transcode_to_480p(
                     input_file,
@@ -567,8 +599,10 @@ def main():
 
     # Welcome message
     console.print()
-    title = Text("🎬 IA Video Transcoder (GPU Accelerated)", style="bold blue")
-    subtitle = Text("Target: 480p @ < 1000 kb/s video, ≤ 96 kb/s audio", style="dim")
+    title = Text("🎬 IA Video Transcoder (CBR for Web Streaming)", style="bold blue")
+    subtitle = Text(
+        "Target: 480p @ 1000 kb/s video CBR (±10%), ≤ 96 kb/s audio (±5%)", style="dim"
+    )
     console.print(Panel.fit(title))
     console.print(Panel.fit(subtitle))
     console.print()
