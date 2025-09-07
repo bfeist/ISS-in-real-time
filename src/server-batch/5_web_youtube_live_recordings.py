@@ -7,6 +7,8 @@ CHANNEL_ID = "UCLA_DiR1FfKNvjuUpBHmylQ"  # NASA's official YouTube Channel ID
 YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3"
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
+RAW_FOLDER = os.getenv("RAW_FOLDER")
+
 
 def seconds_from_duration_str(duration):
     """
@@ -35,6 +37,7 @@ def get_live_videos(channel_id, api_key):
     Fetch all recorded live broadcast videos from a YouTube channel.
     """
     videos = []
+    raw_search_responses = []
     next_page_token = None
 
     while True:
@@ -52,6 +55,8 @@ def get_live_videos(channel_id, api_key):
 
         response = requests.get(search_url, params=params)
         response_data = response.json()
+
+        raw_search_responses.append(response_data)
 
         if "items" not in response_data:
             print("Error fetching live video data:", response_data)
@@ -74,7 +79,7 @@ def get_live_videos(channel_id, api_key):
         if not next_page_token:
             break
 
-    return videos
+    return videos, raw_search_responses
 
 
 def main():
@@ -82,10 +87,39 @@ def main():
 
     # perform a search for all video are recorded live streams.
     # these are most likey to be timeable in context
-    live_videos = get_live_videos(CHANNEL_ID, API_KEY)
+    live_videos, raw_search = get_live_videos(CHANNEL_ID, API_KEY)
 
     # sort the videos by publishedAt
     live_videos = sorted(live_videos, key=lambda x: x["publishedAt"])
+
+    # get the duration of each video from the youtube api and update the duration field
+    raw_video_responses = []
+    for video in live_videos:
+        video_details_url = f"{YOUTUBE_API_URL}/videos"
+        params = {
+            "part": "contentDetails,liveStreamingDetails",
+            "id": video["videoId"],
+            "key": API_KEY,
+        }
+
+        response = requests.get(video_details_url, params=params)
+        response_data = response.json()
+
+        raw_video_responses.append(response_data)
+
+        if "items" not in response_data:
+            print("Error fetching video data:", response_data)
+            continue
+
+        video["duration"] = seconds_from_duration_str(
+            response_data["items"][0]["contentDetails"]["duration"]
+        )
+        # Add startTime from liveStreamingDetails
+        video["startTime"] = (
+            response_data["items"][0]
+            .get("liveStreamingDetails", {})
+            .get("actualStartTime", None)
+        )
 
     # filter out videos that are returned by this function that aren't relevant (bunch of string matches)
     filtered_videos = []
@@ -120,30 +154,17 @@ def main():
         ):
             filtered_videos.append(video)
 
-    # get the duration of each video from the youtube api and update the duration field
-    for video in filtered_videos:
-        video_details_url = f"{YOUTUBE_API_URL}/videos"
-        params = {
-            "part": "contentDetails,liveStreamingDetails",
-            "id": video["videoId"],
-            "key": API_KEY,
-        }
-
-        response = requests.get(video_details_url, params=params)
-        response_data = response.json()
-
-        if "items" not in response_data:
-            print("Error fetching video data:", response_data)
-            break
-
-        video["duration"] = seconds_from_duration_str(
-            response_data["items"][0]["contentDetails"]["duration"]
-        )
-        # Add startTime from liveStreamingDetails
-        video["startTime"] = (
-            response_data["items"][0]
-            .get("liveStreamingDetails", {})
-            .get("actualStartTime", None)
+    os.makedirs(RAW_FOLDER, exist_ok=True)
+    with open(
+        os.path.join(RAW_FOLDER, "youtube_live_recordings_raw.json"),
+        "w",
+        encoding="utf-8",
+    ) as f:
+        json.dump(
+            {"search_responses": raw_search, "video_responses": raw_video_responses},
+            f,
+            ensure_ascii=False,
+            indent=4,
         )
 
     with open(
