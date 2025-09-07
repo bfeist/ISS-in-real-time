@@ -99,13 +99,13 @@ for video in videos:
 
                 best_format = max(formats, key=get_quality_score)
 
+            print("---")
             print(f"Video: {video_id}")
             print(f"Available formats count: {len(formats)}")
             print(
                 f"Selected 'best' format: {best_format.get('format_id', 'unknown')} - {best_format.get('height', 'unknown')}p @ {best_format.get('fps', 'unknown')}fps, {best_format.get('tbr', 'unknown')}kbps"
             )
             print(f"Format note: {best_format.get('format_note', 'N/A')}")
-            print("---")
 
         # Now download with the best format
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

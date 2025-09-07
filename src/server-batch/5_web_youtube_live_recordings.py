@@ -45,7 +45,7 @@ def get_live_videos(channel_id, api_key):
         params = {
             "part": "snippet",
             "channelId": channel_id,
-            "q": "station OR spacewalk OR ISS",  # Fetch videos with multiple keywords
+            "q": "station OR spacewalk OR ISS OR EVA",  # Fetch videos with multiple keywords
             "eventType": "completed",  # Fetch completed live broadcasts
             "type": "video",
             "maxResults": 50,

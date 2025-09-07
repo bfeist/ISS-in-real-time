@@ -149,6 +149,8 @@ def copy_file(src_path, dst_path, console: Console = None):
             str(src_path),
             "-c",
             "copy",
+            "-movflags",
+            "faststart",
             "-y",  # Overwrite output file
             str(dst_path),
         ]
@@ -194,6 +196,8 @@ def transcode_audio_only(
             "aac",  # Transcode audio to AAC
             "-b:a",
             audio_bitrate,
+            "-movflags",
+            "faststart",
             "-y",  # Overwrite output file
             str(dst_path),
         ]
@@ -253,6 +257,8 @@ def transcode_to_480p(
             audio_bitrate,
             "-preset",
             GPU_PRESET,  # NVENC preset
+            "-movflags",
+            "faststart",
             "-y",  # Overwrite output file
             str(dst_path),
         ]
@@ -296,6 +302,8 @@ def transcode_to_480p(
                 audio_bitrate,
                 "-preset",
                 CPU_PRESET,  # CPU preset
+                "-movflags",
+                "faststart",
                 "-y",  # Overwrite output file
                 str(dst_path),
             ]
