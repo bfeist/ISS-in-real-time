@@ -81,6 +81,10 @@
   line-height: 1.2;
 }
 
+.content p:first-of-type {
+  margin-top: 0;
+}
+
 .content p a {
   color: rgb(201 211 255);
   text-decoration: underline;
