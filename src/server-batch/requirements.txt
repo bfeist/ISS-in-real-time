@@ -6,6 +6,7 @@ pycountry
 whisperx
 rich
 pydub
+webrtcvad
 internetarchive
 tqdm
 torch
