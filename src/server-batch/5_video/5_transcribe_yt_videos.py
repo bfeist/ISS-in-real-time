@@ -500,6 +500,11 @@ def process_video_file(model, video_path):
         logger.error(f"Could not parse video filename: {video_path.name}")
         return False
 
+    # Skip videos with "launch" in the filename
+    if "launch" in video_path.name.lower():
+        logger.info(f"Skipping launch video: {video_path.name}")
+        return True
+
     # Create output filename based on input filename (without extension) + _transcript.csv
     input_basename = os.path.splitext(video_path.name)[0]
     output_csv_path = TEMP_OUTPUT_FOLDER / f"{input_basename}_transcript.csv"
@@ -547,11 +552,17 @@ def check_existing_transcripts(video_files):
     """Check which videos already have transcripts and return counts."""
     already_processed = 0
     need_processing = 0
+    skipped_launch = 0
 
     for video_path in video_files:
         published_date, video_id, title, height = parse_video_filename(video_path.name)
 
         if not video_id:
+            continue
+
+        # Skip launch videos
+        if "launch" in video_path.name.lower():
+            skipped_launch += 1
             continue
 
         # Create output filename based on input filename (without extension) + _transcript.csv
@@ -563,7 +574,7 @@ def check_existing_transcripts(video_files):
         else:
             need_processing += 1
 
-    return already_processed, need_processing
+    return already_processed, need_processing, skipped_launch
 
 
 def main():
@@ -595,9 +606,12 @@ def main():
     logger.info(f"Found {len(video_files)} video files to process")
 
     # Check which videos already have transcripts
-    already_processed, need_processing = check_existing_transcripts(video_files)
+    already_processed, need_processing, skipped_launch = check_existing_transcripts(
+        video_files
+    )
     logger.info(f"Videos already processed: {already_processed}")
     logger.info(f"Videos needing processing: {need_processing}")
+    logger.info(f"Videos skipped (launch): {skipped_launch}")
 
     if need_processing == 0:
         logger.info("All videos already have transcripts. Nothing to process.")
@@ -616,11 +630,6 @@ def main():
 
     for video_path in video_files:
         try:
-            # Parse filename to get metadata for tracking
-            published_date, video_id, title, height = parse_video_filename(
-                video_path.name
-            )
-
             if process_video_file(model, video_path):
                 successful += 1
             else:

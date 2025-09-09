@@ -27,13 +27,12 @@ load_dotenv(dotenv_path="../../../.env")
 
 # Configuration
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
-if WEB_ASSETS_FOLDER is None:
-    print("Error: WEB_ASSETS_FOLDER environment variable is not set.")
-    exit(1)
+RAW_FOLDER = os.getenv("RAW_FOLDER")
 
 YOUTUBE_TRANSCRIPTS_FOLDER = "F:/tempF/iss_working/youtube_transcripts"
 COMM_FOLDER = WEB_ASSETS_FOLDER + "comm/"
-MANUAL_START_TIMES_FILE = WEB_ASSETS_FOLDER + "youtube_manual_start_times.json"
+YOUTUBE_RECORDINGS_FILE = WEB_ASSETS_FOLDER + "youtube_live_recordings.json"
+PROCESSING_LOG_FILE = RAW_FOLDER + "youtube_transcript_processing_log.json"
 
 # Fuzzy matching parameters
 MIN_SIMILARITY_THRESHOLD = 0.6  # Minimum similarity for a match
@@ -91,138 +90,144 @@ class TranscriptEntry:
         return f"TranscriptEntry({self.time_str}, '{self.text[:50]}...')"
 
 
-def load_manual_start_times() -> List[Dict]:
-    """Load existing manual start times from JSON file."""
-    if os.path.exists(MANUAL_START_TIMES_FILE):
+def load_youtube_recordings() -> List[Dict]:
+    """Load existing YouTube recordings from JSON file."""
+    if os.path.exists(YOUTUBE_RECORDINGS_FILE):
         try:
-            with open(MANUAL_START_TIMES_FILE, "r", encoding="utf-8") as f:
+            with open(YOUTUBE_RECORDINGS_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
-            print(f"Error loading manual start times: {e}")
+            print(f"Error loading YouTube recordings: {e}")
             return []
     return []
 
 
-def save_manual_start_times(manual_times: List[Dict]) -> bool:
-    """Save manual start times to JSON file."""
+def save_youtube_recordings(recordings: List[Dict]) -> bool:
+    """Save YouTube recordings to JSON file."""
     try:
-        # Create backup first
-        backup_file = MANUAL_START_TIMES_FILE + ".backup"
-        if os.path.exists(MANUAL_START_TIMES_FILE):
-            with open(MANUAL_START_TIMES_FILE, "r", encoding="utf-8") as src:
-                with open(backup_file, "w", encoding="utf-8") as dst:
-                    dst.write(src.read())
-            print(f"Created backup: {backup_file}")
-
         # Write new data
-        with open(MANUAL_START_TIMES_FILE, "w", encoding="utf-8") as f:
-            json.dump(manual_times, f, indent=2, ensure_ascii=False)
-        print(f"Manual start times saved to: {MANUAL_START_TIMES_FILE}")
+        with open(YOUTUBE_RECORDINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(recordings, f, indent=2, ensure_ascii=False)
+        print(f"YouTube recordings saved to: {YOUTUBE_RECORDINGS_FILE}")
         return True
     except Exception as e:
-        print(f"Error saving manual start times: {e}")
+        print(f"Error saving YouTube recordings: {e}")
         return False
 
 
-def find_manual_entry_by_video_id(
-    manual_times: List[Dict], video_id: str
-) -> Optional[Dict]:
-    """Find manual entry by video ID."""
-    for entry in manual_times:
+def load_processing_log() -> List[Dict]:
+    """Load processing log from JSON file."""
+    if os.path.exists(PROCESSING_LOG_FILE):
+        try:
+            with open(PROCESSING_LOG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading processing log: {e}")
+            return []
+    return []
+
+
+def save_processing_log(log_entries: List[Dict]) -> bool:
+    """Save processing log to JSON file."""
+    try:
+        # Write new data
+        with open(PROCESSING_LOG_FILE, "w", encoding="utf-8") as f:
+            json.dump(log_entries, f, indent=2, ensure_ascii=False)
+        print(f"Processing log saved to: {PROCESSING_LOG_FILE}")
+        return True
+    except Exception as e:
+        print(f"Error saving processing log: {e}")
+        return False
+
+
+def find_recording_by_video_id(recordings: List[Dict], video_id: str) -> Optional[Dict]:
+    """Find recording entry by video ID."""
+    for entry in recordings:
         if entry.get("videoId") == video_id:
             return entry
     return None
 
 
-def calculate_start_time_from_manual_entry(manual_entry: Dict) -> datetime:
-    """Calculate video start time from manual entry (supports both old and new format)."""
+def calculate_start_time_from_recording_entry(recording_entry: Dict) -> datetime:
+    """Calculate video start time from recording entry."""
 
-    # If we already have a calculated start time, use it
-    if "calculatedVideoStartTime" in manual_entry:
+    # If we already have a derived start time, use it
+    if "derivedStartTime" in recording_entry:
         return datetime.fromisoformat(
-            manual_entry["calculatedVideoStartTime"].replace("Z", "+00:00")
+            recording_entry["derivedStartTime"].replace("Z", "+00:00")
         )
 
-    # Otherwise calculate from timing sync point
-    # Handle both old format (youtubeTime) and new format (videoTimePoint)
-    video_time = manual_entry.get("videoTimePoint") or manual_entry.get("youtubeTime")
-    real_time = manual_entry.get("realTimeAtVideoPoint") or manual_entry.get(
-        "youtubeTimeIsoTimestamp"
+    # Otherwise, use the ytStartTime if available
+    yt_start_time = recording_entry.get("ytStartTime")
+    if yt_start_time:
+        return datetime.fromisoformat(yt_start_time.replace("Z", "+00:00"))
+
+    raise ValueError(
+        f"No start time information available in recording entry: {recording_entry}"
     )
 
-    if not video_time or not real_time:
-        raise ValueError(f"Missing required fields in manual entry: {manual_entry}")
 
-    # Convert video time to seconds
-    time_parts = video_time.split(":")
-    video_seconds = (
-        int(time_parts[0]) * 3600 + int(time_parts[1]) * 60 + int(time_parts[2])
-    )
-
-    # Parse the ISO timestamp
-    iso_time = datetime.fromisoformat(real_time.replace("Z", "+00:00"))
-
-    # Calculate video start time
-    video_start = iso_time - timedelta(seconds=video_seconds)
-
-    return video_start
-
-
-def create_manual_entry_from_script_result(
+def create_log_entry_from_script_result(
     date: datetime,
     video_id: str,
     title: str,
     video_start_datetime: datetime,
     first_match_info: Dict,
+    success: bool = True,
+    failure_reason: str = "",
 ) -> Dict:
-    """Create a manual entry from script calculation result using improved structure."""
+    """Create a log entry from script processing result."""
 
-    youtube_seconds = first_match_info["youtube_offset_seconds"]
-    hours = int(youtube_seconds // 3600)
-    minutes = int((youtube_seconds % 3600) // 60)
-    seconds = int(youtube_seconds % 60)
-    video_time_point = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-    # The timestamp is when this video time point actually occurred in real time
-    real_time_at_video_point = (
-        video_start_datetime + timedelta(seconds=youtube_seconds)
-    ).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    return {
+    log_entry = {
         # Core identification
         "date": date.strftime("%Y-%m-%d"),
         "videoId": video_id,
         "title": title,
-        # Timing synchronization point (improved field names)
-        "videoTimePoint": video_time_point,
-        "realTimeAtVideoPoint": real_time_at_video_point,
-        # Calculated results
-        "calculatedVideoStartTime": video_start_datetime.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        # Metadata
+        # Processing metadata
         "source": "automated_fuzzy_matching",
-        "confidence": first_match_info.get("similarity", 0.0),
         "processingDate": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "processingNotes": f"Automated fuzzy matching found {first_match_info.get('num_matches', 0)} consecutive matches",
+        "processingStatus": "success" if success else "failed",
     }
 
+    if success:
+        youtube_seconds = first_match_info["youtube_offset_seconds"]
+        hours = int(youtube_seconds // 3600)
+        minutes = int((youtube_seconds % 3600) // 60)
+        seconds = int(youtube_seconds % 60)
+        video_time_point = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-def create_failure_entry(
-    date: datetime, video_id: str, title: str, failure_reason: str
-) -> Dict:
-    """Create a failure entry for videos that couldn't be processed."""
-    return {
-        # Core identification
-        "date": date.strftime("%Y-%m-%d"),
-        "videoId": video_id,
-        "title": title,
-        # No timing information available for failed processing
-        # Metadata
-        "source": "automated_fuzzy_matching",
-        "confidence": 0.0,
-        "processingDate": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "processingNotes": f"Processing failed: {failure_reason}",
-        "processingStatus": "failed",
-    }
+        # The timestamp is when this video time point actually occurred in real time
+        real_time_at_video_point = (
+            video_start_datetime + timedelta(seconds=youtube_seconds)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        log_entry.update(
+            {
+                # Timing synchronization point
+                "videoTimePoint": video_time_point,
+                "realTimeAtVideoPoint": real_time_at_video_point,
+                # Calculated results
+                "calculatedVideoStartTime": video_start_datetime.strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ),
+                # Analysis metadata
+                "confidence": first_match_info.get("similarity", 0.0),
+                "processingNotes": f"Automated fuzzy matching found {first_match_info.get('num_matches', 0)} consecutive matches",
+                "firstMatchYoutubeText": first_match_info.get(
+                    "first_match_youtube_text", ""
+                ),
+                "firstMatchCommText": first_match_info.get("first_match_comm_text", ""),
+            }
+        )
+    else:
+        log_entry.update(
+            {
+                "confidence": 0.0,
+                "processingNotes": f"Processing failed: {failure_reason}",
+            }
+        )
+
+    return log_entry
 
 
 def parse_youtube_filename(
@@ -231,6 +236,7 @@ def parse_youtube_filename(
     """
     Parse YouTube transcript filename to extract metadata.
     Format: YYYY-MM-DDTHH-MM-SS_videoId_height_title_transcript.csv
+    videoId is 11 characters (YouTube standard), may contain underscores.
     Returns: (date, video_id, title)
     """
     try:
@@ -238,16 +244,40 @@ def parse_youtube_filename(
         if basename.endswith("_transcript"):
             basename = basename[:-11]  # Remove _transcript
 
-        parts = basename.split("_")
-        if len(parts) < 4:
-            print(f"Warning: Unexpected filename format: {filename}")
+        if len(basename) < 20:  # Minimum length: date_time + _ + 11 char video_id
+            print(f"Warning: Filename too short: {filename}")
             return None, None, None
 
-        # Extract components
-        date_time_str = parts[0]  # YYYY-MM-DDTHH-MM-SS
-        video_id = parts[1]
-        height = parts[2]
-        title = "_".join(parts[3:])  # Rejoin title parts
+        # Extract date_time (first 19 chars: YYYY-MM-DDTHH-MM-SS)
+        date_time_str = basename[:19]
+
+        # Check if there's an underscore after date_time
+        if basename[19] != "_":
+            print(f"Warning: Unexpected format after date_time: {filename}")
+            return None, None, None
+
+        # Extract video_id (next 11 chars after _)
+        rest = basename[20:]
+        if len(rest) < 11:
+            print(f"Warning: Filename too short for video_id: {filename}")
+            return None, None, None
+
+        video_id = rest[:11]
+
+        # Remaining part after video_id
+        after_video_id = rest[11:]
+        if not after_video_id.startswith("_"):
+            print(f"Warning: Unexpected format after video_id: {filename}")
+            return None, None, None
+
+        # Split the remaining part: _height_title
+        parts = after_video_id[1:].split("_", 1)
+        if len(parts) < 2:
+            print(f"Warning: Unexpected format for height and title: {filename}")
+            return None, None, None
+
+        height = parts[0]
+        title = parts[1]
 
         # Parse the date
         date_part = date_time_str.split("T")[0]  # Get YYYY-MM-DD
@@ -300,6 +330,10 @@ def load_comm_transcript(date: datetime) -> List[TranscriptEntry]:
     )
 
     entries = []
+    if not os.path.exists(comm_filepath):
+        print(f"Comm transcript file does not exist: {comm_filepath}")
+        return entries
+
     try:
         with open(comm_filepath, "r", encoding="utf-8") as file:
             # Comm transcripts are also pipe-delimited
@@ -462,9 +496,12 @@ def calculate_video_start_offset(
 
 
 def process_youtube_transcript(
-    filepath: str, existing_entries: List[Dict]
-) -> Optional[Dict]:
-    """Process a single YouTube transcript file and return new entry (success or failure)."""
+    filepath: str, recordings: List[Dict], log_entries: List[Dict]
+) -> Tuple[bool, Optional[Dict]]:
+    """
+    Process a single YouTube transcript file and update recording entry with derivedStartTime.
+    Returns: (success, log_entry)
+    """
     filename = os.path.basename(filepath)
     print(f"\n{'='*80}")
     print(f"PROCESSING: {filename}")
@@ -474,19 +511,72 @@ def process_youtube_transcript(
     date, video_id, title = parse_youtube_filename(filename)
     if not date or not video_id:
         print(f"Skipping {filename} - could not parse filename")
-        return None
+        log_entry = create_log_entry_from_script_result(
+            datetime.now().replace(
+                hour=0, minute=0, second=0, microsecond=0
+            ),  # Use current date as fallback
+            "unknown",
+            filename,
+            datetime.now(),
+            {},
+            success=False,
+            failure_reason="Could not parse filename to extract date and video ID",
+        )
+        return False, log_entry
 
     print(f"Date: {date.strftime('%Y-%m-%d')}")
     print(f"Video ID: {video_id}")
     print(f"Title: {title}")
 
-    # Check if we already have an entry for this video ID
-    existing_entry = find_manual_entry_by_video_id(existing_entries, video_id)
-    if existing_entry:
-        print(f"*** SKIPPING - Entry already exists for video ID: {video_id} ***")
-        print(f"Existing source: {existing_entry.get('source', 'unknown')}")
-        print(f"Existing status: {existing_entry.get('processingStatus', 'success')}")
-        return None
+    # Check if we already have a log entry for this video ID (processed before)
+    existing_log = next(
+        (entry for entry in log_entries if entry.get("videoId") == video_id), None
+    )
+    if existing_log:
+        print(f"*** SKIPPING - Already processed video ID: {video_id} ***")
+        print(f"Previous status: {existing_log.get('processingStatus', 'unknown')}")
+        log_entry = create_log_entry_from_script_result(
+            date,
+            video_id,
+            title,
+            datetime.now(),
+            {},
+            success=False,
+            failure_reason=f"Video already processed previously (status: {existing_log.get('processingStatus', 'unknown')})",
+        )
+        return False, log_entry
+
+    # Find the recording entry for this video
+    recording_entry = find_recording_by_video_id(recordings, video_id)
+    if not recording_entry:
+        error_msg = f"No recording entry found for video ID: {video_id}"
+        print(error_msg)
+        log_entry = create_log_entry_from_script_result(
+            date,
+            video_id,
+            title,
+            datetime.now(),
+            {},
+            success=False,
+            failure_reason="No recording entry found",
+        )
+        return False, log_entry
+
+    # Check if this recording already has a derivedStartTime
+    if recording_entry.get("derivedStartTime"):
+        print(
+            f"*** SKIPPING - Recording already has derivedStartTime: {recording_entry['derivedStartTime']} ***"
+        )
+        log_entry = create_log_entry_from_script_result(
+            date,
+            video_id,
+            title,
+            datetime.now(),
+            {},
+            success=False,
+            failure_reason=f"Recording already has derivedStartTime: {recording_entry['derivedStartTime']}",
+        )
+        return False, log_entry
 
     # Load YouTube transcript
     print(f"\nLoading YouTube transcript...")
@@ -494,9 +584,16 @@ def process_youtube_transcript(
     if not youtube_entries:
         error_msg = f"No YouTube entries found in {filename}"
         print(error_msg)
-        return create_failure_entry(
-            date, video_id, title, "No YouTube transcript entries found"
+        log_entry = create_log_entry_from_script_result(
+            date,
+            video_id,
+            title,
+            datetime.now(),
+            {},
+            success=False,
+            failure_reason="No YouTube transcript entries found",
         )
+        return False, log_entry
 
     print(f"Loaded {len(youtube_entries)} YouTube transcript entries")
 
@@ -506,9 +603,16 @@ def process_youtube_transcript(
     if not comm_entries:
         error_msg = f"No comm entries found for {date.strftime('%Y-%m-%d')}"
         print(error_msg)
-        return create_failure_entry(
-            date, video_id, title, "No communication transcript found for this date"
+        log_entry = create_log_entry_from_script_result(
+            date,
+            video_id,
+            title,
+            datetime.now(),
+            {},
+            success=False,
+            failure_reason="No communication transcript found for this date",
         )
+        return False, log_entry
 
     # Find matching sequences
     matching_sequences = find_matching_sequences(youtube_entries, comm_entries, date)
@@ -531,34 +635,45 @@ def process_youtube_transcript(
             print(f"Match confidence: {match_info['similarity']:.3f}")
             print(f"Number of matches: {match_info['num_matches']}")
 
-            # Create new entry from script result
-            new_entry = create_manual_entry_from_script_result(
-                date, video_id, title, video_start_datetime, match_info
+            # Update the recording entry with derivedStartTime
+            recording_entry["derivedStartTime"] = video_start_datetime.strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+
+            # Create log entry
+            log_entry = create_log_entry_from_script_result(
+                date, video_id, title, video_start_datetime, match_info, success=True
             )
 
             print(f"{'='*60}")
-            return new_entry
+            return True, log_entry
 
         else:
             error_msg = "Failed to calculate video start offset"
             print(f"\n{error_msg}")
-            return create_failure_entry(
+            log_entry = create_log_entry_from_script_result(
                 date,
                 video_id,
                 title,
-                "Could not calculate video start offset from matches",
+                datetime.now(),
+                {},
+                success=False,
+                failure_reason="Could not calculate video start offset from matches",
             )
+            return False, log_entry
     else:
         error_msg = "No matching sequences found between YouTube and comm transcripts"
         print(f"\n{error_msg}")
-        return create_failure_entry(
+        log_entry = create_log_entry_from_script_result(
             date,
             video_id,
             title,
-            "No matching sequences found between YouTube and communication transcripts",
+            datetime.now(),
+            {},
+            success=False,
+            failure_reason="No matching sequences found between YouTube and communication transcripts",
         )
-
-    return None
+        return False, log_entry
 
 
 def main():
@@ -566,7 +681,8 @@ def main():
     print("Starting YouTube transcript to comm transcript alignment...")
     print(f"YouTube transcripts folder: {YOUTUBE_TRANSCRIPTS_FOLDER}")
     print(f"Comm folder: {COMM_FOLDER}")
-    print(f"Manual start times file: {MANUAL_START_TIMES_FILE}")
+    print(f"YouTube recordings file: {YOUTUBE_RECORDINGS_FILE}")
+    print(f"Processing log file: {PROCESSING_LOG_FILE}")
 
     # Check if folders exist
     if not os.path.exists(YOUTUBE_TRANSCRIPTS_FOLDER):
@@ -579,10 +695,14 @@ def main():
         print(f"Error: Comm folder not found: {COMM_FOLDER}")
         return
 
-    # Load existing manual start times
-    print(f"\nLoading existing entries...")
-    existing_entries = load_manual_start_times()
-    print(f"Loaded {len(existing_entries)} existing entries")
+    # Load existing YouTube recordings and processing log
+    print(f"\nLoading existing recordings...")
+    recordings = load_youtube_recordings()
+    print(f"Loaded {len(recordings)} existing recording entries")
+
+    print(f"\nLoading processing log...")
+    log_entries = load_processing_log()
+    print(f"Loaded {len(log_entries)} existing log entries")
 
     # Find all YouTube transcript files
     transcript_files = []
@@ -598,6 +718,8 @@ def main():
 
     # Process each transcript file
     processed_count = 0
+    successful_count = 0
+
     for filepath in transcript_files:
         filename = os.path.basename(filepath)
 
@@ -607,20 +729,31 @@ def main():
             continue
 
         try:
-            new_entry = process_youtube_transcript(filepath, existing_entries)
-            if new_entry:
-                # Add the new entry to our existing entries list
-                existing_entries.append(new_entry)
+            success, log_entry = process_youtube_transcript(
+                filepath, recordings, log_entries
+            )
 
-                # Save immediately after processing each successful entry
-                if save_manual_start_times(existing_entries):
-                    print(
-                        f"✅ Successfully saved entry for {new_entry['videoId']} to JSON file"
-                    )
-                else:
-                    print(f"❌ Failed to save entry for {new_entry['videoId']}")
-
+            # Always save after processing, regardless of success/failure
+            if log_entry:
+                # Add the new log entry
+                log_entries.append(log_entry)
                 processed_count += 1
+
+                if success:
+                    successful_count += 1
+
+            # Save both files after each processing attempt
+            recordings_saved = save_youtube_recordings(recordings)
+            log_saved = save_processing_log(log_entries)
+
+            if recordings_saved and log_saved:
+                if log_entry:
+                    status_msg = "✅ SUCCESS" if success else "❌ FAILED"
+                    print(f"{status_msg} - Saved updates for {log_entry['videoId']}")
+                else:
+                    print(f"ℹ️  Saved files after processing {filename}")
+            else:
+                print(f"❌ Failed to save files after processing {filename}")
 
         except Exception as e:
             print(f"Error processing {filepath}: {e}")
@@ -629,8 +762,11 @@ def main():
             traceback.print_exc()
 
     print(f"\n=== PROCESSING COMPLETE ===")
-    print(f"Processed {processed_count} new video files")
-    print(f"Total entries in JSON file: {len(existing_entries)}")
+    print(f"Processed {processed_count} video files")
+    print(f"Successful processing: {successful_count}")
+    print(f"Failed processing: {processed_count - successful_count}")
+    print(f"Total recordings in file: {len(recordings)}")
+    print(f"Total log entries: {len(log_entries)}")
 
 
 if __name__ == "__main__":

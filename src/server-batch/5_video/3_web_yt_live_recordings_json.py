@@ -115,7 +115,7 @@ def main():
             response_data["items"][0]["contentDetails"]["duration"]
         )
         # Add startTime from liveStreamingDetails
-        video["startTime"] = (
+        video["ytStartTime"] = (
             response_data["items"][0]
             .get("liveStreamingDetails", {})
             .get("actualStartTime", None)
