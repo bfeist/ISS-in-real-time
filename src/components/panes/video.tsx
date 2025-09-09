@@ -56,6 +56,7 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
   const lastSyncTimeRef = useRef<number>(0);
   const [appSeconds, setAppSeconds] = useState(0);
   const [duration, setDuration] = useState<number | null>(null);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
 
   const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
 
@@ -74,10 +75,24 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
     playerRef.current = event.target;
     playerRef.current.mute();
     playerRef.current.getDuration().then(setDuration);
+    setIsPlayerReady(true);
   };
 
   useEffect(() => {
-    if (!playerRef.current) return;
+    if (!playerRef.current || !isPlayerReady) return;
+
+    const playerState = playerRef.current.getPlayerState();
+    const isPlaying = playerState === YouTube.PlayerState.PLAYING;
+
+    if (isRunning && !isPlaying) {
+      playerRef.current.playVideo();
+    } else if (!isRunning && isPlaying) {
+      playerRef.current.pauseVideo();
+    }
+  }, [isRunning, isPlayerReady]);
+
+  useEffect(() => {
+    if (!playerRef.current || !isPlayerReady) return;
 
     const syncTime = async () => {
       // Throttle synchronization to at most once per second
@@ -86,16 +101,9 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
       lastSyncTimeRef.current = now;
 
       const playerState = await playerRef.current.getPlayerState();
-      const isPlaying = playerState === YouTube.PlayerState.PLAYING;
 
       // Don't sync during buffering to avoid interrupting the buffering process
       if (playerState === YouTube.PlayerState.BUFFERING) return;
-
-      if (isRunning && !isPlaying) {
-        playerRef.current.playVideo();
-      } else if (!isRunning && isPlaying) {
-        playerRef.current.pauseVideo();
-      }
 
       // sync the player time with the clock
       const startTimeToUse = videoYtRecording?.derivedStartTime || videoYtRecording.ytStartTime;
@@ -113,7 +121,7 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
       }
     };
     syncTime();
-  }, [isRunning, videoYtRecording, appSeconds]);
+  }, [videoYtRecording, appSeconds, isPlayerReady]);
 
   const startTimeToUse = videoYtRecording?.derivedStartTime || videoYtRecording.ytStartTime;
   const ytStartSeconds = startTimeToUse ? appSecondsFromTimeStr(startTimeToUse.split("T")[1]) : 0;
@@ -151,6 +159,7 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
   const lastSyncTimeRef = useRef<number>(0);
   const [appSeconds, setAppSeconds] = useState(0);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
   const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
 
@@ -188,13 +197,27 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
     return null;
   }, [videoIaRecordings, appSeconds]);
 
-  // Reset error when video changes
+  // Reset error and ready state when video changes
   useEffect(() => {
     setVideoError(null);
+    setIsReady(false);
   }, [currentVideo]);
 
   useEffect(() => {
-    if (!videoRef.current || !currentVideo) return;
+    if (!videoRef.current || !currentVideo || !isReady) return;
+
+    const video = videoRef.current;
+
+    // Control play/pause based on clock state
+    if (isRunning && video.paused) {
+      video.play().catch(console.error);
+    } else if (!isRunning && !video.paused) {
+      video.pause();
+    }
+  }, [isRunning, currentVideo, isReady]);
+
+  useEffect(() => {
+    if (!videoRef.current || !currentVideo || !isReady) return;
 
     const syncTime = () => {
       // Throttle synchronization to at most once per second
@@ -204,16 +227,6 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
 
       const video = videoRef.current;
       if (!video) return;
-
-      // Check if video is ready for playback
-      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
-
-      // Control play/pause based on clock state
-      if (isRunning && video.paused) {
-        video.play().catch(console.error);
-      } else if (!isRunning && !video.paused) {
-        video.pause();
-      }
 
       // sync the video time with the clock
       const iaStartSeconds = appSecondsFromTimeStr(currentVideo.time);
@@ -227,7 +240,7 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
     };
 
     syncTime();
-  }, [isRunning, currentVideo, appSeconds]);
+  }, [currentVideo, appSeconds, isReady]);
 
   if (!currentVideo) {
     return <div>No video available for this time</div>;
@@ -252,6 +265,7 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
         muted
         style={{ width: "100%", height: "100%" }}
         onError={() => setVideoError(`Failed to load video: ${currentVideo.filename}`)}
+        onCanPlay={() => setIsReady(true)}
       >
         <source src={videoUrl} type="video/mp4" />
         Your browser does not support the video tag.
