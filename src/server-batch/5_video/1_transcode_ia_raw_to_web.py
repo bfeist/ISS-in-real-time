@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 Transcode IA video files from raw directory to web directory.
-This script processes MP4 files, checking their resolution, video bitrate, and audio bitrate,
-then transcoding to 480p with target bitrates if necessary for web consumption.
+This script processes MP4 files, optimizing them for web streaming with 206 range request support.
 
 Features:
 - Rich progress bars and console output
@@ -13,10 +12,17 @@ Features:
   * Transcode video + transcode audio (if video needs adjustment)
   * Copy entire file (if both meet requirements)
 - Target: 480p resolution, ≤ 1100 kb/s video bitrate, ≤ 101 kb/s audio bitrate
-- Uses constant bitrate (CBR) encoding for consistent web streaming
+- Web streaming optimizations:
+  * Constant bitrate (CBR) encoding for predictable streaming
+  * GOP size of 2 seconds for optimal seeking performance
+  * Enhanced faststart with fragmented MP4 container
+  * Proper keyframe placement for 206 range request efficiency
+  * AAC-LC audio encoding for maximum compatibility
+  * Optimized H.264 profile/level settings
 - Includes tolerance for bitrate variations (±10% for video, ±5% for audio)
 - Filename cleanup (removes _lowres suffix)
 - Error handling and detailed logging
+- GPU acceleration with CPU fallback
 """
 
 import os
@@ -47,6 +53,16 @@ DEFAULT_AUDIO_BITRATE = "96k"  # Default ffmpeg audio bitrate string
 # FFmpeg Encoding Parameters
 GPU_PRESET = "fast"  # NVENC preset for GPU encoding
 CPU_PRESET = "medium"  # x264 preset for CPU encoding
+
+# Web Streaming Optimizations
+GOP_SIZE = 2  # GOP size in seconds (keyframe every 2 seconds for better seeking)
+MAX_B_FRAMES = 2  # Maximum B-frames between I and P frames
+PROFILE = "main"  # H.264 profile (main is widely compatible)
+LEVEL = "3.1"  # H.264 level (3.1 supports up to 720p30 but we're using for 480p)
+
+# Audio Streaming Optimizations
+AUDIO_SAMPLE_RATE = 44100  # Standard sample rate for web audio
+AUDIO_CHANNELS = 2  # Stereo audio
 
 # Video Quality Thresholds
 MAX_HEIGHT = 480  # Maximum video height in pixels (480p)
@@ -138,7 +154,8 @@ def get_output_filename(input_filename):
 
 def copy_file(src_path, dst_path, console: Console = None):
     """
-    Copy file without transcoding using ffmpeg.
+    Copy file without transcoding using ffmpeg with web streaming optimizations.
+    Even when copying, we optimize the container for web streaming.
     """
     import subprocess
 
@@ -150,7 +167,9 @@ def copy_file(src_path, dst_path, console: Console = None):
             "-c",
             "copy",
             "-movflags",
-            "faststart",
+            "+faststart+frag_keyframe+empty_moov",  # Enhanced faststart for streaming
+            "-fflags",
+            "+genpts",  # Generate presentation timestamps
             "-y",  # Overwrite output file
             str(dst_path),
         ]
@@ -158,7 +177,7 @@ def copy_file(src_path, dst_path, console: Console = None):
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         if console:
             console.print(
-                f"[green]✓[/green] Copied: {src_path.name} -> {dst_path.name}"
+                f"[green]✓[/green] Copied with streaming optimization: {src_path.name} -> {dst_path.name}"
             )
         return True
     except subprocess.CalledProcessError as e:
@@ -177,6 +196,7 @@ def transcode_audio_only(
 ):
     """
     Transcode only audio stream while copying video stream unchanged.
+    Optimized for web streaming with proper container settings.
     """
     import subprocess
 
@@ -196,8 +216,16 @@ def transcode_audio_only(
             "aac",  # Transcode audio to AAC
             "-b:a",
             audio_bitrate,
+            "-ar",
+            str(AUDIO_SAMPLE_RATE),  # Set audio sample rate
+            "-ac",
+            str(AUDIO_CHANNELS),  # Set audio channels
+            "-profile:a",
+            "aac_low",  # AAC-LC profile for best compatibility
             "-movflags",
-            "faststart",
+            "+faststart+frag_keyframe+empty_moov",  # Enhanced streaming optimization
+            "-fflags",
+            "+genpts",  # Generate presentation timestamps
             "-y",  # Overwrite output file
             str(dst_path),
         ]
@@ -228,7 +256,7 @@ def transcode_to_480p(
 ):
     """
     Transcode video to 480p with specified bitrates using GPU acceleration (with CPU fallback).
-    Uses constant bitrate (CBR) mode for consistent web streaming performance.
+    Optimized for web streaming with proper GOP structure, seeking, and 206 range request support.
     """
     import subprocess
 
@@ -237,6 +265,9 @@ def transcode_to_480p(
             progress.update(
                 task_id, description=f"Transcoding {src_path.name} to 480p..."
             )
+
+        # Calculate GOP size in frames (assume 30fps, adjust based on input if needed)
+        gop_frames = GOP_SIZE * 30  # 2 seconds * 30fps = 60 frames
 
         # Try GPU-accelerated encoding first (without hwaccel for input)
         cmd = [
@@ -251,14 +282,38 @@ def transcode_to_480p(
             "cbr",  # Constant bitrate mode for web streaming
             "-b:v",
             video_bitrate,
+            "-maxrate",
+            video_bitrate,  # Same as target for strict CBR
+            "-bufsize",
+            f"{int(video_bitrate.rstrip('k')) * 2}k",  # 2x bitrate buffer
+            "-g",
+            str(gop_frames),  # GOP size for regular keyframes (better seeking)
+            "-bf",
+            str(MAX_B_FRAMES),  # B-frames for compression efficiency
+            "-profile:v",
+            PROFILE,  # H.264 profile
+            "-level:v",
+            LEVEL,  # H.264 level
+            "-preset",
+            GPU_PRESET,  # NVENC preset
+            # Audio settings optimized for web streaming
             "-c:a",
             "aac",
             "-b:a",
             audio_bitrate,
-            "-preset",
-            GPU_PRESET,  # NVENC preset
+            "-ar",
+            str(AUDIO_SAMPLE_RATE),  # Audio sample rate
+            "-ac",
+            str(AUDIO_CHANNELS),  # Audio channels
+            "-profile:a",
+            "aac_low",  # AAC-LC for best compatibility
+            # Container optimizations for web streaming and 206 range requests
             "-movflags",
-            "faststart",
+            "+faststart+frag_keyframe+empty_moov+default_base_moof",
+            "-fflags",
+            "+genpts+igndts",  # Generate PTS and ignore DTS issues
+            "-avoid_negative_ts",
+            "make_zero",  # Ensure timestamps start at zero
             "-y",  # Overwrite output file
             str(dst_path),
         ]
@@ -267,7 +322,7 @@ def transcode_to_480p(
 
         if console:
             console.print(
-                f"[green]✓[/green] GPU Transcoded: {src_path.name} -> {dst_path.name}"
+                f"[green]✓[/green] GPU Transcoded (Web Optimized): {src_path.name} -> {dst_path.name}"
             )
         return True
 
@@ -281,7 +336,10 @@ def transcode_to_480p(
                 console.print(f"[dim]GPU error: {e.stderr[:200]}...[/dim]")
 
         try:
-            # Fallback to CPU encoding
+            # Calculate GOP size in frames for CPU encoding
+            gop_frames = GOP_SIZE * 30  # 2 seconds * 30fps = 60 frames
+
+            # Fallback to CPU encoding with web streaming optimizations
             cmd_cpu = [
                 "ffmpeg",
                 "-i",
@@ -290,20 +348,42 @@ def transcode_to_480p(
                 "scale=-2:480",  # CPU scaling
                 "-c:v",
                 "libx264",  # CPU H.264 encoder
-                "-b:v",
-                video_bitrate,
+                "-crf",
+                "23",  # Constant rate factor for quality
                 "-maxrate",
-                video_bitrate,  # Same as target bitrate for near-CBR
+                video_bitrate,  # Maximum bitrate
                 "-bufsize",
-                f"{int(video_bitrate.rstrip('k')) * 2}k",  # 2x target bitrate for buffer
+                f"{int(video_bitrate.rstrip('k')) * 2}k",  # Buffer size
+                "-g",
+                str(gop_frames),  # GOP size for seeking optimization
+                "-bf",
+                str(MAX_B_FRAMES),  # B-frames for compression
+                "-profile:v",
+                PROFILE,  # H.264 profile
+                "-level:v",
+                LEVEL,  # H.264 level
+                "-preset",
+                CPU_PRESET,  # CPU preset
+                "-tune",
+                "fastdecode",  # Optimize for fast decoding
+                # Audio settings optimized for web streaming
                 "-c:a",
                 "aac",
                 "-b:a",
                 audio_bitrate,
-                "-preset",
-                CPU_PRESET,  # CPU preset
+                "-ar",
+                str(AUDIO_SAMPLE_RATE),  # Audio sample rate
+                "-ac",
+                str(AUDIO_CHANNELS),  # Audio channels
+                "-profile:a",
+                "aac_low",  # AAC-LC profile
+                # Container optimizations for web streaming and 206 range requests
                 "-movflags",
-                "faststart",
+                "+faststart+frag_keyframe+empty_moov+default_base_moof",
+                "-fflags",
+                "+genpts+igndts",  # Generate PTS and ignore DTS issues
+                "-avoid_negative_ts",
+                "make_zero",  # Ensure timestamps start at zero
                 "-y",  # Overwrite output file
                 str(dst_path),
             ]
@@ -314,7 +394,7 @@ def transcode_to_480p(
 
             if console:
                 console.print(
-                    f"[green]✓[/green] CPU Transcoded: {src_path.name} -> {dst_path.name}"
+                    f"[green]✓[/green] CPU Transcoded (Web Optimized): {src_path.name} -> {dst_path.name}"
                 )
             return True
 
@@ -547,8 +627,9 @@ def process_videos(raw_folder, web_folder, console: Console):
 
             if video_needs_transcoding:
                 # Video needs transcoding, so transcode both video and audio to targets
+                # Uses GOP=2s for optimal seeking in web players with 206 range requests
                 console.print(
-                    f"[dim]Transcoding video to 480p @ {target_video_bitrate} kb/s CBR and audio to {target_audio_bitrate} kb/s[/dim]"
+                    f"[dim]Transcoding video to 480p @ {target_video_bitrate} kb/s CBR (GOP=2s) and audio to {target_audio_bitrate} kb/s[/dim]"
                 )
                 success = transcode_to_480p(
                     input_file,
@@ -573,8 +654,10 @@ def process_videos(raw_folder, web_folder, console: Console):
                     task_id=overall_task,
                 )
             else:
-                # Both video and audio are OK, copy the file
-                console.print(f"[dim]File meets quality requirements - copying[/dim]")
+                # Both video and audio are OK, copy the file with streaming optimizations
+                console.print(
+                    f"[dim]File meets quality requirements - copying with streaming optimization[/dim]"
+                )
                 success = copy_file(input_file, output_file, console)
 
             if success:
@@ -607,9 +690,13 @@ def main():
 
     # Welcome message
     console.print()
-    title = Text("🎬 IA Video Transcoder (CBR for Web Streaming)", style="bold blue")
+    title = Text(
+        "🎬 IA Video Transcoder (Web Streaming + 206 Range Request Optimized)",
+        style="bold blue",
+    )
     subtitle = Text(
-        "Target: 480p @ 1000 kb/s video CBR (±10%), ≤ 96 kb/s audio (±5%)", style="dim"
+        "Target: 480p @ 1000 kb/s CBR, GOP=2s, AAC 96kb/s, faststart + fragmented MP4",
+        style="dim",
     )
     console.print(Panel.fit(title))
     console.print(Panel.fit(subtitle))
@@ -630,7 +717,7 @@ def main():
 
     # Construct full paths
     raw_folder = os.path.join(raw_base, "ia_video_files_raw")
-    web_folder = os.path.join(web_base, "ia_videos")
+    web_folder = os.path.join(web_base, "videoIa")
 
     console.print(f"[blue]Raw folder: {raw_folder}[/blue]")
     console.print(f"[blue]Web folder: {web_folder}[/blue]")
