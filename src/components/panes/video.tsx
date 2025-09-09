@@ -53,6 +53,7 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
   videoYtRecording,
 }) => {
   const playerRef = useRef<YouTubePlayer | null>(null);
+  const lastSyncTimeRef = useRef<number>(0);
   const [appSeconds, setAppSeconds] = useState(0);
   const [duration, setDuration] = useState<number | null>(null);
 
@@ -79,9 +80,15 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
     if (!playerRef.current) return;
 
     const syncTime = async () => {
+      // Throttle synchronization to at most once per second
+      const now = Date.now();
+      if (now - lastSyncTimeRef.current < 1000) return;
+      lastSyncTimeRef.current = now;
+
       const playerState = await playerRef.current.getPlayerState();
       const isPlaying = playerState === YouTube.PlayerState.PLAYING;
 
+      // Don't sync during buffering to avoid interrupting the buffering process
       if (playerState === YouTube.PlayerState.BUFFERING) return;
 
       if (isRunning && !isPlaying) {
@@ -98,7 +105,9 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
       const playerAppSeconds = Math.round(
         ytStartSeconds + (await playerRef.current.getCurrentTime())
       );
-      if (playerAppSeconds !== appSeconds) {
+
+      // Only seek if the difference is more than 2 seconds to reduce frequent seeking
+      if (Math.abs(playerAppSeconds - appSeconds) > 2) {
         // set the player time to the clock time
         playerRef.current.seekTo(Math.max(0, appSeconds - ytStartSeconds), true);
       }
@@ -139,6 +148,7 @@ interface VideoIaComponentProps {
 
 const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRecordings }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const lastSyncTimeRef = useRef<number>(0);
   const [appSeconds, setAppSeconds] = useState(0);
   const [videoError, setVideoError] = useState<string | null>(null);
 
@@ -187,6 +197,11 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
     if (!videoRef.current || !currentVideo) return;
 
     const syncTime = () => {
+      // Throttle synchronization to at most once per second
+      const now = Date.now();
+      if (now - lastSyncTimeRef.current < 1000) return;
+      lastSyncTimeRef.current = now;
+
       const video = videoRef.current;
       if (!video) return;
 
@@ -204,8 +219,8 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
       const iaStartSeconds = appSecondsFromTimeStr(currentVideo.time);
       const videoAppSeconds = Math.round(iaStartSeconds + video.currentTime);
 
-      if (Math.abs(videoAppSeconds - appSeconds) > 1) {
-        // Only seek if difference is more than 1 second to avoid constant seeking
+      // Increased tolerance to 2 seconds to reduce frequent seeking
+      if (Math.abs(videoAppSeconds - appSeconds) > 2) {
         const targetTime = Math.max(0, appSeconds - iaStartSeconds);
         video.currentTime = targetTime;
       }
