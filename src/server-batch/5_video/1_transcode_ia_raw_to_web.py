@@ -159,7 +159,7 @@ def get_output_filename(input_filename):
 def copy_file(src_path, dst_path, console: Console = None):
     """
     Copy file without transcoding using ffmpeg with web streaming optimizations.
-    Even when copying, we optimize the container for web streaming.
+    Uses conservative faststart settings to avoid excessive 206 requests.
     """
     import subprocess
 
@@ -171,7 +171,7 @@ def copy_file(src_path, dst_path, console: Console = None):
             "-c",
             "copy",
             "-movflags",
-            "+faststart+frag_keyframe+empty_moov",  # Enhanced faststart for streaming
+            "+faststart",  # Simple faststart - moves moov atom to beginning
             "-fflags",
             "+genpts",  # Generate presentation timestamps
             "-y",  # Overwrite output file
@@ -227,7 +227,7 @@ def transcode_audio_only(
             "-profile:a",
             "aac_low",  # AAC-LC profile for best compatibility
             "-movflags",
-            "+faststart+frag_keyframe+empty_moov",  # Enhanced streaming optimization
+            "+faststart",  # Conservative faststart to avoid excessive 206 requests
             "-fflags",
             "+genpts",  # Generate presentation timestamps
             "-y",  # Overwrite output file
@@ -311,9 +311,9 @@ def transcode_to_480p(
             str(AUDIO_CHANNELS),  # Audio channels
             "-profile:a",
             "aac_low",  # AAC-LC for best compatibility
-            # Container optimizations for web streaming and 206 range requests
+            # Container optimizations for web streaming - conservative to avoid excessive 206 requests
             "-movflags",
-            "+faststart+frag_keyframe+empty_moov+default_base_moof",
+            "+faststart",  # Move moov atom to beginning for immediate playback start
             "-fflags",
             "+genpts+igndts",  # Generate PTS and ignore DTS issues
             "-avoid_negative_ts",
@@ -381,9 +381,9 @@ def transcode_to_480p(
                 str(AUDIO_CHANNELS),  # Audio channels
                 "-profile:a",
                 "aac_low",  # AAC-LC profile
-                # Container optimizations for web streaming and 206 range requests
+                # Container optimizations for web streaming - conservative to avoid excessive 206 requests
                 "-movflags",
-                "+faststart+frag_keyframe+empty_moov+default_base_moof",
+                "+faststart",  # Move moov atom to beginning for immediate playback start
                 "-fflags",
                 "+genpts+igndts",  # Generate PTS and ignore DTS issues
                 "-avoid_negative_ts",
@@ -699,8 +699,7 @@ def main():
         style="bold blue",
     )
     subtitle = Text(
-        "Target: 480p @ 1000 kb/s CBR, GOP=2s, AAC 64kb/s, faststart + fragmented MP4",
-        style="dim",
+        "Target: 480p @ 1000 kb/s CBR, GOP=2s, AAC 64kb/s, faststart MP4", style="dim"
     )
     console.print(Panel.fit(title))
     console.print(Panel.fit(subtitle))
