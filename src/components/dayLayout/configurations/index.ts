@@ -14,7 +14,7 @@ const allLayouts = {
  */
 function normalizeDataAvailability(dataAvailability: DataAvailability | undefined) {
   return {
-    video: dataAvailability?.youtube || false,
+    video: dataAvailability?.video || false,
     comm: dataAvailability?.comm || dataAvailability?.vvComm || false,
     eva: dataAvailability?.eva || false,
     article: dataAvailability?.blog || dataAvailability?.activitySummary || false,

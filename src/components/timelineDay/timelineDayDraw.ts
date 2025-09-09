@@ -391,10 +391,13 @@ export const initializePaperCanvas = ({
 
         // Extract time based on item type
         if (rowConfig.key === "videoItems") {
-          const ytItem = item as VideoYt;
-          itemTime = new Date(ytItem.derivedStartTime || ytItem.ytStartTime);
+          const videoItem = item as TimelineVideoItem;
+          const startTimestamp = videoItem.startTimestamp;
+          const durationSeconds = videoItem.duration;
 
-          // For YouTube items, draw a bar representing the video duration
+          itemTime = new Date(startTimestamp);
+
+          // For video items, draw a bar representing the video duration
           if (itemTime && !isNaN(itemTime.getTime())) {
             // Filter by selected date - only show items for the current date
             if (data?.selectedDate) {
@@ -415,7 +418,6 @@ export const initializePaperCanvas = ({
             const startSeconds = (itemTime.getTime() - utcMidnight.getTime()) / 1000;
 
             // Calculate end time based on duration
-            const durationSeconds = ytItem.duration || 0; // Fallback to 0 if no duration
             const endSeconds = startSeconds + durationSeconds;
 
             // Convert to pixel positions

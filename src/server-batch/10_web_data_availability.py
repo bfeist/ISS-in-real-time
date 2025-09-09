@@ -91,10 +91,10 @@ if __name__ == "__main__":
 
     # get all of the dates that have youtube available
     videoYt_dates = set()
-    with open(f"{WEB_ASSETS_FOLDER}/ytVideo.json", "r", encoding="utf-8") as f:
+    with open(f"{WEB_ASSETS_FOLDER}/videoYt.json", "r", encoding="utf-8") as f:
         videoYt = json.load(f)
         for videoYtRecording in videoYt:
-            videoYt_dates.add(videoYtRecording["startTime"].split("T")[0])
+            videoYt_dates.add(videoYtRecording["ytStartTime"].split("T")[0])
 
     # get all of the dates that have IA videos available
     videoIa_dates = set()

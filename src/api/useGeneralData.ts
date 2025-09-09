@@ -67,7 +67,7 @@ export function useGeneralFlightsSupply(): UseQueryResult<FlightSupply[], Error>
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 }
-export function useGeneralVideoYt(): UseQueryResult<VideoYt[], Error> {
+export function useGeneralVideoYt(): UseQueryResult<VideoYtItem[], Error> {
   return useQuery({
     queryKey: ["videoYt"],
     queryFn: fetchVideoYt,

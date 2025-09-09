@@ -1,4 +1,4 @@
-import { FunctionComponent, useEffect, useRef, useState } from "react";
+import { FunctionComponent, useEffect, useRef, useState, useMemo } from "react";
 import YouTube, { YouTubePlayer, YouTubeEvent } from "react-youtube";
 import styles from "./video.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
@@ -15,11 +15,11 @@ const VideoComponent: FunctionComponent = () => {
 
   const isLoading = isloadingYt || isloadingIa;
 
-  const videoYtRecording = videoYt?.find((recording: VideoYt) =>
+  const videoYtRecording = videoYt?.find((recording: VideoYtItem) =>
     recording?.ytStartTime.startsWith(selectedDate || "")
   );
 
-  const videoIaRecording = videoIa?.find(
+  const videoIaRecordings = videoIa?.filter(
     (recording: VideoIaItem) => recording?.date === selectedDate
   );
 
@@ -34,8 +34,8 @@ const VideoComponent: FunctionComponent = () => {
     );
   }
 
-  if (videoIaRecording) {
-    return <VideoIaComponent videoIaRecording={videoIaRecording} />;
+  if (videoIaRecordings && videoIaRecordings.length > 0) {
+    return <VideoIaComponent videoIaRecordings={videoIaRecordings} />;
   }
 
   return <div>No video available for this date</div>;
@@ -45,7 +45,7 @@ export default VideoComponent;
 
 interface YtVideoComponentProps {
   videoId: string;
-  videoYtRecording: VideoYt;
+  videoYtRecording: VideoYtItem;
 }
 
 const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
@@ -54,12 +54,25 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
 }) => {
   const playerRef = useRef<YouTubePlayer | null>(null);
   const [appSeconds, setAppSeconds] = useState(0);
+  const [duration, setDuration] = useState<number | null>(null);
 
-  const { isRunning } = useStateClock();
+  const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
+
+  // Initialize appSeconds with the current clock time immediately
+  useEffect(() => {
+    const calculateCurrentAppSeconds = () => {
+      const secondsSinceStarted = (Date.now() - Date.parse(startStopTimestamp)) / 1000;
+      const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);
+      return Math.min(newAppSeconds, 86401);
+    };
+
+    setAppSeconds(calculateCurrentAppSeconds());
+  }, [appSecondsAtStartStop, startStopTimestamp]);
 
   const onPlayerReady = (event: YouTubeEvent) => {
     playerRef.current = event.target;
     playerRef.current.mute();
+    playerRef.current.getDuration().then(setDuration);
   };
 
   useEffect(() => {
@@ -68,6 +81,8 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
     const syncTime = async () => {
       const playerState = await playerRef.current.getPlayerState();
       const isPlaying = playerState === YouTube.PlayerState.PLAYING;
+
+      if (playerState === YouTube.PlayerState.BUFFERING) return;
 
       if (isRunning && !isPlaying) {
         playerRef.current.playVideo();
@@ -85,45 +100,98 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
       );
       if (playerAppSeconds !== appSeconds) {
         // set the player time to the clock time
-        playerRef.current.seekTo(appSeconds - ytStartSeconds, true);
+        playerRef.current.seekTo(Math.max(0, appSeconds - ytStartSeconds), true);
       }
     };
     syncTime();
   }, [isRunning, videoYtRecording, appSeconds]);
 
+  const startTimeToUse = videoYtRecording?.derivedStartTime || videoYtRecording.ytStartTime;
+  const ytStartSeconds = startTimeToUse ? appSecondsFromTimeStr(startTimeToUse.split("T")[1]) : 0;
+  const isInRange =
+    duration === null ||
+    (appSeconds >= ytStartSeconds && appSeconds <= ytStartSeconds + (duration || 0));
+
   return (
     <>
       <ClockInterval setAppSeconds={setAppSeconds} />
-      <YouTube
-        className={styles.yt}
-        videoId={videoId}
-        onReady={onPlayerReady}
-        opts={{
-          playerVars: { autoplay: 0 },
-          height: "100%",
-          width: "100%",
-        }}
-      />
+      {isInRange ? (
+        <YouTube
+          className={styles.yt}
+          videoId={videoId}
+          onReady={onPlayerReady}
+          opts={{
+            playerVars: { autoplay: 0 },
+            height: "100%",
+            width: "100%",
+          }}
+        />
+      ) : (
+        <div>No video available for this time</div>
+      )}
     </>
   );
 };
 
 interface VideoIaComponentProps {
-  videoIaRecording: VideoIaItem;
+  videoIaRecordings: VideoIaItem[];
 }
 
-const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRecording }) => {
+const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRecordings }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [appSeconds, setAppSeconds] = useState(0);
+  const [videoError, setVideoError] = useState<string | null>(null);
 
-  const { isRunning } = useStateClock();
+  const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
+
+  // Initialize appSeconds with the current clock time immediately
+  useEffect(() => {
+    const calculateCurrentAppSeconds = () => {
+      const secondsSinceStarted = (Date.now() - Date.parse(startStopTimestamp)) / 1000;
+      const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);
+      return Math.min(newAppSeconds, 86401);
+    };
+
+    setAppSeconds(calculateCurrentAppSeconds());
+  }, [appSecondsAtStartStop, startStopTimestamp]);
+
+  // Find the current video based on appSeconds
+  const currentVideo = useMemo(() => {
+    if (!videoIaRecordings.length) return null;
+
+    // Sort by start time
+    const sorted = [...videoIaRecordings].sort(
+      (a, b) => appSecondsFromTimeStr(a.time) - appSecondsFromTimeStr(b.time)
+    );
+
+    // Find a video where start <= appSeconds <= start + duration
+    for (const video of sorted) {
+      const start = appSecondsFromTimeStr(video.time);
+      const end = start + video.duration;
+
+      if (appSeconds >= start && appSeconds <= end) {
+        return video;
+      }
+    }
+
+    // If none found within duration ranges, return null
+    return null;
+  }, [videoIaRecordings, appSeconds]);
+
+  // Reset error when video changes
+  useEffect(() => {
+    setVideoError(null);
+  }, [currentVideo]);
 
   useEffect(() => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !currentVideo) return;
 
     const syncTime = () => {
       const video = videoRef.current;
       if (!video) return;
+
+      // Check if video is ready for playback
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
 
       // Control play/pause based on clock state
       if (isRunning && video.paused) {
@@ -133,32 +201,42 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
       }
 
       // sync the video time with the clock
-      const iaStartSeconds = appSecondsFromTimeStr(videoIaRecording.time);
+      const iaStartSeconds = appSecondsFromTimeStr(currentVideo.time);
       const videoAppSeconds = Math.round(iaStartSeconds + video.currentTime);
 
-      if (videoAppSeconds !== appSeconds) {
-        // set the video time to the clock time
+      if (Math.abs(videoAppSeconds - appSeconds) > 1) {
+        // Only seek if difference is more than 1 second to avoid constant seeking
         const targetTime = Math.max(0, appSeconds - iaStartSeconds);
         video.currentTime = targetTime;
       }
     };
 
     syncTime();
-  }, [isRunning, videoIaRecording, appSeconds]);
+  }, [isRunning, currentVideo, appSeconds]);
+
+  if (!currentVideo) {
+    return <div>No video available for this time</div>;
+  }
+
+  if (videoError) {
+    return <div>Error loading video: {videoError}</div>;
+  }
 
   // Construct the video URL using the base static URL
   const baseStaticUrl = getBaseStaticUrl();
-  const videoUrl = `${baseStaticUrl}/videos/${videoIaRecording.filename}`;
+  const videoUrl = `${baseStaticUrl}/videoIa/${currentVideo.filename}`;
 
   return (
     <>
       <ClockInterval setAppSeconds={setAppSeconds} />
       <video
+        key={currentVideo.filename}
         ref={videoRef}
         className={styles.yt} // Reuse the same CSS class for consistent styling
-        controls={false}
+        controls={true}
         muted
         style={{ width: "100%", height: "100%" }}
+        onError={() => setVideoError(`Failed to load video: ${currentVideo.filename}`)}
       >
         <source src={videoUrl} type="video/mp4" />
         Your browser does not support the video tag.

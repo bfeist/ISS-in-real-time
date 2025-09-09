@@ -144,7 +144,7 @@ export async function fetchEarthPhotography(date: string): Promise<EarthPhotogra
   return data;
 }
 
-export async function fetchVideoYt(): Promise<VideoYt[]> {
+export async function fetchVideoYt(): Promise<VideoYtItem[]> {
   const baseStaticUrl = getBaseStaticUrl();
 
   const response = await fetch(`${baseStaticUrl}/videoYt.json`);

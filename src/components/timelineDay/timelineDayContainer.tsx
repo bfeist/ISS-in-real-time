@@ -6,7 +6,7 @@ import {
   useDateCommTranscript,
   useDateEarthPhotography,
 } from "api/useDateSpecificData";
-import { useGeneralVideoYt } from "api/useGeneralData";
+import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { calcDayNight } from "utils/day-night";
@@ -27,9 +27,11 @@ const TimelineDayContainer = (): JSX.Element => {
     selectedDate || ""
   );
   const { data: videoYt = [], isLoading: isLoadingYt } = useGeneralVideoYt();
+  const { data: videoIa = [], isLoading: isLoadingIa } = useGeneralVideoIa();
 
   // Check if any critical data is still loading
-  const isLoading = isLoadingEphemera || isLoadingComm || isLoadingPhotography || isLoadingYt;
+  const isLoading =
+    isLoadingEphemera || isLoadingComm || isLoadingPhotography || isLoadingYt || isLoadingIa;
 
   const dayNight = useMemo(() => {
     if (!ephemeraItems || ephemeraItems.length === 0 || !selectedDate) return [];
@@ -180,10 +182,32 @@ const TimelineDayContainer = (): JSX.Element => {
 
       isInitializedRef.current = true;
 
+      const videoItems: TimelineVideoItem[] = [];
+
+      // convert yt data to timeline format
+      videoYt.forEach((item) => {
+        if (item.ytStartTime && item.duration) {
+          videoItems.push({
+            startTimestamp: item.derivedStartTime || item.ytStartTime,
+            duration: item.duration,
+          });
+        }
+      });
+      // convert ia data to timeline format
+      videoIa.forEach((item) => {
+        if (item.date && item.time && item.duration) {
+          const startTimestamp = `${item.date}T${item.time}Z`;
+          videoItems.push({
+            startTimestamp,
+            duration: item.duration,
+          });
+        }
+      });
+
       const timelineData: TimelineDayData = {
         commItems,
         photographyItems,
-        videoYt,
+        videoItems,
         dayNight,
         selectedDate: selectedDate || "",
       };
@@ -284,6 +308,7 @@ const TimelineDayContainer = (): JSX.Element => {
       !isLoadingComm &&
       !isLoadingPhotography &&
       !isLoadingYt &&
+      !isLoadingIa &&
       selectedDate
     ) {
       drawFunctionRef.current();
@@ -293,11 +318,13 @@ const TimelineDayContainer = (): JSX.Element => {
     commItems,
     photographyItems,
     videoYt,
+    videoIa,
     dayNight,
     isLoadingEphemera,
     isLoadingComm,
     isLoadingPhotography,
     isLoadingYt,
+    isLoadingIa,
     selectedDate,
   ]);
 

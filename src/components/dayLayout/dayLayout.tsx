@@ -4,7 +4,7 @@ import { useStateToggle } from "store/hooks/useStateToggle";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useDateDataAvailability } from "api/useDateSpecificData";
 import { useDateCommTranscript } from "api/useDateSpecificData";
-import { useGeneralVideoYt } from "api/useGeneralData";
+import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
 import { useDateCacheManagement } from "api/useDateCacheManagement";
 import { useParams } from "react-router-dom";
 import { appSecondsFromTimeStr } from "utils/time";
@@ -161,12 +161,16 @@ const DayLayout: FunctionComponent = () => {
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
   const { data: commItems = [] } = useDateCommTranscript(selectedDate);
   const { data: videoYt = [] } = useGeneralVideoYt();
+  const { data: videoIa = [] } = useGeneralVideoIa();
   const { width } = useViewport();
   const isMobile = width < 768;
 
   // Find YouTube recording for this date
-  const videoYtRecording = videoYt?.find((recording: VideoYt) =>
+  const videoYtRecording = videoYt?.find((recording: VideoYtItem) =>
     recording.ytStartTime.startsWith(selectedDate || "")
+  );
+  const videoIaRecording = videoIa?.find(
+    (recording: VideoIaItem) => recording.date === selectedDate
   );
 
   // Manage cache when date changes
@@ -192,9 +196,9 @@ const DayLayout: FunctionComponent = () => {
 
     // Only set automatic clock position if no dateTimeSlug parameter was provided
     // YouTube takes priority over comm data
-    if (videoYtRecording) {
+    if (videoYtRecording || videoIaRecording) {
       // Set the clock to the start time of the YouTube recording
-      const startTimeStr = videoYtRecording.ytStartTime.split("T")[1];
+      const startTimeStr = videoYtRecording?.ytStartTime.split("T")[1] || videoIaRecording?.time;
       setClock(appSecondsFromTimeStr(startTimeStr));
     } else if (commItems.length > 0) {
       // If we have comm data and no YouTube, start 10 seconds before first comm

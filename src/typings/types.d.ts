@@ -89,13 +89,20 @@ type EvaDetail = {
   description: string;
 };
 
-type VideoYt = {
+type VideoYtItem = {
   publishedAt: string;
   videoId: string;
   duration: number;
   title: string;
   ytStartTime: string;
   derivedStartTime?: string;
+};
+
+type VideoIaItem = {
+  date: string;
+  time: string;
+  filename: string;
+  duration: number;
 };
 
 type FlightCrewMember = {
@@ -193,12 +200,6 @@ type Telemetry = {
   lng: number;
 };
 
-type VideoIaItem = {
-  date: string;
-  time: string;
-  filename: string;
-};
-
 type Stats = {
   comm: {
     total_days_with_transcripts: number;
@@ -247,10 +248,15 @@ type Stats = {
   generated_at: string;
 };
 
+type TimelineVideoItem = {
+  startTimestamp: string;
+  duration: number;
+};
+
 interface TimelineDayData {
   commItems: CommItem[];
   photographyItems: EarthPhotographyItem[];
-  videoYt: VideoYt[];
+  videoItems: TimelineVideoItem[];
   dayNight: DayNightObj[];
   selectedDate: string;
 }
