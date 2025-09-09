@@ -1,0 +1,566 @@
+:root {
+  --bg: #0e1116;
+  --panel: #292b3a;
+  --ink: #e9eef6;
+  --ink-dim: #9aa6b2;
+  --day-row-gap: 2px;
+  --month-gap: 2px;
+  --year-gap: 4.5px;
+  --corner: 14px;
+  --cell-radius: 0;
+
+  /* colors */
+  --gridline: #1a2230;
+  --tile: #77798b;
+  --tile-hov: #ffffff;
+
+  /* highlight colors */
+  --hi-yellow: #ffd84d;
+  --hi-cyan: #58e0ff;
+  --hi-green: #7bff7d;
+  --hi-pink: #ff7bd1;
+  --hi-orange: #ffb156;
+
+  /* backdrop offset (distance from top) */
+  --backdrop-offset: 140px;
+}
+
+.wrap {
+  min-height: 100dvh;
+  padding: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    "Apple Color Emoji",
+    "Segoe UI Emoji";
+}
+
+/* ====== PANEL ====== */
+.panel {
+  position: relative;
+  background: var(--panel);
+  border-radius: var(--corner);
+  box-shadow:
+    0 12px 40px rgb(0 0 0 / 35%),
+    inset 0 1px 0 rgb(255 255 255 / 3%);
+  padding: 10px 10px 15px;
+  overflow: visible;
+  z-index: 2; /* ensure panel sits above the backdrop */
+}
+
+.panelChrome {
+  overflow: hidden;
+  transition:
+    height 0.24s ease,
+    opacity 0.18s ease,
+    margin 0.24s ease;
+}
+
+.panelChrome.hidden {
+  height: 0 !important;
+  opacity: 0;
+  margin: 0 !important;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.panelHeader h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--hi-yellow); /* title in yellow */
+}
+
+.panelHeader .hint {
+  color: var(--ink-dim);
+  font-size: 12px;
+}
+
+.yearsTimeline {
+  position: relative;
+  height: var(--years-fixed-h, auto);
+  overflow: visible;
+  transition: height 0.24s ease;
+}
+
+/* ====== YEARS (mini canvases) ====== */
+.years {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  gap: var(--year-gap);
+  align-items: flex-start;
+  overflow: visible;
+}
+
+.year {
+  flex: 1 1 0;
+  background: var(--panel);
+  border-radius: 0;
+  outline: 1px solid rgb(255 255 255 / 10%);
+  padding: 1px 0 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  contain: layout style;
+}
+
+.yearHeader {
+  height: 25px;
+  padding: 0 10px;
+  display: grid;
+  place-items: center;
+  border-bottom: 0 solid rgb(255 255 255 / 6%);
+  position: sticky;
+  top: 0;
+  background: linear-gradient(180deg, var(--panel) 60%, transparent 100%);
+  z-index: 1;
+}
+
+.yearTitle {
+  line-height: 1;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  transition:
+    color 0.16s ease,
+    font-size 0.12s ease;
+}
+
+.year:hover .yearTitle,
+.year.active .yearTitle {
+  color: var(--hi-orange);
+  font-weight: 800;
+  font-size: 15px;
+}
+
+/* Selected year in yellow */
+.year.selected .yearTitle {
+  color: var(--hi-yellow);
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.monthsCanvas {
+  pointer-events: none;
+  cursor: default;
+}
+
+.monthsCanvas > canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.panel.isCollapsed .monthsCanvas {
+  display: none;
+}
+
+.panel.isCollapsed .yearOverlay {
+  display: none;
+}
+
+/* ====== Controls ====== */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.toggle input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.swatchYellow {
+  accent-color: var(--hi-yellow);
+}
+
+.swatchCyan {
+  accent-color: var(--hi-cyan);
+}
+
+.swatchGreen {
+  accent-color: var(--hi-green);
+}
+
+.swatchPink {
+  accent-color: var(--hi-pink);
+}
+
+.swatchOrange {
+  accent-color: var(--hi-orange);
+}
+
+/* ====== Tooltip ====== */
+.cursorTip {
+  position: fixed;
+  left: -9999px;
+  top: -9999px;
+  background: #ffffff;
+  color: #111111;
+  border: 1px solid rgb(0 0 0 / 15%);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: pre-line;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 30%);
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease;
+
+  --arrow-x: 50%;
+
+  max-width: 280px;
+}
+
+.cursorTip.on {
+  opacity: 1;
+  visibility: visible;
+}
+
+.cursorTip::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  left: var(--arrow-x);
+  bottom: -4px;
+  background: #ffffff;
+  border-left: 1px solid rgb(0 0 0 / 15%);
+  border-bottom: 1px solid rgb(0 0 0 / 15%);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.cursorTip.below::after {
+  bottom: auto;
+  top: -4px;
+  border-left: 0;
+  border-bottom: 0;
+  border-right: 1px solid rgb(0 0 0 / 15%);
+  border-top: 1px solid rgb(0 0 0 / 15%);
+}
+
+.tipDate {
+  display: block;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+/* ====== MEGA YEAR OVERLAY ====== */
+.yearOverlay {
+  position: absolute;
+  z-index: 50;
+  pointer-events: auto;
+  background: var(--grey1);
+  cursor: default;
+  overflow: visible;
+}
+
+.yearOverlay canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.panel.isCollapsed .panelChrome {
+  height: 0 !important;
+  opacity: 0;
+  margin: 0 !important;
+}
+
+/* ====== Bottom interactive TAB ====== */
+.panelTab {
+  --tab-outline: rgb(255 255 255 / 28%);
+
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -50px;
+  background: var(--panel);
+  border-radius: 18px;
+  box-shadow: 0 18px 20px rgb(0 0 0 / 35%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  padding: 0 28px 14px;
+  min-width: 500px;
+}
+
+.panelTab .empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 25px;
+  padding: 0 18px;
+  color: var(--ink-dim);
+  font-size: 15px;
+  white-space: nowrap;
+  transform: translateY(-2px);
+}
+
+.panelTab .stack {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  transform: translateY(-2px);
+}
+
+.panelTab.hasDate .stack {
+  display: flex;
+  position: absolute;
+  top: 27px;
+}
+
+.panelTab.hasDate .empty {
+  display: none;
+}
+
+.groupDate {
+  display: flex;
+  align-items: center;
+  height: 25px;
+  overflow: hidden;
+  border: 1px solid var(--tab-outline);
+  border-radius: 6px;
+  background: transparent;
+}
+
+.groupDate .seg {
+  display: flex;
+  align-items: center;
+}
+
+.groupDate .seg + .seg {
+  border-left: 1px solid var(--tab-outline);
+}
+
+.groupDate .nav {
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  padding: 0 12px;
+  font-size: 16px;
+  line-height: 1;
+  height: 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.groupDate .nav:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.groupDate .label {
+  width: 225px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.groupDate .label span {
+  display: block;
+  width: 100%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink-dim);
+  font-size: 17px;
+}
+
+.panelTab.hasDate .groupDate .label span {
+  color: var(--hi-yellow);
+  font-weight: 700;
+}
+
+.groupDate .label input {
+  display: none;
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--hi-yellow);
+  font-size: 15px;
+  text-align: center;
+}
+
+.panelTab.editing .groupDate .label span {
+  display: none;
+}
+
+.panelTab.editing .groupDate .label input {
+  display: block;
+}
+
+.groupTime {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 25px;
+  width: 100px;
+  padding: 0 12px;
+  border: 1px solid var(--tab-outline);
+  border-radius: 6px;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+}
+
+.groupTime span {
+  display: block;
+  width: 100%;
+  text-align: center;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  font-size: 17px;
+  color: var(--hi-yellow);
+  font-weight: 700;
+}
+
+.groupTime input {
+  display: none;
+  width: 100%;
+  text-align: center;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.panelTab.editingTime .groupTime span {
+  display: none;
+}
+
+.panelTab.editingTime .groupTime input {
+  display: block;
+}
+
+.btnCtl {
+  height: 25px;
+  width: 30px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--tab-outline);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Light-blue PAUSE/MUTE */
+.btnPause,
+.btnMute {
+  color: var(--hi-cyan);
+  border-color: rgb(88 224 255 / 65%);
+}
+
+.btnPause:hover,
+.btnPause:focus-visible,
+.btnMute:hover,
+.btnMute:focus-visible {
+  border-color: rgb(88 224 255 / 95%);
+  background: rgb(88 224 255 / 8%);
+  outline: none;
+}
+
+.btnPause.pressed,
+.btnMute.pressed {
+  color: var(--hi-cyan);
+  background: rgb(88 224 255 / 12%);
+  box-shadow: 0 0 0 1px rgb(88 224 255 / 55%) inset;
+}
+
+/* Open/Close pill docked to tab bottom (half on/off) */
+.panelToggle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translate(-50%, 250%);
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 12px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 35%);
+  user-select: none;
+  z-index: 5;
+}
+
+.panelToggle .icon {
+  width: 16px;
+  height: 16px;
+  display: inline-grid;
+  place-items: center;
+  font-weight: 700;
+}
+
+/* ====== DAY BACKDROP (full width, top-justified, cropped bottom) ====== */
+.dayBackdrop {
+  position: fixed;
+  left: 0;
+  top: var(--backdrop-offset);
+  width: 100vw;
+  height: calc(100vh - var(--backdrop-offset));
+  overflow: hidden;
+  z-index: 1; /* under panel */
+  pointer-events: none; /* don't block interaction */
+  display: none; /* shown after a day is selected */
+}
+
+.dayBackdrop img {
+  display: block;
+  width: 100vw; /* fit to screen width */
+  height: auto; /* maintain aspect ratio; extra height is cropped */
+}

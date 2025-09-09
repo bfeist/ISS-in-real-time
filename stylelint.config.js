@@ -71,6 +71,7 @@ module.exports = {
             message: "Class selectors in CSS Modules must be camelCase (e.g. .myClass)",
           },
         ],
+        "no-descending-specificity": null, // Disable if using CSS Modules to avoid false positives
       },
     },
   ],
