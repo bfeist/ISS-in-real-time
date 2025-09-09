@@ -4,8 +4,8 @@ import styles from "./timelineYears2.module.css";
 // Constants from the original HTML
 const START_YEAR = 2000;
 const END_YEAR = 2025;
-const MONTH_GAP = 2;
-const ROW_GAP = 2;
+const MONTH_GAP = 1;
+const ROW_GAP = 1;
 
 // Color constants
 const COLOR = {
@@ -98,10 +98,8 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
         const y = (day - 1) * (cellHeight + ROW_GAP); // Start from top of canvas
 
         // Determine cell color
-        let color = COLOR.tile;
-        if (highlights.has(dateStr)) {
-          color = highlights.get(dateStr) || COLOR.tile;
-        }
+        const highlightColor = highlights.get(dateStr);
+        const color = highlightColor || COLOR.tile;
 
         ctx.fillStyle = color;
         ctx.fillRect(x, y, cellWidth, cellHeight);
@@ -167,7 +165,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
-          style={{ width: "100%", height: "180px" }}
+          style={{ width: "100%", height: "160px" }}
         />
       </div>
     </div>
@@ -214,7 +212,7 @@ const MegaYearOverlay: React.FC<{
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Constants for mega overlay layout - make squares square
-  const cellGap = 2;
+  const cellGap = 1;
   const maxDaysInMonth = 31;
   const months = 12;
   const cellWidth = (position.width - (months - 1) * cellGap) / months;
@@ -250,10 +248,8 @@ const MegaYearOverlay: React.FC<{
           const x = month * (cellWidth + cellGap);
 
           // Determine cell color
-          let color = COLOR.tile;
-          if (highlights.has(dateStr)) {
-            color = highlights.get(dateStr) || COLOR.tile;
-          }
+          const highlightColor = highlights.get(dateStr);
+          const color = highlightColor || COLOR.tile;
 
           ctx.fillStyle = color;
           ctx.fillRect(x, y, cellWidth, cellSize);
@@ -335,7 +331,7 @@ const getMegaDateFromCoordinates = (
   year: number,
   width: number
 ): string | null => {
-  const cellGap = 2;
+  const cellGap = 1;
   const months = 12;
 
   const cellWidth = (width - (months - 1) * cellGap) / months;

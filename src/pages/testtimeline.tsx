@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import styles from "./testtimeline.module.css";
 import TimelineYears2 from "../components/timelineYears/timelineYears2";
+import { useGeneralDataAvailabilities } from "../api/useGeneralData";
 
 // Constants for year range
 const START_YEAR = 2000;
@@ -15,6 +16,13 @@ const COLOR = {
   hiOrange: "#ffb156",
 };
 
+// Data availability colors from timelineYearsDraw.ts
+const DATA_COLORS = {
+  noData: "#5b5d77",
+  someData: "#6d7090",
+  commData: "#7a7ea5",
+};
+
 // Main TestTimeline component
 const TestTimeline: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -24,6 +32,9 @@ const TestTimeline: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isEditing, _setIsEditing] = useState(false);
   const [isEditingTime, _setIsEditingTime] = useState(false);
+
+  // Fetch data availability from the store
+  const { data: dataAvailabilityItems, isLoading: _isLoading } = useGeneralDataAvailabilities();
 
   // yearsTimelineRef - not needed anymore but keeping for backward compatibility if used elsewhere
 
@@ -41,6 +52,52 @@ const TestTimeline: React.FC = () => {
     pinkHighlight: false,
     orangeHighlight: false,
   });
+
+  // Create data availability highlights from the actual data
+  const dataAvailabilityHighlights = useMemo(() => {
+    if (!dataAvailabilityItems) return new Map<string, string>();
+
+    const dataHighlights = new Map<string, string>();
+
+    // Generate highlights for all dates in the range
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
+      for (let month = 0; month < 12; month++) {
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+          // Find data for this date
+          const dayItem = dataAvailabilityItems.find((item) => item.date === dateStr);
+
+          // Apply the same color logic as timelineYearsDraw.ts
+          let dayColor: string;
+          if (!dayItem) {
+            dayColor = DATA_COLORS.noData;
+          } else if (dayItem.comm || dayItem.vvComm) {
+            dayColor = DATA_COLORS.commData; // Slightly brighter grey for comm data
+          } else {
+            dayColor = DATA_COLORS.someData;
+          }
+
+          dataHighlights.set(dateStr, dayColor);
+        }
+      }
+    }
+
+    return dataHighlights;
+  }, [dataAvailabilityItems]);
+
+  // Combine manual highlights with data availability highlights
+  const combinedHighlights = useMemo(() => {
+    const combined = new Map(dataAvailabilityHighlights);
+
+    // Override with manual highlights (manual highlights take priority)
+    highlights.forEach((color, date) => {
+      combined.set(date, color);
+    });
+
+    return combined;
+  }, [dataAvailabilityHighlights, highlights]);
 
   const handleDateClick = (dateStr: string) => {
     const date = new Date(dateStr + "T00:00:00");
@@ -141,7 +198,7 @@ const TestTimeline: React.FC = () => {
 
         {/* Years Timeline */}
         <TimelineYears2
-          highlights={highlights}
+          highlights={combinedHighlights}
           selectedDate={selectedDate}
           isCollapsed={isCollapsed}
           onDateHover={handleDateHover}
