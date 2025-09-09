@@ -11,7 +11,7 @@ Features:
   * Copy video + transcode audio (if only audio needs adjustment)
   * Transcode video + transcode audio (if video needs adjustment)
   * Copy entire file (if both meet requirements)
-- Target: 480p resolution, ≤ 1100 kb/s video bitrate, ≤ 101 kb/s audio bitrate
+- Target: 480p resolution, ≤ 1100 kb/s video bitrate, ≤ 68 kb/s audio bitrate
 - Web streaming optimizations:
   * Constant bitrate (CBR) encoding for predictable streaming
   * GOP size of 2 seconds for optimal seeking performance
@@ -23,6 +23,10 @@ Features:
 - Filename cleanup (removes _lowres suffix)
 - Error handling and detailed logging
 - GPU acceleration with CPU fallback
+
+Audio bitrate rationale: 64 kbps AAC-LC provides excellent quality for web streaming
+while significantly reducing bandwidth and storage requirements compared to higher bitrates.
+This matches industry standards used by major streaming platforms for standard quality.
 """
 
 import os
@@ -44,11 +48,11 @@ from rich.text import Text
 
 # Configuration Constants
 TARGET_VIDEO_BITRATE = 1000  # kb/s - Maximum video bitrate for web delivery
-TARGET_AUDIO_BITRATE = 96  # kb/s - Maximum audio bitrate for web delivery
+TARGET_AUDIO_BITRATE = 64  # kb/s - Maximum audio bitrate for web delivery (64 kbps is standard for web streaming)
 VIDEO_BITRATE_TOLERANCE = 1.1  # Allow 10% tolerance above target bitrate
 AUDIO_BITRATE_TOLERANCE = 1.05  # Allow 5% tolerance above target bitrate
 DEFAULT_VIDEO_BITRATE = "1000k"  # Default ffmpeg video bitrate string
-DEFAULT_AUDIO_BITRATE = "96k"  # Default ffmpeg audio bitrate string
+DEFAULT_AUDIO_BITRATE = "64k"  # Default ffmpeg audio bitrate string
 
 # FFmpeg Encoding Parameters
 GPU_PRESET = "fast"  # NVENC preset for GPU encoding
@@ -695,7 +699,7 @@ def main():
         style="bold blue",
     )
     subtitle = Text(
-        "Target: 480p @ 1000 kb/s CBR, GOP=2s, AAC 96kb/s, faststart + fragmented MP4",
+        "Target: 480p @ 1000 kb/s CBR, GOP=2s, AAC 64kb/s, faststart + fragmented MP4",
         style="dim",
     )
     console.print(Panel.fit(title))
