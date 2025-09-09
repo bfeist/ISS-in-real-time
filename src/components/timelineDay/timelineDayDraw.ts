@@ -392,7 +392,7 @@ export const initializePaperCanvas = ({
         // Extract time based on item type
         if (rowConfig.key === "youtubeItems") {
           const ytItem = item as YoutubeLiveRecording;
-          itemTime = new Date(ytItem.startTime);
+          itemTime = new Date(ytItem.derivedStartTime || ytItem.ytStartTime);
 
           // For YouTube items, draw a bar representing the video duration
           if (itemTime && !isNaN(itemTime.getTime())) {

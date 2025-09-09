@@ -119,10 +119,11 @@ type EvaDetail = {
 
 type YoutubeLiveRecording = {
   publishedAt: string;
-  startTime: string;
   videoId: string;
   duration: number;
   title: string;
+  ytStartTime: string;
+  derivedStartTime?: string;
 };
 
 type YoutubeManualStartTime = {

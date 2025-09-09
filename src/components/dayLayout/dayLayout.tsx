@@ -166,7 +166,7 @@ const DayLayout: FunctionComponent = () => {
 
   // Find YouTube recording for this date
   const youtubeLiveRecording = youtubeLiveRecordings?.find((recording: YoutubeLiveRecording) =>
-    recording.startTime.startsWith(selectedDate || "")
+    recording.ytStartTime.startsWith(selectedDate || "")
   );
 
   // Manage cache when date changes
@@ -194,7 +194,7 @@ const DayLayout: FunctionComponent = () => {
     // YouTube takes priority over comm data
     if (youtubeLiveRecording) {
       // Set the clock to the start time of the YouTube recording
-      const startTimeStr = youtubeLiveRecording.startTime.split("T")[1];
+      const startTimeStr = youtubeLiveRecording.ytStartTime.split("T")[1];
       setClock(appSecondsFromTimeStr(startTimeStr));
     } else if (commItems.length > 0) {
       // If we have comm data and no YouTube, start 10 seconds before first comm

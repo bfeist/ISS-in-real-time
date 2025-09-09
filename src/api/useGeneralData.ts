@@ -6,7 +6,7 @@ import {
   fetchExpeditionInfo,
   fetchFlights,
   fetchFlightsSupply,
-  fetchYoutubeData,
+  fetchYoutubeLiveRecordings,
   fetchCommFirstData,
   fetchOrbitsDaily,
   fetchVideoIa,
@@ -70,7 +70,7 @@ export function useGeneralFlightsSupply(): UseQueryResult<FlightSupply[], Error>
 export function useGeneralYoutubeData(): UseQueryResult<YoutubeLiveRecording[], Error> {
   return useQuery({
     queryKey: ["youtubeData"],
-    queryFn: fetchYoutubeData,
+    queryFn: fetchYoutubeLiveRecordings,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });

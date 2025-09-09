@@ -12,7 +12,7 @@ const YouTubeComponent: FunctionComponent = () => {
   const { data: youtubeLiveRecordings = [], isLoading } = useGeneralYoutubeData();
 
   const youtubeLiveRecording = youtubeLiveRecordings?.find((recording: YoutubeLiveRecording) =>
-    recording.startTime.startsWith(selectedDate || "")
+    recording?.ytStartTime.startsWith(selectedDate || "")
   );
 
   const playerRef = useRef<YouTubePlayer | null>(null);
@@ -39,7 +39,11 @@ const YouTubeComponent: FunctionComponent = () => {
       }
 
       // sync the player time with the clock
-      const ytStartSeconds = appSecondsFromTimeStr(youtubeLiveRecording?.startTime.split("T")[1]);
+      const startTimeToUse =
+        youtubeLiveRecording?.derivedStartTime || youtubeLiveRecording.ytStartTime;
+      if (!startTimeToUse) return;
+
+      const ytStartSeconds = appSecondsFromTimeStr(startTimeToUse.split("T")[1]);
       const playerAppSeconds = Math.round(
         ytStartSeconds + (await playerRef.current.getCurrentTime())
       );

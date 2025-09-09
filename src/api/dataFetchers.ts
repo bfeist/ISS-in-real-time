@@ -1,6 +1,5 @@
 import { getBaseStaticUrl } from "../utils/api";
 import { processCommCsv } from "../utils/comm";
-import { youtubeApplyManualStartTimes } from "../utils/youtubeVideos";
 
 // Individual fetch functions for each data type
 export async function fetchDataAvailabilities(): Promise<DataAvailability[]> {
@@ -155,30 +154,6 @@ export async function fetchYoutubeLiveRecordings(): Promise<YoutubeLiveRecording
   }
 
   return response.json();
-}
-
-export async function fetchYoutubeManualStartTimes(): Promise<YoutubeManualStartTime[]> {
-  const baseStaticUrl = getBaseStaticUrl();
-
-  const response = await fetch(`${baseStaticUrl}/youtube_manual_start_times.json`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch YouTube Manual Start Times");
-  }
-
-  return response.json();
-}
-
-export async function fetchYoutubeData(): Promise<YoutubeLiveRecording[]> {
-  const [recordings, manualTimes] = await Promise.all([
-    fetchYoutubeLiveRecordings(),
-    fetchYoutubeManualStartTimes(),
-  ]);
-
-  return youtubeApplyManualStartTimes({
-    youtubeLiveRecordings: recordings,
-    youtubeManualStartTimes: manualTimes,
-  });
 }
 
 export async function fetchActivitySummary(date: string): Promise<ActivitySummary> {
