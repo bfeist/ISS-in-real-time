@@ -209,13 +209,6 @@ const LayoutTestComponent: FunctionComponent = () => {
     return results;
   }, [dataAvailabilityItems]);
 
-  // Debug logging for the "none" permutation
-  if (layoutTestData["none"]) {
-    console.log(`🎨 Layout test: Found "none" permutation date: ${layoutTestData["none"]}`);
-  } else {
-    console.log("🎨 Layout test: No date found for 'none' permutation");
-  }
-
   // Count available and missing permutations
   const { availableCount, missingCount } = useMemo(() => {
     const available = Object.values(layoutTestData).filter((date) => date !== null).length;
@@ -229,7 +222,6 @@ const LayoutTestComponent: FunctionComponent = () => {
     const date = layoutTestData[layoutKey];
     if (date) {
       setSelectedDate(date);
-      console.log(`🎨 Layout test: Selected ${layoutKey} with date ${date}`);
     } else {
       console.warn(`No date available for layout: ${layoutKey}`);
     }

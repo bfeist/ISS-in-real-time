@@ -15,8 +15,9 @@ const VideoComponent: FunctionComponent = () => {
 
   const isLoading = isloadingYt || isloadingIa;
 
-  const videoYtRecording = videoYt?.find((recording: VideoYtItem) =>
-    recording?.ytStartTime.startsWith(selectedDate || "")
+  const videoYtRecording = videoYt?.find(
+    (recording: VideoYtItem) =>
+      recording?.ytStartTime.startsWith(selectedDate || "") && recording.duration > 0
   );
 
   const videoIaRecordings = videoIa?.filter(
@@ -55,7 +56,6 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
   const playerRef = useRef<YouTubePlayer | null>(null);
   const lastSyncTimeRef = useRef<number>(0);
   const [appSeconds, setAppSeconds] = useState(0);
-  const [duration, setDuration] = useState<number | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
 
   const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
@@ -72,62 +72,134 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
   }, [appSecondsAtStartStop, startStopTimestamp]);
 
   const onPlayerReady = (event: YouTubeEvent) => {
-    playerRef.current = event.target;
-    playerRef.current.mute();
-    playerRef.current.getDuration().then(setDuration);
-    setIsPlayerReady(true);
+    try {
+      playerRef.current = event.target;
+      playerRef.current.mute();
+      setIsPlayerReady(true);
+    } catch (error) {
+      console.error("Error in onPlayerReady:", error);
+      setIsPlayerReady(true);
+    }
+  };
+
+  const onPlayerError = (event: YouTubeEvent) => {
+    const errorCode = event.data;
+    let errorMessage = "Unknown YouTube player error";
+
+    switch (errorCode) {
+      case 2:
+        errorMessage = "Invalid video ID";
+        break;
+      case 5:
+        errorMessage = "HTML5 player error";
+        break;
+      case 100:
+        errorMessage = "Video not found or private";
+        break;
+      case 101:
+      case 150:
+        errorMessage = "Video cannot be embedded";
+        break;
+    }
+
+    console.error("YouTube player error:", errorMessage, errorCode);
+  };
+
+  const onPlayerStateChange = (_event: YouTubeEvent) => {
+    // No longer logging state changes
   };
 
   useEffect(() => {
     if (!playerRef.current || !isPlayerReady) return;
 
-    const playerState = playerRef.current.getPlayerState();
-    const isPlaying = playerState === YouTube.PlayerState.PLAYING;
+    const handlePlaybackControl = async () => {
+      try {
+        const playerState = await playerRef.current.getPlayerState();
+        const isPlaying = playerState === YouTube.PlayerState.PLAYING;
 
-    if (isRunning && !isPlaying) {
-      playerRef.current.playVideo();
-    } else if (!isRunning && isPlaying) {
-      playerRef.current.pauseVideo();
-    }
+        if (isRunning && !isPlaying) {
+          // Only try to play if not already buffering
+          if (playerState !== YouTube.PlayerState.BUFFERING) {
+            await playerRef.current.playVideo();
+          }
+        } else if (!isRunning && isPlaying) {
+          await playerRef.current.pauseVideo();
+        }
+      } catch (error) {
+        console.error("Error controlling YouTube player:", error);
+      }
+    };
+
+    handlePlaybackControl();
   }, [isRunning, isPlayerReady]);
 
   useEffect(() => {
     if (!playerRef.current || !isPlayerReady) return;
 
     const syncTime = async () => {
-      // Throttle synchronization to at most once per second
-      const now = Date.now();
-      if (now - lastSyncTimeRef.current < 1000) return;
-      lastSyncTimeRef.current = now;
+      try {
+        // Throttle synchronization to at most once per second
+        const now = Date.now();
+        if (now - lastSyncTimeRef.current < 1000) return;
+        lastSyncTimeRef.current = now;
 
-      const playerState = await playerRef.current.getPlayerState();
+        const playerState = await playerRef.current.getPlayerState();
 
-      // Don't sync during buffering to avoid interrupting the buffering process
-      if (playerState === YouTube.PlayerState.BUFFERING) return;
+        // Don't sync during buffering or unstarted state
+        if (
+          playerState === YouTube.PlayerState.BUFFERING ||
+          playerState === YouTube.PlayerState.UNSTARTED
+        ) {
+          return;
+        }
 
-      // sync the player time with the clock
-      const startTimeToUse = videoYtRecording?.derivedStartTime || videoYtRecording.ytStartTime;
-      if (!startTimeToUse) return;
+        // sync the player time with the clock
+        const startTimeToUse = videoYtRecording?.derivedStartTime || videoYtRecording.ytStartTime;
+        if (!startTimeToUse) return;
 
-      const ytStartSeconds = appSecondsFromTimeStr(startTimeToUse.split("T")[1]);
-      const playerAppSeconds = Math.round(
-        ytStartSeconds + (await playerRef.current.getCurrentTime())
-      );
+        const ytStartSeconds = appSecondsFromTimeStr(startTimeToUse.split("T")[1]);
+        const currentTime = await playerRef.current.getCurrentTime();
+        const playerAppSeconds = Math.round(ytStartSeconds + currentTime);
 
-      // Only seek if the difference is more than 2 seconds to reduce frequent seeking
-      if (Math.abs(playerAppSeconds - appSeconds) > 2) {
-        // set the player time to the clock time
-        playerRef.current.seekTo(Math.max(0, appSeconds - ytStartSeconds), true);
+        // Only seek if the difference is more than 2 seconds to reduce frequent seeking
+        const timeDiff = Math.abs(playerAppSeconds - appSeconds);
+        if (timeDiff > 2) {
+          const seekToTime = Math.max(0, appSeconds - ytStartSeconds);
+          // Use API duration for bounds checking instead of calling player getDuration
+          const apiDuration = videoYtRecording?.duration || 0;
+          if (seekToTime <= apiDuration) {
+            await playerRef.current.seekTo(seekToTime, true);
+          }
+        }
+      } catch (error) {
+        console.error("Error syncing YouTube player time:", error);
       }
     };
     syncTime();
   }, [videoYtRecording, appSeconds, isPlayerReady]);
 
+  // Add a cleanup effect to handle component unmounting
+  useEffect(() => {
+    return () => {
+      // Clear the player reference when component unmounts
+      if (playerRef.current) {
+        try {
+          playerRef.current.destroy();
+        } catch (error) {
+          console.error("Error destroying YouTube player:", error);
+        }
+        playerRef.current = null;
+      }
+    };
+  }, []);
+
   const startTimeToUse = videoYtRecording?.derivedStartTime || videoYtRecording.ytStartTime;
   const ytStartSeconds = startTimeToUse ? appSecondsFromTimeStr(startTimeToUse.split("T")[1]) : 0;
+  // Use the API duration from videoYtRecording instead of the player duration
+  const videoDuration = videoYtRecording?.duration || 0;
   const isInRange =
-    duration === null ||
-    (appSeconds >= ytStartSeconds && appSeconds <= ytStartSeconds + (duration || 0));
+    appSeconds >= ytStartSeconds && // Must be at or after video start time
+    appSeconds <= ytStartSeconds + videoDuration; // Within video duration
 
   return (
     <>
@@ -137,6 +209,8 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
           className={styles.yt}
           videoId={videoId}
           onReady={onPlayerReady}
+          onError={onPlayerError}
+          onStateChange={onPlayerStateChange}
           opts={{
             playerVars: { autoplay: 0 },
             height: "100%",

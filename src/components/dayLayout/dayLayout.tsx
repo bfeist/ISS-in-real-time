@@ -180,12 +180,6 @@ const DayLayout: FunctionComponent = () => {
   useEffect(() => {
     if (!selectedDate) return;
 
-    // Resolve the layout based on data availability and log it once
-    const layout = resolveLayout(dataAvailability);
-    if (import.meta.env.DEV) {
-      console.log("🎨 Layout resolved:", layout);
-    }
-
     // Handle dateTimeSlug parameter - takes highest priority
     if (dateTimeSlug) {
       // Note: The specific time from dateTimeSlug is already set by index.tsx

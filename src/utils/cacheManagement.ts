@@ -20,10 +20,6 @@ export function manageDateCache(queryClient: QueryClient, currentDate: string): 
   if (visitedDates.length > MAX_CACHED_DATES) {
     const datesToRemove = visitedDates.splice(0, visitedDates.length - MAX_CACHED_DATES);
 
-    if (import.meta.env.DEV) {
-      console.log(`🗑️ Cache cleanup: removing ${datesToRemove.length} old dates:`, datesToRemove);
-    }
-
     datesToRemove.forEach((date) => {
       // Remove all date-specific queries for this date
       queryClient.removeQueries({
