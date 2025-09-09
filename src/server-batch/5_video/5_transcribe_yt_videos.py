@@ -417,30 +417,41 @@ def sanitize_filename(filename):
     )
 
 
+def is_numeric(s):
+    """Check if string represents a number."""
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
 def parse_video_filename(filename):
     """
     Parse video filename to extract metadata.
-    Expected format: YYYY-MM-DDTHH-MM-SS_videoId_height_title.mp4
+    Expected format: YYYY-MM-DDTHH-MM-SS_videoId(11chars)_height(3chars)_title.mp4
     Returns: (published_date, video_id, title, height)
     """
     try:
         basename = os.path.splitext(filename)[0]
-        parts = basename.split("_")
-
-        if len(parts) < 4:
-            raise ValueError(f"Filename format not recognized: {filename}")
-
-        # Extract components
-        published_at = parts[0]  # YYYY-MM-DDTHH-MM-SS
-        video_id = parts[1]
-        height = parts[2]
-        title = "_".join(parts[3:])  # Rejoin title parts
-
-        # Parse the published date
-        published_date = datetime.strptime(published_at, "%Y-%m-%dT%H-%M-%S")
-
-        return published_date, video_id, title, height
-
+        if len(basename) < 36:
+            raise ValueError(f"Filename too short: {filename}")
+        date_str = basename[:19]
+        if basename[19] != "_":
+            raise ValueError(f"Invalid separator in filename: {filename}")
+        video_id = basename[20:31]
+        if basename[31] != "_":
+            raise ValueError(
+                f"Invalid separator after video_id in filename: {filename}"
+            )
+        height_str = basename[32:35]
+        if not is_numeric(height_str):
+            raise ValueError(f"Height is not numeric in filename: {filename}")
+        if basename[35] != "_":
+            raise ValueError(f"Invalid separator after height in filename: {filename}")
+        title = basename[36:]
+        published_date = datetime.strptime(date_str, "%Y-%m-%dT%H-%M-%S")
+        return published_date, video_id, title, height_str
     except Exception as e:
         logger.error(f"Failed to parse filename '{filename}': {e}")
         return None, None, None, None
