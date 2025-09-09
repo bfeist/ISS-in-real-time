@@ -6,10 +6,10 @@ import {
   fetchExpeditionInfo,
   fetchFlights,
   fetchFlightsSupply,
-  fetchYoutubeLiveRecordings,
+  fetchVideoYt,
+  fetchVideoIa,
   fetchCommFirstData,
   fetchOrbitsDaily,
-  fetchVideoIa,
   fetchStats,
 } from "./dataFetchers";
 
@@ -67,14 +67,24 @@ export function useGeneralFlightsSupply(): UseQueryResult<FlightSupply[], Error>
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 }
-export function useGeneralYoutubeData(): UseQueryResult<YoutubeLiveRecording[], Error> {
+export function useGeneralVideoYt(): UseQueryResult<VideoYt[], Error> {
   return useQuery({
-    queryKey: ["youtubeData"],
-    queryFn: fetchYoutubeLiveRecordings,
+    queryKey: ["videoYt"],
+    queryFn: fetchVideoYt,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
 }
+
+export function useGeneralVideoIa(): UseQueryResult<VideoIaItem[], Error> {
+  return useQuery({
+    queryKey: ["videoIa"],
+    queryFn: fetchVideoIa,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
 export function useCommFirstData(): UseQueryResult<Record<string, CommFirstItem>, Error> {
   return useQuery({
     queryKey: ["commFirstData"],
@@ -90,15 +100,6 @@ export function useGeneralOrbitsDaily(): UseQueryResult<OrbitDaily, Error> {
     queryFn: fetchOrbitsDaily,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
-  });
-}
-
-export function useGeneralVideoIa(): UseQueryResult<VideoIaItem[], Error> {
-  return useQuery({
-    queryKey: ["videoIa"],
-    queryFn: fetchVideoIa,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
   });
 }
 

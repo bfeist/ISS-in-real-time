@@ -62,7 +62,7 @@ const getLayoutKey = (perm: LayoutPermutation): string => {
 
 const matchesPermutation = (data: DataAvailability, perm: LayoutPermutation): boolean => {
   // Check video
-  if (data.youtube !== perm.video) return false;
+  if (data.video !== perm.video) return false;
 
   // Check comm (includes both comm and vvComm)
   const hasComm = data.comm || data.vvComm;

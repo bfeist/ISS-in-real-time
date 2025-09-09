@@ -156,7 +156,7 @@ def main():
 
     os.makedirs(RAW_FOLDER, exist_ok=True)
     with open(
-        os.path.join(RAW_FOLDER, "youtube_live_recordings_raw.json"),
+        os.path.join(RAW_FOLDER, "videoYt_raw_log.json"),
         "w",
         encoding="utf-8",
     ) as f:
@@ -167,9 +167,7 @@ def main():
             indent=4,
         )
 
-    with open(
-        f"{WEB_ASSETS_FOLDER}/youtube_live_recordings.json", "w", encoding="utf-8"
-    ) as f:
+    with open(f"{WEB_ASSETS_FOLDER}/videoYt.json", "w", encoding="utf-8") as f:
         json.dump(filtered_videos, f, ensure_ascii=False, indent=4)
 
 

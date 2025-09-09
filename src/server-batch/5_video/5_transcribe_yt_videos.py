@@ -587,7 +587,7 @@ def main():
         return
 
     # Load the video list for reference
-    json_path = os.path.join(WEB_ASSETS_FOLDER, "youtube_live_recordings.json")
+    json_path = os.path.join(WEB_ASSETS_FOLDER, "videoYt.json")
     try:
         with open(json_path, "r", encoding="utf-8") as f:
             video_metadata = json.load(f)

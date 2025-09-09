@@ -90,20 +90,28 @@ if __name__ == "__main__":
     available_dates = collect_available_dates(START_DATE, END_DATE)
 
     # get all of the dates that have youtube available
-    youtube_dates = []
-    with open(
-        f"{WEB_ASSETS_FOLDER}/youtube_live_recordings.json", "r", encoding="utf-8"
-    ) as f:
-        youtube_live_recordings = json.load(f)
-        for youtube_live_recording in youtube_live_recordings:
-            youtube_dates.append(youtube_live_recording["startTime"].split("T")[0])
+    videoYt_dates = set()
+    with open(f"{WEB_ASSETS_FOLDER}/ytVideo.json", "r", encoding="utf-8") as f:
+        videoYt = json.load(f)
+        for videoYtRecording in videoYt:
+            videoYt_dates.add(videoYtRecording["startTime"].split("T")[0])
+
+    # get all of the dates that have IA videos available
+    videoIa_dates = set()
+    try:
+        with open(f"{WEB_ASSETS_FOLDER}/videoIa.json", "r", encoding="utf-8") as f:
+            videoIa = json.load(f)
+            for video in videoIa:
+                videoIa_dates.add(video["date"])
+    except FileNotFoundError:
+        print("videoIa.json not found, proceeding without IA videos")
 
     # get all of the dates that have EVAs available
-    eva_dates = []
+    eva_dates = set()
     with open(f"{WEB_ASSETS_FOLDER}/eva_details.json") as f:
         evas = json.load(f)
         for eva in evas:
-            eva_dates.append(eva["startTime"].split("T")[0])
+            eva_dates.add(eva["startTime"].split("T")[0])
 
     # compile the available media for each date
     date_records = []
@@ -111,7 +119,7 @@ if __name__ == "__main__":
         # Check availability of each data type
         has_comm = check_comm_data(date)
         has_vv_comm = check_visiting_vehicle_comm_data(date)
-        has_youtube = date in youtube_dates
+        has_video = date in videoYt_dates or date in videoIa_dates
         has_eva = date in eva_dates
         has_blog = check_blog_articles(date)
         has_activity_summary = check_activity_summary(date)
@@ -121,7 +129,7 @@ if __name__ == "__main__":
         if (
             has_comm
             or has_vv_comm
-            or has_youtube
+            or has_video
             or has_eva
             or has_blog
             or has_activity_summary
@@ -131,7 +139,7 @@ if __name__ == "__main__":
                 "date": date,
                 "comm": has_comm,
                 "vvComm": has_vv_comm,
-                "youtube": has_youtube,
+                "video": has_video,
                 "eva": has_eva,
                 "blog": has_blog,
                 "activitySummary": has_activity_summary,
@@ -149,7 +157,7 @@ if __name__ == "__main__":
                 "date",
                 "comm",
                 "vvComm",
-                "youtube",
+                "video",
                 "eva",
                 "blog",
                 "activitySummary",
@@ -163,7 +171,7 @@ if __name__ == "__main__":
                     record["date"],
                     int(record["comm"]),
                     int(record["vvComm"]),
-                    int(record["youtube"]),
+                    int(record["video"]),
                     int(record["eva"]),
                     int(record["blog"]),
                     int(record["activitySummary"]),

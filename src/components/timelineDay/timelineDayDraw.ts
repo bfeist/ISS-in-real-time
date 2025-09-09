@@ -64,7 +64,7 @@ export const initializePaperCanvas = ({
 
   // Data row configuration in requested order with individual heights
   const DATA_ROWS = [
-    { key: "youtubeItems", label: "Video", color: "#dc2626", height: 15 },
+    { key: "videoItems", label: "Video", color: "#dc2626", height: 15 },
     { key: "photographyItems", label: "Photos", color: "#28B463", height: 15 },
     { key: "commItems", label: "Comm", color: null, height: 22 }, // Comm row with 5 subrows
     { key: "dayNight", label: "Day/Night", color: "#dbc275", height: 6 }, // Very thin day/night row
@@ -313,7 +313,7 @@ export const initializePaperCanvas = ({
     // Draw timeline background
     let timelineBg: paper.Path;
 
-    if (rowConfig.key === "youtubeItems") {
+    if (rowConfig.key === "videoItems") {
       // Create custom path with rounded top corners only
       const radius = 10;
       timelineBg = new paperScope.Path();
@@ -390,8 +390,8 @@ export const initializePaperCanvas = ({
         const tickColor = rowConfig.color;
 
         // Extract time based on item type
-        if (rowConfig.key === "youtubeItems") {
-          const ytItem = item as YoutubeLiveRecording;
+        if (rowConfig.key === "videoItems") {
+          const ytItem = item as VideoYt;
           itemTime = new Date(ytItem.derivedStartTime || ytItem.ytStartTime);
 
           // For YouTube items, draw a bar representing the video duration

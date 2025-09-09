@@ -2,7 +2,7 @@ type DataAvailability = {
   date: string;
   comm: boolean;
   vvComm: boolean;
-  youtube: boolean;
+  video: boolean;
   eva: boolean;
   blog: boolean;
   activitySummary: boolean;
@@ -43,34 +43,6 @@ type SunLighting = "day" | "night" | "sunrise" | "sunset";
 type DayNightObj = {
   appSeconds: number;
   daylight: SunLighting;
-};
-
-type GetDataIndexPageDataResponse = {
-  dataAvailabilityItems: DataAvailability[];
-  evaDetails: EvaDetail[];
-  crewArrDep: CrewArrDepItem[];
-  expeditionInfo: ExpeditionInfo[];
-  flights: Flight[];
-  flightsSupply: FlightSupply[];
-};
-
-type GetDatePageDataResponse = {
-  transcriptItems: CommItem[];
-  earthPhotographyItems: EarthPhotographyItem[];
-  ephemeraItems: EphemeraItem[];
-  evaDetails: EvaDetail[];
-  dataAvailability: DataAvailability;
-  youtubeLiveRecordings: YoutubeLiveRecording[];
-  crewArrDep: CrewArrDepItem[];
-  expeditionInfo: ExpeditionInfo[];
-  flights: Flight[];
-  flightsSupply: FlightSupply[];
-  activitySummary: ActivitySummary;
-  blogArticles: BlogArticle[];
-};
-
-type GetCesiumPageDataResponse = {
-  ephemeraItems: EphemeraItem[];
 };
 
 type CrewItem = {
@@ -117,20 +89,13 @@ type EvaDetail = {
   description: string;
 };
 
-type YoutubeLiveRecording = {
+type VideoYt = {
   publishedAt: string;
   videoId: string;
   duration: number;
   title: string;
   ytStartTime: string;
   derivedStartTime?: string;
-};
-
-type YoutubeManualStartTime = {
-  date: string;
-  videoId: string;
-  youtubeTime: string;
-  youtubeTimeIsoTimestamp: string;
 };
 
 type FlightCrewMember = {
@@ -285,7 +250,7 @@ type Stats = {
 interface TimelineDayData {
   commItems: CommItem[];
   photographyItems: EarthPhotographyItem[];
-  youtubeItems: YoutubeLiveRecording[];
+  videoYt: VideoYt[];
   dayNight: DayNightObj[];
   selectedDate: string;
 }

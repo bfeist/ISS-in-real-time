@@ -407,8 +407,8 @@ function drawDaysForMonth({
           return dayItem.comm;
         case "vvcomm":
           return dayItem.vvComm;
-        case "youtube":
-          return dayItem.youtube; // Now labeled as "Video"
+        case "video":
+          return dayItem.video; // Now labeled as "Video"
         case "eva":
           return dayItem.eva;
         case "blog":

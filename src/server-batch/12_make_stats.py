@@ -18,8 +18,8 @@ if not WEB_ASSETS_FOLDER:
 
 COMM_FOLDER = WEB_ASSETS_FOLDER + "comm/"
 IMAGES_FOLDER = WEB_ASSETS_FOLDER + "earth_photography/"
-YOUTUBE_JSON = WEB_ASSETS_FOLDER + "youtube_live_recordings.json"
-IA_VIDEOS_JSON = WEB_ASSETS_FOLDER + "ia_videos.json"
+YOUTUBE_JSON = WEB_ASSETS_FOLDER + "videoYt.json"
+IA_VIDEOS_JSON = WEB_ASSETS_FOLDER + "videoIa.json"
 DATA_AVAILABILITY_CSV = WEB_ASSETS_FOLDER + "data_availability.csv"
 
 

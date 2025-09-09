@@ -144,13 +144,24 @@ export async function fetchEarthPhotography(date: string): Promise<EarthPhotogra
   return data;
 }
 
-export async function fetchYoutubeLiveRecordings(): Promise<YoutubeLiveRecording[]> {
+export async function fetchVideoYt(): Promise<VideoYt[]> {
   const baseStaticUrl = getBaseStaticUrl();
 
-  const response = await fetch(`${baseStaticUrl}/youtube_live_recordings.json`);
+  const response = await fetch(`${baseStaticUrl}/videoYt.json`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch YouTube Live Recordings");
+  }
+
+  return response.json();
+}
+
+export async function fetchVideoIa(): Promise<VideoIaItem[]> {
+  const baseStaticUrl = getBaseStaticUrl();
+  const response = await fetch(`${baseStaticUrl}/videoIa.json`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch IA Videos");
   }
 
   return response.json();
@@ -198,13 +209,13 @@ export function processDataAvailabilities({
   // Skip header row
   const dataLines = lines.slice(1);
   const dataAvailabilities = dataLines.map((line) => {
-    const [date, comm, vvComm, youtube, eva, blog, activitySummary, earthPhotography] =
+    const [date, comm, vvComm, video, eva, blog, activitySummary, earthPhotography] =
       line.split("|");
     return {
       date,
       comm: comm === "1",
       vvComm: vvComm === "1",
-      youtube: youtube === "1",
+      video: video === "1",
       eva: eva === "1",
       blog: blog === "1",
       activitySummary: activitySummary === "1",
@@ -212,17 +223,6 @@ export function processDataAvailabilities({
     };
   });
   return dataAvailabilities;
-}
-
-export async function fetchVideoIa(): Promise<VideoIaItem[]> {
-  const baseStaticUrl = getBaseStaticUrl();
-  const response = await fetch(`${baseStaticUrl}/ia_videos.json`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch IA Videos");
-  }
-
-  return response.json();
 }
 
 export async function fetchStats(): Promise<Stats> {

@@ -10,7 +10,7 @@ const SearchComponent: FunctionComponent = () => {
   const contentTypes = [
     { key: "comm", label: "Comm" },
     { key: "vvComm", label: "Comm (visiting vehicle)" },
-    { key: "youtube", label: "Video" },
+    { key: "video", label: "Video" },
     { key: "eva", label: "EVA" },
     { key: "blog", label: "Articles" },
     { key: "earthPhotography", label: "Earth Photography" },

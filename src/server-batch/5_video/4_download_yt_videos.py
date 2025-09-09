@@ -16,7 +16,7 @@ DOWNLOAD_FOLDER = "D:\\ISSiRT_youtube_videos"
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 # Load the video list
-json_path = os.path.join(WEB_ASSETS_FOLDER, "youtube_live_recordings.json")
+json_path = os.path.join(WEB_ASSETS_FOLDER, "videoYt.json")
 with open(json_path, "r", encoding="utf-8") as f:
     videos = json.load(f)
 

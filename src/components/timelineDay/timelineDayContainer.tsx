@@ -6,7 +6,7 @@ import {
   useDateCommTranscript,
   useDateEarthPhotography,
 } from "api/useDateSpecificData";
-import { useGeneralYoutubeData } from "api/useGeneralData";
+import { useGeneralVideoYt } from "api/useGeneralData";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { calcDayNight } from "utils/day-night";
@@ -26,10 +26,10 @@ const TimelineDayContainer = (): JSX.Element => {
   const { data: photographyItems = [], isLoading: isLoadingPhotography } = useDateEarthPhotography(
     selectedDate || ""
   );
-  const { data: youtubeItems = [], isLoading: isLoadingYoutube } = useGeneralYoutubeData();
+  const { data: videoYt = [], isLoading: isLoadingYt } = useGeneralVideoYt();
 
   // Check if any critical data is still loading
-  const isLoading = isLoadingEphemera || isLoadingComm || isLoadingPhotography || isLoadingYoutube;
+  const isLoading = isLoadingEphemera || isLoadingComm || isLoadingPhotography || isLoadingYt;
 
   const dayNight = useMemo(() => {
     if (!ephemeraItems || ephemeraItems.length === 0 || !selectedDate) return [];
@@ -153,7 +153,7 @@ const TimelineDayContainer = (): JSX.Element => {
         isLoadingEphemera ||
         isLoadingComm ||
         isLoadingPhotography ||
-        isLoadingYoutube
+        isLoadingYt
       ) {
         return false;
       }
@@ -183,7 +183,7 @@ const TimelineDayContainer = (): JSX.Element => {
       const timelineData: TimelineDayData = {
         commItems,
         photographyItems,
-        youtubeItems,
+        videoYt,
         dayNight,
         selectedDate: selectedDate || "",
       };
@@ -272,7 +272,7 @@ const TimelineDayContainer = (): JSX.Element => {
     isLoadingEphemera,
     isLoadingComm,
     isLoadingPhotography,
-    isLoadingYoutube,
+    isLoadingYt,
   ]); // Put loading states back in dependencies
 
   // Separate effect to redraw when data changes
@@ -283,7 +283,7 @@ const TimelineDayContainer = (): JSX.Element => {
       !isLoadingEphemera &&
       !isLoadingComm &&
       !isLoadingPhotography &&
-      !isLoadingYoutube &&
+      !isLoadingYt &&
       selectedDate
     ) {
       drawFunctionRef.current();
@@ -292,12 +292,12 @@ const TimelineDayContainer = (): JSX.Element => {
     ephemeraItems,
     commItems,
     photographyItems,
-    youtubeItems,
+    videoYt,
     dayNight,
     isLoadingEphemera,
     isLoadingComm,
     isLoadingPhotography,
-    isLoadingYoutube,
+    isLoadingYt,
     selectedDate,
   ]);
 

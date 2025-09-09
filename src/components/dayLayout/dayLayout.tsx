@@ -4,7 +4,7 @@ import { useStateToggle } from "store/hooks/useStateToggle";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useDateDataAvailability } from "api/useDateSpecificData";
 import { useDateCommTranscript } from "api/useDateSpecificData";
-import { useGeneralYoutubeData } from "api/useGeneralData";
+import { useGeneralVideoYt } from "api/useGeneralData";
 import { useDateCacheManagement } from "api/useDateCacheManagement";
 import { useParams } from "react-router-dom";
 import { appSecondsFromTimeStr } from "utils/time";
@@ -15,7 +15,7 @@ import Articles from "components/panes/articles";
 import Globe from "components/panes/globe";
 import Map from "components/panes/map";
 import EvaInfo from "components/panes/evaInfo";
-import YouTubeComponent from "components/panes/youtube";
+import Video from "components/panes/video";
 import EarthPhotography from "components/panes/earthPhotography";
 import ExpeditionAndCrewOnboard from "components/panes/expCrewFlightWidget/expeditionsAndCrew";
 import Flights from "components/panes/expCrewFlightWidget/flights";
@@ -54,7 +54,7 @@ const renderComponent = (config: ComponentConfig): JSX.Element | null => {
     case "video":
       return (
         <div className={componentClass}>
-          <YouTubeComponent />
+          <Video />
         </div>
       );
     case "eva":
@@ -160,12 +160,12 @@ const DayLayout: FunctionComponent = () => {
   const { dateTimeSlug } = useParams();
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
   const { data: commItems = [] } = useDateCommTranscript(selectedDate);
-  const { data: youtubeLiveRecordings = [] } = useGeneralYoutubeData();
+  const { data: videoYt = [] } = useGeneralVideoYt();
   const { width } = useViewport();
   const isMobile = width < 768;
 
   // Find YouTube recording for this date
-  const youtubeLiveRecording = youtubeLiveRecordings?.find((recording: YoutubeLiveRecording) =>
+  const videoYtRecording = videoYt?.find((recording: VideoYt) =>
     recording.ytStartTime.startsWith(selectedDate || "")
   );
 
@@ -192,9 +192,9 @@ const DayLayout: FunctionComponent = () => {
 
     // Only set automatic clock position if no dateTimeSlug parameter was provided
     // YouTube takes priority over comm data
-    if (youtubeLiveRecording) {
+    if (videoYtRecording) {
       // Set the clock to the start time of the YouTube recording
-      const startTimeStr = youtubeLiveRecording.ytStartTime.split("T")[1];
+      const startTimeStr = videoYtRecording.ytStartTime.split("T")[1];
       setClock(appSecondsFromTimeStr(startTimeStr));
     } else if (commItems.length > 0) {
       // If we have comm data and no YouTube, start 10 seconds before first comm
@@ -205,7 +205,7 @@ const DayLayout: FunctionComponent = () => {
     // Start the clock after setting position (only for non-dateTimeSlug cases)
     startClock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, dateTimeSlug, youtubeLiveRecording, dataAvailability]);
+  }, [selectedDate, dateTimeSlug, videoYtRecording, dataAvailability]);
 
   // Resolve the layout based on data availability
   const layout = resolveLayout(dataAvailability);
@@ -316,7 +316,7 @@ const MobileLayout: FunctionComponent<{
           ))}
         </div>
         <div className={styles.tabContent}>
-          {activeTab === "video" && showVideo && <YouTubeComponent />}
+          {activeTab === "video" && showVideo && <Video />}
           {activeTab === "photos" && showPhotos && <EarthPhotography />}
           {activeTab === "globe" && <GlobeOrMap />}
           {activeTab === "comm" && showComm && <Comm />}

@@ -31,7 +31,7 @@ RAW_FOLDER = os.getenv("RAW_FOLDER")
 
 YOUTUBE_TRANSCRIPTS_FOLDER = "F:/tempF/iss_working/youtube_transcripts"
 COMM_FOLDER = WEB_ASSETS_FOLDER + "comm/"
-YOUTUBE_RECORDINGS_FILE = WEB_ASSETS_FOLDER + "youtube_live_recordings.json"
+YOUTUBE_RECORDINGS_FILE = WEB_ASSETS_FOLDER + "videoYt.json"
 PROCESSING_LOG_FILE = RAW_FOLDER + "youtube_transcript_processing_log.json"
 
 # Fuzzy matching parameters

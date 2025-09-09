@@ -31,7 +31,7 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
     const baseTypes = [
       { key: "comm", label: "Comm" },
       { key: "vvComm", label: "Comm (Visiting Vehicle)" },
-      { key: "youtube", label: "Video" },
+      { key: "video", label: "Video" },
       { key: "eva", label: "EVA" },
       { key: "blog", label: "Article" },
       { key: "earthPhotography", label: "Earth Photography" },

@@ -21,8 +21,8 @@ def main():
         print("Error: WEB_ASSETS_FOLDER not set in .env file")
         return 1
 
-    ia_videos_path = Path(web_assets_folder) / "ia_videos"
-    json_output_path = Path(web_assets_folder) / "ia_videos.json"
+    ia_videos_path = Path(web_assets_folder) / "videoIa"
+    json_output_path = Path(web_assets_folder) / "videoIa.json"
 
     print(f"Scanning directory: {ia_videos_path}")
     print(f"Output file: {json_output_path}")
