@@ -14,7 +14,7 @@ dayjs.extend(utc);
 // Constants from the original HTML
 const START_YEAR = 2000;
 const END_YEAR = 2025;
-const YEAR_GAP = "3px"; // done in css
+const YEAR_GAP = "2px"; // done in css
 
 // Props interface for the TimelineYears2 component
 interface TimelineYears2Props {

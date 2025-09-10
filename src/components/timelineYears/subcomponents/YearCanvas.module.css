@@ -1,20 +1,12 @@
-:root {
-  --panel: #292b3a;
-  --hi-orange: #ffb156;
-  --hi-yellow: #ffd84d;
-}
-
 .year {
   flex: 1 1 0;
   background: var(--panel);
   border-radius: 0;
-  outline: 1px solid rgb(255 255 255 / 10%);
-  padding: 1px 0 0;
+  padding: 0 0 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  contain: layout style;
 }
 
 .yearHeader {
@@ -22,12 +14,11 @@
   padding: 0 10px;
   display: grid;
   place-items: center;
-  border-bottom: 0 solid rgb(255 255 255 / 6%);
   position: sticky;
   top: 0;
-  background: linear-gradient(180deg, var(--panel) 60%, transparent 100%);
   z-index: 1;
   cursor: pointer;
+  border: 1px solid var(--grey3);
 }
 
 .yearTitle {
@@ -44,7 +35,7 @@
 
 .year:hover .yearTitle,
 .year.active .yearTitle {
-  color: var(--hi-orange);
+  color: var(--hi-yellow);
   font-weight: 800;
 }
 
