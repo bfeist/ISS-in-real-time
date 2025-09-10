@@ -13,16 +13,17 @@ const ROW_GAP = 1;
 const YEAR_GAP = "3px"; // done in css
 
 // Color constants
-const COLOR = {
-  gridline: "#1a2230",
-  tile: "#77798B",
-  tileHover: "#ffffff",
-  hiYellow: "#ffd84d",
-  hiCyan: "#58e0ff",
-  hiGreen: "#7bff7d",
-  hiPink: "#ff7bd1",
-  hiOrange: "#ffb156",
-};
+const COLORS = {
+  hover: "red",
+  selected: "red",
+  noData: "#5b5d77ff",
+  someData: "#6d7090",
+  commData: "#7a7ea5ff",
+  contentHighlightStroke: "#C500AB",
+  transparent: "rgba(0, 0, 0, 0)",
+  crewOnboard: "#E2DB00",
+  satisfiesHighlights: "#D9D9D9",
+} as const;
 
 interface YearCanvasProps {
   year: number;
@@ -106,10 +107,17 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
 
         // Determine cell color
         const highlightColor = highlights.get(dateStr);
-        const color = highlightColor || COLOR.tile;
+        const color = highlightColor || COLORS.noData;
 
         ctx.fillStyle = color;
         ctx.fillRect(x, y, cellWidth, cellHeight);
+
+        // Draw stroke for content-highlighted dates
+        if (color === COLORS.satisfiesHighlights) {
+          ctx.strokeStyle = COLORS.contentHighlightStroke;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, cellWidth, cellHeight);
+        }
       }
     }
   };
@@ -280,14 +288,21 @@ const MegaYearOverlay: React.FC<{
 
           // Determine cell color
           const highlightColor = highlights.get(dateStr);
-          const color = highlightColor || COLOR.tile;
+          const color = highlightColor || COLORS.noData;
 
           ctx.fillStyle = color;
           ctx.fillRect(x, y, cellWidth, cellSize);
 
+          // Draw stroke for content-highlighted dates
+          if (color === COLORS.satisfiesHighlights) {
+            ctx.strokeStyle = COLORS.contentHighlightStroke;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, cellWidth, cellSize);
+          }
+
           // If this is the hovered date, draw red border
           if (dateStr === hoveredDate) {
-            ctx.strokeStyle = "red";
+            ctx.strokeStyle = COLORS.hover;
             ctx.lineWidth = 2;
             ctx.strokeRect(x, y, cellWidth, cellSize);
           }
@@ -609,3 +624,4 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDat
 };
 
 export default TimelineYears2;
+export { COLORS };

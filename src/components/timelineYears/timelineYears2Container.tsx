@@ -1,29 +1,36 @@
 import React, { FunctionComponent, JSX, useMemo } from "react";
-import TimelineYears2 from "./timelineYears2";
+import TimelineYears2, { COLORS } from "./timelineYears2";
 import styles from "./timelineYears2Container.module.css";
-import { useGeneralDataAvailabilities } from "../../api/useGeneralData";
+import { useGeneralDataAvailabilities, useGeneralCrewArrDep } from "../../api/useGeneralData";
 import { useStateClock } from "../../store/hooks/useStateClock";
 import { useStateContentHighlights } from "../../store/hooks/useStateContentHighlights";
+import { useStateCrewSelection } from "../../store/hooks/useStateCrewSelection";
 import ControlsHeader from "./controlsHeader/controlsHeader";
 
 // Constants for year range and colors (from testtimeline.tsx)
 const START_YEAR = 2000;
 const END_YEAR = 2025;
 
-// Data availability colors from timelineYearsDraw.ts
-const DATA_COLORS = {
-  noData: "#5b5d77",
-  someData: "#6d7090",
-  commData: "#7a7ea5",
-};
-
 const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
   // Global state hooks
   const { selectedDate } = useStateClock();
   const { contentHighlights } = useStateContentHighlights();
+  const { selectedCrewMember } = useStateCrewSelection();
 
   // Fetch data availability
   const { data: dataAvailabilityItems, isLoading, error } = useGeneralDataAvailabilities();
+  const { data: crewArrDep, isLoading: isLoadingCrewArrDep } = useGeneralCrewArrDep();
+
+  // Check if any of the required data is still loading
+  const isLoadingCombined = isLoading || isLoadingCrewArrDep;
+
+  // Compute selected crew stays
+  const selectedCrewStays = useMemo(() => {
+    if (!crewArrDep || crewArrDep.length === 0 || !selectedCrewMember) return [];
+    return crewArrDep.filter(
+      (item: CrewArrDepItem) => `${item.name_first} ${item.name_last}` === selectedCrewMember.name
+    );
+  }, [crewArrDep, selectedCrewMember]);
 
   // Create data availability highlights from the actual data
   const dataAvailabilityHighlights = useMemo(() => {
@@ -44,11 +51,23 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
           // Apply the same color logic as timelineYearsDraw.ts
           let dayColor: string;
           if (!dayItem) {
-            dayColor = DATA_COLORS.noData;
+            dayColor = COLORS.noData;
           } else if (dayItem.comm || dayItem.vvComm) {
-            dayColor = DATA_COLORS.commData; // Slightly brighter grey for comm data
+            dayColor = COLORS.commData; // Slightly brighter grey for comm data
           } else {
-            dayColor = DATA_COLORS.someData;
+            dayColor = COLORS.someData;
+          }
+
+          // Check if crew member was onboard this date
+          const checkDate = new Date(dateStr);
+          const isCrewOnboard = selectedCrewStays.some((stay) => {
+            const arrivalDate = new Date(stay.arrivalDate);
+            const departureDate = new Date(stay.departureDate);
+            return checkDate >= arrivalDate && checkDate <= departureDate;
+          });
+
+          if (isCrewOnboard) {
+            dayColor = COLORS.crewOnboard;
           }
 
           dataHighlights.set(dateStr, dayColor);
@@ -57,7 +76,7 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
     }
 
     return dataHighlights;
-  }, [dataAvailabilityItems]);
+  }, [dataAvailabilityItems, selectedCrewStays]);
 
   // Combine content highlights with data availability highlights
   const combinedHighlights = useMemo(() => {
@@ -66,7 +85,7 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
     // If we have contentHighlights selected, apply special highlighting
     if (contentHighlights.length > 0 && dataAvailabilityItems) {
       // Define highlight colors for content-highlighted dates
-      const CONTENT_HIGHLIGHT_COLOR = "#7bff7d"; // Green color for content highlights
+      const CONTENT_HIGHLIGHT_COLOR = COLORS.satisfiesHighlights; // Color for content highlights
 
       // Check each date to see if it satisfies all content highlight criteria
       dataAvailabilityItems.forEach((dayItem) => {
@@ -103,7 +122,7 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
   }, [dataAvailabilityHighlights, contentHighlights, dataAvailabilityItems]);
 
   // Handle loading state
-  if (isLoading) {
+  if (isLoadingCombined) {
     return (
       <div className={styles.container}>
         <div className={styles.loadingMessage}>Loading timeline data...</div>

@@ -1,12 +1,4 @@
-import React, {
-  FunctionComponent,
-  JSX,
-  useRef,
-  useEffect,
-  useState,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { FunctionComponent, JSX, useRef, useEffect, useState, useCallback } from "react";
 import paper from "paper";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -21,16 +13,11 @@ import DateTooltip from "../timelineYears/dateTooltip/dateTooltip";
 import OpenCloseIndicators from "./openCloseIndicators";
 import { initializePaperCanvas } from "./timelineYearsDraw";
 import { calculateOptimalMaxWidth, calculateMinimumWidth } from "../../utils/indexSliderCalcs";
-import { useStateCrewSelection } from "store/hooks/useStateCrewSelection";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
 import { useStateToggle } from "store/hooks/useStateToggle";
-import {
-  useCommFirstData,
-  useGeneralCrewArrDep,
-  useGeneralDataAvailabilities,
-} from "api/useGeneralData";
+import { useCommFirstData, useGeneralDataAvailabilities } from "api/useGeneralData";
 import { useParams } from "react-router-dom";
 
 // Configure dayjs to use UTC plugin
@@ -43,16 +30,14 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     isLoading: isLoadingDataAvailability,
     error,
   } = dataAvailabilityQuery;
-  const { data: crewArrDep, isLoading: isLoadingCrewArrDep } = useGeneralCrewArrDep();
   const { data: commFirstData, isLoading: isLoadingCommFirst } = useCommFirstData();
   const { dateTimeSlug } = useParams();
 
   // Check if any of the required data is still loading
-  const isLoading = isLoadingDataAvailability || isLoadingCrewArrDep || isLoadingCommFirst;
+  const isLoading = isLoadingDataAvailability || isLoadingCommFirst;
 
   const { selectedDate, setSelectedDate } = useStateClock();
   const { hoveredDate, setHoveredDate } = useStateHover();
-  const { selectedCrewMember } = useStateCrewSelection();
   const { contentHighlights } = useStateContentHighlights();
   const { showTimelineYears, setShowTimelineYears, hoveringYearsLabels, setHoveringYearsLabels } =
     useStateToggle();
@@ -266,13 +251,6 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     }
   }, [showTimelineYears]);
 
-  const selectedCrewStays = useMemo(() => {
-    if (!crewArrDep || crewArrDep.length === 0 || !selectedCrewMember) return [];
-    return crewArrDep.filter(
-      (item: CrewArrDepItem) => `${item.name_first} ${item.name_last}` === selectedCrewMember.name
-    );
-  }, [crewArrDep, selectedCrewMember]);
-
   // Store the draw function to reuse when timeline becomes visible
   const drawFunctionRef = useRef<(() => void) | null>(null);
   const cleanupInputHandlersRef = useRef<(() => void) | null>(null);
@@ -313,7 +291,7 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
         canvasElement: canvas,
         selectedDate,
         dataAvailabilityItems,
-        selectedCrewStays,
+        selectedCrewStays: [],
         contentHighlights,
         hoverCallback,
         clickCallback: handleCanvasClick,
@@ -363,7 +341,6 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     dataAvailabilityItems,
     isLoading,
     selectedDate,
-    selectedCrewStays,
     contentHighlights,
     hoverCallback,
     handleCanvasClick,
@@ -541,7 +518,6 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
     isLoading,
     contentHighlights,
     selectedDate,
-    selectedCrewStays,
   ]);
 
   // Helper function to render content with or without wrapper
