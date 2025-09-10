@@ -48,7 +48,11 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleContainerMouseEnter = () => {
+  const handleContainerMouseEnter = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest(`.${styles.yearHeader}`) && !showTimelineYears) {
+      return;
+    }
     if (onYearHover) onYearHover(index);
   };
 

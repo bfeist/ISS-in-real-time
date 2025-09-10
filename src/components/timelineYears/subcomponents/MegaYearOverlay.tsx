@@ -41,19 +41,12 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [isTouchInteraction, setIsTouchInteraction] = useState(false);
   const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
+  const [hideTimeout, setHideTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Global state hooks
   const { hoveredDate, setHoveredDate } = useStateHover();
   const { setSelectedDate } = useStateClock();
   const { setShowTimelineYears } = useStateToggle();
-
-  // Constants for mega overlay layout - make squares square
-  const cellGap = 1;
-  const maxDaysInMonth = 31;
-  const months = 12;
-  const cellWidth = (position.width - (months - 1) * cellGap) / months;
-  const cellSize = cellWidth;
-  const totalHeight = maxDaysInMonth * (cellSize + cellGap);
 
   // Handle date click using global state with touch device logic
   const handleDateClick = useCallback(
@@ -71,6 +64,14 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     },
     [setSelectedDate]
   );
+
+  // Constants for mega overlay layout - make squares square
+  const cellGap = 1;
+  const maxDaysInMonth = 31;
+  const months = 12;
+  const cellWidth = (position.width - (months - 1) * cellGap) / months;
+  const cellSize = cellWidth;
+  const totalHeight = maxDaysInMonth * (cellSize + cellGap);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -197,9 +198,21 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   }, []);
 
   const handleMouseLeave = () => {
-    if (onMouseLeave) onMouseLeave();
-    setHoveredDate(null);
-    setCursorPosition(null);
+    if (hideTimeout) clearTimeout(hideTimeout);
+    const timeout = setTimeout(() => {
+      if (onMouseLeave) onMouseLeave();
+      setHoveredDate(null);
+      setCursorPosition(null);
+    }, 100); // 150ms delay to prevent flicker
+    setHideTimeout(timeout);
+  };
+
+  const handleMouseEnter = () => {
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+      setHideTimeout(null);
+    }
+    if (onMouseEnter) onMouseEnter();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -217,6 +230,13 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     }
   }, [forceRedraw, draw]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeout) clearTimeout(hideTimeout);
+    };
+  }, [hideTimeout]);
+
   return (
     <div
       ref={overlayRef}
@@ -232,7 +252,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      onMouseEnter={onMouseEnter}
+      onMouseEnter={handleMouseEnter}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
