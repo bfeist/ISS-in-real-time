@@ -1,14 +1,12 @@
-:root {
-  --panel: #292b3a;
-  --hi-orange: #ffb156;
-  --hi-yellow: #ffd84d;
-}
-
 .yearsTimeline {
   position: relative;
   height: var(--years-fixed-h, auto);
   overflow: visible;
   transition: height 0.24s ease;
+}
+
+.isCollapsed {
+  height: auto;
 }
 
 /* ====== YEARS (mini canvases) ====== */
@@ -18,88 +16,4 @@
   display: flex;
   align-items: flex-start;
   overflow: visible;
-}
-
-.year {
-  flex: 1 1 0;
-  background: var(--panel);
-  border-radius: 0;
-  outline: 1px solid rgb(255 255 255 / 10%);
-  padding: 1px 0 0;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  contain: layout style;
-}
-
-.yearHeader {
-  height: 25px;
-  padding: 0 10px;
-  display: grid;
-  place-items: center;
-  border-bottom: 0 solid rgb(255 255 255 / 6%);
-  position: sticky;
-  top: 0;
-  background: linear-gradient(180deg, var(--panel) 60%, transparent 100%);
-  z-index: 1;
-  cursor: pointer;
-}
-
-.yearTitle {
-  line-height: 1;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  transition:
-    color 0.16s ease,
-    font-size 0.12s ease;
-}
-
-.year:hover .yearTitle,
-.year.active .yearTitle {
-  color: var(--hi-orange);
-  font-weight: 800;
-}
-
-/* Selected year in yellow */
-.year.selected .yearTitle {
-  color: var(--hi-yellow);
-  font-weight: 800;
-}
-
-.monthsCanvas {
-  pointer-events: none;
-  cursor: default;
-}
-
-.monthsCanvas > canvas {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.isCollapsed .monthsCanvas {
-  display: none;
-}
-
-.isCollapsed .yearOverlay {
-  display: none;
-}
-
-/* ====== MEGA YEAR OVERLAY ====== */
-.yearOverlay {
-  position: absolute;
-  z-index: 50;
-  pointer-events: auto;
-  background: var(--grey1);
-  cursor: default;
-  overflow: visible;
-}
-
-.yearOverlay canvas {
-  width: 100%;
-  height: auto;
-  display: block;
 }

@@ -1,0 +1,14 @@
+.yearOverlay {
+  position: absolute;
+  z-index: 50;
+  pointer-events: auto;
+  background: var(--grey1);
+  cursor: default;
+  overflow: visible;
+}
+
+.yearOverlay canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
