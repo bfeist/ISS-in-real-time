@@ -1,6 +1,6 @@
 .year {
   flex: 1 1 0;
-  background: var(--panel);
+  background: var(--grey2);
   border-radius: 0;
   padding: 0 0 0;
   box-sizing: border-box;
