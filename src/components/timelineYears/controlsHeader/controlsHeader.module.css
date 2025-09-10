@@ -42,6 +42,7 @@
   gap: 12px;
   padding: 0 20px;
   pointer-events: auto; /* enable clicks */
+  filter: drop-shadow(0 1px 0 var(--grey3));
 }
 
 .dateTimeContainer {
