@@ -1,7 +1,11 @@
 import React, { FunctionComponent, JSX, useMemo } from "react";
 import TimelineYears2, { COLORS } from "./timelineYears2";
 import styles from "./timelineYears2Container.module.css";
-import { useGeneralDataAvailabilities, useGeneralCrewArrDep } from "../../api/useGeneralData";
+import {
+  useGeneralDataAvailabilities,
+  useGeneralCrewArrDep,
+  useCommFirstData,
+} from "../../api/useGeneralData";
 import { useStateClock } from "../../store/hooks/useStateClock";
 import { useStateContentHighlights } from "../../store/hooks/useStateContentHighlights";
 import { useStateCrewSelection } from "../../store/hooks/useStateCrewSelection";
@@ -20,6 +24,7 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
   // Fetch data availability
   const { data: dataAvailabilityItems, isLoading, error } = useGeneralDataAvailabilities();
   const { data: crewArrDep, isLoading: isLoadingCrewArrDep } = useGeneralCrewArrDep();
+  const { data: commFirstData } = useCommFirstData();
 
   // Check if any of the required data is still loading
   const isLoadingCombined = isLoading || isLoadingCrewArrDep;
@@ -34,9 +39,9 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
 
   // Create data availability highlights from the actual data
   const dataAvailabilityHighlights = useMemo(() => {
-    if (!dataAvailabilityItems) return new Map<string, string>();
+    if (!dataAvailabilityItems) return new Map<string, { fill: string; stroke?: string }>();
 
-    const dataHighlights = new Map<string, string>();
+    const dataHighlights = new Map<string, { fill: string; stroke?: string }>();
 
     // Generate highlights for all dates in the range
     for (let year = START_YEAR; year <= END_YEAR; year++) {
@@ -70,7 +75,7 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
             dayColor = COLORS.crewOnboard;
           }
 
-          dataHighlights.set(dateStr, dayColor);
+          dataHighlights.set(dateStr, { fill: dayColor });
         }
       }
     }
@@ -82,11 +87,8 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
   const combinedHighlights = useMemo(() => {
     const combined = new Map(dataAvailabilityHighlights);
 
-    // If we have contentHighlights selected, apply special highlighting
+    // If we have contentHighlights selected, add stroke highlighting without changing fill colors
     if (contentHighlights.length > 0 && dataAvailabilityItems) {
-      // Define highlight colors for content-highlighted dates
-      const CONTENT_HIGHLIGHT_COLOR = COLORS.satisfiesHighlights; // Color for content highlights
-
       // Check each date to see if it satisfies all content highlight criteria
       dataAvailabilityItems.forEach((dayItem) => {
         const dateStr = dayItem.date;
@@ -111,9 +113,14 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
           }
         });
 
-        // If this date satisfies all content highlights, give it the special color
+        // If this date satisfies all content highlights, add stroke highlighting
         if (satisfiesAllHighlights) {
-          combined.set(dateStr, CONTENT_HIGHLIGHT_COLOR);
+          const existing = combined.get(dateStr);
+          if (existing) {
+            combined.set(dateStr, { ...existing, stroke: COLORS.contentHighlightStroke });
+          } else {
+            combined.set(dateStr, { fill: COLORS.noData, stroke: COLORS.contentHighlightStroke });
+          }
         }
       });
     }
@@ -152,7 +159,11 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
     <>
       <div className={styles.container}>
         {/* Main Timeline Component */}
-        <TimelineYears2 highlights={combinedHighlights} selectedDate={selectedDate} />
+        <TimelineYears2
+          highlights={combinedHighlights}
+          selectedDate={selectedDate}
+          commFirstData={commFirstData}
+        />
         <ControlsHeader />
       </div>
     </>
