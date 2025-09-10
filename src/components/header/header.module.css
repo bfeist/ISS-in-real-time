@@ -1,9 +1,13 @@
 .header {
-  position: relative;
-  flex: 0 0 50px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
   display: flex;
   background-color: var(--grey2);
   border-bottom: 1px solid var(--grey3);
+  z-index: 10;
 }
 
 .left {
