@@ -32,6 +32,7 @@ interface YearCanvasProps {
   onClick?: (dateStr: string) => void;
   onYearHover?: (yearIndex: number) => void;
   onYearLeave?: () => void;
+  forceRedraw?: number;
 }
 
 // Individual year canvas component
@@ -45,6 +46,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
   onClick,
   onYearHover,
   onYearLeave,
+  forceRedraw,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -152,6 +154,13 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
     return () => window.removeEventListener("resize", handleResize);
   }, [draw]);
 
+  // Force redraw when forceRedraw prop changes (e.g., when component becomes visible)
+  useEffect(() => {
+    if (forceRedraw !== undefined) {
+      draw();
+    }
+  }, [forceRedraw, draw]);
+
   return (
     <div
       ref={containerRef}
@@ -211,7 +220,17 @@ const MegaYearOverlay: React.FC<{
   onClick?: (dateStr: string) => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
-}> = ({ year, position, highlights, onHover, onClick, onMouseEnter, onMouseLeave }) => {
+  forceRedraw?: number;
+}> = ({
+  year,
+  position,
+  highlights,
+  onHover,
+  onClick,
+  onMouseEnter,
+  onMouseLeave,
+  forceRedraw,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
@@ -308,6 +327,13 @@ const MegaYearOverlay: React.FC<{
     draw();
   }, [draw]);
 
+  // Force redraw when forceRedraw prop changes (e.g., when component becomes visible)
+  useEffect(() => {
+    if (forceRedraw !== undefined) {
+      draw();
+    }
+  }, [forceRedraw, draw]);
+
   return (
     <div
       className={styles.yearOverlay}
@@ -376,6 +402,16 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDat
   const { showTimelineYears } = useStateToggle();
   const { setHoveredDate } = useStateHover();
   const { setSelectedDate } = useStateClock();
+
+  // State to force redraw when timeline becomes visible
+  const [forceRedrawCounter, setForceRedrawCounter] = useState(0);
+
+  // Force redraw when timeline becomes visible
+  useEffect(() => {
+    if (showTimelineYears) {
+      setForceRedrawCounter((prev) => prev + 1);
+    }
+  }, [showTimelineYears]);
 
   // Handle date hover using global state
   const handleDateHover = useCallback(
@@ -478,6 +514,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDat
             onClick={handleDateClick}
             onYearHover={handleYearHover}
             onYearLeave={handleYearLeave}
+            forceRedraw={forceRedrawCounter}
           />
         ))}
       </div>
@@ -492,6 +529,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDat
           onClick={handleDateClick}
           onMouseEnter={handleMegaOverlayMouseEnter}
           onMouseLeave={handleMegaOverlayMouseLeave}
+          forceRedraw={forceRedrawCounter}
         />
       )}
     </div>

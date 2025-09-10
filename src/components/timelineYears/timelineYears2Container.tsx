@@ -15,6 +15,7 @@ import { useStateClock } from "../../store/hooks/useStateClock";
 import { useStateContentHighlights } from "../../store/hooks/useStateContentHighlights";
 import { useStateToggle } from "../../store/hooks/useStateToggle";
 import { useStateHover } from "../../store/hooks/useStateHover";
+import ControlsHeader from "./controlsHeader/controlsHeader";
 
 // Constants for year range and colors (from testtimeline.tsx)
 const START_YEAR = 2000;
@@ -223,11 +224,8 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
   }
 
   return (
-    <div className={styles.container} ref={containerRef}>
-      {/* Main Timeline Component */}
-      <TimelineYears2 highlights={combinedHighlights} selectedDate={selectedDate} />
-
-      {/* Date Tooltip */}
+    <>
+      {/* Floating Date Tooltip */}
       <DateTooltip
         hoveredDate={hoveredDate}
         cursorPosition={cursorPosition}
@@ -237,7 +235,12 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
         onTouchCancel={handleTouchCancel}
         containerRef={containerRef}
       />
-    </div>
+      <div className={styles.container} ref={containerRef}>
+        {/* Main Timeline Component */}
+        <TimelineYears2 highlights={combinedHighlights} selectedDate={selectedDate} />
+        <ControlsHeader />
+      </div>
+    </>
   );
 };
 

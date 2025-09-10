@@ -2,13 +2,13 @@ import styles from "./home.module.css";
 import { FunctionComponent, JSX, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import DayLayout from "components/dayLayout/dayLayout";
-import TimelineYearsContainer from "../components/timelineYears/timelineYearsContainer";
 import { useStateClock } from "../store/hooks/useStateClock";
 import { useStateToggle } from "../store/hooks/useStateToggle";
 import Header from "components/header/header";
 import NoDateSelected from "../components/dayLayout/noDateSelected";
 import { parseDateTimeSlug } from "../utils/params";
 import { appSecondsFromTimeStr } from "../utils/time";
+import TimelineYears2Container from "components/timelineYears/timelineYears2Container";
 
 const HomePage: FunctionComponent = (): JSX.Element => {
   const { dateTimeSlug } = useParams();
@@ -29,7 +29,7 @@ const HomePage: FunctionComponent = (): JSX.Element => {
   return (
     <div className={styles.page}>
       <Header />
-      <TimelineYearsContainer />
+      <TimelineYears2Container />
       <div className={styles.contentWrapper}>
         {selectedDate ? <DayLayout /> : <NoDateSelected />}
         {showTimelineYears && (
