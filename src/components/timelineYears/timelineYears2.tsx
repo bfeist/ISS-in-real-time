@@ -198,7 +198,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     // Position overlay to start just below the year header, so the year title shows through
     // Slight overlap to ensure smooth mouse transition
     const yearHeaderHeight = 25; // Height of the year header
-    const top = yearRect.top - yearsTimelineRect.top + yearHeaderHeight - 2; // 2px overlap
+    const top = yearRect.top - yearsTimelineRect.top + yearHeaderHeight + 2;
 
     setMegaOverlayYear(year);
     setMegaOverlayPosition({ left, top, width: overlayWidth });
