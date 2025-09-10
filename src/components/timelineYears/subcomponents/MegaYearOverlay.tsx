@@ -25,7 +25,6 @@ interface MegaYearOverlayProps {
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   forceRedraw?: number;
-  showTimelineYears: boolean;
 }
 
 // Mega Overlay Component for zoomed year view
@@ -36,7 +35,6 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   onMouseEnter,
   onMouseLeave,
   forceRedraw,
-  showTimelineYears,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -228,7 +226,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
         top: position.top,
         width: position.width,
         height: totalHeight,
-        display: showTimelineYears ? "block" : "none",
+        display: "block",
         pointerEvents: "auto",
         zIndex: 10,
       }}
@@ -253,7 +251,6 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
         hoveredDate={hoveredDate}
         cursorPosition={cursorPosition}
         isTouchInteraction={isTouchInteraction}
-        showTimelineYears={showTimelineYears}
         onTouchGo={handleTouchGo}
         onTouchCancel={handleTouchCancel}
         containerRef={overlayRef}

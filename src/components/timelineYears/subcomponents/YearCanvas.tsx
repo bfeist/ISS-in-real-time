@@ -43,7 +43,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
   onYearLeave,
   forceRedraw,
 }) => {
-  const { showTimelineYears } = useStateToggle();
+  const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -162,7 +162,18 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
       onMouseLeave={handleContainerMouseLeave}
       data-year-index={index}
     >
-      <div className={styles.yearHeader}>
+      <div
+        className={styles.yearHeader}
+        role="button"
+        tabIndex={0}
+        onClick={() => setShowTimelineYears(!showTimelineYears)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            setShowTimelineYears(!showTimelineYears);
+            e.preventDefault();
+          }
+        }}
+      >
         <div className={styles.yearTitle}>{year}</div>
       </div>
       <div

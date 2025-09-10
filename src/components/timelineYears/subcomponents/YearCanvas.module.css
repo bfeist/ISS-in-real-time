@@ -39,6 +39,7 @@
   transition:
     color 0.16s ease,
     font-size 0.12s ease;
+  user-select: none;
 }
 
 .year:hover .yearTitle,
@@ -54,7 +55,7 @@
 }
 
 .monthsCanvas {
-  pointer-events: none;
+  pointer-events: auto;
   cursor: default;
 }
 

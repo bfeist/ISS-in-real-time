@@ -11,7 +11,6 @@ interface DateTooltipProps {
   hoveredDate: string | null;
   cursorPosition: { x: number; y: number } | null;
   isTouchInteraction: boolean;
-  showTimelineYears: boolean;
   onTouchGo: () => void;
   onTouchCancel: () => void;
   containerRef: React.RefObject<HTMLDivElement>;
@@ -21,7 +20,6 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
   hoveredDate,
   cursorPosition,
   isTouchInteraction,
-  showTimelineYears,
   onTouchGo,
   onTouchCancel,
   containerRef,
@@ -60,7 +58,7 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
 
   // Calculate tooltip position
   const getTooltipStyle = useCallback((): React.CSSProperties => {
-    if (!cursorPosition || !hoveredDate || !showTimelineYears) {
+    if (!cursorPosition || !hoveredDate) {
       return { pointerEvents: "none", visibility: "hidden" };
     }
 
@@ -117,14 +115,7 @@ const DateTooltip: FunctionComponent<DateTooltipProps> = ({
       visibility: "visible",
       pointerEvents: isTouchInteraction ? "auto" : "none", // Enable pointer events for touch interactions
     };
-  }, [
-    cursorPosition,
-    hoveredDate,
-    isTouchInteraction,
-    showTimelineYears,
-    containerRef,
-    hasCommData,
-  ]);
+  }, [cursorPosition, hoveredDate, isTouchInteraction, containerRef, hasCommData]);
 
   return (
     <div ref={tooltipRef} className={styles.dateTooltip} style={getTooltipStyle()}>

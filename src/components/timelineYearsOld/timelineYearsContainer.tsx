@@ -603,7 +603,6 @@ const TimelineYearsContainer: FunctionComponent = (): JSX.Element => {
         hoveredDate={hoveredDate}
         cursorPosition={cursorPosition}
         isTouchInteraction={isTouchInteraction}
-        showTimelineYears={showTimelineYears}
         onTouchGo={handleTouchGo}
         onTouchCancel={handleTouchCancel}
         containerRef={containerRef}

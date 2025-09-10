@@ -212,7 +212,6 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             onMouseEnter={handleMegaOverlayMouseEnter}
             onMouseLeave={handleMegaOverlayMouseLeave}
             forceRedraw={forceRedrawCounter}
-            showTimelineYears={showTimelineYears}
           />
         )}
       </div>
