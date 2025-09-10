@@ -1,16 +1,16 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import styles from "./timelineYears2.module.css";
 import { useStateToggle } from "../../store/hooks/useStateToggle";
-import { useStateHover } from "../../store/hooks/useStateHover";
 import { useStateClock } from "../../store/hooks/useStateClock";
 import SearchComponent from "./subcomponents/searchComponent";
+import DateTooltip from "./subcomponents/dateTooltip/dateTooltip";
 
 // Constants from the original HTML
 const START_YEAR = 2000;
 const END_YEAR = 2025;
 const MONTH_GAP = 1;
 const ROW_GAP = 1;
-const YEAR_GAP = "2px"; // done in css
+const YEAR_GAP = "3px"; // done in css
 
 // Color constants
 const COLOR = {
@@ -223,6 +223,7 @@ const MegaYearOverlay: React.FC<{
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   forceRedraw?: number;
+  showTimelineYears: boolean;
 }> = ({
   year,
   position,
@@ -232,9 +233,14 @@ const MegaYearOverlay: React.FC<{
   onMouseEnter,
   onMouseLeave,
   forceRedraw,
+  showTimelineYears,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isTouchInteraction, setIsTouchInteraction] = useState(false);
+  const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
 
   // Constants for mega overlay layout - make squares square
   const cellGap = 1;
@@ -301,6 +307,40 @@ const MegaYearOverlay: React.FC<{
     const dateStr = getMegaDateFromCoordinates(x, y, year, position.width);
     onHover(dateStr);
     setHoveredDate(dateStr);
+
+    // Update cursor position for tooltip
+    setCursorPosition({ x: event.clientX, y: event.clientY });
+
+    // Reset touch interaction flag when mouse is used
+    setIsTouchInteraction(false);
+  };
+
+  const handleTouchStart = (_event: React.TouchEvent<HTMLDivElement>) => {
+    setIsTouchInteraction(true);
+  };
+
+  const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!onHover || event.touches.length === 0) return;
+
+    const overlay = event.currentTarget;
+    const rect = overlay.getBoundingClientRect();
+    const touch = event.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    const dateStr = getMegaDateFromCoordinates(x, y, year, position.width);
+    onHover(dateStr);
+    setHoveredDate(dateStr);
+
+    // Update cursor position for tooltip
+    setCursorPosition({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchEnd = (_event: React.TouchEvent<HTMLDivElement>) => {
+    // Keep tooltip visible for touch interactions until explicitly cancelled
+    if (!pendingTouchDate && hoveredDate) {
+      setPendingTouchDate(hoveredDate);
+    }
   };
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -315,10 +355,25 @@ const MegaYearOverlay: React.FC<{
     if (dateStr) onClick(dateStr);
   };
 
+  const handleTouchGo = useCallback(() => {
+    if (pendingTouchDate && onClick) {
+      onClick(pendingTouchDate);
+      setPendingTouchDate(null);
+      setIsTouchInteraction(false);
+    }
+  }, [pendingTouchDate, onClick]);
+
+  const handleTouchCancel = useCallback(() => {
+    setPendingTouchDate(null);
+    setIsTouchInteraction(false);
+    setCursorPosition(null);
+  }, []);
+
   const handleMouseLeave = () => {
     if (onHover) onHover(null);
     if (onMouseLeave) onMouseLeave();
     setHoveredDate(null);
+    setCursorPosition(null);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -338,6 +393,7 @@ const MegaYearOverlay: React.FC<{
 
   return (
     <div
+      ref={overlayRef}
       className={styles.yearOverlay}
       style={{
         left: position.left,
@@ -351,6 +407,9 @@ const MegaYearOverlay: React.FC<{
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onMouseEnter={onMouseEnter}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role="grid"
@@ -360,6 +419,16 @@ const MegaYearOverlay: React.FC<{
       <canvas
         ref={canvasRef}
         style={{ width: "100%", height: `${totalHeight}px`, pointerEvents: "none" }}
+      />
+      {/* Date Tooltip for this overlay */}
+      <DateTooltip
+        hoveredDate={hoveredDate}
+        cursorPosition={cursorPosition}
+        isTouchInteraction={isTouchInteraction}
+        showTimelineYears={showTimelineYears}
+        onTouchGo={handleTouchGo}
+        onTouchCancel={handleTouchCancel}
+        containerRef={overlayRef}
       />
     </div>
   );
@@ -402,11 +471,13 @@ interface TimelineYears2Props {
 const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDate }) => {
   // Global state hooks
   const { showTimelineYears } = useStateToggle();
-  const { setHoveredDate } = useStateHover();
   const { setSelectedDate } = useStateClock();
 
   // State to force redraw when timeline becomes visible
   const [forceRedrawCounter, setForceRedrawCounter] = useState(0);
+
+  // Container ref for tooltip positioning
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Force redraw when timeline becomes visible
   useEffect(() => {
@@ -415,13 +486,10 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDat
     }
   }, [showTimelineYears]);
 
-  // Handle date hover using global state
-  const handleDateHover = useCallback(
-    (dateStr: string | null) => {
-      setHoveredDate(dateStr);
-    },
-    [setHoveredDate]
-  );
+  // Handle date hover - no-op since MegaYearOverlay manages its own tooltip
+  const handleDateHover = useCallback((_dateStr: string | null) => {
+    // No-op - tooltip is managed within MegaYearOverlay
+  }, []);
 
   // Handle date click using global state with touch device logic
   const handleDateClick = useCallback(
@@ -445,8 +513,6 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDat
   const [megaOverlayYear, setMegaOverlayYear] = useState<number | null>(null);
   const [megaOverlayPosition, setMegaOverlayPosition] = useState({ left: 0, top: 0, width: 0 });
   const [isOverMegaOverlay, setIsOverMegaOverlay] = useState(false);
-
-  const yearsTimelineRef = useRef<HTMLDivElement>(null);
 
   const years = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, i) => START_YEAR + i);
   const selectedYearEl = selectedDate ? new Date(selectedDate).getFullYear() : null;
@@ -476,13 +542,13 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDat
   const showMegaOverlay = (yearIndex: number) => {
     const year = years[yearIndex];
 
-    if (!yearsTimelineRef.current) return;
+    if (!containerRef.current) return;
 
-    const yearElements = yearsTimelineRef.current.querySelectorAll(`.${styles.year}`);
+    const yearElements = containerRef.current.querySelectorAll(`.${styles.year}`);
     const yearEl = yearElements[yearIndex] as HTMLElement;
     if (!yearEl) return;
 
-    const yearsTimelineRect = yearsTimelineRef.current.getBoundingClientRect();
+    const yearsTimelineRect = containerRef.current.getBoundingClientRect();
     const yearRect = yearEl.getBoundingClientRect();
 
     // Position overlay to center on the year element - use 2x width
@@ -499,43 +565,46 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDat
   };
 
   return (
-    <div
-      className={`${styles.yearsTimeline} ${!showTimelineYears ? styles.isCollapsed : ""}`}
-      ref={yearsTimelineRef}
-    >
-      <div className={styles.years} style={{ gap: YEAR_GAP }}>
-        {years.map((year, index) => (
-          <YearCanvas
-            key={year}
-            year={year}
-            index={index}
-            isActive={hoveredYearIndex === index}
-            isSelected={selectedYearEl === year}
+    <>
+      <div
+        className={`${styles.yearsTimeline} ${!showTimelineYears ? styles.isCollapsed : ""}`}
+        ref={containerRef}
+      >
+        <div className={styles.years} style={{ gap: YEAR_GAP }}>
+          {years.map((year, index) => (
+            <YearCanvas
+              key={year}
+              year={year}
+              index={index}
+              isActive={hoveredYearIndex === index}
+              isSelected={selectedYearEl === year}
+              highlights={highlights}
+              onHover={handleDateHover}
+              onClick={handleDateClick}
+              onYearHover={handleYearHover}
+              onYearLeave={handleYearLeave}
+              forceRedraw={forceRedrawCounter}
+            />
+          ))}
+        </div>
+        <SearchComponent />
+
+        {/* Mega Overlay */}
+        {megaOverlayVisible && megaOverlayYear && (
+          <MegaYearOverlay
+            year={megaOverlayYear}
+            position={megaOverlayPosition}
             highlights={highlights}
             onHover={handleDateHover}
             onClick={handleDateClick}
-            onYearHover={handleYearHover}
-            onYearLeave={handleYearLeave}
+            onMouseEnter={handleMegaOverlayMouseEnter}
+            onMouseLeave={handleMegaOverlayMouseLeave}
             forceRedraw={forceRedrawCounter}
+            showTimelineYears={showTimelineYears}
           />
-        ))}
+        )}
       </div>
-      <SearchComponent />
-
-      {/* Mega Overlay */}
-      {megaOverlayVisible && megaOverlayYear && (
-        <MegaYearOverlay
-          year={megaOverlayYear}
-          position={megaOverlayPosition}
-          highlights={highlights}
-          onHover={handleDateHover}
-          onClick={handleDateClick}
-          onMouseEnter={handleMegaOverlayMouseEnter}
-          onMouseLeave={handleMegaOverlayMouseLeave}
-          forceRedraw={forceRedrawCounter}
-        />
-      )}
-    </div>
+    </>
   );
 };
 
