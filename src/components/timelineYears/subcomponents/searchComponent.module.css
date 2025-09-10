@@ -2,49 +2,31 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100%;
-}
-
-.searchItems {
-  display: flex;
-  flex-direction: row;
-  flex: 1;
-  height: 200px;
-  overflow: hidden;
-}
-
-.searchItem {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
   align-items: flex-start;
-  width: 25%;
-  padding: 0 10px;
-  box-sizing: border-box;
-  overflow: hidden;
-  font-size: 0.9rem;
-  border-right: 1px solid #cccccc;
-}
-
-.contentHeading {
-  font-size: 1rem;
-  font-weight: bold;
-  margin-bottom: 5px;
+  height: auto;
+  min-height: 35px;
+  background-color: var(--grey2);
+  font-size: 0.8em;
 }
 
 .checkboxContainer {
-  width: 100%;
-  height: 170px; /* Leaving space for the heading and subtitle */
-  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 0 10px;
 }
 
 .checkboxLabel {
-  display: block;
-  margin-bottom: 3px;
-  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .checkboxLabel input[type="checkbox"] {
-  margin-right: 6px;
+  margin-right: 4px;
 }

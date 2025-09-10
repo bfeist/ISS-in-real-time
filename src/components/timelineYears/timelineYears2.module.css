@@ -1,5 +1,4 @@
 :root {
-  --year-gap: 4.5px;
   --panel: #292b3a;
   --hi-orange: #ffb156;
   --hi-yellow: #ffd84d;
@@ -17,7 +16,6 @@
   position: relative;
   z-index: 5;
   display: flex;
-  gap: var(--year-gap);
   align-items: flex-start;
   overflow: visible;
 }

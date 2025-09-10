@@ -11,33 +11,25 @@ const SearchComponent: FunctionComponent = () => {
     { key: "comm", label: "Comm" },
     { key: "vvComm", label: "Comm (visiting vehicle)" },
     { key: "video", label: "Video" },
-    { key: "eva", label: "EVA" },
+    { key: "eva", label: "EVA (spacewalk)" },
     { key: "blog", label: "Articles" },
     { key: "earthPhotography", label: "Earth Photography" },
   ];
 
   return (
     <div className={styles.searchContainer}>
-      <div className={styles.searchItems}>
-        <div className={styles.searchItem} style={{ flex: "0 0 190px" }}>
-          <div className={styles.contentHeading}>Content Highlights</div>
-          <div>Days with (all):</div>
-          <div className={styles.checkboxContainer}>
-            {contentTypes.map((contentType) => (
-              <label key={contentType.key} className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={contentHighlights.includes(contentType.key)}
-                  onChange={() => toggleContentHighlight(contentType.key)}
-                />
-                {contentType.label}
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className={styles.searchItem}>
-          <CrewSearch />
-        </div>
+      <div className={styles.checkboxContainer}>
+        <div>Days with (all):</div>
+        {contentTypes.map((contentType) => (
+          <label key={contentType.key} className={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={contentHighlights.includes(contentType.key)}
+              onChange={() => toggleContentHighlight(contentType.key)}
+            />
+            {contentType.label}
+          </label>
+        ))}
       </div>
     </div>
   );

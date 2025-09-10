@@ -3,12 +3,14 @@ import styles from "./timelineYears2.module.css";
 import { useStateToggle } from "../../store/hooks/useStateToggle";
 import { useStateHover } from "../../store/hooks/useStateHover";
 import { useStateClock } from "../../store/hooks/useStateClock";
+import SearchComponent from "./subcomponents/searchComponent";
 
 // Constants from the original HTML
 const START_YEAR = 2000;
 const END_YEAR = 2025;
 const MONTH_GAP = 1;
 const ROW_GAP = 1;
+const YEAR_GAP = "2px"; // done in css
 
 // Color constants
 const COLOR = {
@@ -501,7 +503,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDat
       className={`${styles.yearsTimeline} ${!showTimelineYears ? styles.isCollapsed : ""}`}
       ref={yearsTimelineRef}
     >
-      <div className={styles.years}>
+      <div className={styles.years} style={{ gap: YEAR_GAP }}>
         {years.map((year, index) => (
           <YearCanvas
             key={year}
@@ -518,6 +520,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDat
           />
         ))}
       </div>
+      <SearchComponent />
 
       {/* Mega Overlay */}
       {megaOverlayVisible && megaOverlayYear && (
