@@ -430,7 +430,7 @@ def parse_video_filename(filename):
     """
     Parse video filename to extract metadata.
     Expected format: YYYY-MM-DDTHH-MM-SS_videoId(11chars)_height(3chars)_title.mp4
-    Returns: (published_date, video_id, title, height)
+    Returns: (ytStartTime, video_id, title, height)
     """
     try:
         basename = os.path.splitext(filename)[0]
@@ -450,14 +450,14 @@ def parse_video_filename(filename):
         if basename[35] != "_":
             raise ValueError(f"Invalid separator after height in filename: {filename}")
         title = basename[36:]
-        published_date = datetime.strptime(date_str, "%Y-%m-%dT%H-%M-%S")
-        return published_date, video_id, title, height_str
+        ytStartTime = datetime.strptime(date_str, "%Y-%m-%dT%H-%M-%S")
+        return ytStartTime, video_id, title, height_str
     except Exception as e:
         logger.error(f"Failed to parse filename '{filename}': {e}")
         return None, None, None, None
 
 
-def run_transcription_with_vad(model, video_path, video_id, published_date, title):
+def run_transcription_with_vad(model, video_path, video_id, ytStartTime, title):
     """
     Transcribe a video file using VAD-based segmentation (matching comm script approach).
     Returns list of transcribed segments in the daily transcript format.
@@ -472,7 +472,7 @@ def run_transcription_with_vad(model, video_path, video_id, published_date, titl
             return None
 
         # Create VAD segmenter
-        segmenter = VideoAudioSegmenter(wav_path, published_date, video_id, model)
+        segmenter = VideoAudioSegmenter(wav_path, ytStartTime, video_id, model)
 
         try:
             # Process with VAD segmentation
@@ -505,7 +505,7 @@ def process_video_file(model, video_path):
     logger.info(f"Processing video: {video_path.name}")
 
     # Parse filename to extract metadata
-    published_date, video_id, title, height = parse_video_filename(video_path.name)
+    ytStartTime, video_id, title, height = parse_video_filename(video_path.name)
 
     if not video_id:
         logger.error(f"Could not parse video filename: {video_path.name}")
@@ -526,7 +526,7 @@ def process_video_file(model, video_path):
 
     # Transcribe the video using VAD-based approach
     vad_segments = run_transcription_with_vad(
-        model, video_path, video_id, published_date, title
+        model, video_path, video_id, ytStartTime, title
     )
 
     if not vad_segments:
@@ -566,7 +566,7 @@ def check_existing_transcripts(video_files):
     skipped_launch = 0
 
     for video_path in video_files:
-        published_date, video_id, title, height = parse_video_filename(video_path.name)
+        ytStartTime, video_id, title, height = parse_video_filename(video_path.name)
 
         if not video_id:
             continue

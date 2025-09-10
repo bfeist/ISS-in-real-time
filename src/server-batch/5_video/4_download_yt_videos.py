@@ -39,21 +39,21 @@ def sanitize_title(title):
 
 # Download each video
 for video in videos:
-    published_at = video["publishedAt"].replace("Z", "").replace(":", "-") + "_"
+    ytStartTime = video["ytStartTime"].replace("Z", "").replace(":", "-") + "_"
     video_id = video["videoId"]
     title = sanitize_title(video["title"])
 
     # Calculate expected filename length and truncate title if necessary
     expected_len = (
-        len(published_at) + 1 + len(video_id) + 1 + 4 + 1 + len(title) + 4
+        len(ytStartTime) + 1 + len(video_id) + 1 + 4 + 1 + len(title) + 4
     )  # assuming height is 4 chars, .mp4
     if expected_len > 255:
-        max_title_len = 255 - (len(published_at) + 1 + len(video_id) + 1 + 4 + 1 + 4)
+        max_title_len = 255 - (len(ytStartTime) + 1 + len(video_id) + 1 + 4 + 1 + 4)
         title = title[:max_title_len]
 
     # Construct output template
     output_template = (
-        f"{DOWNLOAD_FOLDER}\\{published_at}{video_id}_%(height)s_{title}.mp4"
+        f"{DOWNLOAD_FOLDER}\\{ytStartTime}{video_id}_%(height)s_{title}.mp4"
     )
 
     # yt-dlp options

@@ -541,10 +541,14 @@ def process_youtube_transcript(
             title,
             datetime.now(),
             {},
-            success=False,
-            failure_reason=f"Video already processed previously (status: {existing_log.get('processingStatus', 'unknown')})",
+            success=True,  # Not a failure, already processed
+            failure_reason="",  # No failure reason
         )
-        return False, log_entry
+        log_entry["processingStatus"] = "already_processed"
+        log_entry["processingNotes"] = (
+            f"Video already processed previously (status: {existing_log.get('processingStatus', 'unknown')})"
+        )
+        return True, log_entry
 
     # Find the recording entry for this video
     recording_entry = find_recording_by_video_id(recordings, video_id)
@@ -573,10 +577,14 @@ def process_youtube_transcript(
             title,
             datetime.now(),
             {},
-            success=False,
-            failure_reason=f"Recording already has derivedStartTime: {recording_entry['derivedStartTime']}",
+            success=True,  # Not a failure, already processed
+            failure_reason="",  # No failure reason
         )
-        return False, log_entry
+        log_entry["processingStatus"] = "already_processed"
+        log_entry["processingNotes"] = (
+            f"Recording already has derivedStartTime: {recording_entry['derivedStartTime']}"
+        )
+        return True, log_entry
 
     # Load YouTube transcript
     print(f"\nLoading YouTube transcript...")

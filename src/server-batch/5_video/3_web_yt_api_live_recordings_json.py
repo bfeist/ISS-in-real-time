@@ -89,6 +89,19 @@ def main():
     # these are most likey to be timeable in context
     live_videos, raw_search = get_live_videos(CHANNEL_ID, API_KEY)
 
+    existing_videos = []
+    videoYt_path = f"{WEB_ASSETS_FOLDER}/videoYt.json"
+    if os.path.exists(videoYt_path):
+        try:
+            with open(videoYt_path, "r", encoding="utf-8") as f:
+                existing_videos = json.load(f)
+        except Exception as e:
+            print(f"Error loading existing videoYt.json: {e}")
+
+    existing_video_ids = {v.get("videoId") for v in existing_videos if v.get("videoId")}
+
+    live_videos = [v for v in live_videos if v["videoId"] not in existing_video_ids]
+
     # sort the videos by publishedAt
     live_videos = sorted(live_videos, key=lambda x: x["publishedAt"])
 
@@ -154,6 +167,8 @@ def main():
         ):
             filtered_videos.append(video)
 
+    all_videos = existing_videos + filtered_videos
+
     os.makedirs(RAW_FOLDER, exist_ok=True)
     with open(
         os.path.join(RAW_FOLDER, "videoYt_raw_log.json"),
@@ -168,7 +183,7 @@ def main():
         )
 
     with open(f"{WEB_ASSETS_FOLDER}/videoYt.json", "w", encoding="utf-8") as f:
-        json.dump(filtered_videos, f, ensure_ascii=False, indent=4)
+        json.dump(all_videos, f, ensure_ascii=False, indent=4)
 
 
 if __name__ == "__main__":
