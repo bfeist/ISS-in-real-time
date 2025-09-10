@@ -210,6 +210,7 @@ const MegaYearOverlay: React.FC<{
   onMouseLeave?: () => void;
 }> = ({ year, position, highlights, onHover, onClick, onMouseEnter, onMouseLeave }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
   // Constants for mega overlay layout - make squares square
   const cellGap = 1;
@@ -253,10 +254,17 @@ const MegaYearOverlay: React.FC<{
 
           ctx.fillStyle = color;
           ctx.fillRect(x, y, cellWidth, cellSize);
+
+          // If this is the hovered date, draw red border
+          if (dateStr === hoveredDate) {
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, cellWidth, cellSize);
+          }
         }
       }
     }
-  }, [year, position, highlights, cellWidth, cellSize, totalHeight]);
+  }, [year, position, highlights, cellWidth, cellSize, totalHeight, hoveredDate]);
 
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!onHover) return;
@@ -268,6 +276,7 @@ const MegaYearOverlay: React.FC<{
 
     const dateStr = getMegaDateFromCoordinates(x, y, year, position.width);
     onHover(dateStr, event.nativeEvent);
+    setHoveredDate(dateStr);
   };
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -285,6 +294,7 @@ const MegaYearOverlay: React.FC<{
   const handleMouseLeave = () => {
     if (onHover) onHover(null);
     if (onMouseLeave) onMouseLeave();
+    setHoveredDate(null);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
