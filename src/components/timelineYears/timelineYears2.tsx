@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import styles from "./timelineYears2.module.css";
+import { useStateToggle } from "../../store/hooks/useStateToggle";
+import { useStateHover } from "../../store/hooks/useStateHover";
+import { useStateClock } from "../../store/hooks/useStateClock";
 
 // Constants from the original HTML
 const START_YEAR = 2000;
@@ -25,7 +28,7 @@ interface YearCanvasProps {
   isActive?: boolean;
   isSelected?: boolean;
   highlights: Map<string, string>;
-  onHover?: (dateStr: string | null, event?: MouseEvent) => void;
+  onHover?: (dateStr: string | null) => void;
   onClick?: (dateStr: string) => void;
   onYearHover?: (yearIndex: number) => void;
   onYearLeave?: () => void;
@@ -117,7 +120,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
 
     // Calculate which date was hovered (simplified)
     const dateStr = getDateFromCoordinates(x, y, year, rect.width, rect.height);
-    onHover(dateStr, event.nativeEvent);
+    onHover(dateStr);
   };
 
   const handleMouseLeave = () => {
@@ -204,7 +207,7 @@ const MegaYearOverlay: React.FC<{
   year: number;
   position: { left: number; top: number; width: number };
   highlights: Map<string, string>;
-  onHover?: (dateStr: string | null, event?: MouseEvent) => void;
+  onHover?: (dateStr: string | null) => void;
   onClick?: (dateStr: string) => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -275,7 +278,7 @@ const MegaYearOverlay: React.FC<{
     const y = event.clientY - rect.top;
 
     const dateStr = getMegaDateFromCoordinates(x, y, year, position.width);
-    onHover(dateStr, event.nativeEvent);
+    onHover(dateStr);
     setHoveredDate(dateStr);
   };
 
@@ -364,20 +367,41 @@ const getMegaDateFromCoordinates = (
 // Props interface for the TimelineYears2 component
 interface TimelineYears2Props {
   highlights: Map<string, string>;
-  selectedDate: Date | null;
-  isCollapsed: boolean;
-  onDateHover: (dateStr: string | null, event?: MouseEvent) => void;
-  onDateClick: (dateStr: string) => void;
+  selectedDate: string | null;
 }
 
 // Main TimelineYears2 component
-const TimelineYears2: React.FC<TimelineYears2Props> = ({
-  highlights,
-  selectedDate,
-  isCollapsed,
-  onDateHover,
-  onDateClick,
-}) => {
+const TimelineYears2: React.FC<TimelineYears2Props> = ({ highlights, selectedDate }) => {
+  // Global state hooks
+  const { showTimelineYears } = useStateToggle();
+  const { setHoveredDate } = useStateHover();
+  const { setSelectedDate } = useStateClock();
+
+  // Handle date hover using global state
+  const handleDateHover = useCallback(
+    (dateStr: string | null) => {
+      setHoveredDate(dateStr);
+    },
+    [setHoveredDate]
+  );
+
+  // Handle date click using global state with touch device logic
+  const handleDateClick = useCallback(
+    (dateStr: string) => {
+      // Check if this is a touch device
+      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
+      // For touch devices, don't auto-select on click - require using the Go button
+      if (isTouchDevice) {
+        return;
+      }
+
+      // For mouse devices, proceed with normal click behavior
+      setSelectedDate(dateStr);
+    },
+    [setSelectedDate]
+  );
+
   const [hoveredYearIndex, setHoveredYearIndex] = useState<number | null>(null);
   const [megaOverlayVisible, setMegaOverlayVisible] = useState(false);
   const [megaOverlayYear, setMegaOverlayYear] = useState<number | null>(null);
@@ -387,7 +411,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const yearsTimelineRef = useRef<HTMLDivElement>(null);
 
   const years = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, i) => START_YEAR + i);
-  const selectedYearEl = selectedDate?.getFullYear() || null;
+  const selectedYearEl = selectedDate ? new Date(selectedDate).getFullYear() : null;
 
   const handleYearHover = (yearIndex: number) => {
     setHoveredYearIndex(yearIndex);
@@ -438,7 +462,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
   return (
     <div
-      className={`${styles.yearsTimeline} ${isCollapsed ? styles.isCollapsed : ""}`}
+      className={`${styles.yearsTimeline} ${!showTimelineYears ? styles.isCollapsed : ""}`}
       ref={yearsTimelineRef}
     >
       <div className={styles.years}>
@@ -450,8 +474,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             isActive={hoveredYearIndex === index}
             isSelected={selectedYearEl === year}
             highlights={highlights}
-            onHover={onDateHover}
-            onClick={onDateClick}
+            onHover={handleDateHover}
+            onClick={handleDateClick}
             onYearHover={handleYearHover}
             onYearLeave={handleYearLeave}
           />
@@ -464,8 +488,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
           year={megaOverlayYear}
           position={megaOverlayPosition}
           highlights={highlights}
-          onHover={onDateHover}
-          onClick={onDateClick}
+          onHover={handleDateHover}
+          onClick={handleDateClick}
           onMouseEnter={handleMegaOverlayMouseEnter}
           onMouseLeave={handleMegaOverlayMouseLeave}
         />

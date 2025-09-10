@@ -11,6 +11,10 @@ import TimelineYears2 from "./timelineYears2";
 import DateTooltip from "./subcomponents/dateTooltip/dateTooltip";
 import styles from "./timelineYears2Container.module.css";
 import { useGeneralDataAvailabilities } from "../../api/useGeneralData";
+import { useStateClock } from "../../store/hooks/useStateClock";
+import { useStateContentHighlights } from "../../store/hooks/useStateContentHighlights";
+import { useStateToggle } from "../../store/hooks/useStateToggle";
+import { useStateHover } from "../../store/hooks/useStateHover";
 
 // Constants for year range and colors (from testtimeline.tsx)
 const START_YEAR = 2000;
@@ -23,25 +27,17 @@ const DATA_COLORS = {
   commData: "#7a7ea5",
 };
 
-// Props interface for the container
-interface TimelineYears2ContainerProps {
-  selectedDate: Date | null;
-  isCollapsed: boolean;
-  onDateClick: (dateStr: string) => void;
-  externalHighlights?: Map<string, string>; // Allow external manual highlights to be passed in
-}
+const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
+  // Global state hooks
+  const { selectedDate, setSelectedDate } = useStateClock();
+  const { contentHighlights } = useStateContentHighlights();
+  const { showTimelineYears } = useStateToggle();
+  const { hoveredDate } = useStateHover();
 
-const TimelineYears2Container: FunctionComponent<TimelineYears2ContainerProps> = ({
-  selectedDate,
-  isCollapsed,
-  onDateClick,
-  externalHighlights = new Map(),
-}): JSX.Element => {
   // Fetch data availability
   const { data: dataAvailabilityItems, isLoading, error } = useGeneralDataAvailabilities();
 
   // State for hover and tooltip management
-  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [isTouchInteraction, setIsTouchInteraction] = useState(false);
   const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
@@ -83,81 +79,62 @@ const TimelineYears2Container: FunctionComponent<TimelineYears2ContainerProps> =
     return dataHighlights;
   }, [dataAvailabilityItems]);
 
-  // Combine external highlights with data availability highlights
+  // Combine content highlights with data availability highlights
   const combinedHighlights = useMemo(() => {
     const combined = new Map(dataAvailabilityHighlights);
 
-    // Override with external manual highlights (external highlights take priority)
-    externalHighlights.forEach((color, date) => {
-      combined.set(date, color);
-    });
+    // If we have contentHighlights selected, apply special highlighting
+    if (contentHighlights.length > 0 && dataAvailabilityItems) {
+      // Define highlight colors for content-highlighted dates
+      const CONTENT_HIGHLIGHT_COLOR = "#7bff7d"; // Green color for content highlights
+
+      // Check each date to see if it satisfies all content highlight criteria
+      dataAvailabilityItems.forEach((dayItem) => {
+        const dateStr = dayItem.date;
+
+        // Check if all content highlights are satisfied by this day's data
+        const satisfiesAllHighlights = contentHighlights.every((highlight) => {
+          switch (highlight.toLowerCase()) {
+            case "comm":
+              return dayItem.comm;
+            case "vvcomm":
+              return dayItem.vvComm;
+            case "video":
+              return dayItem.video;
+            case "eva":
+              return dayItem.eva;
+            case "blog":
+              return dayItem.blog || dayItem.activitySummary;
+            case "earthphotography":
+              return dayItem.earthPhotography;
+            default:
+              return false;
+          }
+        });
+
+        // If this date satisfies all content highlights, give it the special color
+        if (satisfiesAllHighlights) {
+          combined.set(dateStr, CONTENT_HIGHLIGHT_COLOR);
+        }
+      });
+    }
 
     return combined;
-  }, [dataAvailabilityHighlights, externalHighlights]);
-
-  // Handle date hover with cursor position tracking
-  const handleDateHover = useCallback((dateStr: string | null, event?: MouseEvent) => {
-    if (dateStr && event) {
-      // Check if this is a touch device
-      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-
-      if (isTouchDevice) {
-        // For touch devices, store as pending date instead of direct hover
-        setPendingTouchDate(dateStr);
-        setIsTouchInteraction(true);
-        setHoveredDate(dateStr);
-      } else {
-        // For mouse events, use normal hover behavior
-        setHoveredDate(dateStr);
-        setIsTouchInteraction(false);
-        setPendingTouchDate(null);
-      }
-
-      // Update cursor position
-      setCursorPosition({ x: event.clientX, y: event.clientY });
-    } else {
-      // Clear hover state when no date is hovered
-      setHoveredDate(null);
-      setCursorPosition(null);
-      setPendingTouchDate(null);
-      setIsTouchInteraction(false);
-    }
-  }, []);
-
-  // Handle date click
-  const handleDateClick = useCallback(
-    (dateStr: string) => {
-      // Check if this is a touch device
-      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-
-      // For touch devices, don't auto-select on click - require using the Go button
-      if (isTouchDevice) {
-        return;
-      }
-
-      // For mouse devices, proceed with normal click behavior
-      onDateClick(dateStr);
-    },
-    [onDateClick]
-  );
+  }, [dataAvailabilityHighlights, contentHighlights, dataAvailabilityItems]);
 
   // Handle touch "Go" button click
   const handleTouchGo = useCallback(() => {
     if (pendingTouchDate) {
-      onDateClick(pendingTouchDate);
+      setSelectedDate(pendingTouchDate);
       setPendingTouchDate(null);
       setIsTouchInteraction(false);
-      setHoveredDate(null);
-      setCursorPosition(null);
     }
-  }, [pendingTouchDate, onDateClick]);
+  }, [pendingTouchDate, setSelectedDate]);
 
   // Handle touch "Cancel" button click
   const handleTouchCancel = useCallback(() => {
     setPendingTouchDate(null);
     setIsTouchInteraction(false);
-    setHoveredDate(null);
-    setCursorPosition(null);
   }, []);
 
   // Container-scoped mouse and touch position tracking
@@ -248,20 +225,14 @@ const TimelineYears2Container: FunctionComponent<TimelineYears2ContainerProps> =
   return (
     <div className={styles.container} ref={containerRef}>
       {/* Main Timeline Component */}
-      <TimelineYears2
-        highlights={combinedHighlights}
-        selectedDate={selectedDate}
-        isCollapsed={isCollapsed}
-        onDateHover={handleDateHover}
-        onDateClick={handleDateClick}
-      />
+      <TimelineYears2 highlights={combinedHighlights} selectedDate={selectedDate} />
 
       {/* Date Tooltip */}
       <DateTooltip
         hoveredDate={hoveredDate}
         cursorPosition={cursorPosition}
         isTouchInteraction={isTouchInteraction}
-        showTimelineYears={true} // Always show tooltip for this component
+        showTimelineYears={showTimelineYears}
         onTouchGo={handleTouchGo}
         onTouchCancel={handleTouchCancel}
         containerRef={containerRef}
