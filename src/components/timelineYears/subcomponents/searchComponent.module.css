@@ -9,7 +9,7 @@
   font-size: 0.8em;
 }
 
-.checkboxContainer {
+.searchItems {
   flex: 1;
   display: flex;
   flex-direction: row;
@@ -29,4 +29,40 @@
 
 .checkboxLabel input[type="checkbox"] {
   margin-right: 4px;
+}
+
+.toggleButton {
+  background-color: var(--grey3);
+  border: 1px solid #4a5568;
+  border-radius: 4px;
+  color: white;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.toggleButton:hover {
+  background-color: var(--grey4);
+}
+
+.buttonWrapper {
+  position: relative;
+  display: inline-block;
+  margin-left: 10px;
+}
+
+.overlayPanel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: var(--grey2);
+  border: 1px solid #4a5568;
+  border-radius: 4px;
+  padding: 10px;
+  z-index: 10;
+  width: auto;
+  min-width: 400px;
+  max-width: 600px;
+  min-height: 200px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
 }
