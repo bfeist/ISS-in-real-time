@@ -50,13 +50,23 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
 
   const handleContainerMouseEnter = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
-    if (target.closest(`.${styles.yearHeader}`) && !showTimelineYears) {
+    // Always show overlay when hovering over year header, regardless of timeline state
+    if (target.closest(`.${styles.yearHeader}`)) {
+      if (onYearHover) onYearHover(index);
       return;
     }
-    if (onYearHover) onYearHover(index);
+    // For other parts of the container, only show overlay if timeline is expanded
+    if (showTimelineYears && onYearHover) {
+      onYearHover(index);
+    }
   };
 
-  const handleContainerMouseLeave = () => {
+  const handleContainerMouseLeave = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.relatedTarget as HTMLElement;
+    // Don't trigger leave if moving to another year header
+    if (target && target.closest("[data-year-index]")) {
+      return;
+    }
     if (onYearLeave) onYearLeave();
   };
 

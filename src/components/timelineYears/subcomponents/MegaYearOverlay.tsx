@@ -203,7 +203,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       if (onMouseLeave) onMouseLeave();
       setHoveredDate(null);
       setCursorPosition(null);
-    }, 100); // 150ms delay to prevent flicker
+    }, 50); // Reduced delay to 50ms to match year header timing
     setHideTimeout(timeout);
   };
 

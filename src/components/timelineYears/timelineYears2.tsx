@@ -43,6 +43,14 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const audioRef = useRef<HTMLAudioElement>(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
+  // Overlay state
+  const [hoveredYearIndex, setHoveredYearIndex] = useState<number | null>(null);
+  const [megaOverlayVisible, setMegaOverlayVisible] = useState(false);
+  const [megaOverlayYear, setMegaOverlayYear] = useState<number | null>(null);
+  const [megaOverlayPosition, setMegaOverlayPosition] = useState({ left: 0, top: 0, width: 0 });
+  const [isOverMegaOverlay, setIsOverMegaOverlay] = useState(false);
+  const [hideOverlayTimeout, setHideOverlayTimeout] = useState<NodeJS.Timeout | null>(null);
+
   // Force redraw when timeline becomes visible
   useEffect(() => {
     if (showTimelineYears) {
@@ -116,35 +124,66 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     };
   }, []);
 
-  const [hoveredYearIndex, setHoveredYearIndex] = useState<number | null>(null);
-  const [megaOverlayVisible, setMegaOverlayVisible] = useState(false);
-  const [megaOverlayYear, setMegaOverlayYear] = useState<number | null>(null);
-  const [megaOverlayPosition, setMegaOverlayPosition] = useState({ left: 0, top: 0, width: 0 });
-  const [isOverMegaOverlay, setIsOverMegaOverlay] = useState(false);
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hideOverlayTimeout) {
+        clearTimeout(hideOverlayTimeout);
+      }
+    };
+  }, [hideOverlayTimeout]);
 
   const years = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, i) => START_YEAR + i);
   const selectedYearEl = selectedDate ? new Date(selectedDate).getFullYear() : null;
 
   const handleYearHover = (yearIndex: number) => {
+    // Clear any pending hide timeout when hovering over a new year
+    if (hideOverlayTimeout) {
+      clearTimeout(hideOverlayTimeout);
+      setHideOverlayTimeout(null);
+    }
+
     setHoveredYearIndex(yearIndex);
     showMegaOverlay(yearIndex);
   };
 
   const handleYearLeave = () => {
-    if (!isOverMegaOverlay) {
-      setHoveredYearIndex(null);
-      setMegaOverlayVisible(false);
-    }
+    // Only hide overlay if we're not over it
+    // Use a longer delay to allow for smooth horizontal sliding between year headers
+    const timeout = setTimeout(() => {
+      if (!isOverMegaOverlay) {
+        setHoveredYearIndex(null);
+        setMegaOverlayVisible(false);
+        setMegaOverlayYear(null);
+      }
+    }, 150); // Increased delay for smoother transitions
+
+    setHideOverlayTimeout(timeout);
   };
 
   const handleMegaOverlayMouseEnter = () => {
+    // Clear any pending hide timeout when entering overlay
+    if (hideOverlayTimeout) {
+      clearTimeout(hideOverlayTimeout);
+      setHideOverlayTimeout(null);
+    }
     setIsOverMegaOverlay(true);
   };
 
   const handleMegaOverlayMouseLeave = () => {
     setIsOverMegaOverlay(false);
-    setMegaOverlayVisible(false);
-    setHoveredYearIndex(null);
+
+    // Use a delay to allow transition from overlay back to year headers
+    const timeout = setTimeout(() => {
+      // Only hide if we're truly not over any year header or overlay
+      if (!isOverMegaOverlay) {
+        setMegaOverlayVisible(false);
+        setHoveredYearIndex(null);
+        setMegaOverlayYear(null);
+      }
+    }, 100); // Slightly shorter delay since we're checking less conditions
+
+    setHideOverlayTimeout(timeout);
   };
 
   const showMegaOverlay = (yearIndex: number) => {
@@ -165,8 +204,9 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     const left = yearRect.left - yearsTimelineRect.left + yearRect.width / 2 - overlayWidth / 2;
 
     // Position overlay to start just below the year header, so the year title shows through
+    // Slight overlap to ensure smooth mouse transition
     const yearHeaderHeight = 25; // Height of the year header
-    const top = yearRect.top - yearsTimelineRect.top + yearHeaderHeight;
+    const top = yearRect.top - yearsTimelineRect.top + yearHeaderHeight - 2; // 2px overlap
 
     setMegaOverlayYear(year);
     setMegaOverlayPosition({ left, top, width: overlayWidth });

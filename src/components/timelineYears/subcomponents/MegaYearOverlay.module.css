@@ -5,6 +5,8 @@
   background: var(--grey1);
   cursor: default;
   overflow: visible;
+  border: 1px solid var(--grey3);
+  border-top: none; /* Remove top border to blend with year header */
 }
 
 .yearOverlay canvas {
