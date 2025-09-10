@@ -46,7 +46,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   // Global state hooks
   const { hoveredDate, setHoveredDate } = useStateHover();
   const { setSelectedDate } = useStateClock();
-  const { setShowTimelineYears } = useStateToggle();
+  const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
   // Handle date click using global state with touch device logic
   const handleDateClick = useCallback(
@@ -134,7 +134,9 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     const y = event.clientY - rect.top;
 
     const dateStr = getMegaDateFromCoordinates(x, y, year, position.width);
-    setHoveredDate(dateStr);
+    if (hoveredDate !== dateStr) {
+      setHoveredDate(dateStr);
+    }
 
     // Update cursor position for tooltip
     setCursorPosition({ x: event.clientX, y: event.clientY });
@@ -200,9 +202,9 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   const handleMouseLeave = () => {
     if (hideTimeout) clearTimeout(hideTimeout);
     const timeout = setTimeout(() => {
-      if (onMouseLeave) onMouseLeave();
       setHoveredDate(null);
       setCursorPosition(null);
+      onMouseLeave();
     }, 50); // Reduced delay to 50ms to match year header timing
     setHideTimeout(timeout);
   };
@@ -236,6 +238,8 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       if (hideTimeout) clearTimeout(hideTimeout);
     };
   }, [hideTimeout]);
+
+  if (!showTimelineYears) return null;
 
   return (
     <div

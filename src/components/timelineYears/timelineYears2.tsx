@@ -48,7 +48,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const [megaOverlayVisible, setMegaOverlayVisible] = useState(false);
   const [megaOverlayYear, setMegaOverlayYear] = useState<number | null>(null);
   const [megaOverlayPosition, setMegaOverlayPosition] = useState({ left: 0, top: 0, width: 0 });
-  const [isOverMegaOverlay, setIsOverMegaOverlay] = useState(false);
+  const isOverMegaOverlayRef = useRef(false);
   const [hideOverlayTimeout, setHideOverlayTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Force redraw when timeline becomes visible
@@ -124,15 +124,6 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     };
   }, []);
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hideOverlayTimeout) {
-        clearTimeout(hideOverlayTimeout);
-      }
-    };
-  }, [hideOverlayTimeout]);
-
   const years = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, i) => START_YEAR + i);
   const selectedYearEl = selectedDate ? new Date(selectedDate).getFullYear() : null;
 
@@ -151,7 +142,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     // Only hide overlay if we're not over it
     // Use a longer delay to allow for smooth horizontal sliding between year headers
     const timeout = setTimeout(() => {
-      if (!isOverMegaOverlay) {
+      if (!isOverMegaOverlayRef.current) {
         setHoveredYearIndex(null);
         setMegaOverlayVisible(false);
         setMegaOverlayYear(null);
@@ -167,16 +158,17 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       clearTimeout(hideOverlayTimeout);
       setHideOverlayTimeout(null);
     }
-    setIsOverMegaOverlay(true);
+    isOverMegaOverlayRef.current = true;
   };
 
   const handleMegaOverlayMouseLeave = () => {
-    setIsOverMegaOverlay(false);
+    isOverMegaOverlayRef.current = false;
 
     // Use a delay to allow transition from overlay back to year headers
     const timeout = setTimeout(() => {
       // Only hide if we're truly not over any year header or overlay
-      if (!isOverMegaOverlay) {
+      console.log("Checking to hide overlay:", isOverMegaOverlayRef.current);
+      if (!isOverMegaOverlayRef.current) {
         setMegaOverlayVisible(false);
         setHoveredYearIndex(null);
         setMegaOverlayYear(null);

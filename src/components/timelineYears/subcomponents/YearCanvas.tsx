@@ -25,7 +25,6 @@ interface YearCanvasProps {
   isActive?: boolean;
   isSelected?: boolean;
   highlights: Map<string, { fill: string; stroke?: string }>;
-  onHover?: (dateStr: string | null) => void;
   onYearHover?: (yearIndex: number) => void;
   onYearLeave?: () => void;
   forceRedraw?: number;
@@ -38,7 +37,6 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
   isActive,
   isSelected,
   highlights,
-  onHover,
   onYearHover,
   onYearLeave,
   forceRedraw,
@@ -131,21 +129,8 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
     }
   };
 
-  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !onHover) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-
-    // Calculate which date was hovered (simplified)
-    const dateStr = getDateFromCoordinates(x, y, year, rect.width, rect.height);
-    onHover(dateStr);
-  };
-
-  const handleMouseLeave = () => {
-    if (onHover) onHover(null);
+  const handleMouseMove = () => {
+    onYearHover(index);
   };
 
   useEffect(() => {
@@ -174,6 +159,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
       className={`${styles.year} ${isActive ? styles.active : ""} ${isSelected ? styles.selected : ""}`}
       onMouseEnter={handleContainerMouseEnter}
       onMouseLeave={handleContainerMouseLeave}
+      onMouseMove={handleMouseMove}
       data-year-index={index}
     >
       <div
@@ -194,42 +180,10 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
         className={styles.monthsCanvas}
         style={{ display: !showTimelineYears ? "none" : "block" }}
       >
-        <canvas
-          ref={canvasRef}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          style={{ width: "100%", height: "160px" }}
-        />
+        <canvas ref={canvasRef} style={{ width: "100%", height: "160px" }} />
       </div>
     </div>
   );
-};
-
-// Helper function to determine date from canvas coordinates
-const getDateFromCoordinates = (
-  x: number,
-  y: number,
-  year: number,
-  width: number,
-  height: number
-): string | null => {
-  const months = 12;
-  const maxDaysInMonth = 31;
-  const cellWidth = (width - (months - 1) * MONTH_GAP) / months;
-  const cellHeight = (height - (maxDaysInMonth - 1) * ROW_GAP) / maxDaysInMonth;
-
-  // Determine month
-  const month = Math.floor(x / (cellWidth + MONTH_GAP));
-  if (month < 0 || month >= months) return null;
-
-  // Determine day (no header offset for main calendar)
-  const day = Math.floor(y / (cellHeight + ROW_GAP)) + 1;
-
-  // Validate day exists in this month
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  if (day < 1 || day > daysInMonth) return null;
-
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 };
 
 export default YearCanvas;
