@@ -1,7 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import styles from "./testtimeline.module.css";
-import TimelineYears2 from "../components/timelineYears/timelineYears2";
-import { useGeneralDataAvailabilities } from "../api/useGeneralData";
+import TimelineYears2Container from "../components/timelineYears/timelineYears2Container";
 
 // Constants for year range
 const START_YEAR = 2000;
@@ -16,13 +15,6 @@ const COLOR = {
   hiOrange: "#ffb156",
 };
 
-// Data availability colors from timelineYearsDraw.ts
-const DATA_COLORS = {
-  noData: "#5b5d77",
-  someData: "#6d7090",
-  commData: "#7a7ea5",
-};
-
 // Main TestTimeline component
 const TestTimeline: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -33,18 +25,8 @@ const TestTimeline: React.FC = () => {
   const [isEditing, _setIsEditing] = useState(false);
   const [isEditingTime, _setIsEditingTime] = useState(false);
 
-  // Fetch data availability from the store
-  const { data: dataAvailabilityItems, isLoading: _isLoading } = useGeneralDataAvailabilities();
-
-  // yearsTimelineRef - not needed anymore but keeping for backward compatibility if used elsewhere
-
-  // Tooltip state
-  const [tooltipVisible, setTooltipVisible] = useState(false);
-  const [tooltipContent, setTooltipContent] = useState("");
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-
-  // Highlight toggles
-  const [highlights, setHighlights] = useState(new Map<string, string>());
+  // Manual highlight toggles for demo purposes
+  const [manualHighlights, setManualHighlights] = useState(new Map<string, string>());
   const [toggleStates, setToggleStates] = useState({
     yellowHighlight: false,
     cyanHighlight: false,
@@ -53,75 +35,9 @@ const TestTimeline: React.FC = () => {
     orangeHighlight: false,
   });
 
-  // Create data availability highlights from the actual data
-  const dataAvailabilityHighlights = useMemo(() => {
-    if (!dataAvailabilityItems) return new Map<string, string>();
-
-    const dataHighlights = new Map<string, string>();
-
-    // Generate highlights for all dates in the range
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
-      for (let month = 0; month < 12; month++) {
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        for (let day = 1; day <= daysInMonth; day++) {
-          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
-          // Find data for this date
-          const dayItem = dataAvailabilityItems.find((item) => item.date === dateStr);
-
-          // Apply the same color logic as timelineYearsDraw.ts
-          let dayColor: string;
-          if (!dayItem) {
-            dayColor = DATA_COLORS.noData;
-          } else if (dayItem.comm || dayItem.vvComm) {
-            dayColor = DATA_COLORS.commData; // Slightly brighter grey for comm data
-          } else {
-            dayColor = DATA_COLORS.someData;
-          }
-
-          dataHighlights.set(dateStr, dayColor);
-        }
-      }
-    }
-
-    return dataHighlights;
-  }, [dataAvailabilityItems]);
-
-  // Combine manual highlights with data availability highlights
-  const combinedHighlights = useMemo(() => {
-    const combined = new Map(dataAvailabilityHighlights);
-
-    // Override with manual highlights (manual highlights take priority)
-    highlights.forEach((color, date) => {
-      combined.set(date, color);
-    });
-
-    return combined;
-  }, [dataAvailabilityHighlights, highlights]);
-
   const handleDateClick = (dateStr: string) => {
     const date = new Date(dateStr + "T00:00:00");
     setSelectedDate(date);
-  };
-
-  const handleDateHover = (dateStr: string | null, event?: MouseEvent) => {
-    if (dateStr && event) {
-      setTooltipContent(formatTooltipContent(dateStr));
-      setTooltipPosition({ x: event.clientX, y: event.clientY });
-      setTooltipVisible(true);
-    } else {
-      setTooltipVisible(false);
-    }
-  };
-
-  const formatTooltipContent = (dateStr: string): string => {
-    const date = new Date(dateStr + "T00:00:00");
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
   };
 
   const formatLabel = (date: Date | null): string => {
@@ -160,7 +76,7 @@ const TestTimeline: React.FC = () => {
 
     // Simple random highlighting for demo
     if (!toggleStates[key]) {
-      const newHighlights = new Map(highlights);
+      const newHighlights = new Map(manualHighlights);
       for (let i = 0; i < 50; i++) {
         // Add 50 random dates
         const year = START_YEAR + Math.floor(Math.random() * (END_YEAR - START_YEAR + 1));
@@ -169,16 +85,16 @@ const TestTimeline: React.FC = () => {
         const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         newHighlights.set(dateStr, color);
       }
-      setHighlights(newHighlights);
+      setManualHighlights(newHighlights);
     } else {
       // Remove highlights of this color
       const newHighlights = new Map();
-      highlights.forEach((value, key) => {
+      manualHighlights.forEach((value, key) => {
         if (value !== color) {
           newHighlights.set(key, value);
         }
       });
-      setHighlights(newHighlights);
+      setManualHighlights(newHighlights);
     }
   };
 
@@ -197,12 +113,11 @@ const TestTimeline: React.FC = () => {
         </header>
 
         {/* Years Timeline */}
-        <TimelineYears2
-          highlights={combinedHighlights}
+        <TimelineYears2Container
           selectedDate={selectedDate}
           isCollapsed={isCollapsed}
-          onDateHover={handleDateHover}
           onDateClick={handleDateClick}
+          externalHighlights={manualHighlights}
         />
 
         {/* Controls */}
@@ -332,20 +247,6 @@ const TestTimeline: React.FC = () => {
           {isCollapsed ? "Open" : "Close"}
         </button>
       </div>
-
-      {/* Tooltip */}
-      {tooltipVisible && (
-        <div
-          className={`${styles.cursorTip} ${styles.on} ${styles.below}`}
-          style={{
-            left: tooltipPosition.x,
-            top: tooltipPosition.y - 40,
-            transform: "translateX(-50%) translateY(200%)",
-          }}
-        >
-          <span className={styles.tipDate}>{tooltipContent}</span>
-        </div>
-      )}
     </div>
   );
 };

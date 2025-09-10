@@ -1,0 +1,21 @@
+.container {
+  position: relative;
+  width: 100%;
+}
+
+.loadingMessage,
+.errorMessage,
+.noDataMessage {
+  padding: 20px;
+  text-align: center;
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+.errorMessage {
+  color: #fc8181;
+}
+
+.noDataMessage {
+  color: #a0aec0;
+}
