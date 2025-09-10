@@ -9,19 +9,18 @@ import {
   faVolumeUp,
   faVolumeMute,
   faClose,
-  faChevronUp,
-  faChevronDown,
 } from "@fortawesome/free-solid-svg-icons";
 import IconButton from "../../common/iconButton";
 import ShareButton from "./share";
 import HeaderTelemetry from "./headerTelemetry";
 import ClockInterval from "../../panes/clockInterval";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import ToggleCalendarButton from "./toggleCalendarButton";
 
 const ControlsHeader: FunctionComponent = () => {
   const { isRunning, startClock, stopClock, handleDayRollover, selectedDate, setSelectedDate } =
     useStateClock();
-  const { globalMute, setGlobalMute, showTimelineYears, setShowTimelineYears } = useStateToggle();
+  const { globalMute, setGlobalMute } = useStateToggle();
   const [appSeconds, setAppSeconds] = useState(0);
   const rolloverTriggeredRef = useRef(false);
 
@@ -77,11 +76,7 @@ const ControlsHeader: FunctionComponent = () => {
         </div>
       </div>
       <div className={styles.right}>{selectedDate && <HeaderTelemetry />}</div>
-      <FontAwesomeIcon
-        icon={showTimelineYears ? faChevronUp : faChevronDown}
-        className={styles.toggleButton}
-        onClick={() => setShowTimelineYears(!showTimelineYears)}
-      />
+      <ToggleCalendarButton />
     </div>
   );
 };

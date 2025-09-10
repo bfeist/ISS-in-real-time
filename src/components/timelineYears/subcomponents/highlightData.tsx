@@ -1,10 +1,10 @@
 import { FunctionComponent, useState } from "react";
 import CrewSearch from "./crewSearch";
 import LayoutTestComponent from "./layoutTestComponent";
-import styles from "./searchComponent.module.css";
+import styles from "./highlightData.module.css";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
 
-const SearchComponent: FunctionComponent = () => {
+const HighlightData: FunctionComponent = () => {
   const { contentHighlights, toggleContentHighlight } = useStateContentHighlights();
   const [showCrewSearch, setShowCrewSearch] = useState(false);
   const [showLayoutTest, setShowLayoutTest] = useState(false);
@@ -64,4 +64,4 @@ const SearchComponent: FunctionComponent = () => {
   );
 };
 
-export default SearchComponent;
+export default HighlightData;

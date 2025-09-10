@@ -1,0 +1,16 @@
+.toggleCalendarButton {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: pointer;
+  background-color: var(--grey2);
+  border: none;
+  border-radius: 20px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}

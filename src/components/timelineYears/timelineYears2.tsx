@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useCallback, useState } from "react";
 import styles from "./timelineYears2.module.css";
 import { useStateToggle } from "../../store/hooks/useStateToggle";
 import { useStateClock } from "../../store/hooks/useStateClock";
-import SearchComponent from "./subcomponents/searchComponent";
-import DateTooltip from "./subcomponents/dateTooltip/dateTooltip";
+import SearchComponent from "./subcomponents/highlightData";
+import DateTooltip from "./dateTooltip/dateTooltip";
 
 // Constants from the original HTML
 const START_YEAR = 2000;

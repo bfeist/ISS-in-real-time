@@ -1,7 +1,7 @@
 import React, { FunctionComponent, useMemo } from "react";
 import { useCommFirstData } from "api/useGeneralData";
 import { extractChannelInfoFromFilename, extractTimeFromFilename } from "utils/comm";
-import TypingText from "../../../../common/typingText/typingText";
+import TypingText from "../../../common/typingText/typingText";
 import styles from "./firstCommSection.module.css";
 
 // Explicitly reference dynamic CSS classes to prevent linter warnings

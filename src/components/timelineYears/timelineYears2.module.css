@@ -43,6 +43,7 @@
   top: 0;
   background: linear-gradient(180deg, var(--panel) 60%, transparent 100%);
   z-index: 1;
+  cursor: pointer;
 }
 
 .yearTitle {
@@ -60,14 +61,12 @@
 .year.active .yearTitle {
   color: var(--hi-orange);
   font-weight: 800;
-  font-size: 15px;
 }
 
 /* Selected year in yellow */
 .year.selected .yearTitle {
   color: var(--hi-yellow);
   font-weight: 800;
-  font-size: 15px;
 }
 
 .monthsCanvas {
