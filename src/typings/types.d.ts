@@ -248,6 +248,11 @@ type Stats = {
   generated_at: string;
 };
 
+type ImagesNasaGovItem = {
+  nasa_id: string;
+  date_taken: string;
+};
+
 type TimelineVideoItem = {
   startTimestamp: string;
   duration: number;

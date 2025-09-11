@@ -235,3 +235,14 @@ export async function fetchStats(): Promise<Stats> {
 
   return response.json();
 }
+
+export async function fetchImagesNasaGov(): Promise<ImagesNasaGovItem[]> {
+  const baseStaticUrl = getBaseStaticUrl();
+  const response = await fetch(`${baseStaticUrl}/images_nasa_gov.json`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch NASA Images data");
+  }
+
+  return response.json();
+}
