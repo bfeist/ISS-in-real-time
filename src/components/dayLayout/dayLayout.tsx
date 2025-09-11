@@ -16,7 +16,7 @@ import Globe from "components/panes/globe";
 import Map from "components/panes/map";
 import EvaInfo from "components/panes/evaInfo";
 import Video from "components/panes/video";
-import EarthPhotography from "components/panes/earthPhotography";
+import Photos from "components/panes/photos";
 import ExpeditionAndCrewOnboard from "components/panes/expCrewFlightWidget/expeditionsAndCrew";
 import Flights from "components/panes/expCrewFlightWidget/flights";
 import Widget from "components/panes/expCrewFlightWidget/widget";
@@ -78,13 +78,13 @@ const renderComponent = (config: ComponentConfig): JSX.Element | null => {
     case "photo":
       return (
         <div className={componentClass}>
-          <EarthPhotography />
+          <Photos />
         </div>
       );
     case "photo-tall":
       return (
         <div className={componentClass}>
-          <EarthPhotography height={"tall"} />
+          <Photos height={"tall"} />
         </div>
       );
     case "comm":
@@ -315,7 +315,7 @@ const MobileLayout: FunctionComponent<{
         </div>
         <div className={styles.tabContent}>
           {activeTab === "video" && showVideo && <Video />}
-          {activeTab === "photos" && showPhotos && <EarthPhotography />}
+          {activeTab === "photos" && showPhotos && <Photos />}
           {activeTab === "globe" && <GlobeOrMap />}
           {activeTab === "comm" && showComm && <Comm />}
           {activeTab === "articles" && <Articles />}

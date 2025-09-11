@@ -26,10 +26,10 @@ for image_file in raw_base.glob("*.jpg"):
         time_formatted = time_part.replace("-", ":") + "Z"
         date_taken = f"{date_part}T{time_formatted}"
         nasa_id = parts[1].split(".")[0]
-        records.append({"date_taken": date_taken, "nasa_id": nasa_id})
+        records.append({"dateTaken": date_taken, "ID": nasa_id})
 
 # Sort records by date_taken
-records.sort(key=lambda x: x["date_taken"])
+records.sort(key=lambda x: x["dateTaken"])
 
 # Write to output JSON file
 with open(output_file, "w") as f:

@@ -71,12 +71,13 @@ const matchesPermutation = (data: DataAvailability, perm: LayoutPermutation): bo
   // Check eva
   if (data.eva !== perm.eva) return false;
 
-  // Check article (includes both blog and activitySummary)
-  const hasArticle = data.blog || data.activitySummary;
+  // Check article (includes both blog and actSum)
+  const hasArticle = data.blog || data.actSum;
   if (hasArticle !== perm.article) return false;
 
-  // Check photo
-  if (data.earthPhotography !== perm.photo) return false;
+  // Check photo (includes both earthPhotos and photos)
+  const hasPhoto = data.earthPhotos || data.photos;
+  if (hasPhoto !== perm.photo) return false;
 
   return true;
 };

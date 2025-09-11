@@ -16,7 +16,7 @@ const HighlightData: FunctionComponent = () => {
     { key: "video", label: "Video" },
     { key: "eva", label: "EVA (spacewalk)" },
     { key: "blog", label: "Articles" },
-    { key: "earthPhotography", label: "Earth Photography" },
+    { key: "photos", label: "Photos" },
   ];
 
   return (

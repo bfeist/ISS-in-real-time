@@ -22,8 +22,8 @@ output_base = Path(os.getenv("WEB_ASSETS_FOLDER")) / "photos_manual"
 def resize_image(image_path, output_path, size):
     with Image.open(image_path) as img:
         if size == "med":
-            # Resize to fit within 640x480
-            img.thumbnail((640, 480), Image.Resampling.LANCZOS)
+            # Resize to fit within 800x600
+            img.thumbnail((800, 600), Image.Resampling.LANCZOS)
         elif size == "thumb":
             # Resize width to 100, maintain aspect
             width_percent = 100 / float(img.size[0])

@@ -435,7 +435,7 @@ export const initializePaperCanvas = ({
           }
           return; // Skip the general date-based processing below
         } else if (rowConfig.key === "photographyItems") {
-          const photoItem = item as EarthPhotographyItem;
+          const photoItem = item as PhotoItem;
           itemTime = new Date(photoItem.dateTaken);
         }
 

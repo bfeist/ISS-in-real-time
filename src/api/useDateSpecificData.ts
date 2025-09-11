@@ -53,9 +53,9 @@ export function useDateEphemera(date: string): UseQueryResult<EphemeraItem[], Er
 export function useDateEarthPhotography(
   date: string,
   enabled: boolean = true
-): UseQueryResult<EarthPhotographyItem[], Error> {
+): UseQueryResult<PhotoItem[], Error> {
   const dataAvailabilityQuery = useDateDataAvailability(date);
-  const isEarthPhotographyAvailable = dataAvailabilityQuery.data?.earthPhotography;
+  const isEarthPhotographyAvailable = dataAvailabilityQuery.data?.earthPhotos;
 
   return useQuery({
     queryKey: ["earthPhotography", date],
@@ -71,7 +71,7 @@ export function useDateActivitySummary(
   enabled: boolean = true
 ): UseQueryResult<ActivitySummary, Error> {
   const dataAvailabilityQuery = useDateDataAvailability(date);
-  const isActivitySummaryAvailable = dataAvailabilityQuery.data?.activitySummary;
+  const isActivitySummaryAvailable = dataAvailabilityQuery.data?.actSum;
 
   return useQuery({
     queryKey: ["activitySummary", date],

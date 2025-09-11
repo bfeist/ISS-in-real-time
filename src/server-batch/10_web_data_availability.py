@@ -113,6 +113,30 @@ if __name__ == "__main__":
         for eva in evas:
             eva_dates.add(eva["startTime"].split("T")[0])
 
+    # get all of the dates that have photos_manual available
+    photos_manual_dates = set()
+    try:
+        with open(
+            f"{WEB_ASSETS_FOLDER}/photos_manual.json", "r", encoding="utf-8"
+        ) as f:
+            photos_manual = json.load(f)
+            for photo in photos_manual:
+                photos_manual_dates.add(photo["dateTaken"].split("T")[0])
+    except FileNotFoundError:
+        print("photos_manual.json not found, proceeding without photos_manual")
+
+    # get all of the dates that have images_nasa_gov available
+    images_nasa_gov_dates = set()
+    try:
+        with open(
+            f"{WEB_ASSETS_FOLDER}/images_nasa_gov.json", "r", encoding="utf-8"
+        ) as f:
+            images_nasa_gov = json.load(f)
+            for photo in images_nasa_gov:
+                images_nasa_gov_dates.add(photo["dateTaken"].split("T")[0])
+    except FileNotFoundError:
+        print("images_nasa_gov.json not found, proceeding without images_nasa_gov")
+
     # compile the available media for each date
     date_records = []
     for date in available_dates:
@@ -124,6 +148,9 @@ if __name__ == "__main__":
         has_blog = check_blog_articles(date)
         has_activity_summary = check_activity_summary(date)
         has_earth = check_earth_photography(date)
+        has_photos_manual = date in photos_manual_dates
+        has_images_nasa_gov = date in images_nasa_gov_dates
+        has_photos = has_photos_manual or has_images_nasa_gov
 
         # Only include dates that have at least one data type available
         if (
@@ -134,6 +161,7 @@ if __name__ == "__main__":
             or has_blog
             or has_activity_summary
             or has_earth
+            or has_photos
         ):
             date_record = {
                 "date": date,
@@ -142,8 +170,9 @@ if __name__ == "__main__":
                 "video": has_video,
                 "eva": has_eva,
                 "blog": has_blog,
-                "activitySummary": has_activity_summary,
-                "earthPhotography": has_earth,
+                "actSum": has_activity_summary,
+                "earthPhotos": has_earth,
+                "photos": has_photos,
             }
             date_records.append(date_record)
 
@@ -160,8 +189,9 @@ if __name__ == "__main__":
                 "video",
                 "eva",
                 "blog",
-                "activitySummary",
-                "earthPhotography",
+                "actSum",
+                "earthPhotos",
+                "photos",
             ]
         )
         # Write data rows with booleans converted to integers
@@ -174,8 +204,9 @@ if __name__ == "__main__":
                     int(record["video"]),
                     int(record["eva"]),
                     int(record["blog"]),
-                    int(record["activitySummary"]),
-                    int(record["earthPhotography"]),
+                    int(record["actSum"]),
+                    int(record["earthPhotos"]),
+                    int(record["photos"]),
                 ]
             )
     print(f"Available dates have been saved to {outputPath}")

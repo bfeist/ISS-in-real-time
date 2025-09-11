@@ -5,8 +5,9 @@ type DataAvailability = {
   video: boolean;
   eva: boolean;
   blog: boolean;
-  activitySummary: boolean;
-  earthPhotography: boolean;
+  actSum: boolean;
+  earthPhotos: boolean;
+  photos: boolean;
 };
 
 type CommItem = {
@@ -25,11 +26,12 @@ type CommFirstItem = {
   textOriginalLang?: string;
 };
 
-type EarthPhotographyItem = {
+type PhotoItem = {
   ID: string;
   dateTaken: string;
-  smallUrl: string;
-  largeUrl: string;
+  smallUrl?: string;
+  largeUrl?: string;
+  type?: "earth_photography" | "images_nasa_gov" | "manual";
 };
 
 type EphemeraItem = {
@@ -248,11 +250,6 @@ type Stats = {
   generated_at: string;
 };
 
-type PublicPhotoItem = {
-  nasa_id: string;
-  date_taken: string;
-};
-
 type TimelineVideoItem = {
   startTimestamp: string;
   duration: number;
@@ -260,7 +257,7 @@ type TimelineVideoItem = {
 
 interface TimelineDayData {
   commItems: CommItem[];
-  photographyItems: EarthPhotographyItem[];
+  photographyItems: PhotoItem[];
   videoItems: TimelineVideoItem[];
   dayNight: DayNightObj[];
   selectedDate: string;

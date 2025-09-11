@@ -412,9 +412,9 @@ function drawDaysForMonth({
         case "eva":
           return dayItem.eva;
         case "blog":
-          return dayItem.blog || dayItem.activitySummary; // Articles includes both blog and activitySummary
+          return dayItem.blog || dayItem.actSum; // Articles includes both blog and actSum
         case "earthphotography":
-          return dayItem.earthPhotography;
+          return dayItem.earthPhotos || dayItem.photos; // Photos includes both earthPhotos and photos
         default:
           return false;
       }

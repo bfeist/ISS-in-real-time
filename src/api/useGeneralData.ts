@@ -114,7 +114,7 @@ export function useGeneralStats(): UseQueryResult<Stats, Error> {
   });
 }
 
-export function useGeneralImagesNasaGov(): UseQueryResult<PublicPhotoItem[], Error> {
+export function useGeneralImagesNasaGov(): UseQueryResult<PhotoItem[], Error> {
   return useQuery({
     queryKey: ["imagesNasaGov"],
     queryFn: fetchImagesNasaGov,
@@ -123,7 +123,7 @@ export function useGeneralImagesNasaGov(): UseQueryResult<PublicPhotoItem[], Err
   });
 }
 
-export function useGeneralPhotosManual(): UseQueryResult<PublicPhotoItem[], Error> {
+export function useGeneralPhotosManual(): UseQueryResult<PhotoItem[], Error> {
   return useQuery({
     queryKey: ["photosManual"],
     queryFn: fetchPhotosManual,

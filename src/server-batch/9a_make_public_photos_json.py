@@ -39,12 +39,12 @@ for json_file in json_dir.glob("exp*.json"):
         if not date_taken:
             continue  # Skip if no date_taken
 
-        records.append({"date_taken": date_taken, "nasa_id": nasa_id})
+        records.append({"dateTaken": date_taken, "ID": nasa_id})
 
         seen_nasa_ids.add(nasa_id)
 
-# Sort records by date_taken
-records.sort(key=lambda x: x["date_taken"])
+# Sort records by dateTaken
+records.sort(key=lambda x: x["dateTaken"])
 
 # Write to output JSON file
 with open(output_file, "w") as f:

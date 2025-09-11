@@ -123,7 +123,7 @@ export async function fetchEphemera(date: string): Promise<EphemeraItem[]> {
   return response.json();
 }
 
-export async function fetchEarthPhotography(date: string): Promise<EarthPhotographyItem[]> {
+export async function fetchEarthPhotography(date: string): Promise<PhotoItem[]> {
   const baseStaticUrl = getBaseStaticUrl();
   const [year, month] = date.split("-");
 
@@ -137,11 +137,33 @@ export async function fetchEarthPhotography(date: string): Promise<EarthPhotogra
 
   const data = await response.json();
   if (data.length > 0) {
-    data.sort((a: EarthPhotographyItem, b: EarthPhotographyItem) =>
-      a.dateTaken.localeCompare(b.dateTaken)
-    );
+    data.sort((a: PhotoItem, b: PhotoItem) => a.dateTaken.localeCompare(b.dateTaken));
   }
-  return data;
+  return data.map((item: PhotoItem) => ({ ...item, type: "earth_photography" }));
+}
+
+export async function fetchImagesNasaGov(): Promise<PhotoItem[]> {
+  const baseStaticUrl = getBaseStaticUrl();
+  const response = await fetch(`${baseStaticUrl}/images_nasa_gov.json`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch NASA Images data");
+  }
+
+  const data = await response.json();
+  return data.map((item: PhotoItem) => ({ ...item, type: "images_nasa_gov" }));
+}
+
+export async function fetchPhotosManual(): Promise<PhotoItem[]> {
+  const baseStaticUrl = getBaseStaticUrl();
+  const response = await fetch(`${baseStaticUrl}/photos_manual.json`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch Photos Manual data");
+  }
+
+  const data = await response.json();
+  return data.map((item: PhotoItem) => ({ ...item, type: "manual" }));
 }
 
 export async function fetchVideoYt(): Promise<VideoYtItem[]> {
@@ -197,6 +219,17 @@ export async function fetchBlogArticles(date: string): Promise<BlogArticle[]> {
   return response.json();
 }
 
+export async function fetchStats(): Promise<Stats> {
+  const baseStaticUrl = getBaseStaticUrl();
+  const response = await fetch(`${baseStaticUrl}/stats.json`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch Stats");
+  }
+
+  return response.json();
+}
+
 export function processDataAvailabilities({
   dataAvailabilitiesRaw,
 }: {
@@ -209,8 +242,7 @@ export function processDataAvailabilities({
   // Skip header row
   const dataLines = lines.slice(1);
   const dataAvailabilities = dataLines.map((line) => {
-    const [date, comm, vvComm, video, eva, blog, activitySummary, earthPhotography] =
-      line.split("|");
+    const [date, comm, vvComm, video, eva, blog, actSum, earthPhotos, photos] = line.split("|");
     return {
       date,
       comm: comm === "1",
@@ -218,42 +250,10 @@ export function processDataAvailabilities({
       video: video === "1",
       eva: eva === "1",
       blog: blog === "1",
-      activitySummary: activitySummary === "1",
-      earthPhotography: earthPhotography === "1",
+      actSum: actSum === "1",
+      earthPhotos: earthPhotos === "1",
+      photos: photos === "1",
     };
   });
   return dataAvailabilities;
-}
-
-export async function fetchStats(): Promise<Stats> {
-  const baseStaticUrl = getBaseStaticUrl();
-  const response = await fetch(`${baseStaticUrl}/stats.json`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch Stats");
-  }
-
-  return response.json();
-}
-
-export async function fetchImagesNasaGov(): Promise<PublicPhotoItem[]> {
-  const baseStaticUrl = getBaseStaticUrl();
-  const response = await fetch(`${baseStaticUrl}/images_nasa_gov.json`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch NASA Images data");
-  }
-
-  return response.json();
-}
-
-export async function fetchPhotosManual(): Promise<PublicPhotoItem[]> {
-  const baseStaticUrl = getBaseStaticUrl();
-  const response = await fetch(`${baseStaticUrl}/photos_manual.json`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch Photos Manual data");
-  }
-
-  return response.json();
 }

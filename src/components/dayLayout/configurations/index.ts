@@ -17,8 +17,8 @@ function normalizeDataAvailability(dataAvailability: DataAvailability | undefine
     video: dataAvailability?.video || false,
     comm: dataAvailability?.comm || dataAvailability?.vvComm || false,
     eva: dataAvailability?.eva || false,
-    article: dataAvailability?.blog || dataAvailability?.activitySummary || false,
-    photo: dataAvailability?.earthPhotography || false,
+    article: dataAvailability?.blog || dataAvailability?.actSum || false,
+    photo: dataAvailability?.earthPhotos || dataAvailability?.photos || false,
   };
 }
 
