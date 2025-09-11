@@ -29,6 +29,8 @@ interface YearCanvasProps {
   onYearHover?: (yearIndex: number) => void;
   onYearLeave?: () => void;
   forceRedraw?: number;
+  startMonth?: number; // 0-based month index (0 = January)
+  endMonth?: number; // 0-based month index (11 = December)
 }
 
 // Individual year canvas component
@@ -41,6 +43,8 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
   onYearHover,
   onYearLeave,
   forceRedraw,
+  startMonth = 0, // Default to January
+  endMonth = 11, // Default to December
 }) => {
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
@@ -88,23 +92,26 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
     ctx.clearRect(0, 0, rect.width, rect.height);
 
     // Draw calendar grid for the year
-    drawYearCalendar(ctx, year, rect.width, rect.height, highlights);
-  }, [year, highlights]);
+    drawYearCalendar(ctx, year, rect.width, rect.height, highlights, startMonth, endMonth);
+  }, [year, highlights, startMonth, endMonth]);
 
   const drawYearCalendar = (
     ctx: CanvasRenderingContext2D,
     year: number,
     width: number,
     height: number,
-    highlights: Map<string, { fill: string; stroke?: string }>
+    highlights: Map<string, { fill: string; stroke?: string }>,
+    startMonth: number = 0,
+    endMonth: number = 11
   ) => {
-    const months = 12;
     const maxDaysInMonth = 31;
-    const cellWidth = (width - (months - 1) * MONTH_GAP) / months;
-    const cellHeight = (height - (maxDaysInMonth - 1) * ROW_GAP) / maxDaysInMonth; // No header offset for main calendar
+    // Use full 12-month width calculation for consistent layout, but only draw visible months
+    const cellWidth = (width - (12 - 1) * MONTH_GAP) / 12; // Always divide by 12 for consistent spacing
+    const cellHeight = (height - (maxDaysInMonth - 1) * ROW_GAP) / maxDaysInMonth;
 
-    for (let month = 0; month < months; month++) {
+    for (let month = startMonth; month <= endMonth; month++) {
       const daysInMonth = new Date(year, month + 1, 0).getDate();
+      // Calculate position as if all 12 months exist, but only draw visible ones
       const startX = month * (cellWidth + MONTH_GAP);
 
       for (let day = 1; day <= daysInMonth; day++) {

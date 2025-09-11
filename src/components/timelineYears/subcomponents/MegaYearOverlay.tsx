@@ -14,6 +14,8 @@ interface MegaYearOverlayProps {
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   forceRedraw?: number;
+  startMonth?: number; // 0-based month index (0 = January)
+  endMonth?: number; // 0-based month index (11 = December)
 }
 
 // Mega Overlay Component for zoomed year view
@@ -24,6 +26,8 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   onMouseEnter,
   onMouseLeave,
   forceRedraw,
+  startMonth = 0, // Default to January
+  endMonth = 11, // Default to December
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -57,8 +61,8 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   // Constants for mega overlay layout - make squares square
   const cellGap = 1;
   const maxDaysInMonth = 31;
-  const months = 12;
-  const cellWidth = (position.width - (months - 1) * cellGap) / months;
+  // Use full 12-month layout for consistent positioning with main canvas
+  const cellWidth = (position.width - (12 - 1) * cellGap) / 12; // Always divide by 12
   const cellSize = cellWidth;
   const totalHeight = maxDaysInMonth * (cellSize + cellGap);
 
@@ -84,10 +88,11 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     for (let day = 1; day <= maxDaysInMonth; day++) {
       const y = (day - 1) * (cellSize + cellGap);
 
-      for (let month = 0; month < months; month++) {
+      for (let month = startMonth; month <= endMonth; month++) {
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         if (day <= daysInMonth) {
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          // Position as if all 12 months exist, but only draw visible ones
           const x = month * (cellWidth + cellGap);
 
           // Get highlight info for this date
@@ -114,7 +119,17 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
         }
       }
     }
-  }, [year, position, highlights, cellWidth, cellSize, totalHeight, hoveredDate]);
+  }, [
+    year,
+    position,
+    highlights,
+    cellWidth,
+    cellSize,
+    totalHeight,
+    hoveredDate,
+    startMonth,
+    endMonth,
+  ]);
 
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     const overlay = event.currentTarget;
@@ -122,7 +137,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    const dateStr = getMegaDateFromCoordinates(x, y, year, position.width);
+    const dateStr = getMegaDateFromCoordinates(x, y, year, position.width, startMonth, endMonth);
     if (hoveredDate !== dateStr) {
       setHoveredDate(dateStr);
     }
@@ -147,7 +162,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
 
-    const dateStr = getMegaDateFromCoordinates(x, y, year, position.width);
+    const dateStr = getMegaDateFromCoordinates(x, y, year, position.width, startMonth, endMonth);
     setHoveredDate(dateStr);
 
     // Update cursor position for tooltip
@@ -167,7 +182,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    const dateStr = getMegaDateFromCoordinates(x, y, year, position.width);
+    const dateStr = getMegaDateFromCoordinates(x, y, year, position.width, startMonth, endMonth);
     if (dateStr) handleDateClick(dateStr);
 
     // close the years dropdown
@@ -277,17 +292,18 @@ const getMegaDateFromCoordinates = (
   x: number,
   y: number,
   year: number,
-  width: number
+  width: number,
+  startMonth: number = 0,
+  endMonth: number = 11
 ): string | null => {
   const cellGap = 1;
-  const months = 12;
-
-  const cellWidth = (width - (months - 1) * cellGap) / months;
+  // Use 12-month layout for coordinate calculation
+  const cellWidth = (width - (12 - 1) * cellGap) / 12;
   const cellSize = cellWidth;
 
-  // Determine month
+  // Determine month based on 12-month grid
   const month = Math.floor(x / (cellWidth + cellGap));
-  if (month < 0 || month >= months) return null;
+  if (month < startMonth || month > endMonth) return null;
 
   // Determine day
   const day = Math.floor(y / (cellSize + cellGap)) + 1;

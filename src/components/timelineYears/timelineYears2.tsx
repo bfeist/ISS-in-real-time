@@ -11,9 +11,10 @@ import MegaYearOverlay from "./subcomponents/MegaYearOverlay";
 // Configure dayjs to use UTC plugin
 dayjs.extend(utc);
 
-// Constants from the original HTML
-const START_YEAR = 2000;
-const END_YEAR = 2025;
+// Dynamic year calculation based on current date (like the old timeline system)
+const now = new Date();
+const START_YEAR = 2000; // Fixed start from November 2000
+const END_YEAR = now.getFullYear(); // Dynamic end year
 const YEAR_GAP = "2px"; // done in css
 
 // Props interface for the TimelineYears2 component
@@ -127,6 +128,20 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const years = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, i) => START_YEAR + i);
   const selectedYearEl = selectedDate ? new Date(selectedDate).getFullYear() : null;
 
+  // Calculate start and end months for partial year rendering
+  const getYearMonthRange = (year: number) => {
+    if (year === START_YEAR) {
+      // Start year (2000) starts from November (month 10, 0-based)
+      return { startMonth: 10, endMonth: 11 };
+    } else if (year === END_YEAR) {
+      // End year (current year) ends at current month
+      return { startMonth: 0, endMonth: now.getMonth() };
+    } else {
+      // Full years in between
+      return { startMonth: 0, endMonth: 11 };
+    }
+  };
+
   const handleYearHover = (yearIndex: number) => {
     // Clear any pending hide timeout when hovering over a new year
     if (hideOverlayTimeout) {
@@ -226,19 +241,24 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         }}
       >
         <div className={styles.years} style={{ gap: YEAR_GAP }}>
-          {years.map((year, index) => (
-            <YearCanvas
-              key={year}
-              year={year}
-              index={index}
-              isActive={hoveredYearIndex === index}
-              isSelected={selectedYearEl === year}
-              highlights={highlights}
-              onYearHover={handleYearHover}
-              onYearLeave={handleYearLeave}
-              forceRedraw={forceRedrawCounter}
-            />
-          ))}
+          {years.map((year, index) => {
+            const monthRange = getYearMonthRange(year);
+            return (
+              <YearCanvas
+                key={year}
+                year={year}
+                index={index}
+                isActive={hoveredYearIndex === index}
+                isSelected={selectedYearEl === year}
+                highlights={highlights}
+                onYearHover={handleYearHover}
+                onYearLeave={handleYearLeave}
+                forceRedraw={forceRedrawCounter}
+                startMonth={monthRange.startMonth}
+                endMonth={monthRange.endMonth}
+              />
+            );
+          })}
         </div>
         <SearchComponent />
 
@@ -251,6 +271,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             onMouseEnter={handleMegaOverlayMouseEnter}
             onMouseLeave={handleMegaOverlayMouseLeave}
             forceRedraw={forceRedrawCounter}
+            startMonth={getYearMonthRange(megaOverlayYear).startMonth}
+            endMonth={getYearMonthRange(megaOverlayYear).endMonth}
           />
         )}
       </div>
