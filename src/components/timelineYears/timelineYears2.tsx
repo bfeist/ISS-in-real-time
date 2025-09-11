@@ -193,7 +193,14 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
     // Position overlay to center on the year element - use 2x width
     const overlayWidth = yearRect.width * 2;
-    const left = yearRect.left - yearsTimelineRect.left + yearRect.width / 2 - overlayWidth / 2;
+    let left;
+    if (yearIndex === 0) {
+      left = 0;
+    } else if (yearIndex === years.length - 1) {
+      left = yearsTimelineRect.width - overlayWidth;
+    } else {
+      left = yearRect.left - yearsTimelineRect.left + yearRect.width / 2 - overlayWidth / 2;
+    }
 
     // Position overlay to start just below the year header, so the year title shows through
     // Slight overlap to ensure smooth mouse transition
