@@ -14,3 +14,4 @@ numpy
 sentence-transformers
 pandas
 dotenv
+Pillow

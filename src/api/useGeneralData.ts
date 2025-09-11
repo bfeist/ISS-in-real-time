@@ -12,6 +12,7 @@ import {
   fetchOrbitsDaily,
   fetchStats,
   fetchImagesNasaGov,
+  fetchPhotosManual,
 } from "./dataFetchers";
 
 // Individual hooks for each data type
@@ -113,10 +114,19 @@ export function useGeneralStats(): UseQueryResult<Stats, Error> {
   });
 }
 
-export function useGeneralImagesNasaGov(): UseQueryResult<ImagesNasaGovItem[], Error> {
+export function useGeneralImagesNasaGov(): UseQueryResult<PublicPhotoItem[], Error> {
   return useQuery({
     queryKey: ["imagesNasaGov"],
     queryFn: fetchImagesNasaGov,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+export function useGeneralPhotosManual(): UseQueryResult<PublicPhotoItem[], Error> {
+  return useQuery({
+    queryKey: ["photosManual"],
+    queryFn: fetchPhotosManual,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });

@@ -248,7 +248,7 @@ type Stats = {
   generated_at: string;
 };
 
-type ImagesNasaGovItem = {
+type PublicPhotoItem = {
   nasa_id: string;
   date_taken: string;
 };

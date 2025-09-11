@@ -236,12 +236,23 @@ export async function fetchStats(): Promise<Stats> {
   return response.json();
 }
 
-export async function fetchImagesNasaGov(): Promise<ImagesNasaGovItem[]> {
+export async function fetchImagesNasaGov(): Promise<PublicPhotoItem[]> {
   const baseStaticUrl = getBaseStaticUrl();
   const response = await fetch(`${baseStaticUrl}/images_nasa_gov.json`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch NASA Images data");
+  }
+
+  return response.json();
+}
+
+export async function fetchPhotosManual(): Promise<PublicPhotoItem[]> {
+  const baseStaticUrl = getBaseStaticUrl();
+  const response = await fetch(`${baseStaticUrl}/photos_manual.json`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch Photos Manual data");
   }
 
   return response.json();
