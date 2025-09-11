@@ -14,6 +14,7 @@ const COLORS = {
   someData: "#6d7090",
   commData: "#7a7ea5ff",
   contentHighlightStroke: "#C500AB",
+  contentHighlightFill: "#d4b5d0ff",
   transparent: "rgba(0, 0, 0, 0)",
   crewOnboard: "#E2DB00",
   satisfiesHighlights: "#d9d9d9cc",

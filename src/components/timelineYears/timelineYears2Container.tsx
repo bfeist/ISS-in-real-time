@@ -117,9 +117,16 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
         if (satisfiesAllHighlights) {
           const existing = combined.get(dateStr);
           if (existing) {
-            combined.set(dateStr, { ...existing, stroke: COLORS.contentHighlightStroke });
+            combined.set(dateStr, {
+              ...existing,
+              fill: COLORS.contentHighlightFill,
+              stroke: COLORS.contentHighlightStroke,
+            });
           } else {
-            combined.set(dateStr, { fill: COLORS.noData, stroke: COLORS.contentHighlightStroke });
+            combined.set(dateStr, {
+              fill: COLORS.contentHighlightFill,
+              stroke: COLORS.contentHighlightStroke,
+            });
           }
         }
       });

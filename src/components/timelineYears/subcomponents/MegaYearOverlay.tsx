@@ -5,18 +5,7 @@ import { useStateClock } from "../../../store/hooks/useStateClock";
 import { useStateHover } from "../../../store/hooks/useStateHover";
 import DateTooltip from "../dateTooltip/dateTooltip";
 
-// Color constants
-const COLORS = {
-  hover: "red",
-  selected: "red",
-  noData: "#5b5d77ff",
-  someData: "#6d7090",
-  commData: "#7a7ea5ff",
-  contentHighlightStroke: "#C500AB",
-  transparent: "rgba(0, 0, 0, 0)",
-  crewOnboard: "#E2DB00",
-  satisfiesHighlights: "#d9d9d9cc",
-} as const;
+import { COLORS } from "./YearCanvas";
 
 interface MegaYearOverlayProps {
   year: number;

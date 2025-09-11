@@ -28,7 +28,19 @@
 }
 
 .checkboxLabel input[type="checkbox"] {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #4a5568;
+  border-radius: 2px;
+  background-color: transparent;
+  cursor: pointer;
   margin-right: 4px;
+}
+
+.checkboxLabel input[type="checkbox"]:checked {
+  background-color: #d4b5d0ff;
+  border-color: #c500ab;
 }
 
 .toggleButton {
