@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { manageDateCache, getCacheStats } from "../utils/cacheManagement";
+import { manageDateCache } from "../utils/cacheManagement";
 
 /**
  * Hook that automatically manages cache when selectedDate changes
@@ -10,18 +10,18 @@ export function useDateCacheManagement(selectedDate: string | null): void {
 
   useEffect(() => {
     if (selectedDate) {
-      if (import.meta.env.DEV) {
-        console.log(`📅 Date changed to: ${selectedDate}`);
-        const statsBefore = getCacheStats(queryClient);
-        console.log("📊 Cache stats before:", statsBefore);
-      }
+      // if (import.meta.env.DEV) {
+      //   console.log(`📅 Date changed to: ${selectedDate}`);
+      //   const statsBefore = getCacheStats(queryClient);
+      //   console.log("📊 Cache stats before:", statsBefore);
+      // }
 
       manageDateCache(queryClient, selectedDate);
 
-      if (import.meta.env.DEV) {
-        const statsAfter = getCacheStats(queryClient);
-        console.log("📊 Cache stats after:", statsAfter);
-      }
+      // if (import.meta.env.DEV) {
+      //   const statsAfter = getCacheStats(queryClient);
+      //   console.log("📊 Cache stats after:", statsAfter);
+      // }
     }
   }, [selectedDate, queryClient]);
 }
