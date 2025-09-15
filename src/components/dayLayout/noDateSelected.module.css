@@ -2,14 +2,10 @@
   width: 100%;
   height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background-image: repeating-linear-gradient(
-    45deg,
-    var(--grey1) 0,
-    var(--grey1) 5px,
-    var(--grey2) 5px,
-    var(--grey2) 10px
-  );
+  justify-content: flex-start;
+  background-color: var(--grey2);
   position: relative;
+  padding-top: 20px;
 }

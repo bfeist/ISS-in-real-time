@@ -214,32 +214,65 @@ type Stats = {
     channels: Record<string, number>;
   };
   photos: {
-    total_photos: number;
-    total_days_with_photos: number;
-    avg_photos_per_day: number;
-    max_photos_per_day: number;
-    min_photos_per_day: number;
-    date_range: {
-      start: string | null;
-      end: string | null;
+    sources: {
+      earth_photography: {
+        total_photos: number;
+        total_days_with_photos: number;
+        avg_photos_per_day: number;
+        max_photos_per_day: number;
+        min_photos_per_day: number;
+        date_range: {
+          start: string;
+          end: string;
+        };
+        coverage_percentage: number;
+      };
+      images_nasa_gov: {
+        total_photos: number;
+        total_days_with_photos: number;
+        avg_photos_per_day: number;
+        max_photos_per_day: number;
+        min_photos_per_day: number;
+        date_range: {
+          start: string;
+          end: string;
+        };
+        coverage_percentage: number;
+      };
+      photos_manual: {
+        total_photos: number;
+        total_days_with_photos: number;
+        avg_photos_per_day: number;
+        max_photos_per_day: number;
+        min_photos_per_day: number;
+        date_range: {
+          start: string;
+          end: string;
+        };
+        coverage_percentage: number;
+      };
     };
-    coverage_percentage: number;
-    missions: Record<string, number>;
-    years: Record<string, number>;
-    months: Record<string, number>;
-    most_productive_mission: string | null;
-    most_productive_year: string | null;
-    most_productive_month: string | null;
+    combined: {
+      total_photos: number;
+      total_days_with_photos: number;
+      avg_photos_per_day: number;
+      max_photos_per_day: number;
+      min_photos_per_day: number;
+      date_range: {
+        start: string;
+        end: string;
+      };
+      coverage_percentage: number;
+    };
   };
   videos: {
     youtube: {
       total_videos: number;
       total_duration_seconds: number;
-      videos_by_year: Record<string, number>;
     };
     ia: {
       total_videos: number;
-      videos_by_date: Record<string, number>;
+      total_duration_seconds: number;
     };
   };
   data_availability: {

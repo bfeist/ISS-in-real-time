@@ -134,17 +134,33 @@ def extract_year_from_date(date_taken):
 def analyze_photos():
     """Analyze all earth photography JSON files and return statistics"""
 
-    total_photos = 0
-    total_days_with_photos = 0
-    photos_by_mission = Counter()
-    photos_by_year = Counter()
-    photos_by_month = Counter()
-    photos_per_day = []
-    earliest_date = None
-    latest_date = None
-
-    # Track unique days that have photos
-    days_with_photos = set()
+    # Initialize stats for each source
+    sources = {
+        "earth_photography": {
+            "total_photos": 0,
+            "total_days_with_photos": 0,
+            "photos_per_day": [],
+            "earliest_date": None,
+            "latest_date": None,
+            "days_with_photos": set(),
+        },
+        "images_nasa_gov": {
+            "total_photos": 0,
+            "total_days_with_photos": 0,
+            "photos_per_day": [],
+            "earliest_date": None,
+            "latest_date": None,
+            "days_with_photos": set(),
+        },
+        "photos_manual": {
+            "total_photos": 0,
+            "total_days_with_photos": 0,
+            "photos_per_day": [],
+            "earliest_date": None,
+            "latest_date": None,
+            "days_with_photos": set(),
+        },
+    }
 
     print(f"Scanning directory: {IMAGES_FOLDER}")
 
@@ -152,7 +168,8 @@ def analyze_photos():
         print(f"Error: Directory {IMAGES_FOLDER} does not exist!")
         return {"error": f"Directory {IMAGES_FOLDER} does not exist!"}
 
-    # Walk through the directory structure
+    # Process images-manifest files
+    source = sources["earth_photography"]
     for root, dirs, files in os.walk(IMAGES_FOLDER):
         for file in files:
             if file.endswith(".json") and "images-manifest_" in file:
@@ -171,20 +188,15 @@ def analyze_photos():
                     )
                     if date_match:
                         file_date = date_match.group(1)
-                        days_with_photos.add(file_date)
+                        source["days_with_photos"].add(file_date)
 
                     daily_photo_count = len(data)
-                    total_photos += daily_photo_count
-                    photos_per_day.append(daily_photo_count)
+                    source["total_photos"] += daily_photo_count
+                    source["photos_per_day"].append(daily_photo_count)
 
                     # Analyze each photo in the manifest
                     for photo in data:
                         if isinstance(photo, dict):
-                            # Extract mission info
-                            photo_id = photo.get("ID", "")
-                            mission = extract_mission_from_id(photo_id)
-                            photos_by_mission[mission] += 1
-
                             # Extract date info
                             date_taken = photo.get("dateTaken", "")
                             if date_taken:
@@ -192,17 +204,18 @@ def analyze_photos():
                                     dt = datetime.fromisoformat(
                                         date_taken.replace("Z", "")
                                     )
-                                    year = dt.year
-                                    month = dt.month
-
-                                    photos_by_year[year] += 1
-                                    photos_by_month[month] += 1
 
                                     # Track earliest and latest dates
-                                    if earliest_date is None or dt < earliest_date:
-                                        earliest_date = dt
-                                    if latest_date is None or dt > latest_date:
-                                        latest_date = dt
+                                    if (
+                                        source["earliest_date"] is None
+                                        or dt < source["earliest_date"]
+                                    ):
+                                        source["earliest_date"] = dt
+                                    if (
+                                        source["latest_date"] is None
+                                        or dt > source["latest_date"]
+                                    ):
+                                        source["latest_date"] = dt
 
                                 except:
                                     pass
@@ -211,85 +224,206 @@ def analyze_photos():
                     print(f"Error reading {file_path}: {e}")
                     continue
 
-    total_days_with_photos = len(days_with_photos)
+    source["total_days_with_photos"] = len(source["days_with_photos"])
 
-    # Calculate statistics
+    # Process images_nasa_gov.json
+    source = sources["images_nasa_gov"]
+    nasa_gov_file = os.path.join(WEB_ASSETS_FOLDER, "images_nasa_gov.json")
+    if os.path.exists(nasa_gov_file):
+        try:
+            with open(nasa_gov_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            if isinstance(data, list):
+                daily_counts = {}
+                for photo in data:
+                    if isinstance(photo, dict):
+                        date_taken = photo.get("dateTaken", "")
+                        if date_taken:
+                            try:
+                                dt = datetime.fromisoformat(date_taken.replace("Z", ""))
+                                date_str = dt.strftime("%Y-%m-%d")
+                                source["days_with_photos"].add(date_str)
+
+                                if date_str in daily_counts:
+                                    daily_counts[date_str] += 1
+                                else:
+                                    daily_counts[date_str] = 1
+
+                                # Track earliest and latest dates
+                                if (
+                                    source["earliest_date"] is None
+                                    or dt < source["earliest_date"]
+                                ):
+                                    source["earliest_date"] = dt
+                                if (
+                                    source["latest_date"] is None
+                                    or dt > source["latest_date"]
+                                ):
+                                    source["latest_date"] = dt
+
+                            except:
+                                pass
+
+                source["total_photos"] += len(data)
+                source["photos_per_day"].extend(daily_counts.values())
+
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Error reading {nasa_gov_file}: {e}")
+
+    source["total_days_with_photos"] = len(source["days_with_photos"])
+
+    # Process photos_manual.json
+    source = sources["photos_manual"]
+    manual_file = os.path.join(WEB_ASSETS_FOLDER, "photos_manual.json")
+    if os.path.exists(manual_file):
+        try:
+            with open(manual_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            if isinstance(data, list):
+                daily_counts = {}
+                for photo in data:
+                    if isinstance(photo, dict):
+                        date_taken = photo.get("dateTaken", "")
+                        if date_taken:
+                            try:
+                                dt = datetime.fromisoformat(date_taken.replace("Z", ""))
+                                date_str = dt.strftime("%Y-%m-%d")
+                                source["days_with_photos"].add(date_str)
+
+                                if date_str in daily_counts:
+                                    daily_counts[date_str] += 1
+                                else:
+                                    daily_counts[date_str] = 1
+
+                                # Track earliest and latest dates
+                                if (
+                                    source["earliest_date"] is None
+                                    or dt < source["earliest_date"]
+                                ):
+                                    source["earliest_date"] = dt
+                                if (
+                                    source["latest_date"] is None
+                                    or dt > source["latest_date"]
+                                ):
+                                    source["latest_date"] = dt
+
+                            except:
+                                pass
+
+                source["total_photos"] += len(data)
+                source["photos_per_day"].extend(daily_counts.values())
+
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Error reading {manual_file}: {e}")
+
+    source["total_days_with_photos"] = len(source["days_with_photos"])
+
+    # Calculate combined stats
+    combined_days_with_photos = set()
+    combined_photos_per_day = []
+    combined_earliest_date = None
+    combined_latest_date = None
+    combined_total_photos = 0
+
+    for source_name, source_data in sources.items():
+        combined_days_with_photos.update(source_data["days_with_photos"])
+        combined_photos_per_day.extend(source_data["photos_per_day"])
+        combined_total_photos += source_data["total_photos"]
+
+        if source_data["earliest_date"]:
+            if (
+                combined_earliest_date is None
+                or source_data["earliest_date"] < combined_earliest_date
+            ):
+                combined_earliest_date = source_data["earliest_date"]
+        if source_data["latest_date"]:
+            if (
+                combined_latest_date is None
+                or source_data["latest_date"] > combined_latest_date
+            ):
+                combined_latest_date = source_data["latest_date"]
+
+    # Calculate individual source stats
+    result = {"sources": {}, "combined": {}}
+
+    for source_name, source_data in sources.items():
+        photos_per_day = source_data["photos_per_day"]
+        avg_photos_per_day = (
+            sum(photos_per_day) / len(photos_per_day) if photos_per_day else 0
+        )
+        max_photos_per_day = max(photos_per_day) if photos_per_day else 0
+        min_photos_per_day = min(photos_per_day) if photos_per_day else 0
+
+        coverage_percentage = 0
+        if source_data["earliest_date"] and source_data["latest_date"]:
+            total_days_in_range = (
+                source_data["latest_date"] - source_data["earliest_date"]
+            ).days + 1
+            coverage_percentage = (
+                source_data["total_days_with_photos"] / total_days_in_range
+            ) * 100
+
+        result["sources"][source_name] = {
+            "total_photos": source_data["total_photos"],
+            "total_days_with_photos": source_data["total_days_with_photos"],
+            "avg_photos_per_day": round(avg_photos_per_day, 2),
+            "max_photos_per_day": max_photos_per_day,
+            "min_photos_per_day": min_photos_per_day,
+            "date_range": {
+                "start": (
+                    source_data["earliest_date"].strftime("%Y-%m-%d")
+                    if source_data["earliest_date"]
+                    else None
+                ),
+                "end": (
+                    source_data["latest_date"].strftime("%Y-%m-%d")
+                    if source_data["latest_date"]
+                    else None
+                ),
+            },
+            "coverage_percentage": round(coverage_percentage, 2),
+        }
+
+    # Calculate combined stats
     avg_photos_per_day = (
-        sum(photos_per_day) / len(photos_per_day) if photos_per_day else 0
+        sum(combined_photos_per_day) / len(combined_photos_per_day)
+        if combined_photos_per_day
+        else 0
     )
-    max_photos_per_day = max(photos_per_day) if photos_per_day else 0
-    min_photos_per_day = min(photos_per_day) if photos_per_day else 0
+    max_photos_per_day = max(combined_photos_per_day) if combined_photos_per_day else 0
+    min_photos_per_day = min(combined_photos_per_day) if combined_photos_per_day else 0
 
     coverage_percentage = 0
-    if earliest_date and latest_date:
-        total_days_in_range = (latest_date - earliest_date).days + 1
-        coverage_percentage = (total_days_with_photos / total_days_in_range) * 100
+    if combined_earliest_date and combined_latest_date:
+        total_days_in_range = (combined_latest_date - combined_earliest_date).days + 1
+        coverage_percentage = (
+            len(combined_days_with_photos) / total_days_in_range
+        ) * 100
 
-    # Sort missions by name (ISS001, ISS002, etc.)
-    sorted_missions = dict(sorted(photos_by_mission.items(), key=lambda x: x[0]))
-
-    sorted_years = dict(sorted(photos_by_year.items()))
-
-    month_names = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ]
-
-    months_dict = {}
-    for month in range(1, 13):
-        months_dict[month_names[month - 1]] = photos_by_month[month]
-
-    # Most productive missions
-    most_productive_mission = None
-    if photos_by_mission:
-        most_productive_mission = max(photos_by_mission.items(), key=lambda x: x[1])
-
-    # Most productive year
-    most_productive_year = None
-    if photos_by_year:
-        most_productive_year = max(photos_by_year.items(), key=lambda x: x[1])
-
-    # Most productive month
-    most_productive_month = None
-    if photos_by_month:
-        most_productive_month = max(photos_by_month.items(), key=lambda x: x[1])
-        month_name = month_names[most_productive_month[0] - 1]
-        most_productive_month = (month_name, most_productive_month[1])
-
-    return {
-        "total_photos": total_photos,
-        "total_days_with_photos": total_days_with_photos,
+    result["combined"] = {
+        "total_photos": combined_total_photos,
+        "total_days_with_photos": len(combined_days_with_photos),
         "avg_photos_per_day": round(avg_photos_per_day, 2),
         "max_photos_per_day": max_photos_per_day,
         "min_photos_per_day": min_photos_per_day,
         "date_range": {
-            "start": earliest_date.strftime("%Y-%m-%d") if earliest_date else None,
-            "end": latest_date.strftime("%Y-%m-%d") if latest_date else None,
+            "start": (
+                combined_earliest_date.strftime("%Y-%m-%d")
+                if combined_earliest_date
+                else None
+            ),
+            "end": (
+                combined_latest_date.strftime("%Y-%m-%d")
+                if combined_latest_date
+                else None
+            ),
         },
         "coverage_percentage": round(coverage_percentage, 2),
-        "missions": sorted_missions,
-        "years": sorted_years,
-        "months": months_dict,
-        "most_productive_mission": (
-            most_productive_mission[0] if most_productive_mission else None
-        ),
-        "most_productive_year": (
-            most_productive_year[0] if most_productive_year else None
-        ),
-        "most_productive_month": (
-            most_productive_month[0] if most_productive_month else None
-        ),
     }
+
+    return result
 
 
 def analyze_videos():
@@ -306,7 +440,6 @@ def analyze_videos():
 
             total_videos = len(videos)
             total_duration = 0
-            videos_by_year = Counter()
 
             for v in videos:
                 if isinstance(v, dict):
@@ -317,16 +450,9 @@ def analyze_videos():
                     elif isinstance(duration, str) and duration.isdigit():
                         total_duration += int(duration)
 
-                    # Extract year from publishedAt
-                    published_at = v.get("publishedAt", "")
-                    if published_at:
-                        year = published_at[:4]
-                        videos_by_year[year] += 1
-
             youtube_stats = {
                 "total_videos": total_videos,
                 "total_duration_seconds": total_duration,
-                "videos_by_year": dict(sorted(videos_by_year.items())),
             }
         except (json.JSONDecodeError, IOError) as e:
             print(f"Error reading {YOUTUBE_JSON}: {e}")
@@ -338,15 +464,23 @@ def analyze_videos():
                 videos = json.load(f)
 
             total_videos = len(videos)
-            videos_by_date = Counter()
+            total_duration = 0
 
             for v in videos:
-                if isinstance(v, dict) and "date" in v:
-                    videos_by_date[v["date"]] += 1
+                if isinstance(v, dict):
+                    # Duration might be int, float, or string
+                    duration = v.get("duration", 0)
+                    if isinstance(duration, (int, float)) and duration > 0:
+                        total_duration += duration
+                    elif (
+                        isinstance(duration, str)
+                        and duration.replace(".", "").isdigit()
+                    ):
+                        total_duration += float(duration)
 
             ia_stats = {
                 "total_videos": total_videos,
-                "videos_by_date": dict(sorted(videos_by_date.items())),
+                "total_duration_seconds": total_duration,
             }
         except (json.JSONDecodeError, IOError) as e:
             print(f"Error reading {IA_VIDEOS_JSON}: {e}")
@@ -363,11 +497,12 @@ def analyze_data_availability():
     data_types = [
         "comm",
         "vvComm",
-        "youtube",
+        "video",
         "eva",
         "blog",
-        "activitySummary",
-        "earthPhotography",
+        "actSum",
+        "earthPhotos",
+        "photos",
     ]
     counts = {dt: 0 for dt in data_types}
     total_days = 0
