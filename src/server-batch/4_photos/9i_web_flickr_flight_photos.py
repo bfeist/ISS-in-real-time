@@ -257,11 +257,10 @@ def extract_flickr_urls(photo: Dict) -> Dict[str, str]:
             ("url_l", "b"),  # url_l uses _b.jpg suffix
         ],
         "medium": [
-            ("url_k", "k"),  # Use large size for medium to get better resolution
-            ("url_h", "h"),
-            ("url_l", "b"),
-            ("url_z", "z"),
-            ("url_c", "c"),
+            ("url_l", "b"),  # 1024px - good medium size
+            ("url_c", "c"),  # 800px fallback
+            ("url_z", "z"),  # 640px fallback
+            ("url_w", "w"),  # 400px fallback
         ],
         "small": [
             ("url_s", "m"),
@@ -271,26 +270,35 @@ def extract_flickr_urls(photo: Dict) -> Dict[str, str]:
     }
 
     # Extract URLs for each size category
-    for size_category, priorities in size_priorities.items():
+    # Process in specific order: large, medium, small to ensure best allocation
+    processing_order = ["large", "medium", "small"]
+    used_urls = set()
+
+    for size_category in processing_order:
+        priorities = size_priorities[size_category]
         for url_field, suffix in priorities:
-            if url_field in photo and photo[url_field]:
+            if url_field in photo and photo[url_field] and url_field not in used_urls:
                 full_url = photo[url_field]
                 if full_url.startswith(FLICKR_BASE_URL):
                     path = full_url.replace(FLICKR_BASE_URL + "/", "")
                     urls[f"{size_category}Url"] = path
+                    used_urls.add(url_field)
                     break
 
-    # Fallback: construct URLs from photo ID and server info if direct URLs not available
-    if not any(urls.values()):
-        photo_id = photo.get("id", "")
-        server = photo.get("server", "")
-        secret = photo.get("secret", "")
-
-        if photo_id and server and secret:
-            base_path = f"{server}/{photo_id}_{secret}"
-            urls["smallUrl"] = f"{base_path}_{size_priorities['small'][0][1]}.jpg"
-            urls["medUrl"] = f"{base_path}_{size_priorities['medium'][0][1]}.jpg"
-            urls["largeUrl"] = f"{base_path}_{size_priorities['large'][0][1]}.jpg"
+    # Fallback for medium: use any available URL if preferred ones not found
+    if not urls["medUrl"]:
+        # Try any remaining URL fields that haven't been used
+        all_url_fields = [key for key in photo.keys() if key.startswith("url_")]
+        fallback_fields = ["url_z", "url_c", "url_w", "url_m", "url_n", "url_s", "url_t"]
+        
+        for url_field in fallback_fields:
+            if (url_field in photo and photo[url_field] and 
+                url_field not in used_urls and url_field in all_url_fields):
+                full_url = photo[url_field]
+                if full_url and full_url.startswith(FLICKR_BASE_URL):
+                    path = full_url.replace(FLICKR_BASE_URL + "/", "")
+                    urls["medUrl"] = path
+                    break
 
     return urls
 

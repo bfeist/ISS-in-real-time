@@ -165,10 +165,37 @@ export async function fetchPhotosFlickr(date: string): Promise<PhotoItem[]> {
   }
 
   const data: FlickrPhotoRaw[] = await response.json();
-  if (data.length > 0) {
-    data.sort((a: FlickrPhotoRaw, b: FlickrPhotoRaw) => a.dateTaken.localeCompare(b.dateTaken));
+
+  // Process photos with 00:00:00 timestamps
+  const photosWithMidnight = data.filter((item) => item.dateTaken.includes("00:00:00"));
+  const photosWithoutMidnight = data.filter((item) => !item.dateTaken.includes("00:00:00"));
+
+  // Sort midnight photos by nasaId and assign new times 15 seconds apart
+  if (photosWithMidnight.length > 0) {
+    photosWithMidnight.sort((a, b) => (a.nasaId || "").localeCompare(b.nasaId || ""));
+    photosWithMidnight.forEach((item, index) => {
+      const seconds = index * 15;
+      const hours = Math.floor(seconds / 3600)
+        .toString()
+        .padStart(2, "0");
+      const minutes = Math.floor((seconds % 3600) / 60)
+        .toString()
+        .padStart(2, "0");
+      const secs = (seconds % 60).toString().padStart(2, "0");
+      const newTime = `${hours}:${minutes}:${secs}`;
+      item.dateTaken = item.dateTaken.replace("00:00:00", newTime);
+    });
   }
-  return data.map((item: FlickrPhotoRaw) => ({
+
+  // Combine and sort all photos by dateTaken
+  const allPhotos = [...photosWithoutMidnight, ...photosWithMidnight];
+  if (allPhotos.length > 0) {
+    allPhotos.sort((a: FlickrPhotoRaw, b: FlickrPhotoRaw) =>
+      a.dateTaken.localeCompare(b.dateTaken)
+    );
+  }
+
+  return allPhotos.map((item: FlickrPhotoRaw) => ({
     ID: item.nasaId || "unknown",
     dateTaken: item.dateTaken,
     smallUrl: item.smallUrl,
