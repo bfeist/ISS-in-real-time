@@ -91,6 +91,12 @@ def load_wayback_articles():
                                                     or file_path,
                                                 }
 
+                                                # Add source_url if available
+                                                if "source_url" in article_data:
+                                                    transformed_article[
+                                                        "source_url"
+                                                    ] = article_data["source_url"]
+
                                                 # Add image data if available
                                                 if "image_caption" in article_data:
                                                     transformed_article[

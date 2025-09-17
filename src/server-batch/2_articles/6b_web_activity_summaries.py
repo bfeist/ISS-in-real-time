@@ -145,11 +145,6 @@ def main():
             f"activity_summary_{year}-{month}-{day}.json",
         )
 
-        # if os.path.exists(summary_path):
-        #     print(f"Summary for {available_date} already exists. Skipping...")
-        #     current_date += delta
-        #     continue
-
         landing_url = f"https://blogs.nasa.gov/stationreport/{year}/{month}/{day}"
         blog_url = get_blog_url(landing_url)
         if not blog_url:
@@ -157,7 +152,24 @@ def main():
             current_date += delta
             continue
 
+        if os.path.exists(summary_path):
+            with open(summary_path, "r") as f:
+                existing_data = json.load(f)
+            if "source_url" not in existing_data:
+                existing_data["source_url"] = blog_url
+                with open(summary_path, "w") as f:
+                    json.dump(existing_data, f, indent=4)
+                print(f"Updated {summary_path} with source_url")
+            else:
+                print(
+                    f"Summary for {available_date} already has source_url. Skipping..."
+                )
+            current_date += delta
+            continue
+
         categorized_activities = get_iss_activities(blog_url)
+        categorized_activities["source_url"] = blog_url
+
         if (
             len(categorized_activities) == 1
             and len(categorized_activities["general"]) == 0

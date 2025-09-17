@@ -11,12 +11,23 @@ import glob
 from pathlib import Path
 import unicodedata
 import dateutil.parser
+import dateutil.tz
 
 load_dotenv(dotenv_path="../../.env")
 RAW_FOLDER = os.getenv("RAW_FOLDER")
 
 input_folder = os.path.join(RAW_FOLDER, "early_status_rawhtml")
 output_folder = os.path.join(RAW_FOLDER, "early_status_blogarticles_output")
+
+# Load wayback sources
+wayback_sources_path = os.path.join(
+    RAW_FOLDER, "early_status_rawhtml", "wayback_sources.json"
+)
+wayback_sources = {}
+if os.path.exists(wayback_sources_path):
+    with open(wayback_sources_path, "r", encoding="utf-8") as f:
+        sources_list = json.load(f)
+        wayback_sources = {item["filename"]: item["sourceUrl"] for item in sources_list}
 
 # three different formats of html files in the input folder
 # t1 has no specific naming convention but is most of the articles
@@ -756,17 +767,24 @@ def detect_and_process_file(file_path):
         html_content = f.read()
 
     if filename.startswith("spacestation_"):
-        return extract_spacestation_blog(html_content, filename)
+        article_data = extract_spacestation_blog(html_content, filename)
     elif filename.startswith("spacenews_reports_sts"):
-        return extract_spacenews_sts_report(html_content, filename)
+        article_data = extract_spacenews_sts_report(html_content, filename)
     elif filename.startswith("spacenews_"):
-        return extract_spacenews_report(html_content, filename)
+        article_data = extract_spacenews_report(html_content, filename)
     elif filename.startswith("mission_pages_station_expeditions"):
-        return extract_mission_pages_station_expeditions_page(html_content, filename)
+        article_data = extract_mission_pages_station_expeditions_page(
+            html_content, filename
+        )
     elif filename.startswith("returntoflight_"):
-        return extract_returntoflight_report(html_content, filename)
+        article_data = extract_returntoflight_report(html_content, filename)
     else:
-        return extract_jsc_status_report(html_content, filename)
+        article_data = extract_jsc_status_report(html_content, filename)
+
+    # Add source_url from wayback_sources
+    article_data["source_url"] = wayback_sources.get(filename, "")
+
+    return article_data
 
 
 def parse_date(date_string):
@@ -783,10 +801,22 @@ def parse_date(date_string):
         if not date_string:
             return ""
 
+        # Define timezone info to handle unknown timezones
+        tzinfos = {
+            "CST": dateutil.tz.tzoffset("CST", -6 * 3600),
+            "CDT": dateutil.tz.tzoffset("CDT", -5 * 3600),
+            "EST": dateutil.tz.tzoffset("EST", -5 * 3600),
+            "EDT": dateutil.tz.tzoffset("EDT", -4 * 3600),
+            "PST": dateutil.tz.tzoffset("PST", -8 * 3600),
+            "PDT": dateutil.tz.tzoffset("PDT", -7 * 3600),
+            "GMT": dateutil.tz.tzoffset("GMT", 0),
+            "UTC": dateutil.tz.tzutc(),
+        }
+
         # Handle various date formats
         # For example: "Saturday, Dec. 2, 2000, 8:30 p.m. CST"
         # or ISO format like "2015-02-14"
-        parsed_date = dateutil.parser.parse(date_string, fuzzy=True)
+        parsed_date = dateutil.parser.parse(date_string, fuzzy=True, tzinfos=tzinfos)
         return parsed_date.strftime("%Y-%m-%d")
     except Exception as e:
         print(f"Could not parse date '{date_string}': {str(e)}")
@@ -831,6 +861,9 @@ def save_article(article_data, output_path=None):
             f"\nSkipping file with insufficient content: {article_data.get('original_file')}"
         )
         return None
+
+    # Clean the title to remove extra whitespace
+    article_data["title"] = re.sub(r"\s+", " ", article_data["title"]).strip()
 
     # Create a slug from the title
     title_slug = create_slug(article_data.get("title", "untitled"))

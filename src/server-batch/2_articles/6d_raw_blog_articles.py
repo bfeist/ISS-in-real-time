@@ -223,7 +223,24 @@ def process_url_file(file_path):
             blog_articles_folder, year, month, f"{day}-{title_slug}"
         )
         if os.path.exists(article_folder):
-            print(f"Article already processed: {url} - Skipping")
+            json_path = os.path.join(article_folder, "article.json")
+            if os.path.exists(json_path):
+                # Load existing JSON
+                with open(json_path, "r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+                # Add source_url if not present
+                if "source_url" not in existing_data:
+                    existing_data["source_url"] = url
+                    # Save back
+                    with open(json_path, "w", encoding="utf-8") as f:
+                        json.dump(existing_data, f, ensure_ascii=False, indent=2)
+                    print(f"Updated JSON for existing article: {url}")
+                else:
+                    print(
+                        f"Article already processed and has source_url: {url} - Skipping"
+                    )
+            else:
+                print(f"Folder exists but no article.json for {url}")
             continue
 
         # Scrape the article
@@ -244,6 +261,7 @@ def process_url_file(file_path):
                     "paragraphs": article_data["paragraphs"],
                     "image_caption": article_data["image_caption"],
                     "image_filename": article_data["image_filename"],
+                    "source_url": url,
                 },
                 f,
                 ensure_ascii=False,

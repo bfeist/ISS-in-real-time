@@ -184,6 +184,7 @@ type ActivitySummary = {
   general?: ActivitySummaryGeneral[];
   tasklist?: ActivitySummaryTasklist[];
   ground?: ActivitySummaryGround[];
+  source_url?: string;
 };
 
 type BlogArticle = {
@@ -191,6 +192,7 @@ type BlogArticle = {
   paragraphs: string[];
   image_caption?: string;
   image_filename?: string;
+  source_url?: string;
 };
 
 type OrbitDaily = Record<string, number>;

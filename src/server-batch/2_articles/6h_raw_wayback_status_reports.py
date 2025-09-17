@@ -9,6 +9,31 @@ import time  # newly added import
 load_dotenv(dotenv_path="../../.env")
 RAW_FOLDER = os.getenv("RAW_FOLDER")
 
+sources_filepath = os.path.join(
+    RAW_FOLDER, "early_status_rawhtml", "wayback_sources.json"
+)
+sources = {}  # Dict to collect filename: sourceUrl, to avoid duplicates
+
+# Load existing sources if file exists
+if os.path.exists(sources_filepath):
+    with open(sources_filepath, "r", encoding="utf-8") as f:
+        existing_sources = json.load(f)
+        sources = {item["filename"]: item["sourceUrl"] for item in existing_sources}
+
+
+def get_filename(url):
+    """Generate filename from URL."""
+    parsed_url = urlparse(url)
+    filename = parsed_url.path.strip("/").replace(
+        "/", "_"
+    ) or parsed_url.netloc.replace(".", "_")
+    filename = re.sub(r"[^\w\-_\. ]", "_", filename)  # Replace invalid characters
+    filename = f"{filename}"
+
+    if not filename.endswith(".html") and not filename.endswith(".htm"):
+        filename += ".html"
+    return filename
+
 
 def get_wayback_url(session, original_url):
     """Fetch the full availability response from the Wayback Machine using the cdx/search API."""
@@ -43,26 +68,19 @@ def get_wayback_url(session, original_url):
 
 def save_html(url, content):
     """Save the HTML content to a file named after the URL path."""
-    parsed_url = urlparse(url)
-    filename = parsed_url.path.strip("/").replace(
-        "/", "_"
-    ) or parsed_url.netloc.replace(".", "_")
-    filename = re.sub(r"[^\w\-_\. ]", "_", filename)  # Replace invalid characters
-    filename = f"{filename}"
-
-    if not filename.endswith(".html") and not filename.endswith(".htm"):
-        filename += ".html"
+    filename = get_filename(url)
 
     os.makedirs(os.path.join(RAW_FOLDER, "early_status_rawhtml"), exist_ok=True)
     filepath = os.path.join(RAW_FOLDER, "early_status_rawhtml", filename)
 
     if os.path.exists(filepath):
         print(f"File already exists: {filepath}")
-        return
+        return None
 
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(content)
     print(f"Saved: {filepath}")
+    return filename
 
 
 def fetch_wayback_data(session, json_file):
@@ -77,26 +95,38 @@ def fetch_wayback_data(session, json_file):
         if not url:
             continue
 
-        parsed_url = urlparse(url)
-        filename = parsed_url.path.strip("/").replace(
-            "/", "_"
-        ) or parsed_url.netloc.replace(".", "_")
-        filename = re.sub(r"[^\w\-_\. ]", "_", filename)  # Replace invalid characters
-        filename = f"{filename}"
+        filename = get_filename(url)
+        if filename in sources:
+            continue  # Already recorded
+
         filepath = os.path.join(RAW_FOLDER, "early_status_rawhtml", filename)
 
         if os.path.exists(filepath):
-            print(f"File already exists: {filepath}")
+            # File exists but not recorded, get wayback_url and record
+            wayback_url = get_wayback_url(session, url)
+            if wayback_url:
+                sources[filename] = wayback_url
+                print(f"File exists, added to sources: {filepath}")
             continue
 
         wayback_url = get_wayback_url(session, url)
         if wayback_url:
+            filename = get_filename(url)  # redundant, but keep
+            filepath = os.path.join(RAW_FOLDER, "early_status_rawhtml", filename)
+
+            if os.path.exists(filepath):  # unlikely, but
+                sources[filename] = wayback_url
+                print(f"File already exists, added to sources: {filepath}")
+                continue
+
             print(f"Fetching {wayback_url}...")
             for attempt in range(3):
                 try:
                     response = session.get(wayback_url)
                     if response.status_code == 200:
-                        save_html(url, response.text)
+                        filename = save_html(url, response.text)
+                        if filename:
+                            sources[filename] = wayback_url
                         break
                     else:
                         print(f"Failed to retrieve {wayback_url}")
@@ -148,19 +178,13 @@ def fetch_incremental_wayback(session, url):
             RAW_FOLDER, "early_status_rawhtml", non_padded_filename
         )
 
-        # Check if either file already exists
-        if os.path.exists(padded_filepath):
-            print(f"File for padded URL already exists: {padded_filepath}")
-            entry_number += 1
-            continue
-        elif os.path.exists(non_padded_filepath):
-            print(f"File for non-padded URL already exists: {non_padded_filepath}")
-            use_padding = False  # Switch to non-padded format for future iterations
+        # Neither file exists, proceed with fetching
+        curr_url = padded_url if use_padding else non_padded_url
+        curr_filename = get_filename(curr_url)
+        if curr_filename in sources:
             entry_number += 1
             continue
 
-        # Neither file exists, proceed with fetching
-        curr_url = padded_url if use_padding else non_padded_url
         print(f"Requesting snapshot for {curr_url}...")
         wayback_url = get_wayback_url(session, curr_url)
 
@@ -169,6 +193,11 @@ def fetch_incremental_wayback(session, url):
             print(f"No snapshot found for {curr_url}, trying without zero padding...")
             use_padding = False
             curr_url = non_padded_url
+            curr_filename = get_filename(curr_url)
+            if curr_filename in sources:
+                entry_number += 1
+                continue
+
             print(f"Requesting snapshot for {curr_url}...")
             wayback_url = get_wayback_url(session, curr_url)
 
@@ -176,11 +205,21 @@ def fetch_incremental_wayback(session, url):
             print(f"No snapshot found for {curr_url}")
             break
 
+        curr_filepath = os.path.join(RAW_FOLDER, "early_status_rawhtml", curr_filename)
+
+        if os.path.exists(curr_filepath):
+            sources[curr_filename] = wayback_url
+            print(f"File already exists, added to sources: {curr_filepath}")
+            entry_number += 1
+            continue
+
         for attempt in range(3):
             try:
                 response = session.get(wayback_url)
                 if response.status_code == 200:
-                    save_html(curr_url, response.text)
+                    filename = save_html(curr_url, response.text)
+                    if filename:
+                        sources[filename] = wayback_url
                     break
                 else:
                     print(
@@ -215,3 +254,9 @@ if __name__ == "__main__":
         if filename.endswith(".json"):
             json_file = os.path.join(exp_dir, filename)
             fetch_wayback_data(session, json_file)
+
+    # Write the sources to a JSON file
+    sources_list = [{"filename": k, "sourceUrl": v} for k, v in sources.items()]
+    with open(sources_filepath, "w", encoding="utf-8") as f:
+        json.dump(sources_list, f, indent=4)
+    print(f"Sources saved to: {sources_filepath}")
