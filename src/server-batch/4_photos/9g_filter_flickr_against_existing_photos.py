@@ -1,15 +1,15 @@
 """
 NASA ISS Photo Cross-Filter: Remove Existing Photos from Flickr Albums
 
-This script filters Flickr photo albums (processed by 9g_make_filtered_list_using_ai.py)
-by removing any photos that match NASA photo IDs from multiple existing data sources.
+This script filters raw Flickr photo albums by removing any photos that match NASA photo IDs
+from multiple existing data sources.
 
 The script:
 1. Loads earth photography manifest files on-demand and caches NASA IDs for fast lookups
 2. Loads images_nasa_gov.json and photos_manual.json data sources
 3. Extracts NASA IDs from Flickr photo descriptions (e.g., "jsc2023e052795" from description text)
 4. Filters out any Flickr photos that have matching NASA IDs in any existing photo database
-5. Saves filtered results with _flight_filtered suffix
+5. Saves filtered results with _filtered suffix in the same folder
 6. Stores extracted NASA ID as separate property in each photo object
 
 Data Sources Filtered Against:
@@ -18,8 +18,8 @@ Data Sources Filtered Against:
 - Manual photos: WEB_ASSETS_FOLDER/photos_manual.json
 
 Directory Structure:
-- Flickr albums: RAW_FOLDER/photos_flickr/albums_filtered/*_flight.json
-- Output: RAW_FOLDER/photos_flickr/albums_filtered/*_flight_filtered.json
+- Input: RAW_FOLDER/photos_flickr/albums/*.json
+- Output: RAW_FOLDER/photos_flickr/albums/*_filtered.json
 """
 
 import os
@@ -38,12 +38,24 @@ load_dotenv(dotenv_path="../../../.env")
 RAW_FOLDER = os.getenv("RAW_FOLDER")
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
+# Configuration - Albums to process
+ALBUM_KEYWORDS = [
+    "Axiom",
+    "Expedition",
+    "SpaceX",
+    "Pizza",
+    "STS",
+    "Progress",
+    "Zarya",
+    "Station",
+]
+
 # Directory paths
 EARTH_PHOTOGRAPHY_FOLDER = (
     os.path.join(WEB_ASSETS_FOLDER, "earth_photography") if WEB_ASSETS_FOLDER else None
 )
 FLICKR_ALBUMS_FOLDER = (
-    os.path.join(RAW_FOLDER, "photos_flickr", "albums_filtered") if RAW_FOLDER else None
+    os.path.join(RAW_FOLDER, "photos_flickr", "albums") if RAW_FOLDER else None
 )
 
 # NASA ID pattern - matches NASA photo IDs with specific prefixes and formats
@@ -481,33 +493,46 @@ def save_filtered_album(
         return False
 
 
-def find_flight_albums() -> List[Path]:
+def find_raw_albums() -> List[Path]:
     """
-    Find all *_flight.json albums in the albums_filtered folder
+    Find all raw album JSON files in the albums folder that match target keywords
+    Excludes already filtered albums (those ending with _filtered.json)
 
     Returns:
-        List of Path objects for flight albums
+        List of Path objects for matching raw albums
     """
     if not FLICKR_ALBUMS_FOLDER or not os.path.exists(FLICKR_ALBUMS_FOLDER):
         print(f"❌ Flickr albums folder not found: {FLICKR_ALBUMS_FOLDER}")
         return []
 
     albums_folder = Path(FLICKR_ALBUMS_FOLDER)
-    flight_albums = list(albums_folder.glob("*_flight.json"))
+    all_albums = list(albums_folder.glob("*.json"))
+
+    # Exclude already filtered albums
+    raw_albums = [
+        album for album in all_albums if not album.name.endswith("_filtered.json")
+    ]
+
+    # Filter by keywords
+    matching_albums = []
+    for album in raw_albums:
+        if any(keyword in album.name for keyword in ALBUM_KEYWORDS):
+            matching_albums.append(album)
 
     # Sort by filename for consistent processing order
-    flight_albums.sort(key=lambda x: x.name)
+    matching_albums.sort(key=lambda x: x.name)
 
-    print(f"✅ Found {len(flight_albums)} flight albums to process")
-    return flight_albums
+    print(f"✅ Found {len(matching_albums)} matching raw albums to process")
+    print(f"   Target keywords: {', '.join(ALBUM_KEYWORDS)}")
+    return matching_albums
 
 
 def process_album(album_path: Path, photo_cache: AllPhotoIDCache) -> Dict:
     """
-    Process a single flight album and create filtered version
+    Process a single raw album and create filtered version
 
     Args:
-        album_path: Path to the flight album JSON file
+        album_path: Path to the raw album JSON file
         photo_cache: All photo ID cache
 
     Returns:
@@ -515,8 +540,9 @@ def process_album(album_path: Path, photo_cache: AllPhotoIDCache) -> Dict:
     """
     album_name = album_path.name
 
-    # Create output path
-    output_name = album_name.replace("_flight.json", "_flight_filtered.json")
+    # Create output path with _filtered suffix
+    name_part, ext = os.path.splitext(album_name)
+    output_name = f"{name_part}_filtered{ext}"
     output_path = album_path.parent / output_name
 
     print(f"\n📸 Processing: {album_name}")
@@ -580,10 +606,9 @@ def main():
     """
     Main processing function
     """
-    print(
-        "NASA ISS Photo Cross-Filter: Keep Only Non-Existing NASA Photos from Flickr Albums"
-    )
+    print("NASA ISS Photo Cross-Filter: Filter Raw Albums Against Existing Photos")
     print("=" * 80)
+    print(f"Target keywords: {', '.join(ALBUM_KEYWORDS)}")
 
     # Validate configuration
     if not RAW_FOLDER or not WEB_ASSETS_FOLDER:
@@ -610,10 +635,10 @@ def main():
     all_photo_ids = photo_cache.get_all_ids()
     print(f"✅ Loaded {len(all_photo_ids)} total photo IDs into memory")
 
-    # Find flight albums to process
-    flight_albums = find_flight_albums()
-    if not flight_albums:
-        print("❌ No flight albums found to process")
+    # Find raw albums to process
+    raw_albums = find_raw_albums()
+    if not raw_albums:
+        print("❌ No raw albums found to process")
         return False
 
     # Process each album
@@ -629,8 +654,8 @@ def main():
         "no_nasa_id_photos": [],
     }
 
-    for i, album_path in enumerate(flight_albums, 1):
-        print(f"\n[{i}/{len(flight_albums)}] ", end="")
+    for i, album_path in enumerate(raw_albums, 1):
+        print(f"\n[{i}/{len(raw_albums)}] ", end="")
 
         result = process_album(album_path, photo_cache)
 
@@ -680,35 +705,35 @@ def main():
     print(f"\n📁 Filtered albums saved to: {FLICKR_ALBUMS_FOLDER}")
 
     # Show photos without NASA IDs
-    if results["no_nasa_id_photos"]:
-        print(
-            f"\n📋 Photos without NASA IDs ({len(results['no_nasa_id_photos'])} total):"
-        )
-        for photo in results["no_nasa_id_photos"]:
-            flickr_id = photo.get("id", "Unknown")
-            title = (
-                photo.get("title", {}).get("_content", "No title")
-                if isinstance(photo.get("title"), dict)
-                else photo.get("title", "No title")
-            )
-            description = (
-                photo.get("description", {}).get("_content", "No description")
-                if isinstance(photo.get("description"), dict)
-                else photo.get("description", "No description")
-            )
-            print(f"   🖼️  ID: {flickr_id}")
-            print(f"       Title: {title}")
-            print(
-                f"       Description: {description[:100]}{'...' if len(description) > 100 else ''}"
-            )
-            print()
+    # if results["no_nasa_id_photos"]:
+    #     print(
+    #         f"\n📋 Photos without NASA IDs ({len(results['no_nasa_id_photos'])} total):"
+    #     )
+    #     for photo in results["no_nasa_id_photos"]:
+    #         flickr_id = photo.get("id", "Unknown")
+    #         title = (
+    #             photo.get("title", {}).get("_content", "No title")
+    #             if isinstance(photo.get("title"), dict)
+    #             else photo.get("title", "No title")
+    #         )
+    #         description = (
+    #             photo.get("description", {}).get("_content", "No description")
+    #             if isinstance(photo.get("description"), dict)
+    #             else photo.get("description", "No description")
+    #         )
+    #         print(f"   🖼️  ID: {flickr_id}")
+    #         print(f"       Title: {title}")
+    #         print(
+    #             f"       Description: {description[:100]}{'...' if len(description) > 100 else ''}"
+    #         )
+    #         print()
 
     return True
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Filter Flickr flight albums to keep only photos with NASA IDs not matching existing photo databases (earth photography, images_nasa_gov, photos_manual)"
+        description="Filter raw Flickr albums (matching target keywords) to keep only photos with NASA IDs not matching existing photo databases (earth photography, images_nasa_gov, photos_manual)"
     )
     args = parser.parse_args()
 

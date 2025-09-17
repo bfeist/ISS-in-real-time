@@ -1,14 +1,14 @@
 """
-NASA ISS Photo Classification Filter
+NASA ISS Photo AI Classification Filter
 
-This script processes all NASA ISS photoset JSON files and uses AI classification to determine
-whether photos were taken during flight operations (keep) or are ancillary photos like training,
-portraits, press events, etc. (exclude).
+This script processes filtered Flickr photo albums (created by 9g_filter_against_existing_photos.py)
+and uses AI classification to determine whether photos were taken during flight operations (keep)
+or are ancillary photos like training, portraits, press events, etc. (exclude).
 
 Uses OpenWebUI/Ollama API to classify photos based on their descriptions.
 
-Processes all albums matching: Axiom, Expedition, SpaceX, Pizza, STS, Progress, Zarya, Station
-Saves filtered results to albums_filtered folder with _filtered suffix in filenames.
+Processes all albums ending with _filtered.json from the albums folder.
+Saves AI-classified results to albums_filtered folder with _flight and _ancillary suffixes.
 """
 
 import json
@@ -33,21 +33,14 @@ OLLAMA_DIRECT_URL = "http://localhost:11434"  # Direct Ollama API endpoint
 OLLAMA_API_URL = f"{OPENWEBUI_URL}/ollama/api"
 
 # Configuration
-ALBUM_KEYWORDS = [
-    "Axiom",
-    "Expedition",
-    "SpaceX",
-    "Pizza",
-    "STS",
-    "Progress",
-    "Zarya",
-    "Station",
-]
+# Process filtered albums (created by 9g_filter_against_existing_photos.py)
 INPUT_FOLDER = (
     os.path.join(RAW_FOLDER, "photos_flickr", "albums") if RAW_FOLDER else None
 )
 OUTPUT_FOLDER = (
-    os.path.join(RAW_FOLDER, "photos_flickr", "albums_filtered") if RAW_FOLDER else None
+    os.path.join(RAW_FOLDER, "photos_flickr", "albums_categorized_photos")
+    if RAW_FOLDER
+    else None
 )
 
 # Recommended models for RTX 4090 (in order of preference - Updated Sept 2025)
@@ -240,7 +233,7 @@ def classify_photos_batch(photos_batch: List[Dict[str, Any]]) -> List[Dict[str, 
                 prompt = f"""Classify this NASA ISS photo as FLIGHT or ANCILLARY.
 
 FLIGHT = Photos taken aboard the ISS during flight operations (keep these photos)
-ANCILLARY = Ground-based activities only (exclude these photos)
+ANCILLARY = Ground-based activities (exclude these photos)
 
 Photo details:
 - Title: {title}
@@ -252,29 +245,38 @@ Key indicators for FLIGHT (KEEP):
 - ANY photo taken in ISS modules (Unity, Harmony, Kibo, Columbus, Cupola, etc.)
 - Portraits, crew photos, group photos taken INSIDE the ISS
 - "microgravity", "zero-g"
-- ISS experiments, crew activities, spacewalks
-- Docking operations, spacecraft approaches
+- ISS experiments, crew activities, spacewalks (EVAs) in space
+- Docking operations, spacecraft approaches to the ISS in orbit
 - Astronauts working, eating, exercising, sleeping inside ISS
 - Scientific research, equipment setup aboard ISS
-- Spacecraft operations, maintenance
-- Earth photography taken from the ISS (views of Earth from space)
+- Spacecraft operations, maintenance aboard the ISS
+- Earth photography taken FROM THE ISS (views of Earth from space)
 - Photos with tags like "earth", "earth photography", or Earth observation from space
 - Views of cities, oceans, weather, aurora, hurricanes from the ISS
 - Terminator line photos (day/night boundary) from space
-- Launch activities, rocket launches, spacecraft launches
-- Photos taken during launch operations or launch sequences
-- Soyuz, Dragon, Progress, or other spacecraft launches
-- Landing operations, spacecraft landings
-- Photos taken during landing sequences
 
 CRITICAL: If the description mentions any ISS location or "aboard/inside the International Space Station", classify as FLIGHT regardless of whether it's a portrait.
 CRITICAL: Earth photography taken FROM THE ISS is considered FLIGHT operations, not ancillary.
 
-Key indicators for ANCILLARY (EXCLUDE):
+Key indicators for ANCILLARY (EXCLUDE - Ground-based activities):
 - Training activities on Earth (NBL, pools, simulators)
-- Press events, family photos taken on Earth (not related to launch or flight)
-- NBL, Neutral Buoyancy Laboratory activities
-- Ceremonies and events not directly related to launch or flight operations
+- Press events, family photos taken on Earth
+- NBL, Neutral Buoyancy Laboratory activities  
+- Ceremonies and events on Earth
+- ROCKET ASSEMBLY activities at Baikonur Cosmodrome or other launch sites
+- LAUNCH PAD operations, rocket rollout, rocket in vertical position
+- PRE-LAUNCH activities on Earth (rocket preparation, fueling, etc.)
+- LAUNCH operations and rocket launches (these happen on EARTH, not aboard ISS)
+- LANDING operations and spacecraft landings (these happen on EARTH, not aboard ISS)
+- POST-LANDING activities on Earth (recovery operations, phone calls after landing)
+- Activities at Baikonur, Kennedy Space Center, or other Earth-based facilities
+- Soyuz capsule on ground, Dragon capsule recovery, parachute landings
+- Crew talking to family after landing on Earth
+- ANY activity that takes place on Earth's surface
+
+CRITICAL: Launch operations and landing operations are GROUND-BASED activities that happen on EARTH - classify as ANCILLARY.
+CRITICAL: Baikonur Cosmodrome, Kennedy Space Center activities are on EARTH - classify as ANCILLARY.
+CRITICAL: Post-landing recovery, phone calls, ceremonies on Earth are ANCILLARY.
 
 Answer with exactly one word: FLIGHT or ANCILLARY"""
 
@@ -521,32 +523,31 @@ def classify_photo_description(description, title="", tags=""):
         }
 
 
-def find_matching_albums():
+def find_filtered_albums():
     """
-    Find all album JSON files matching our target keywords
+    Find all filtered album JSON files (ending with _filtered.json)
+    These are created by 9g_filter_against_existing_photos.py
 
     Returns:
-        List of album file paths or empty list if none found
+        List of filtered album file paths or empty list if none found
     """
     if not INPUT_FOLDER or not os.path.exists(INPUT_FOLDER):
         print(f"❌ Input folder not found: {INPUT_FOLDER}")
         return []
 
     try:
-        # Get all JSON files in the albums folder
-        all_files = [f for f in os.listdir(INPUT_FOLDER) if f.endswith(".json")]
-
-        # Filter files that contain any of our keywords
-        matching_files = []
-        for filename in all_files:
-            if any(keyword in filename for keyword in ALBUM_KEYWORDS):
-                matching_files.append(os.path.join(INPUT_FOLDER, filename))
+        # Get all _filtered.json files in the albums folder
+        filtered_files = [
+            os.path.join(INPUT_FOLDER, f)
+            for f in os.listdir(INPUT_FOLDER)
+            if f.endswith("_filtered.json")
+        ]
 
         # Sort in reverse alphabetical order
-        matching_files.sort(reverse=True)
+        filtered_files.sort(reverse=True)
 
-        print(f"✅ Found {len(matching_files)} matching album files")
-        return matching_files
+        print(f"✅ Found {len(filtered_files)} filtered album files")
+        return filtered_files
 
     except Exception as e:
         print(f"❌ Error scanning albums folder: {e}")
@@ -587,11 +588,11 @@ def save_filtered_albums(
     error_count,
 ):
     """
-    Save both flight and ancillary photoset data to albums_filtered folder
+    Save both flight and ancillary photoset data to albums_categorized_photos folder
 
     Args:
         photoset_data: Original photoset data
-        original_filename: Original filename without path
+        original_filename: Original filtered filename (e.g., "album_filtered.json")
         flight_photos: List of photos classified as FLIGHT
         ancillary_photos: List of photos classified as ANCILLARY
         flight_count: Number of flight photos
@@ -608,7 +609,12 @@ def save_filtered_albums(
     # Create output directory if it doesn't exist
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
+    # Extract base name from filtered filename
     name_part, ext = os.path.splitext(original_filename)
+    if name_part.endswith("_filtered"):
+        base_name = name_part[:-9]  # Remove "_filtered" suffix
+    else:
+        base_name = name_part
 
     # Common metadata
     base_metadata = {
@@ -624,7 +630,7 @@ def save_filtered_albums(
     success = True
 
     # Save flight photos
-    flight_filename = f"{name_part}_flight{ext}"
+    flight_filename = f"{base_name}_flight{ext}"
     flight_path = os.path.join(OUTPUT_FOLDER, flight_filename)
 
     flight_data = photoset_data.copy()
@@ -651,7 +657,7 @@ def save_filtered_albums(
         success = False
 
     # Save ancillary photos
-    ancillary_filename = f"{name_part}_ancillary{ext}"
+    ancillary_filename = f"{base_name}_ancillary{ext}"
     ancillary_path = os.path.join(OUTPUT_FOLDER, ancillary_filename)
 
     ancillary_data = photoset_data.copy()
@@ -693,10 +699,16 @@ def process_album(file_path):
     """
     filename = os.path.basename(file_path)
 
-    # Check if flight/ancillary files already exist and load them
+    # Extract base name from filtered filename (remove _filtered suffix)
     name_part, ext = os.path.splitext(filename)
-    flight_filename = f"{name_part}_flight{ext}"
-    ancillary_filename = f"{name_part}_ancillary{ext}"
+    if name_part.endswith("_filtered"):
+        base_name = name_part[:-9]  # Remove "_filtered" suffix
+    else:
+        base_name = name_part
+
+    # Create output filenames based on the base name
+    flight_filename = f"{base_name}_flight{ext}"
+    ancillary_filename = f"{base_name}_ancillary{ext}"
     flight_path = (
         os.path.join(OUTPUT_FOLDER, flight_filename) if OUTPUT_FOLDER else None
     )
@@ -766,10 +778,10 @@ def process_album(file_path):
     already_processed = len(existing_processed_ids)
     to_process = len(photos_to_process)
 
-    print(f"\n📸 Album: {filename}")
-    print(f"   Total photos in album: {total_photos}")
-    print(f"   Already processed: {already_processed}")
-    print(f"   Remaining to process: {to_process}")
+    print(f"\n📸 Filtered Album: {filename}")
+    print(f"   Total photos in filtered album: {total_photos}")
+    print(f"   Already AI-classified: {already_processed}")
+    print(f"   Remaining to classify: {to_process}")
 
     if to_process == 0:
         print(f"✅ All photos already processed - skipping album")
@@ -1054,15 +1066,18 @@ def batch_process_albums():
         print(f"✅ GPU optimization enabled")
         print(f"✅ Concurrent processing: {MAX_CONCURRENT_REQUESTS} requests")
 
-    # Find matching albums
-    album_files = find_matching_albums()
+    # Find filtered albums
+    album_files = find_filtered_albums()
     if not album_files:
-        print("❌ No matching album files found")
+        print("❌ No filtered album files found")
+        print(
+            "   Please run 9g_filter_against_existing_photos.py first to create filtered albums"
+        )
         return False
 
-    print(f"\n📁 Found {len(album_files)} albums to process")
-    print(f"📁 Input folder: {INPUT_FOLDER}")
-    print(f"📁 Output folder: {OUTPUT_FOLDER}")
+    print(f"\n📁 Found {len(album_files)} filtered albums to process")
+    print(f"📁 Input folder (filtered albums): {INPUT_FOLDER}")
+    print(f"📁 Output folder (AI classified): {OUTPUT_FOLDER}")
 
     # Process each album
     results = {
@@ -1144,14 +1159,16 @@ def batch_process_albums():
 
 def main():
     """
-    Main function for batch processing NASA ISS photo albums
+    Main function for batch processing filtered NASA ISS photo albums
     """
-    print("NASA ISS Photo Classification - Batch Processor")
+    print("NASA ISS Photo AI Classification - Batch Processor")
+    print(
+        "Processing filtered albums (created by 9g_filter_against_existing_photos.py)"
+    )
     print("Using Ollama API for AI classification")
     print(f"Direct Ollama: {OLLAMA_DIRECT_URL}")
     print(f"OpenWebUI: {OPENWEBUI_URL}")
     print(f"Model: {MODEL_NAME}")
-    print(f"Target keywords: {', '.join(ALBUM_KEYWORDS)}")
 
     # Check configuration
     if not RAW_FOLDER:
@@ -1165,13 +1182,15 @@ def main():
     success = batch_process_albums()
 
     if success:
-        print(f"\n✅ Batch processing completed!")
-        print(f"\nFiltered albums are saved in: {OUTPUT_FOLDER}")
-        print(f"Each filtered album contains only FLIGHT photos (ISS operations)")
-        print(f"ANCILLARY photos (Earth views, training, portraits) have been excluded")
+        print(f"\n✅ AI classification completed!")
+        print(f"\nAI-classified albums are saved in: {OUTPUT_FOLDER}")
+        print(f"_flight.json files contain FLIGHT photos (ISS operations)")
+        print(
+            f"_ancillary.json files contain ANCILLARY photos (ground activities, training)"
+        )
     else:
         print(
-            f"\n❌ Batch processing failed. Please check configuration and try again."
+            f"\n❌ AI classification failed. Please check configuration and try again."
         )
 
 
