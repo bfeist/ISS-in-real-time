@@ -10,6 +10,8 @@ export const initializePaperCanvas = ({
   onTimelineClick,
   hoverSecondsSetter,
   paperScope,
+  showEarthPhotos = true,
+  showMissionPhotos = true,
 }: {
   canvasElement: HTMLCanvasElement;
   canvasWidth?: number;
@@ -18,6 +20,8 @@ export const initializePaperCanvas = ({
   onTimelineClick: (seconds: number) => void;
   hoverSecondsSetter: (seconds: number | null) => void;
   paperScope: paper.PaperScope;
+  showEarthPhotos?: boolean;
+  showMissionPhotos?: boolean;
 }): {
   drawPaperItems: () => void;
   cleanupInputHandlers: () => void;
@@ -626,14 +630,18 @@ export const initializePaperCanvas = ({
 
             // Special handling for photos row - combine earthPhotos and flickrPhotos with source info
             if (rowConfig.key === "photos") {
-              const earthPhotos = ((data.earthPhotos as unknown[]) || []).map((item) => ({
-                item,
-                source: "earth",
-              }));
-              const flickrPhotos = ((data.flickrPhotos as unknown[]) || []).map((item) => ({
-                item,
-                source: "flickr",
-              }));
+              const earthPhotos = showEarthPhotos
+                ? ((data.earthPhotos as unknown[]) || []).map((item) => ({
+                    item,
+                    source: "earth",
+                  }))
+                : [];
+              const flickrPhotos = showMissionPhotos
+                ? ((data.flickrPhotos as unknown[]) || []).map((item) => ({
+                    item,
+                    source: "flickr",
+                  }))
+                : [];
               items = [...earthPhotos, ...flickrPhotos] as unknown[];
             }
 

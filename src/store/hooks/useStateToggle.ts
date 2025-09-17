@@ -10,6 +10,10 @@ export const useStateToggle = (): {
   setShowTimelineYears: (show: boolean) => void;
   hoveringYearsLabels: boolean;
   setHoveringYearsLabels: (hovering: boolean) => void;
+  showEarthPhotos: boolean;
+  setShowEarthPhotos: (show: boolean) => void;
+  showMissionPhotos: boolean;
+  setShowMissionPhotos: (show: boolean) => void;
 } =>
   useAppStore(
     useShallow((state) => ({
@@ -21,5 +25,9 @@ export const useStateToggle = (): {
       setShowTimelineYears: state.setShowTimelineYears,
       hoveringYearsLabels: state.hoveringYearsLabels,
       setHoveringYearsLabels: state.setHoveringYearsLabels,
+      showEarthPhotos: state.showEarthPhotos,
+      setShowEarthPhotos: state.setShowEarthPhotos,
+      showMissionPhotos: state.showMissionPhotos,
+      setShowMissionPhotos: state.setShowMissionPhotos,
     }))
   );

@@ -10,6 +10,7 @@ import {
 import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
+import { useStateToggle } from "store/hooks/useStateToggle";
 import { calcDayNight } from "utils/day-night";
 import { findClosestEphemeraItem } from "utils/map";
 import paper from "paper";
@@ -18,6 +19,7 @@ const TimelineDayContainer = (): JSX.Element => {
   const { selectedDate, setClock, appSecondsAtStartStop, isRunning, startStopTimestamp } =
     useStateClock();
   const { setHoverSeconds } = useStateHover();
+  const { showEarthPhotos, showMissionPhotos } = useStateToggle();
   const { data: ephemeraItems = [], isLoading: isLoadingEphemera } = useDateEphemera(
     selectedDate || ""
   );
@@ -232,6 +234,8 @@ const TimelineDayContainer = (): JSX.Element => {
         onTimelineClick: setClock,
         hoverSecondsSetter: setHoverSeconds,
         paperScope: scopeRef.current,
+        showEarthPhotos,
+        showMissionPhotos,
       });
 
       // Store the draw function for later use
@@ -309,11 +313,14 @@ const TimelineDayContainer = (): JSX.Element => {
     isLoadingComm,
     isLoadingPhotography,
     isLoadingYt,
+    showEarthPhotos,
+    showMissionPhotos,
   ]); // Put loading states back in dependencies
 
-  // Separate effect to redraw when data changes
+  // Separate effect to redraw when data changes (but not toggle changes)
   useEffect(() => {
     // Only redraw if we have the canvas setup and data is ready
+    // Note: Toggle changes are handled in the initialization effect above
     if (
       drawFunctionRef.current &&
       !isLoadingEphemera &&
@@ -339,6 +346,8 @@ const TimelineDayContainer = (): JSX.Element => {
     isLoadingYt,
     isLoadingIa,
     selectedDate,
+    // Note: showEarthPhotos and showMissionPhotos are NOT included here
+    // because toggle changes trigger re-initialization, not just redraw
   ]);
 
   // Force redraw on mount to handle hot reload scenarios

@@ -26,12 +26,16 @@ interface ToggleState {
   showGlobe: boolean;
   showTimelineYears: boolean;
   hoveringYearsLabels: boolean;
+  showEarthPhotos: boolean;
+  showMissionPhotos: boolean;
 
   // Actions
   setGlobalMute: (mute: boolean) => void;
   setShowGlobe: (show: boolean) => void;
   setShowTimelineYears: (show: boolean) => void;
   setHoveringYearsLabels: (hovering: boolean) => void;
+  setShowEarthPhotos: (show: boolean) => void;
+  setShowMissionPhotos: (show: boolean) => void;
 }
 
 interface CrewSelectionState {

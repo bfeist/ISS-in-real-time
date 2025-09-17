@@ -3,12 +3,15 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photos.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
+import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
+import PhotoToggle from "../common/photoToggle";
 import { useDateEarthPhotography, useDatePhotosFlickr } from "api/useDateSpecificData";
 
 const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "short" }) => {
   const { selectedDate, setClock } = useStateClock();
+  const { showEarthPhotos, showMissionPhotos } = useStateToggle();
   const { data: earthPhotographyItems = [], isLoading: earthPhotographyIsLoading } =
     useDateEarthPhotography(selectedDate || "");
   const { data: flickrPhotosItems = [], isLoading: flickrPhotosIsLoading } = useDatePhotosFlickr(
@@ -17,13 +20,17 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
 
   const isLoading = earthPhotographyIsLoading || flickrPhotosIsLoading;
 
-  const photoItemsCombined = useMemo(
-    () =>
-      [...earthPhotographyItems, ...flickrPhotosItems].sort(
-        (a, b) => new Date(a.dateTaken).getTime() - new Date(b.dateTaken).getTime()
-      ),
-    [earthPhotographyItems, flickrPhotosItems]
-  );
+  const hasEarthPhotos = earthPhotographyItems.length > 0;
+  const hasMissionPhotos = flickrPhotosItems.length > 0;
+
+  const photoItemsCombined = useMemo(() => {
+    const earthPhotos = showEarthPhotos ? earthPhotographyItems : [];
+    const missionPhotos = showMissionPhotos ? flickrPhotosItems : [];
+
+    return [...earthPhotos, ...missionPhotos].sort(
+      (a, b) => new Date(a.dateTaken).getTime() - new Date(b.dateTaken).getTime()
+    );
+  }, [earthPhotographyItems, flickrPhotosItems, showEarthPhotos, showMissionPhotos]);
 
   const issirtDataBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL.replace("\\x3a", ":");
   const flickrBaseUrl = "https://live.staticflickr.com";
@@ -61,6 +68,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   const [appSeconds, setAppSeconds] = useState(0);
   const [mostRecentImage, setMostRecentImage] = useState(null);
   const [isHoveringImage, setIsHoveringImage] = useState(false);
+  const [isHoveringContainer, setIsHoveringContainer] = useState(false);
 
   const observer = useRef<IntersectionObserver | null>(null);
 
@@ -121,7 +129,12 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     return <div>Loading Photos...</div>;
   }
   return (
-    <div className={styles.imageComponentContainer}>
+    <div
+      className={styles.imageComponentContainer}
+      onMouseEnter={() => setIsHoveringContainer(true)}
+      onMouseLeave={() => setIsHoveringContainer(false)}
+    >
+      {hasEarthPhotos && hasMissionPhotos && <PhotoToggle isVisible={isHoveringContainer} />}
       <ClockInterval setAppSeconds={setAppSeconds} />
       <div
         className={styles.currentImage}
