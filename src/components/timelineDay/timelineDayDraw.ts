@@ -65,7 +65,7 @@ export const initializePaperCanvas = ({
   // Data row configuration in requested order with individual heights
   const DATA_ROWS = [
     { key: "videoItems", label: "Video", color: "#dc2626", height: 15 },
-    { key: "photographyItems", label: "Photos", color: "#28B463", height: 15 },
+    { key: "photos", label: "Photos", color: "#28B463", height: 15 },
     { key: "commItems", label: "Comm", color: null, height: 22 }, // Comm row with 5 subrows
     { key: "dayNight", label: "Day/Night", color: "#dbc275", height: 6 }, // Very thin day/night row
   ];
@@ -387,7 +387,7 @@ export const initializePaperCanvas = ({
       // Draw ticks for other data types
       safeItems.forEach((item: unknown) => {
         let itemTime: Date | null = null;
-        const tickColor = rowConfig.color;
+        let tickColor = rowConfig.color;
 
         // Extract time based on item type
         if (rowConfig.key === "videoItems") {
@@ -434,9 +434,12 @@ export const initializePaperCanvas = ({
             group.addChild(durationBar);
           }
           return; // Skip the general date-based processing below
-        } else if (rowConfig.key === "photographyItems") {
-          const photoItem = item as PhotoItem;
+        } else if (rowConfig.key === "photos") {
+          const photoWrapper = item as { item: PhotoItem; source: string };
+          const photoItem = photoWrapper.item;
           itemTime = new Date(photoItem.dateTaken);
+          // Use different color based on source
+          tickColor = photoWrapper.source === "flickr" ? "#28abb4" : "#28B463";
         }
 
         if (!itemTime || isNaN(itemTime.getTime())) {
@@ -619,7 +622,21 @@ export const initializePaperCanvas = ({
         if (data) {
           // Draw each data row first
           DATA_ROWS.forEach((rowConfig, index) => {
-            const items = data[rowConfig.key as keyof TimelineDayData] as unknown[];
+            let items = data[rowConfig.key as keyof TimelineDayData] as unknown[];
+
+            // Special handling for photos row - combine earthPhotos and flickrPhotos with source info
+            if (rowConfig.key === "photos") {
+              const earthPhotos = ((data.earthPhotos as unknown[]) || []).map((item) => ({
+                item,
+                source: "earth",
+              }));
+              const flickrPhotos = ((data.flickrPhotos as unknown[]) || []).map((item) => ({
+                item,
+                source: "flickr",
+              }));
+              items = [...earthPhotos, ...flickrPhotos] as unknown[];
+            }
+
             timelineGroup.addChild(drawDataRow(index, rowConfig, items || []));
           });
 

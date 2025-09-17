@@ -21,8 +21,6 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
     switch (key) {
       case "blog":
         return availability.blog || availability.actSum;
-      case "photo":
-        return availability.earthPhotos || availability.flickrPhotos;
       default:
         return availability[key as keyof DataAvailability];
     }
@@ -36,7 +34,8 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
       { key: "video", label: "Video" },
       { key: "eva", label: "EVA" },
       { key: "blog", label: "Article" },
-      { key: "photo", label: "Photos" },
+      { key: "earthPhotos", label: "Earth Photos" },
+      { key: "flickrPhotos", label: "Mission Photos" },
     ];
 
     return baseTypes.map((type) => ({

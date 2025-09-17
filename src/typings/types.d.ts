@@ -284,7 +284,8 @@ type TimelineVideoItem = {
 
 interface TimelineDayData {
   commItems: CommItem[];
-  photographyItems: PhotoItem[];
+  earthPhotos: PhotoItem[];
+  flickrPhotos: PhotoItem[];
   videoItems: TimelineVideoItem[];
   dayNight: DayNightObj[];
   selectedDate: string;

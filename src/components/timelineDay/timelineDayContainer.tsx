@@ -5,6 +5,7 @@ import {
   useDateEphemera,
   useDateCommTranscript,
   useDateEarthPhotography,
+  useDatePhotosFlickr,
 } from "api/useDateSpecificData";
 import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
 import { useStateClock } from "store/hooks/useStateClock";
@@ -23,15 +24,25 @@ const TimelineDayContainer = (): JSX.Element => {
   const { data: commItems = [], isLoading: isLoadingComm } = useDateCommTranscript(
     selectedDate || ""
   );
-  const { data: photographyItems = [], isLoading: isLoadingPhotography } = useDateEarthPhotography(
+  const { data: earthPhotos = [], isLoading: isLoadingPhotography } = useDateEarthPhotography(
     selectedDate || ""
   );
+  const { data: flickrPhotos = [], isLoading: isLoadingPhotographyFlickr } = useDatePhotosFlickr(
+    selectedDate || "",
+    true
+  );
+
   const { data: videoYt = [], isLoading: isLoadingYt } = useGeneralVideoYt();
   const { data: videoIa = [], isLoading: isLoadingIa } = useGeneralVideoIa();
 
   // Check if any critical data is still loading
   const isLoading =
-    isLoadingEphemera || isLoadingComm || isLoadingPhotography || isLoadingYt || isLoadingIa;
+    isLoadingEphemera ||
+    isLoadingComm ||
+    isLoadingPhotography ||
+    isLoadingPhotographyFlickr ||
+    isLoadingYt ||
+    isLoadingIa;
 
   const dayNight = useMemo(() => {
     if (!ephemeraItems || ephemeraItems.length === 0 || !selectedDate) return [];
@@ -206,7 +217,8 @@ const TimelineDayContainer = (): JSX.Element => {
 
       const timelineData: TimelineDayData = {
         commItems,
-        photographyItems,
+        earthPhotos,
+        flickrPhotos,
         videoItems,
         dayNight,
         selectedDate: selectedDate || "",
@@ -316,7 +328,8 @@ const TimelineDayContainer = (): JSX.Element => {
   }, [
     ephemeraItems,
     commItems,
-    photographyItems,
+    earthPhotos,
+    flickrPhotos,
     videoYt,
     videoIa,
     dayNight,

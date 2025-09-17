@@ -106,8 +106,10 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
               return dayItem.eva;
             case "blog":
               return dayItem.blog || dayItem.actSum;
-            case "photos":
-              return dayItem.earthPhotos || dayItem.flickrPhotos;
+            case "earthphotos":
+              return dayItem.earthPhotos;
+            case "flickrphotos":
+              return dayItem.flickrPhotos;
             default:
               return false;
           }
