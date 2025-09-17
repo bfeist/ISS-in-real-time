@@ -1,4 +1,6 @@
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photos.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { appSecondsFromTimeStr } from "utils/time";
@@ -58,6 +60,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   const [visibleImages, setVisibleImages] = useState<Set<number>>(new Set());
   const [appSeconds, setAppSeconds] = useState(0);
   const [mostRecentImage, setMostRecentImage] = useState(null);
+  const [isHoveringImage, setIsHoveringImage] = useState(false);
 
   const observer = useRef<IntersectionObserver | null>(null);
 
@@ -131,9 +134,30 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
             window.open(getImageUrl(mostRecentImage, "large"), "_blank");
           }
         }}
+        onMouseEnter={() => setIsHoveringImage(true)}
+        onMouseLeave={() => setIsHoveringImage(false)}
       >
         {mostRecentImage && (
           <img src={getImageUrl(mostRecentImage, "medium")} alt={mostRecentImage.ID} />
+        )}
+        {mostRecentImage && mostRecentImage.description && isHoveringImage && (
+          <div className={`${styles.descriptionOverlay} ${styles.visible}`}>
+            <div className={styles.descriptionContent}>
+              {mostRecentImage.sourceUrl && (
+                <button
+                  className={styles.sourceButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(mostRecentImage.sourceUrl, "_blank");
+                  }}
+                  aria-label="View source"
+                >
+                  <FontAwesomeIcon icon={faExternalLinkAlt} />
+                </button>
+              )}
+              <p>{mostRecentImage.description}</p>
+            </div>
+          </div>
         )}
       </div>
       <div className={styles.imageThumbsContainer}>
