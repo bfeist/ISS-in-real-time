@@ -1,14 +1,18 @@
 """
-NASA ISS Photo AI Classification Filter
+NASA ISS Photo AI Classification Filter - Pipeline Processing
 
 This script processes filtered Flickr photo albums (created by 9g_filter_against_existing_photos.py)
 and uses AI classification to determine whether photos were taken during flight operations (keep)
 or are ancillary photos like training, portraits, press events, etc. (exclude).
 
-Uses OpenWebUI/Ollama API to classify photos based on their descriptions.
+Uses OpenWebUI/Ollama API with pipeline processing for optimal performance:
+- Processes results as they arrive (streaming)
+- Better GPU utilization (no waiting for slow requests)
+- Faster feedback (saves every 10 photos)
+- Producer-consumer pattern with async queues
 
 Processes all albums ending with _filtered.json from the albums folder.
-Saves AI-classified results to albums_filtered folder with _flight and _ancillary suffixes.
+Saves AI-classified results to albums_categorized_photos folder with _flight and _ancillary suffixes.
 """
 
 import json
@@ -58,24 +62,26 @@ MODEL_NAME = "gemma3:27b"  # Using non-reasoning model for better classification
 # ============================================================================
 # GPU OPTIMIZATION SETTINGS - ADJUST THESE FOR YOUR HARDWARE
 # ============================================================================
-# For RTX 4090 with 24GB VRAM running Gemma 3:27B (~16GB model)
-INITIAL_GPU_BATCH_SIZE = 16  # Starting batch size - back to concurrent processing
-MIN_BATCH_SIZE = 4  # Minimum batch size (prevent over-optimization to size 1)
-MAX_BATCH_SIZE = 32  # Maximum batch size (back to original)
-MAX_CONCURRENT_REQUESTS = 32  # Maximum concurrent API requests
+# Pipeline processing configuration
+MAX_CONCURRENT_REQUESTS = 8  # Maximum concurrent API requests
 
 # For RTX 3090 or lower-end cards, consider:
-# INITIAL_GPU_BATCH_SIZE = 4
-# MAX_BATCH_SIZE = 8
+# MAX_CONCURRENT_REQUESTS = 16
 
 # For RTX 4070/4080:
-# INITIAL_GPU_BATCH_SIZE = 6
-# MAX_BATCH_SIZE = 12
+# MAX_CONCURRENT_REQUESTS = 24
 
-REQUEST_TIMEOUT = 60  # Increased timeout for batch processing
+REQUEST_TIMEOUT = 60  # Request timeout for API calls
 
-# Performance tracking for dynamic adjustment
-GPU_BATCH_SIZE = INITIAL_GPU_BATCH_SIZE  # Will be adjusted during processing
+# ============================================================================
+# PIPELINE PROCESSING CONFIGURATION
+# ============================================================================
+# Uses producer-consumer pattern with async queues:
+#   - Processes results as they arrive (streaming)
+#   - Better GPU utilization (no waiting for slow requests)
+#   - Faster feedback (saves every 10 photos)
+#   - More consistent performance
+#   - Maintains steady concurrent request flow
 
 
 def make_ollama_request(prompt, model=MODEL_NAME):
@@ -203,34 +209,67 @@ async def make_ollama_request_async(session, prompt, model=MODEL_NAME):
         return None
 
 
-def classify_photos_batch(photos_batch: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+async def classify_photos_pipeline(
+    photos_list: List[Dict[str, Any]],
+    save_callback: callable,
+    progress_callback: callable = None,
+) -> List[Dict[str, Any]]:
     """
-    Classify a batch of photos concurrently for better GPU utilization
-    REVERTED: Back to original concurrent approach for better speed
+    Pipeline-based photo classification that processes results as they arrive
+    Better GPU utilization by not waiting for entire batches to complete
 
     Args:
-        photos_batch: List of photo dictionaries with id, title, description, tags
+        photos_list: List of photo dictionaries to classify
+        save_callback: Function to call with each completed result
+        progress_callback: Optional function to call with progress updates
 
     Returns:
-        List of classification results in same order as input
+        List of all classification results
     """
+    import asyncio
+    from asyncio import Queue
 
-    async def classify_batch_async():
-        # Create semaphore to limit concurrent requests
-        semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+    # Create queues for pipeline stages
+    input_queue = Queue(maxsize=MAX_CONCURRENT_REQUESTS * 2)  # Buffer input
+    result_queue = Queue()  # Unbounded results queue
 
-        async def classify_single_photo(session, photo):
-            async with semaphore:  # Limit concurrent requests
-                title = photo.get("title", "")
-                description = photo.get("description", "")
-                if isinstance(description, dict):
-                    description = description.get("_content", "")
-                elif description is None:
-                    description = ""
-                tags = photo.get("tags", "")
+    # Semaphore to limit concurrent API requests
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
-                # Create prompt for this photo
-                prompt = f"""Classify this NASA ISS photo as FLIGHT or ANCILLARY.
+    # Track completion
+    total_photos = len(photos_list)
+    completed_results = []
+
+    async def producer():
+        """Add photos to input queue"""
+        for i, photo in enumerate(photos_list):
+            await input_queue.put((i, photo))
+
+        # Signal completion
+        for _ in range(MAX_CONCURRENT_REQUESTS):
+            await input_queue.put(None)  # Sentinel values
+
+    async def worker(session, worker_id):
+        """Process photos from input queue, put results in result queue"""
+        while True:
+            item = await input_queue.get()
+            if item is None:  # Sentinel - worker should exit
+                break
+
+            photo_index, photo = item
+
+            async with semaphore:
+                try:
+                    # Build prompt
+                    title = photo.get("title", "")
+                    description = photo.get("description", "")
+                    if isinstance(description, dict):
+                        description = description.get("_content", "")
+                    elif description is None:
+                        description = ""
+                    tags = photo.get("tags", "")
+
+                    prompt = f"""Classify this NASA ISS photo as FLIGHT or ANCILLARY.
 
 FLIGHT = Photos taken aboard the ISS during flight operations (keep these photos)
 ANCILLARY = Ground-based activities (exclude these photos)
@@ -280,105 +319,75 @@ CRITICAL: Post-landing recovery, phone calls, ceremonies on Earth are ANCILLARY.
 
 Answer with exactly one word: FLIGHT or ANCILLARY"""
 
-                try:
                     response = await make_ollama_request_async(session, prompt)
                     result = process_classification_response(response)
                     result["photo_id"] = photo.get("id", "unknown")
-                    return result
+                    result["photo_index"] = photo_index
+                    result["photo"] = photo
+
+                    await result_queue.put(result)
+
                 except Exception as e:
-                    return {
+                    error_result = {
                         "classification": "ERROR",
                         "confidence": "none",
                         "ai_response": f"Processing error: {e}",
                         "reasoning": "Failed to process",
                         "photo_id": photo.get("id", "unknown"),
+                        "photo_index": photo_index,
+                        "photo": photo,
                     }
+                    await result_queue.put(error_result)
 
-        async with aiohttp.ClientSession() as session:
-            tasks = []
+                finally:
+                    input_queue.task_done()
 
-            for photo in photos_batch:
-                # Create async task for this photo with concurrency control
-                task = classify_single_photo(session, photo)
-                tasks.append(task)
+    async def consumer():
+        """Process results as they arrive"""
+        processed_count = 0
 
-            # Wait for all tasks to complete
-            results = await asyncio.gather(*tasks)
-            return results
+        while processed_count < total_photos:
+            result = await result_queue.get()
+            completed_results.append(result)
+            processed_count += 1
 
-    # Run the async batch
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(classify_batch_async())
-    finally:
-        loop.close()
+            # Call save callback immediately
+            if save_callback:
+                save_callback(result)
 
+            # Call progress callback
+            if progress_callback:
+                progress_callback(processed_count, total_photos, result)
 
-def parse_batch_response(
-    response: str, photos_batch: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
-    """
-    Parse the batch API response and extract classifications for each photo
+            result_queue.task_done()
 
-    Args:
-        response: Raw API response string
-        photos_batch: Original photos list to match results with
+    # Start pipeline
+    async with aiohttp.ClientSession() as session:
+        # Start all coroutines
+        tasks = []
 
-    Returns:
-        List of classification results in same order as input
-    """
-    results = []
+        # Producer task
+        tasks.append(asyncio.create_task(producer()))
 
-    # Clean up response and split into lines
-    lines = response.strip().split("\n")
-    classifications = []
+        # Worker tasks
+        for worker_id in range(MAX_CONCURRENT_REQUESTS):
+            tasks.append(asyncio.create_task(worker(session, worker_id)))
 
-    # Extract classifications from response
-    for line in lines:
-        line = line.strip().upper()
-        if "FLIGHT" in line or "ANCILLARY" in line:
-            if "FLIGHT" in line and "ANCILLARY" not in line:
-                classifications.append("FLIGHT")
-            elif "ANCILLARY" in line and "FLIGHT" not in line:
-                classifications.append("ANCILLARY")
-            else:
-                # Ambiguous line, try to get the last clear classification
-                if line.endswith("FLIGHT"):
-                    classifications.append("FLIGHT")
-                elif line.endswith("ANCILLARY"):
-                    classifications.append("ANCILLARY")
-                else:
-                    classifications.append("UNKNOWN")
+        # Consumer task
+        tasks.append(asyncio.create_task(consumer()))
 
-    # Match classifications to photos
-    for i, photo in enumerate(photos_batch):
-        if i < len(classifications):
-            classification = classifications[i]
-            confidence = "high" if classification in ["FLIGHT", "ANCILLARY"] else "none"
+        # Wait for producer and consumer to finish
+        await tasks[0]  # Producer
+        await tasks[-1]  # Consumer
 
-            results.append(
-                {
-                    "classification": classification,
-                    "confidence": confidence,
-                    "ai_response": response,
-                    "reasoning": f"Batch classification result: {classification}",
-                    "photo_id": photo.get("id", "unknown"),
-                }
-            )
-        else:
-            # Not enough classifications returned, mark as error
-            results.append(
-                {
-                    "classification": "ERROR",
-                    "confidence": "none",
-                    "ai_response": response,
-                    "reasoning": "Insufficient classifications in batch response",
-                    "photo_id": photo.get("id", "unknown"),
-                }
-            )
+        # Cancel remaining worker tasks
+        for task in tasks[1:-1]:
+            task.cancel()
 
-    return results
+        # Wait for cancellation
+        await asyncio.gather(*tasks[1:-1], return_exceptions=True)
+
+    return completed_results
 
 
 def process_classification_response(response: str) -> Dict[str, Any]:
@@ -495,7 +504,7 @@ def process_classification_response(response: str) -> Dict[str, Any]:
 def classify_photo_description(description, title="", tags=""):
     """
     Legacy single-photo classification function - kept for backward compatibility
-    For better GPU utilization, use classify_photos_batch() instead
+    Uses pipeline processing for single photo
 
     Args:
         description: Photo description text
@@ -505,22 +514,46 @@ def classify_photo_description(description, title="", tags=""):
     Returns:
         dict with classification result
     """
-    # Use batch processing for single photo (more efficient)
+    # Use pipeline processing for single photo
     photo = {"id": "single", "title": title, "description": description, "tags": tags}
 
-    results = classify_photos_batch([photo])
-    if results:
-        result = results[0]
-        # Remove photo_id from result for backward compatibility
-        result.pop("photo_id", None)
-        return result
-    else:
+    # Simple callback to collect result
+    result_container = []
+
+    def save_callback(result):
+        result_container.append(result)
+
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        results = loop.run_until_complete(
+            classify_photos_pipeline([photo], save_callback=save_callback)
+        )
+
+        if results:
+            result = results[0]
+            # Remove photo_id and pipeline-specific fields for backward compatibility
+            result.pop("photo_id", None)
+            result.pop("photo_index", None)
+            result.pop("photo", None)
+            return result
+        else:
+            return {
+                "classification": "ERROR",
+                "confidence": "none",
+                "ai_response": "Pipeline processing failed",
+                "reasoning": "Could not connect to AI model",
+            }
+    except Exception as e:
         return {
             "classification": "ERROR",
             "confidence": "none",
-            "ai_response": "Batch processing failed",
-            "reasoning": "Could not connect to AI model",
+            "ai_response": f"Pipeline error: {e}",
+            "reasoning": "Processing failed",
         }
+    finally:
+        loop.close()
 
 
 def find_filtered_albums():
@@ -688,8 +721,8 @@ def save_filtered_albums(
 
 def process_album(file_path):
     """
-    Process a single album file and return classification results
-    Supports resuming by loading existing filtered data and skipping already processed photos
+    Process a single album file using pipeline approach for better performance
+    Processes results as they arrive instead of waiting for entire batches
 
     Args:
         file_path: Path to the album JSON file
@@ -801,156 +834,106 @@ def process_album(file_path):
     new_ancillary_count = 0
     new_error_count = 0
 
-    print(
-        f"   🚀 Processing photos with dynamic batching (starting with {GPU_BATCH_SIZE})..."
-    )
+    # Save frequency - save after every N completed photos
+    SAVE_FREQUENCY = 10  # Save every 10 photos for faster feedback
+    last_save_count = 0
 
-    # Process photos in batches for better GPU utilization
-    total_processed = 0
-    current_batch_size = GPU_BATCH_SIZE
+    print(f"   🚀 Processing photos with pipeline approach (streaming results)...")
+    start_time = time.time()
 
-    batch_start = 0
-    while batch_start < len(photos_to_process):
-        batch_end = min(batch_start + current_batch_size, len(photos_to_process))
-        batch_photos = photos_to_process[batch_start:batch_end]
-        batch_num = (batch_start // current_batch_size) + 1
-        estimated_batches = (
-            len(photos_to_process) + current_batch_size - 1
-        ) // current_batch_size
+    def save_result(result):
+        """Called immediately when each photo is processed"""
+        nonlocal new_flight_count, new_ancillary_count, new_error_count
+        nonlocal new_flight_photos, new_ancillary_photos, last_save_count
 
-        print(
-            f"\n   📦 Processing batch {batch_num} (est. {estimated_batches} total, {len(batch_photos)} photos, batch size: {current_batch_size})..."
-        )
-        batch_start_time = time.time()
+        classification = result.get("classification", "ERROR")
+        photo = result.get("photo", {})
 
-        # Classify entire batch concurrently
-        try:
-            batch_results = classify_photos_batch(batch_photos)
-        except Exception as e:
-            print(f"   ❌ Batch processing failed: {e}")
-            # Fallback to individual processing for this batch
-            batch_results = []
-            for photo in batch_photos:
-                try:
-                    result = classify_photo_description(
-                        photo.get("description", ""),
-                        photo.get("title", ""),
-                        photo.get("tags", ""),
-                    )
-                    result["photo_id"] = photo.get("id", "unknown")
-                    batch_results.append(result)
-                except Exception as photo_error:
-                    print(f"   ❌ Individual photo failed: {photo_error}")
-                    batch_results.append(
-                        {
-                            "classification": "ERROR",
-                            "confidence": "none",
-                            "ai_response": f"Error: {photo_error}",
-                            "reasoning": "Processing failed",
-                            "photo_id": photo.get("id", "unknown"),
-                        }
-                    )
+        # Add classification to photo metadata (without circular reference)
+        photo["ai_classification"] = {
+            "classification": result.get("classification", "ERROR"),
+            "confidence": result.get("confidence", "none"),
+            "ai_response": result.get("ai_response", ""),
+            "reasoning": result.get("reasoning", ""),
+            "photo_id": result.get("photo_id", "unknown"),
+        }
 
-        batch_end_time = time.time()
-        batch_duration = batch_end_time - batch_start_time
-        photos_per_second = (
-            len(batch_photos) / batch_duration if batch_duration > 0 else 0
-        )
+        # Add to appropriate list
+        if classification == "FLIGHT":
+            new_flight_photos.append(photo)
+            new_flight_count += 1
+        elif classification == "ANCILLARY":
+            new_ancillary_photos.append(photo)
+            new_ancillary_count += 1
+        else:
+            new_error_count += 1
 
-        print(
-            f"   ⏱️  Batch completed in {batch_duration:.1f}s ({photos_per_second:.1f} photos/sec)"
-        )
+        # Save periodically for progress updates
+        total_completed = new_flight_count + new_ancillary_count + new_error_count
+        if total_completed - last_save_count >= SAVE_FREQUENCY:
+            all_flight_photos = existing_flight_photos + new_flight_photos
+            all_ancillary_photos = existing_ancillary_photos + new_ancillary_photos
+            total_flight_count = existing_stats["flight"] + new_flight_count
+            total_ancillary_count = existing_stats["ancillary"] + new_ancillary_count
+            total_error_count = existing_stats["errors"] + new_error_count
 
-        # Show GPU utilization tip if batch was very fast
-        if batch_duration < 1.0:
-            print(f"   💡 Batch processed very quickly - GPU may not be fully utilized")
-        elif batch_duration > 10.0:
+            save_filtered_albums(
+                photoset_data,
+                filename,
+                all_flight_photos,
+                all_ancillary_photos,
+                total_flight_count,
+                total_ancillary_count,
+                total_error_count,
+            )
+            last_save_count = total_completed
             print(
-                f"   ⚠️  Batch took longer than expected - consider reducing batch size"
+                f"   💾 Saved progress: {already_processed + total_completed}/{total_photos} photos processed"
             )
 
-        # Process results and update counters
-        for i, (photo, result) in enumerate(zip(batch_photos, batch_results)):
-            photo_id = photo.get("id", f"unknown_{batch_start + i + 1}")
-            classification = result.get("classification", "ERROR")
-            confidence = result.get("confidence", "none")
-            ai_response = result.get("ai_response", "No response")
+    def progress_callback(completed, total, result):
+        """Called after each photo for progress updates"""
+        classification = result.get("classification", "ERROR")
+        confidence = result.get("confidence", "none")
+        photo_id = result.get("photo_id", "unknown")
+        current_num = already_processed + completed
 
-            total_processed += 1
-            current_num = already_processed + total_processed
+        # Show classification result
+        if classification == "FLIGHT":
+            status_icon = "✅"
+        elif classification == "ANCILLARY":
+            status_icon = "🚫"
+        else:
+            status_icon = "❓"
 
-            # Show classification result (abbreviated for batch processing)
-            if classification == "FLIGHT":
-                status_icon = "✅"
-                new_flight_count += 1
-            elif classification == "ANCILLARY":
-                status_icon = "🚫"
-                new_ancillary_count += 1
-            else:
-                status_icon = "❓"
-                new_error_count += 1
-
-            print(
-                f"   {status_icon} Photo {current_num}/{total_photos} - {photo_id} → {classification} ({confidence})"
-            )
-
-            # Add classification to photo metadata
-            photo["ai_classification"] = result
-
-            # Add to appropriate list
-            if classification == "FLIGHT":
-                new_flight_photos.append(photo)
-            elif classification == "ANCILLARY":
-                new_ancillary_photos.append(photo)
-            # Errors are counted but not added to either list
-
-        # Save progress after each batch
-        all_flight_photos = existing_flight_photos + new_flight_photos
-        all_ancillary_photos = existing_ancillary_photos + new_ancillary_photos
-        total_flight_count = existing_stats["flight"] + new_flight_count
-        total_ancillary_count = existing_stats["ancillary"] + new_ancillary_count
-        total_error_count = existing_stats["errors"] + new_error_count
+        elapsed = time.time() - start_time
+        photos_per_second = completed / elapsed if elapsed > 0 else 0
 
         print(
-            f"   💾 Saving batch progress... ({current_num}/{total_photos} photos processed)"
+            f"   {status_icon} Photo {current_num}/{total_photos} - {photo_id} → {classification} ({confidence}) [{photos_per_second:.1f} photos/sec]"
         )
 
-        save_success = save_filtered_albums(
-            photoset_data,
-            filename,
-            all_flight_photos,
-            all_ancillary_photos,
-            total_flight_count,
-            total_ancillary_count,
-            total_error_count,
-        )
+    # Run pipeline processing
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
-        if not save_success:
-            print(f"   ⚠️  Warning: Could not save batch progress")
-
-        # Show batch summary
-        print(
-            f"   📊 Batch {batch_num}: {new_flight_count - (total_flight_count - existing_stats['flight'] - new_flight_count)} FLIGHT, "
-            + f"{new_ancillary_count - (total_ancillary_count - existing_stats['ancillary'] - new_ancillary_count)} ANCILLARY, "
-            + f"{new_error_count - (total_error_count - existing_stats['errors'] - new_error_count)} ERRORS"
-        )
-
-        print(f"   {'-' * 60}")
-
-        # Dynamically adjust batch size based on performance
-        if (
-            len(batch_photos) == current_batch_size
-        ):  # Only adjust if we processed a full batch
-            current_batch_size = adjust_batch_size_dynamically(
-                current_batch_size, batch_duration, len(batch_photos)
+        pipeline_results = loop.run_until_complete(
+            classify_photos_pipeline(
+                photos_to_process,
+                save_callback=save_result,
+                progress_callback=progress_callback,
             )
-
-        # Move to next batch
-        batch_start += len(batch_photos)
-
-        # Brief pause to prevent API overload (adjust as needed)
-        if batch_start < len(photos_to_process):
-            time.sleep(0.2)  # Reduced pause for better GPU utilization
+        )
+    except Exception as e:
+        print(f"   ❌ Pipeline processing failed: {e}")
+        return {
+            "status": "error",
+            "filename": filename,
+            "error": f"Pipeline processing failed: {e}",
+        }
+    finally:
+        loop.close()
 
     # Final save and return results
     all_flight_photos = existing_flight_photos + new_flight_photos
@@ -968,6 +951,13 @@ def process_album(file_path):
         total_ancillary_count,
         total_error_count,
     ):
+        elapsed_total = time.time() - start_time
+        avg_photos_per_sec = to_process / elapsed_total if elapsed_total > 0 else 0
+
+        print(
+            f"   🏁 Pipeline completed in {elapsed_total:.1f}s (avg: {avg_photos_per_sec:.1f} photos/sec)"
+        )
+
         return {
             "status": "success",
             "filename": filename,
@@ -976,6 +966,8 @@ def process_album(file_path):
             "ancillary_count": total_ancillary_count,
             "error_count": total_error_count,
             "new_processed": to_process,
+            "processing_time": elapsed_total,
+            "photos_per_second": avg_photos_per_sec,
         }
     else:
         return {
@@ -985,62 +977,12 @@ def process_album(file_path):
         }
 
 
-def adjust_batch_size_dynamically(
-    current_batch_size: int, processing_time: float, photos_count: int
-) -> int:
-    """
-    Dynamically adjust batch size based on processing performance
-
-    Args:
-        current_batch_size: Current batch size
-        processing_time: Time taken to process the batch (seconds)
-        photos_count: Number of photos in the batch
-
-    Returns:
-        New optimal batch size
-    """
-    global GPU_BATCH_SIZE
-
-    # Target: 0.5-1.2 photos per second (realistic for current API performance)
-    target_photos_per_sec_min = 0.5
-    target_photos_per_sec_max = 1.2
-
-    photos_per_second = photos_count / processing_time if processing_time > 0 else 0
-
-    if (
-        photos_per_second > target_photos_per_sec_max
-        and current_batch_size < MAX_BATCH_SIZE
-    ):
-        # Too fast, increase batch size to keep GPU busier
-        new_size = min(current_batch_size + 2, MAX_BATCH_SIZE)
-        print(
-            f"   📈 Increasing batch size: {current_batch_size} → {new_size} (too fast: {photos_per_second:.2f} photos/sec)"
-        )
-        return new_size
-    elif (
-        photos_per_second < target_photos_per_sec_min
-        and current_batch_size > MIN_BATCH_SIZE
-    ):
-        # Too slow, decrease batch size to avoid memory issues
-        new_size = max(current_batch_size - 1, MIN_BATCH_SIZE)
-        print(
-            f"   📉 Decreasing batch size: {current_batch_size} → {new_size} (too slow: {photos_per_second:.2f} photos/sec)"
-        )
-        return new_size
-    else:
-        # Sweet spot - keep current size
-        print(
-            f"   ⚖️  Maintaining batch size: {current_batch_size} (optimal: {processing_time:.1f}s, {photos_per_second:.2f} photos/sec)"
-        )
-        return current_batch_size
-
-
 def batch_process_albums():
     """
-    Process all matching album files and create filtered versions
-    Enhanced with GPU optimization and dynamic batch sizing
+    Process all matching album files using pipeline approach
+    Enhanced with GPU optimization and streaming results processing
     """
-    print("NASA ISS Photo Classification - Batch Processing (GPU Optimized)")
+    print(f"NASA ISS Photo Classification - Pipeline Processing (GPU Optimized)")
     print("=" * 60)
 
     # Check API connectivity
@@ -1048,8 +990,7 @@ def batch_process_albums():
     print(f"  Direct Ollama: {OLLAMA_DIRECT_URL}")
     print(f"  OpenWebUI: {OPENWEBUI_URL}")
     print(f"  Model: {MODEL_NAME}")
-    print(f"  Initial batch size: {GPU_BATCH_SIZE}")
-    print(f"  Batch size range: {MIN_BATCH_SIZE}-{MAX_BATCH_SIZE}")
+    print(f"  Pipeline concurrent requests: {MAX_CONCURRENT_REQUESTS}")
 
     test_response = make_ollama_request("Hello", MODEL_NAME)
     if not test_response:
@@ -1064,7 +1005,7 @@ def batch_process_albums():
         print(f"✅ API connection successful")
         print(f"✅ Using model: {MODEL_NAME}")
         print(f"✅ GPU optimization enabled")
-        print(f"✅ Concurrent processing: {MAX_CONCURRENT_REQUESTS} requests")
+        print(f"✅ Pipeline concurrent processing: {MAX_CONCURRENT_REQUESTS} requests")
 
     # Find filtered albums
     album_files = find_filtered_albums()
@@ -1088,6 +1029,8 @@ def batch_process_albums():
         "total_flight": 0,
         "total_ancillary": 0,
         "total_errors": 0,
+        "total_processing_time": 0.0,
+        "total_photos_per_second": 0.0,
     }
 
     for i, file_path in enumerate(album_files, 1):
@@ -1095,6 +1038,7 @@ def batch_process_albums():
         print(f"\n[{i}/{len(album_files)}] Processing: {filename}")
 
         try:
+            # Use pipeline processing for all albums
             result = process_album(file_path)
 
             if result["status"] == "success":
@@ -1105,9 +1049,14 @@ def batch_process_albums():
                 results["total_errors"] += result["error_count"]
 
                 new_processed = result.get("new_processed", 0)
-                print(
-                    f"   ✅ Success: {result['flight_count']} FLIGHT, {result['ancillary_count']} ANCILLARY, {result['error_count']} ERRORS (new: {new_processed})"
-                )
+                processing_time = result.get("processing_time", 0)
+                photos_per_second = result.get("photos_per_second", 0)
+                results["total_processing_time"] += processing_time
+
+                success_msg = f"   ✅ Success: {result['flight_count']} FLIGHT, {result['ancillary_count']} ANCILLARY, {result['error_count']} ERRORS (new: {new_processed})"
+                if processing_time > 0:
+                    success_msg += f" [{photos_per_second:.1f} photos/sec]"
+                print(success_msg)
 
             elif result["status"] == "completed":
                 results["success"] += 1
@@ -1149,23 +1098,35 @@ def batch_process_albums():
         flight_percentage = (results["total_flight"] / results["total_photos"]) * 100
         print(f"📈 Flight photo percentage: {flight_percentage:.1f}%")
 
+        # Show performance summary
+        if results["total_processing_time"] > 0:
+            total_new_processed = sum(
+                1 for _ in range(results["success"])
+            )  # This is a rough estimate
+            avg_photos_per_sec = (
+                results["total_photos"] / results["total_processing_time"]
+            )
+            print(f"⚡ Average processing speed: {avg_photos_per_sec:.1f} photos/sec")
+            print(f"⏱️  Total processing time: {results['total_processing_time']:.1f}s")
+
     print(f"📁 Filtered albums saved to: {OUTPUT_FOLDER}")
+    print(f"🔧 Processing mode: Pipeline (streaming results)")
 
     return True
 
 
-# Old test function removed - now using batch_process_albums() for full processing
+# Pipeline processing only - old batch processing removed for cleaner, faster code
 
 
 def main():
     """
-    Main function for batch processing filtered NASA ISS photo albums
+    Main function for pipeline processing filtered NASA ISS photo albums
     """
-    print("NASA ISS Photo AI Classification - Batch Processor")
+    print("NASA ISS Photo AI Classification - Pipeline Processor")
     print(
         "Processing filtered albums (created by 9g_filter_against_existing_photos.py)"
     )
-    print("Using Ollama API for AI classification")
+    print("Using Ollama API with pipeline processing for optimal performance")
     print(f"Direct Ollama: {OLLAMA_DIRECT_URL}")
     print(f"OpenWebUI: {OPENWEBUI_URL}")
     print(f"Model: {MODEL_NAME}")
