@@ -235,6 +235,9 @@ def extract_flickr_urls(photo: Dict) -> Dict[str, str]:
     """
     Extract Flickr URLs for different sizes from photo data
 
+    The photo object contains direct URL fields like url_o, url_k, url_h, etc.
+    We'll use the largest available size for largeUrl.
+
     Args:
         photo: Photo object from Flickr API
 
@@ -243,40 +246,51 @@ def extract_flickr_urls(photo: Dict) -> Dict[str, str]:
     """
     urls = {"smallUrl": "", "medUrl": "", "largeUrl": ""}
 
-    # Check if photo has sizes data
-    sizes = photo.get("sizes", {})
-    if isinstance(sizes, dict) and "size" in sizes:
-        size_list = sizes["size"]
-        if isinstance(size_list, list):
-            for size in size_list:
-                if isinstance(size, dict):
-                    label = size.get("label", "").lower()
-                    source = size.get("source", "")
+    # Size priority mappings: field_name -> suffix for fallback construction
+    size_priorities = {
+        "large": [
+            ("url_4k", "4k"),
+            ("url_3k", "3k"),
+            ("url_o", "o"),
+            ("url_k", "k"),
+            ("url_h", "h"),
+            ("url_l", "b"),  # url_l uses _b.jpg suffix
+        ],
+        "medium": [
+            ("url_k", "k"),  # Use large size for medium to get better resolution
+            ("url_h", "h"),
+            ("url_l", "b"),
+            ("url_z", "z"),
+            ("url_c", "c"),
+        ],
+        "small": [
+            ("url_s", "m"),
+            ("url_n", "n"),
+            ("url_m", ""),
+        ],
+    }
 
-                    # Extract the path part after the base URL
-                    if source.startswith(FLICKR_BASE_URL):
-                        path = source.replace(FLICKR_BASE_URL + "/", "")
+    # Extract URLs for each size category
+    for size_category, priorities in size_priorities.items():
+        for url_field, suffix in priorities:
+            if url_field in photo and photo[url_field]:
+                full_url = photo[url_field]
+                if full_url.startswith(FLICKR_BASE_URL):
+                    path = full_url.replace(FLICKR_BASE_URL + "/", "")
+                    urls[f"{size_category}Url"] = path
+                    break
 
-                        # Map Flickr size labels to our output
-                        if "small" in label:
-                            urls["smallUrl"] = path
-                        elif "medium" in label:
-                            urls["medUrl"] = path
-                        elif "large" in label or "original" in label:
-                            urls["largeUrl"] = path
-
-    # Fallback: construct URLs from photo ID and server info if sizes not available
+    # Fallback: construct URLs from photo ID and server info if direct URLs not available
     if not any(urls.values()):
         photo_id = photo.get("id", "")
         server = photo.get("server", "")
         secret = photo.get("secret", "")
 
         if photo_id and server and secret:
-            # Standard Flickr URL pattern
             base_path = f"{server}/{photo_id}_{secret}"
-            urls["smallUrl"] = f"{base_path}_m.jpg"  # Medium size
-            urls["medUrl"] = f"{base_path}_z.jpg"  # Large size
-            urls["largeUrl"] = f"{base_path}_b.jpg"  # Extra large size
+            urls["smallUrl"] = f"{base_path}_{size_priorities['small'][0][1]}.jpg"
+            urls["medUrl"] = f"{base_path}_{size_priorities['medium'][0][1]}.jpg"
+            urls["largeUrl"] = f"{base_path}_{size_priorities['large'][0][1]}.jpg"
 
     return urls
 

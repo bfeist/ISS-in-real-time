@@ -1,4 +1,5 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { faShare } from "@fortawesome/free-solid-svg-icons";
 import styles from "./share.module.css";
 import { generateShareUrl } from "utils/params";
@@ -54,7 +55,7 @@ const ShareModal: FunctionComponent<{
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className={styles.overlay}>
       <div className={styles.modal} ref={modalRef}>
         <div className={styles.header}>
@@ -79,7 +80,8 @@ const ShareModal: FunctionComponent<{
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

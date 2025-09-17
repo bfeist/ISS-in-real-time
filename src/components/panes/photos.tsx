@@ -24,7 +24,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   );
 
   const issirtDataBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL.replace("\\x3a", ":");
-  const flickrBaseUrl = "https://live.staticflickr.com/";
+  const flickrBaseUrl = "https://live.staticflickr.com";
 
   // Function to generate image URL based on type and size
   const getImageUrl = (photoItem: PhotoItem, size: "thumb" | "medium" | "large") => {
