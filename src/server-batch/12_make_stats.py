@@ -18,6 +18,7 @@ if not WEB_ASSETS_FOLDER:
 
 COMM_FOLDER = WEB_ASSETS_FOLDER + "comm/"
 IMAGES_FOLDER = WEB_ASSETS_FOLDER + "photos_earth/"
+FLICKR_FOLDER = WEB_ASSETS_FOLDER + "photos_flickr/"
 YOUTUBE_JSON = WEB_ASSETS_FOLDER + "videoYt.json"
 IA_VIDEOS_JSON = WEB_ASSETS_FOLDER + "videoIa.json"
 DATA_AVAILABILITY_CSV = WEB_ASSETS_FOLDER + "data_availability.csv"
@@ -144,15 +145,7 @@ def analyze_photos():
             "latest_date": None,
             "days_with_photos": set(),
         },
-        "images_nasa_gov": {
-            "total_photos": 0,
-            "total_days_with_photos": 0,
-            "photos_per_day": [],
-            "earliest_date": None,
-            "latest_date": None,
-            "days_with_photos": set(),
-        },
-        "photos_manual": {
+        "photos_flickr": {
             "total_photos": 0,
             "total_days_with_photos": 0,
             "photos_per_day": [],
@@ -226,99 +219,69 @@ def analyze_photos():
 
     source["total_days_with_photos"] = len(source["days_with_photos"])
 
-    # Process images_nasa_gov.json
-    source = sources["images_nasa_gov"]
-    nasa_gov_file = os.path.join(WEB_ASSETS_FOLDER, "images_nasa_gov.json")
-    if os.path.exists(nasa_gov_file):
-        try:
-            with open(nasa_gov_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
+    # Process Flickr photos-manifest files
+    print(f"Scanning directory: {FLICKR_FOLDER}")
 
-            if isinstance(data, list):
-                daily_counts = {}
-                for photo in data:
-                    if isinstance(photo, dict):
-                        date_taken = photo.get("dateTaken", "")
-                        if date_taken:
-                            try:
-                                dt = datetime.fromisoformat(date_taken.replace("Z", ""))
-                                date_str = dt.strftime("%Y-%m-%d")
-                                source["days_with_photos"].add(date_str)
+    if os.path.exists(FLICKR_FOLDER):
+        source = sources["photos_flickr"]
+        for root, dirs, files in os.walk(FLICKR_FOLDER):
+            for file in files:
+                if file.endswith(".json") and "photos-manifest_" in file:
+                    file_path = os.path.join(root, file)
 
-                                if date_str in daily_counts:
-                                    daily_counts[date_str] += 1
-                                else:
-                                    daily_counts[date_str] = 1
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
 
-                                # Track earliest and latest dates
-                                if (
-                                    source["earliest_date"] is None
-                                    or dt < source["earliest_date"]
-                                ):
-                                    source["earliest_date"] = dt
-                                if (
-                                    source["latest_date"] is None
-                                    or dt > source["latest_date"]
-                                ):
-                                    source["latest_date"] = dt
+                        if not isinstance(data, list):
+                            continue
 
-                            except:
-                                pass
+                        # Extract date from filename (e.g., "photos-manifest_2001-06-28.json")
+                        date_match = re.search(
+                            r"photos-manifest_(\d{4}-\d{2}-\d{2})\.json", file
+                        )
+                        if date_match:
+                            file_date = date_match.group(1)
+                            source["days_with_photos"].add(file_date)
 
-                source["total_photos"] += len(data)
-                source["photos_per_day"].extend(daily_counts.values())
+                        # Count photos for this day
+                        day_count = len(data)
+                        source["total_photos"] += day_count
+                        source["photos_per_day"].append(day_count)
 
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Error reading {nasa_gov_file}: {e}")
+                        # Analyze each photo in the manifest
+                        for photo in data:
+                            if isinstance(photo, dict):
+                                # Extract date info
+                                date_taken = photo.get("dateTaken", "")
+                                if date_taken:
+                                    try:
+                                        dt = datetime.fromisoformat(
+                                            date_taken.replace("Z", "")
+                                        )
 
-    source["total_days_with_photos"] = len(source["days_with_photos"])
+                                        # Track earliest and latest dates
+                                        if (
+                                            source["earliest_date"] is None
+                                            or dt < source["earliest_date"]
+                                        ):
+                                            source["earliest_date"] = dt
+                                        if (
+                                            source["latest_date"] is None
+                                            or dt > source["latest_date"]
+                                        ):
+                                            source["latest_date"] = dt
 
-    # Process photos_manual.json
-    source = sources["photos_manual"]
-    manual_file = os.path.join(WEB_ASSETS_FOLDER, "photos_manual.json")
-    if os.path.exists(manual_file):
-        try:
-            with open(manual_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
+                                    except:
+                                        pass
 
-            if isinstance(data, list):
-                daily_counts = {}
-                for photo in data:
-                    if isinstance(photo, dict):
-                        date_taken = photo.get("dateTaken", "")
-                        if date_taken:
-                            try:
-                                dt = datetime.fromisoformat(date_taken.replace("Z", ""))
-                                date_str = dt.strftime("%Y-%m-%d")
-                                source["days_with_photos"].add(date_str)
+                    except (json.JSONDecodeError, IOError) as e:
+                        print(f"Error reading {file_path}: {e}")
+                        continue
 
-                                if date_str in daily_counts:
-                                    daily_counts[date_str] += 1
-                                else:
-                                    daily_counts[date_str] = 1
-
-                                # Track earliest and latest dates
-                                if (
-                                    source["earliest_date"] is None
-                                    or dt < source["earliest_date"]
-                                ):
-                                    source["earliest_date"] = dt
-                                if (
-                                    source["latest_date"] is None
-                                    or dt > source["latest_date"]
-                                ):
-                                    source["latest_date"] = dt
-
-                            except:
-                                pass
-
-                source["total_photos"] += len(data)
-                source["photos_per_day"].extend(daily_counts.values())
-
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Error reading {manual_file}: {e}")
-
-    source["total_days_with_photos"] = len(source["days_with_photos"])
+        source["total_days_with_photos"] = len(source["days_with_photos"])
+    else:
+        print(f"Flickr photos directory not found: {FLICKR_FOLDER}")
 
     # Calculate combined stats
     combined_days_with_photos = set()

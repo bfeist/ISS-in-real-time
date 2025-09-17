@@ -14,6 +14,7 @@ const Stats: FunctionComponent = (): JSX.Element => {
       blog: "Blog Articles",
       actSum: "Activity Summaries",
       earthPhotos: "Earth Photos",
+      flickrPhotos: "Flickr Photos",
       photos: "Photos",
     };
 
@@ -139,48 +140,24 @@ const Stats: FunctionComponent = (): JSX.Element => {
               </div>
 
               <div className={styles.source}>
-                <h3>images.nasa.gov</h3>
+                <h3>Flickr Photos</h3>
                 <div className={styles.statGrid}>
                   <div className={styles.statItem}>
                     <span className={styles.statLabel}>Photos:</span>
                     <span className={styles.statValue}>
-                      {stats.photos.sources.images_nasa_gov.total_photos.toLocaleString()}
+                      {stats.photos.sources.photos_flickr.total_photos.toLocaleString()}
                     </span>
                   </div>
                   <div className={styles.statItem}>
                     <span className={styles.statLabel}>Days:</span>
                     <span className={styles.statValue}>
-                      {stats.photos.sources.images_nasa_gov.total_days_with_photos.toLocaleString()}
+                      {stats.photos.sources.photos_flickr.total_days_with_photos.toLocaleString()}
                     </span>
                   </div>
                   <div className={styles.statItem}>
                     <span className={styles.statLabel}>Avg/Day:</span>
                     <span className={styles.statValue}>
-                      {stats.photos.sources.images_nasa_gov.avg_photos_per_day.toFixed(1)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.source}>
-                <h3>Manual Photos</h3>
-                <div className={styles.statGrid}>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Photos:</span>
-                    <span className={styles.statValue}>
-                      {stats.photos.sources.photos_manual.total_photos.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Days:</span>
-                    <span className={styles.statValue}>
-                      {stats.photos.sources.photos_manual.total_days_with_photos.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Avg/Day:</span>
-                    <span className={styles.statValue}>
-                      {stats.photos.sources.photos_manual.avg_photos_per_day.toFixed(1)}
+                      {stats.photos.sources.photos_flickr.avg_photos_per_day.toFixed(1)}
                     </span>
                   </div>
                 </div>

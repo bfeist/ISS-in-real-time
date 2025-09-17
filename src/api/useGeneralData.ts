@@ -11,8 +11,6 @@ import {
   fetchCommFirstData,
   fetchOrbitsDaily,
   fetchStats,
-  fetchImagesNasaGov,
-  fetchPhotosManual,
 } from "./dataFetchers";
 
 // Individual hooks for each data type
@@ -109,24 +107,6 @@ export function useGeneralStats(): UseQueryResult<Stats, Error> {
   return useQuery({
     queryKey: ["stats"],
     queryFn: fetchStats,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-  });
-}
-
-export function useGeneralImagesNasaGov(): UseQueryResult<PhotoItem[], Error> {
-  return useQuery({
-    queryKey: ["imagesNasaGov"],
-    queryFn: fetchImagesNasaGov,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-  });
-}
-
-export function useGeneralPhotosManual(): UseQueryResult<PhotoItem[], Error> {
-  return useQuery({
-    queryKey: ["photosManual"],
-    queryFn: fetchPhotosManual,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });

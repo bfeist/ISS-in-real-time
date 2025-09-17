@@ -3,80 +3,55 @@ import styles from "./photos.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
-import { useDateEarthPhotography } from "api/useDateSpecificData";
-import { useGeneralImagesNasaGov, useGeneralPhotosManual } from "../../api/useGeneralData";
+import { useDateEarthPhotography, useDatePhotosFlickr } from "api/useDateSpecificData";
 
 const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "short" }) => {
   const { selectedDate, setClock } = useStateClock();
   const { data: earthPhotographyItems = [], isLoading: earthPhotographyIsLoading } =
     useDateEarthPhotography(selectedDate || "");
-  const { data: imagesNasaGovItems = [], isLoading: imagesNasaGovIsLoading } =
-    useGeneralImagesNasaGov();
-
-  const { data: photosManualItems = [], isLoading: photosManualIsLoading } =
-    useGeneralPhotosManual();
-
-  const filteredImagesNasaGovItems = useMemo(
-    () =>
-      selectedDate
-        ? imagesNasaGovItems.filter((item) => item.dateTaken.startsWith(selectedDate))
-        : [],
-    [imagesNasaGovItems, selectedDate]
+  const { data: flickrPhotosItems = [], isLoading: flickrPhotosIsLoading } = useDatePhotosFlickr(
+    selectedDate || ""
   );
 
-  const filteredPhotosManualItems = useMemo(
-    () =>
-      selectedDate
-        ? photosManualItems.filter((item) => item.dateTaken.startsWith(selectedDate))
-        : [],
-    [photosManualItems, selectedDate]
-  );
-
-  const isLoading = earthPhotographyIsLoading || imagesNasaGovIsLoading || photosManualIsLoading;
+  const isLoading = earthPhotographyIsLoading || flickrPhotosIsLoading;
 
   const photoItemsCombined = useMemo(
     () =>
-      [...filteredImagesNasaGovItems, ...filteredPhotosManualItems, ...earthPhotographyItems].sort(
+      [...earthPhotographyItems, ...flickrPhotosItems].sort(
         (a, b) => new Date(a.dateTaken).getTime() - new Date(b.dateTaken).getTime()
       ),
-    [filteredImagesNasaGovItems, filteredPhotosManualItems, earthPhotographyItems]
+    [earthPhotographyItems, flickrPhotosItems]
   );
 
-  const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL.replace("\\x3a", ":");
+  const issirtDataBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL.replace("\\x3a", ":");
+  const flickrBaseUrl = "https://live.staticflickr.com/";
 
   // Function to generate image URL based on type and size
   const getImageUrl = (photoItem: PhotoItem, size: "thumb" | "medium" | "large") => {
-    const { ID, type } = photoItem;
+    const { type } = photoItem;
 
     switch (type) {
       case "photos_earth":
         // Use existing smallUrl and largeUrl
         if (size === "thumb") {
-          return `${imageBaseUrl}/${photoItem.smallUrl}`;
+          return `${issirtDataBaseUrl}/${photoItem.smallUrl}`;
         } else if (size === "medium") {
-          return `${imageBaseUrl}/${photoItem.smallUrl}`; // photos_earth doesn't have medium, use small
+          return `${issirtDataBaseUrl}/${photoItem.smallUrl}`; // photos_earth doesn't have medium, use small
         } else if (size === "large") {
-          return `${imageBaseUrl}/${photoItem.largeUrl}`;
+          return `${issirtDataBaseUrl}/${photoItem.largeUrl}`;
         }
         break;
 
-      case "images_nasa_gov":
-        // Format: https://images-assets.nasa.gov/image/<ID>/<ID>~<size>.jpg
-        const nasaSize = size === "thumb" ? "small" : size === "medium" ? "med" : "large";
-        return `https://images-assets.nasa.gov/image/${ID}/${ID}~${nasaSize}.jpg`;
-
-      case "manual":
-        // Format: data.issinrealtime.org/photos_manual/<size>/<ID>.jpg
-        const manualSize = size === "thumb" ? "thumb" : size === "medium" ? "med" : "orig";
-        return `https://data.issinrealtime.org/ISSiRT_assets/photos_manual/${manualSize}/${ID}.jpg`;
-
-      default:
-        // Fallback to photos_earth format
+      case "photos_flickr":
+        // Flickr photos have smallUrl, medUrl, and largeUrl - these are direct Flickr URLs
         if (size === "thumb") {
-          return `${imageBaseUrl}/${photoItem.smallUrl}`;
-        } else {
-          return `${imageBaseUrl}/${photoItem.largeUrl}`;
+          return `${flickrBaseUrl}/${photoItem.smallUrl || ""}`;
+        } else if (size === "medium") {
+          return `${flickrBaseUrl}/${photoItem.medUrl || photoItem.smallUrl || ""}`;
+        } else if (size === "large") {
+          return `${flickrBaseUrl}/${photoItem.largeUrl || photoItem.medUrl || photoItem.smallUrl || ""}`;
         }
+        break;
     }
   };
 

@@ -1,12 +1,17 @@
 """
 NASA ISS Photo Cross-Filter: Remove Existing Photos from Flickr Albums
 
-This script filters raw Flickr photo albums by removing any photos that match NASA photo IDs
+This script filters raw Flickr photo# NASA ID pattern - matches NASA photo IDs with specific prefixes and formats
+# Examples: iss067e253397, jsc2023e052795, JSC2013-E-076217, nhq202111080001, jsc2021e044353_alt, iss071e581260_alt, iss068-s-002, S135-E-007551, S101-E-5087, iss001-323-009, s72-46967, jsc2000-03028, ISS014-E-10236, STS119-E-006764, sts119e006764, STS119-S-002
+NASA_ID_PATTERN = re.compile(
+    r"^((?:iss\d+(?:e\d+|-\d+-\d+|-s-\d+|-E-\d+)(?:_alt)?)|(?:jsc\d+(?:e\d+|-e-\d+|-\d+)(?:_alt)?)|nhq\d+|s\d+(?:e\d+|-e-\d+)|s\d{2}-\d{4,5}|sts\d+(?:e\d+|-e-\d+|-s-\d+))\s*",
+    re.IGNORECASE,
+)s by removing any photos that match NASA photo IDs
 from multiple existing data sources.
 
 The script:
 1. Loads earth photography manifest files on-demand and caches NASA IDs for fast lookups
-2. Loads images_nasa_gov.json and photos_manual.json data sources
+2. Loads earth photography data sources
 3. Extracts NASA IDs from Flickr photo descriptions (e.g., "jsc2023e052795" from description text)
 4. Filters out any Flickr photos that have matching NASA IDs in any existing photo database
 5. Saves filtered results with _filtered suffix in the same folder
@@ -18,8 +23,6 @@ Album Filtering:
 
 Data Sources Filtered Against:
 - Earth photography: WEB_ASSETS_FOLDER/photos_earth/YYYY/MM/images-manifest_YYYY-MM-DD.json
-- NASA Images.gov: WEB_ASSETS_FOLDER/images_nasa_gov.json
-- Manual photos: WEB_ASSETS_FOLDER/photos_manual.json
 
 Directory Structure:
 - Input: RAW_FOLDER/photos_flickr/albums/*.json
@@ -113,9 +116,10 @@ FLICKR_ALBUMS_FOLDER = (
 )
 
 # NASA ID pattern - matches NASA photo IDs with specific prefixes and formats
-# Examples: iss067e253397, jsc2023e052795, nhq202111080001, jsc2021e044353_alt, iss071e581260_alt, iss068-s-002, S135-E-007551, S101-E-5087
+# Examples: iss067e253397, jsc2023e052795, JSC2013-E-076217, nhq202111080001, jsc2021e044353_alt, iss071e581260_alt, iss068-s-002, S135-E-007551, S101-E-5087, iss001-323-009, s72-46967, jsc2000-03028, ISS014-E-10236, STS119-E-006764, sts119e006764
 NASA_ID_PATTERN = re.compile(
-    r"^((?:iss|jsc)\d+e\d+|nhq\d+|iss\d+-s-\d+|s\d+-e-\d+)\s*", re.IGNORECASE
+    r"^((?:iss\d+(?:e\d+|-\d+-\d+|-s-\d+|-E-\d+)(?:_alt)?)|(?:jsc\d+(?:e\d+|-e-\d+|-\d+)(?:_alt)?)|nhq\d+|s\d+-e-\d+|s\d{2}-\d{4,5}|sts\d+(?:e\d+|-e-\d+))\s*",
+    re.IGNORECASE,
 )
 
 # Cache for all photo NASA IDs
@@ -133,15 +137,11 @@ class AllPhotoIDCache:
         self.web_assets_folder = Path(web_assets_folder)
         self.date_cache: Dict[str, Set[str]] = {}
         self.all_ids: Optional[Set[str]] = None
-        self.images_nasa_gov_ids: Optional[Set[str]] = None
-        self.photos_manual_ids: Optional[Set[str]] = None
         self.stats = {
             "cache_hits": 0,
             "cache_misses": 0,
             "files_loaded": 0,
             "total_ids_loaded": 0,
-            "images_nasa_gov_loaded": 0,
-            "photos_manual_loaded": 0,
         }
 
     def get_ids_for_date(self, date_str: str) -> Set[str]:
@@ -270,83 +270,9 @@ class AllPhotoIDCache:
                             f"   ⚠️  Error loading earth photography data from {manifest_file.name}: {e}"
                         )
 
-        # Load images_nasa_gov IDs
-        nasa_gov_ids = self.get_images_nasa_gov_ids()
-        self.all_ids.update(nasa_gov_ids)
-
-        # Load photos_manual IDs
-        manual_ids = self.get_photos_manual_ids()
-        self.all_ids.update(manual_ids)
-
         self.stats["total_ids_loaded"] = len(self.all_ids)
         print(f"   ✅ Total loaded photo IDs from all sources: {len(self.all_ids)}")
         return self.all_ids
-
-    def get_images_nasa_gov_ids(self) -> Set[str]:
-        """
-        Get all NASA IDs from images_nasa_gov.json
-        """
-        if self.images_nasa_gov_ids is not None:
-            return self.images_nasa_gov_ids
-
-        self.images_nasa_gov_ids = set()
-        images_file = self.web_assets_folder / "images_nasa_gov.json"
-
-        if images_file.exists():
-            try:
-                with open(images_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                if isinstance(data, list):
-                    for photo in data:
-                        if isinstance(photo, dict):
-                            photo_id = photo.get("ID")
-                            if photo_id:
-                                self.images_nasa_gov_ids.add(photo_id.lower())
-
-                self.stats["images_nasa_gov_loaded"] = len(self.images_nasa_gov_ids)
-                print(
-                    f"   📸 Loaded {len(self.images_nasa_gov_ids)} NASA Images.gov IDs"
-                )
-
-            except Exception as e:
-                print(f"   ⚠️  Error loading images_nasa_gov.json: {e}")
-        else:
-            print(f"   ⚠️  images_nasa_gov.json not found at {images_file}")
-
-        return self.images_nasa_gov_ids
-
-    def get_photos_manual_ids(self) -> Set[str]:
-        """
-        Get all NASA IDs from photos_manual.json
-        """
-        if self.photos_manual_ids is not None:
-            return self.photos_manual_ids
-
-        self.photos_manual_ids = set()
-        manual_file = self.web_assets_folder / "photos_manual.json"
-
-        if manual_file.exists():
-            try:
-                with open(manual_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                if isinstance(data, list):
-                    for photo in data:
-                        if isinstance(photo, dict):
-                            photo_id = photo.get("ID")
-                            if photo_id:
-                                self.photos_manual_ids.add(photo_id.lower())
-
-                self.stats["photos_manual_loaded"] = len(self.photos_manual_ids)
-                print(f"   📷 Loaded {len(self.photos_manual_ids)} manual photo IDs")
-
-            except Exception as e:
-                print(f"   ⚠️  Error loading photos_manual.json: {e}")
-        else:
-            print(f"   ⚠️  photos_manual.json not found at {manual_file}")
-
-        return self.photos_manual_ids
 
     def get_stats(self) -> Dict:
         """Return cache statistics"""
@@ -531,7 +457,7 @@ def save_filtered_album(
                 "photos_matched_existing_db": filter_results["stats"][
                     "matched_existing"
                 ],
-                "filter_description": "Kept only photos with NASA IDs not matching existing photo databases (earth photography, images_nasa_gov, photos_manual); removed existing photo matches and photos without NASA IDs",
+                "filter_description": "Kept only photos with NASA IDs not matching existing photo databases (earth photography); removed existing photo matches and photos without NASA IDs",
             }
         )
 
@@ -794,8 +720,6 @@ def main():
     print(f"   Cache misses: {cache_stats['cache_misses']}")
     print(f"   Files loaded: {cache_stats['files_loaded']}")
     print(f"   Total IDs loaded: {cache_stats['total_ids_loaded']}")
-    print(f"   NASA Images.gov IDs: {cache_stats['images_nasa_gov_loaded']}")
-    print(f"   Manual photo IDs: {cache_stats['photos_manual_loaded']}")
     print(f"   All IDs in memory: {cache_stats['all_ids_loaded']}")
 
     print(f"\n📁 Filtered albums saved to: {FLICKR_ALBUMS_FOLDER}")
@@ -829,7 +753,7 @@ def main():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Filter raw Flickr albums (matching target keywords) to keep only photos with NASA IDs not matching existing photo databases (earth photography, images_nasa_gov, photos_manual)"
+        description="Filter raw Flickr albums (matching target keywords) to keep only photos with NASA IDs not matching existing photo databases (earth photography)"
     )
     args = parser.parse_args()
 

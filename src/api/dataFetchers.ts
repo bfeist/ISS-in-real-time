@@ -142,28 +142,43 @@ export async function fetchEarthPhotography(date: string): Promise<PhotoItem[]> 
   return data.map((item: PhotoItem) => ({ ...item, type: "photos_earth" }));
 }
 
-export async function fetchImagesNasaGov(): Promise<PhotoItem[]> {
-  const baseStaticUrl = getBaseStaticUrl();
-  const response = await fetch(`${baseStaticUrl}/images_nasa_gov.json`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch NASA Images data");
-  }
-
-  const data = await response.json();
-  return data.map((item: PhotoItem) => ({ ...item, type: "images_nasa_gov" }));
+interface FlickrPhotoRaw {
+  nasaId: string;
+  dateTaken: string;
+  smallUrl: string;
+  medUrl: string;
+  largeUrl: string;
+  description: string;
+  sourceUrl: string;
 }
 
-export async function fetchPhotosManual(): Promise<PhotoItem[]> {
+export async function fetchPhotosFlickr(date: string): Promise<PhotoItem[]> {
   const baseStaticUrl = getBaseStaticUrl();
-  const response = await fetch(`${baseStaticUrl}/photos_manual.json`);
+  const [year, month] = date.split("-");
+
+  const response = await fetch(
+    `${baseStaticUrl}/photos_flickr/${year}/${month}/photos-manifest_${date}.json`
+  );
 
   if (!response.ok) {
-    throw new Error("Failed to fetch Photos Manual data");
+    throw new Error("Failed to fetch Flickr Photos data");
   }
 
-  const data = await response.json();
-  return data.map((item: PhotoItem) => ({ ...item, type: "manual" }));
+  const data: FlickrPhotoRaw[] = await response.json();
+  if (data.length > 0) {
+    data.sort((a: FlickrPhotoRaw, b: FlickrPhotoRaw) => a.dateTaken.localeCompare(b.dateTaken));
+  }
+  return data.map((item: FlickrPhotoRaw) => ({
+    ID: item.nasaId || "unknown",
+    dateTaken: item.dateTaken,
+    smallUrl: item.smallUrl,
+    medUrl: item.medUrl,
+    largeUrl: item.largeUrl,
+    nasaId: item.nasaId,
+    description: item.description,
+    sourceUrl: item.sourceUrl,
+    type: "photos_flickr" as const,
+  }));
 }
 
 export async function fetchVideoYt(): Promise<VideoYtItem[]> {
@@ -242,7 +257,8 @@ export function processDataAvailabilities({
   // Skip header row
   const dataLines = lines.slice(1);
   const dataAvailabilities = dataLines.map((line) => {
-    const [date, comm, vvComm, video, eva, blog, actSum, earthPhotos, photos] = line.split("|");
+    const [date, comm, vvComm, video, eva, blog, actSum, earthPhotos, flickrPhotos] =
+      line.split("|");
     return {
       date,
       comm: comm === "1",
@@ -252,7 +268,7 @@ export function processDataAvailabilities({
       blog: blog === "1",
       actSum: actSum === "1",
       earthPhotos: earthPhotos === "1",
-      photos: photos === "1",
+      flickrPhotos: flickrPhotos === "1",
     };
   });
   return dataAvailabilities;

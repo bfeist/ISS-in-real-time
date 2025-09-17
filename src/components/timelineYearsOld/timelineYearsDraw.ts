@@ -414,7 +414,7 @@ function drawDaysForMonth({
         case "blog":
           return dayItem.blog || dayItem.actSum; // Articles includes both blog and actSum
         case "earthphotography":
-          return dayItem.earthPhotos || dayItem.photos; // Photos includes both earthPhotos and photos
+          return dayItem.earthPhotos || dayItem.flickrPhotos; // Photos includes both earthPhotos and flickrPhotos
         default:
           return false;
       }

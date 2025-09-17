@@ -2,7 +2,13 @@
 NASA ISS Flickr Flight Photos Web Processor
 
 This script processes AI-classified flight photos from Flickr albums and generates
-web-ready JSON manifests organized by date for the ISS Real-Time application.
+web-r    # NASA ID pattern - matches NASA photo IDs with specific prefixes and formats
+    # Examples: iss067e253397, jsc2023e052795, JSC2013-E-076217, nhq202111080001, jsc2021e044353_alt,
+    # iss071e581260_alt, iss068-s-002, S135-E-007551, S101-E-5087, iss001-323-009, s72-46967, jsc2000-03028, ISS014-E-10236, STS119-E-006764, sts119e006764, STS119-S-002
+    NASA_ID_PATTERN = re.compile(
+        r"^((?:iss\d+(?:e\d+|-\d+-\d+|-s-\d+|-E-\d+)(?:_alt)?)|(?:jsc\d+(?:e\d+|-e-\d+|-\d+)(?:_alt)?)|nhq\d+|s\d+(?:e\d+|-e-\d+)|s\d{2}-\d{4,5}|sts\d+(?:e\d+|-e-\d+|-s-\d+))\s*",
+        re.IGNORECASE,
+    )ON manifests organized by date for the ISS Real-Time application.
 
 Input: Flight photos from RAW_FOLDER/photos_flickr/albums_categorized_photos/*_flight.json
 Output: Daily JSON files in WEB_ASSETS_FOLDER/photos_flickr/YYYY/MM/photos-manifest_YYYY-MM-DD.json
@@ -72,11 +78,15 @@ print(f"   Output folder (web assets): {OUTPUT_FOLDER}")
 
 def extract_date_from_description(description: str) -> Optional[datetime]:
     """
-    Extract date from photo description using various regex patterns
+    Extract date from photo description using dateutil.parser for robust parsing
 
-    Common patterns in ISS photo descriptions:
-    - ISS015-E-34417 (12 Oct. 2007) --- Astr...
+    This function ONLY extracts dates from parentheses in ISS photo descriptions.
+    If no date is found in parentheses, returns None (no fallback patterns).
+
+    Supported patterns (in parentheses only):
+    - ISS015-E-34417 (12 Oct. 2007) --- Astronaut...
     - ISS020-E-006429 (25 Dec 2009) --- ...
+    - ISS01-323-010 (8 November 2000) --- Early film...
     - ISS013-E-54654 (9/15/06) --- ...
     - ISS025-E-009876 (12-25-2010) --- ...
 
@@ -84,99 +94,24 @@ def extract_date_from_description(description: str) -> Optional[datetime]:
         description: The photo description text
 
     Returns:
-        datetime object if date found, None otherwise
+        datetime object if date found in parentheses, None otherwise
     """
     if not description:
         return None
 
-    # Pattern 1: "12 Oct. 2007" or "12 Oct 2007"
-    pattern1 = r"\((\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+(\d{4})\)"
-    match1 = re.search(pattern1, description, re.IGNORECASE)
-    if match1:
-        day, month_name, year = match1.groups()
-        month_map = {
-            "jan": 1,
-            "feb": 2,
-            "mar": 3,
-            "apr": 4,
-            "may": 5,
-            "jun": 6,
-            "jul": 7,
-            "aug": 8,
-            "sep": 9,
-            "oct": 10,
-            "nov": 11,
-            "dec": 12,
-        }
-        month = month_map.get(month_name.lower())
-        if month:
-            try:
-                return datetime(int(year), month, int(day))
-            except ValueError:
-                pass
+    # Import here to avoid issues if not available
+    from dateutil import parser as date_parser
 
-    # Pattern 2: "9/15/06" or "9/15/2006"
-    pattern2 = r"\((\d{1,2})/(\d{1,2})/(\d{2,4})\)"
-    match2 = re.search(pattern2, description)
-    if match2:
-        month, day, year = match2.groups()
-        # Handle 2-digit years
-        if len(year) == 2:
-            year_int = int(year)
-            if year_int >= 90:  # Assume 1990s
-                year = str(1900 + year_int)
-            else:  # Assume 2000s
-                year = str(2000 + year_int)
+    # Extract date from parentheses ONLY (no fallback patterns)
+    parentheses_match = re.search(r"\(([^)]+)\)", description)
+    if parentheses_match:
+        date_str = parentheses_match.group(1).strip()
         try:
-            return datetime(int(year), int(month), int(day))
-        except ValueError:
+            return date_parser.parse(date_str)
+        except (ValueError, TypeError):
             pass
 
-    # Pattern 3: "12-25-2010" or "12-25-10"
-    pattern3 = r"\((\d{1,2})-(\d{1,2})-(\d{2,4})\)"
-    match3 = re.search(pattern3, description)
-    if match3:
-        month, day, year = match3.groups()
-        # Handle 2-digit years
-        if len(year) == 2:
-            year_int = int(year)
-            if year_int >= 90:  # Assume 1990s
-                year = str(1900 + year_int)
-            else:  # Assume 2000s
-                year = str(2000 + year_int)
-        try:
-            return datetime(int(year), int(month), int(day))
-        except ValueError:
-            pass
-
-    # Pattern 4: "25 Dec 2009" without parentheses
-    pattern4 = (
-        r"(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+(\d{4})"
-    )
-    match4 = re.search(pattern4, description, re.IGNORECASE)
-    if match4:
-        day, month_name, year = match4.groups()
-        month_map = {
-            "jan": 1,
-            "feb": 2,
-            "mar": 3,
-            "apr": 4,
-            "may": 5,
-            "jun": 6,
-            "jul": 7,
-            "aug": 8,
-            "sep": 9,
-            "oct": 10,
-            "nov": 11,
-            "dec": 12,
-        }
-        month = month_map.get(month_name.lower())
-        if month:
-            try:
-                return datetime(int(year), month, int(day))
-            except ValueError:
-                pass
-
+    # No fallback - return None if no date found in parentheses
     return None
 
 
@@ -207,10 +142,10 @@ def extract_nasa_id_from_description(description: str) -> Optional[str]:
     description = re.sub(r"^[^a-zA-Z]*", "", description)
 
     # NASA ID pattern - matches NASA photo IDs with specific prefixes and formats
-    # Examples: iss067e253397, jsc2023e052795, nhq202111080001, jsc2021e044353_alt,
-    # iss071e581260_alt, iss068-s-002, S135-E-007551, S101-E-5087
+    # Examples: iss067e253397, jsc2023e052795, JSC2013-E-076217, nhq202111080001, jsc2021e044353_alt,
+    # iss071e581260_alt, iss068-s-002, S135-E-007551, S101-E-5087, iss001-323-009, s72-46967, jsc2000-03028, ISS014-E-10236, STS119-E-006764, sts119e006764
     NASA_ID_PATTERN = re.compile(
-        r"^((?:iss|jsc)\d+e\d+(?:_alt)?|nhq\d+|iss\d+-s-\d+|s\d+-e-\d+)\s*",
+        r"^((?:iss\d+(?:e\d+|-\d+-\d+|-s-\d+|-E-\d+)(?:_alt)?)|(?:jsc\d+(?:e\d+|-e-\d+|-\d+)(?:_alt)?)|nhq\d+|s\d+-e-\d+|s\d{2}-\d{4,5}|sts\d+(?:e\d+|-e-\d+))\s*",
         re.IGNORECASE,
     )
 

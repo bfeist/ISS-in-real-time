@@ -22,7 +22,7 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
       case "blog":
         return availability.blog || availability.actSum;
       case "photo":
-        return availability.earthPhotos || availability.photos;
+        return availability.earthPhotos || availability.flickrPhotos;
       default:
         return availability[key as keyof DataAvailability];
     }

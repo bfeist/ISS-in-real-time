@@ -75,8 +75,8 @@ const matchesPermutation = (data: DataAvailability, perm: LayoutPermutation): bo
   const hasArticle = data.blog || data.actSum;
   if (hasArticle !== perm.article) return false;
 
-  // Check photo (includes both earthPhotos and photos)
-  const hasPhoto = data.earthPhotos || data.photos;
+  // Check photo (includes both earthPhotos and flickrPhotos)
+  const hasPhoto = data.earthPhotos || data.flickrPhotos;
   if (hasPhoto !== perm.photo) return false;
 
   return true;

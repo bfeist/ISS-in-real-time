@@ -7,7 +7,7 @@ type DataAvailability = {
   blog: boolean;
   actSum: boolean;
   earthPhotos: boolean;
-  photos: boolean;
+  flickrPhotos: boolean;
 };
 
 type CommItem = {
@@ -30,8 +30,12 @@ type PhotoItem = {
   ID: string;
   dateTaken: string;
   smallUrl?: string;
+  medUrl?: string;
   largeUrl?: string;
-  type?: "photos_earth" | "images_nasa_gov" | "manual";
+  nasaId?: string;
+  description?: string;
+  sourceUrl?: string;
+  type?: "photos_earth" | "photos_flickr";
 };
 
 type EphemeraItem = {
@@ -229,19 +233,7 @@ type Stats = {
         };
         coverage_percentage: number;
       };
-      images_nasa_gov: {
-        total_photos: number;
-        total_days_with_photos: number;
-        avg_photos_per_day: number;
-        max_photos_per_day: number;
-        min_photos_per_day: number;
-        date_range: {
-          start: string;
-          end: string;
-        };
-        coverage_percentage: number;
-      };
-      photos_manual: {
+      photos_flickr: {
         total_photos: number;
         total_days_with_photos: number;
         avg_photos_per_day: number;

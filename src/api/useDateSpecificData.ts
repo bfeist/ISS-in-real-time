@@ -4,6 +4,7 @@ import {
   fetchCommTranscript,
   fetchEphemera,
   fetchEarthPhotography,
+  fetchPhotosFlickr,
   fetchActivitySummary,
   fetchBlogArticles,
 } from "./dataFetchers";
@@ -63,6 +64,22 @@ export function useDateEarthPhotography(
     staleTime: 5 * 60 * 1000,
     gcTime: 2 * 60 * 1000,
     enabled: !!date && enabled && !!isEarthPhotographyAvailable,
+  });
+}
+
+export function useDatePhotosFlickr(
+  date: string,
+  enabled: boolean = true
+): UseQueryResult<PhotoItem[], Error> {
+  const dataAvailabilityQuery = useDateDataAvailability(date);
+  const isFlickrPhotosAvailable = dataAvailabilityQuery.data?.flickrPhotos;
+
+  return useQuery({
+    queryKey: ["photosFlickr", date],
+    queryFn: () => fetchPhotosFlickr(date),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 2 * 60 * 1000,
+    enabled: !!date && enabled && !!isFlickrPhotosAvailable,
   });
 }
 
