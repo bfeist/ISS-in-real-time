@@ -31,7 +31,7 @@ type PhotoItem = {
   dateTaken: string;
   smallUrl?: string;
   largeUrl?: string;
-  type?: "earth_photography" | "images_nasa_gov" | "manual";
+  type?: "photos_earth" | "images_nasa_gov" | "manual";
 };
 
 type EphemeraItem = {
@@ -217,7 +217,7 @@ type Stats = {
   };
   photos: {
     sources: {
-      earth_photography: {
+      photos_earth: {
         total_photos: number;
         total_days_with_photos: number;
         avg_photos_per_day: number;

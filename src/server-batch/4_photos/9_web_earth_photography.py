@@ -15,7 +15,7 @@ API_ENDPOINT = (
     "https://eol.jsc.nasa.gov/SearchPhotos/PhotosDatabaseAPI/PhotosDatabaseAPI.pl"
 )
 BASE_URL = "https://eol.jsc.nasa.gov/DatabaseImages"
-IMAGES_FOLDER = os.getenv("WEB_ASSETS_FOLDER") + "earth_photography/"
+IMAGES_FOLDER = os.getenv("WEB_ASSETS_FOLDER") + "photos_earth/"
 
 START_DATE = "2000-11-01"
 END_DATE = datetime.now().strftime("%Y-%m-%d")

@@ -128,7 +128,7 @@ export async function fetchEarthPhotography(date: string): Promise<PhotoItem[]> 
   const [year, month] = date.split("-");
 
   const response = await fetch(
-    `${baseStaticUrl}/earth_photography/${year}/${month}/images-manifest_${date}.json`
+    `${baseStaticUrl}/photos_earth/${year}/${month}/images-manifest_${date}.json`
   );
 
   if (!response.ok) {
@@ -139,7 +139,7 @@ export async function fetchEarthPhotography(date: string): Promise<PhotoItem[]> 
   if (data.length > 0) {
     data.sort((a: PhotoItem, b: PhotoItem) => a.dateTaken.localeCompare(b.dateTaken));
   }
-  return data.map((item: PhotoItem) => ({ ...item, type: "earth_photography" }));
+  return data.map((item: PhotoItem) => ({ ...item, type: "photos_earth" }));
 }
 
 export async function fetchImagesNasaGov(): Promise<PhotoItem[]> {

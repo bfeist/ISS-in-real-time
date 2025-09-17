@@ -73,12 +73,12 @@ def check_activity_summary(date):
     return os.path.exists(path)
 
 
-def check_earth_photography(date):
+def check_photos_earth(date):
     # Check if the earth photography manifest exists for the given date
     year, month, day = date.split("-")
     path = os.path.join(
         WEB_ASSETS_FOLDER,
-        "earth_photography",
+        "photos_earth",
         year,
         month,
         f"images-manifest_{year}-{month}-{day}.json",
@@ -147,7 +147,7 @@ if __name__ == "__main__":
         has_eva = date in eva_dates
         has_blog = check_blog_articles(date)
         has_activity_summary = check_activity_summary(date)
-        has_earth = check_earth_photography(date)
+        has_earth = check_photos_earth(date)
         has_photos_manual = date in photos_manual_dates
         has_images_nasa_gov = date in images_nasa_gov_dates
         has_photos = has_photos_manual or has_images_nasa_gov

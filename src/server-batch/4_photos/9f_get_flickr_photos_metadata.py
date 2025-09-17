@@ -315,12 +315,12 @@ def get_cached_photo_info(photo_id, include_detailed_info=True, include_exif=Fal
     # Check if photo is already in cache (shouldn't happen with deduplication, but safety check)
     if photo_id in photo_cache:
         cache_hits += 1
-        print(f"    Unexpected cache hit for photo {photo_id} - skipping")
+        print("cache hit (unexpected) - skipping")
         return None
 
     # Photo not in cache, fetch it
     cache_misses += 1
-    print(f"    Fetching photo {photo_id} from API")
+    print("fetching from API")
 
     photo_data = {"id": photo_id}
 
@@ -414,8 +414,9 @@ def process_photoset(
         for i, photo in enumerate(all_photos, 1):
             photo_id = photo.get("id")
             if photo_id:
-                print(f"    Processing photo {i}/{len(all_photos)}: {photo_id}")
-
+                print(
+                    f"    Processing photo {i}/{len(all_photos)}: {photo_id}", end=" - "
+                )
                 # Get cached or fetch photo metadata
                 photo_metadata = get_cached_photo_info(
                     photo_id, include_detailed_info, include_exif
@@ -631,6 +632,13 @@ def main():
     for i, photoset in enumerate(photosets, 1):
         photoset_id = photoset.get("id")
         photoset_title = photoset.get("title", {}).get("_content", "Untitled")
+
+        # Skip albums that start with "Astronaut"
+        if photoset_title.startswith("Astronaut") or photoset_title.startswith(
+            "Hurricane"
+        ):
+            print(f"\n[{i}/{len(photosets)}] Skipping album: {photoset_title}")
+            continue
 
         print(f"\n[{i}/{len(photosets)}] Processing: {photoset_title}")
         print(f"Photoset ID: {photoset_id}")

@@ -120,19 +120,19 @@ const Stats: FunctionComponent = (): JSX.Element => {
                   <div className={styles.statItem}>
                     <span className={styles.statLabel}>Photos:</span>
                     <span className={styles.statValue}>
-                      {stats.photos.sources.earth_photography.total_photos.toLocaleString()}
+                      {stats.photos.sources.photos_earth.total_photos.toLocaleString()}
                     </span>
                   </div>
                   <div className={styles.statItem}>
                     <span className={styles.statLabel}>Days:</span>
                     <span className={styles.statValue}>
-                      {stats.photos.sources.earth_photography.total_days_with_photos.toLocaleString()}
+                      {stats.photos.sources.photos_earth.total_days_with_photos.toLocaleString()}
                     </span>
                   </div>
                   <div className={styles.statItem}>
                     <span className={styles.statLabel}>Avg/Day:</span>
                     <span className={styles.statValue}>
-                      {stats.photos.sources.earth_photography.avg_photos_per_day.toFixed(1)}
+                      {stats.photos.sources.photos_earth.avg_photos_per_day.toFixed(1)}
                     </span>
                   </div>
                 </div>

@@ -17,7 +17,7 @@ if not WEB_ASSETS_FOLDER:
     exit(1)
 
 COMM_FOLDER = WEB_ASSETS_FOLDER + "comm/"
-IMAGES_FOLDER = WEB_ASSETS_FOLDER + "earth_photography/"
+IMAGES_FOLDER = WEB_ASSETS_FOLDER + "photos_earth/"
 YOUTUBE_JSON = WEB_ASSETS_FOLDER + "videoYt.json"
 IA_VIDEOS_JSON = WEB_ASSETS_FOLDER + "videoIa.json"
 DATA_AVAILABILITY_CSV = WEB_ASSETS_FOLDER + "data_availability.csv"
@@ -136,7 +136,7 @@ def analyze_photos():
 
     # Initialize stats for each source
     sources = {
-        "earth_photography": {
+        "photos_earth": {
             "total_photos": 0,
             "total_days_with_photos": 0,
             "photos_per_day": [],
@@ -169,7 +169,7 @@ def analyze_photos():
         return {"error": f"Directory {IMAGES_FOLDER} does not exist!"}
 
     # Process images-manifest files
-    source = sources["earth_photography"]
+    source = sources["photos_earth"]
     for root, dirs, files in os.walk(IMAGES_FOLDER):
         for file in files:
             if file.endswith(".json") and "images-manifest_" in file:

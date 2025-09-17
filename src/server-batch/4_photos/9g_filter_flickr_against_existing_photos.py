@@ -12,8 +12,12 @@ The script:
 5. Saves filtered results with _filtered suffix in the same folder
 6. Stores extracted NASA ID as separate property in each photo object
 
+Album Filtering:
+- Processes albums matching ALBUM_KEYWORDS (Axiom, Expedition, SpaceX, etc.)
+- For STS albums: Only processes shuttle missions that went to the ISS (filters against shuttle_missions_to_station list)
+
 Data Sources Filtered Against:
-- Earth photography: WEB_ASSETS_FOLDER/earth_photography/YYYY/MM/images-manifest_YYYY-MM-DD.json
+- Earth photography: WEB_ASSETS_FOLDER/photos_earth/YYYY/MM/images-manifest_YYYY-MM-DD.json
 - NASA Images.gov: WEB_ASSETS_FOLDER/images_nasa_gov.json
 - Manual photos: WEB_ASSETS_FOLDER/photos_manual.json
 
@@ -38,6 +42,46 @@ load_dotenv(dotenv_path="../../../.env")
 RAW_FOLDER = os.getenv("RAW_FOLDER")
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
+shuttle_missions_to_station = [
+    "STS-88",
+    "STS-96",
+    "STS-101",
+    "STS-106",
+    "STS-92",
+    "STS-97",
+    "STS-98",
+    "STS-100",
+    "STS-102",
+    "STS-104",
+    "STS-105",
+    "STS-108",
+    "STS-110",
+    "STS-111",
+    "STS-112",
+    "STS-113",
+    "STS-114",
+    "STS-115",
+    "STS-116",
+    "STS-117",
+    "STS-118",
+    "STS-120",
+    "STS-121",
+    "STS-122",
+    "STS-123",
+    "STS-124",
+    "STS-119",
+    "STS-126",
+    "STS-127",
+    "STS-128",
+    "STS-129",
+    "STS-130",
+    "STS-131",
+    "STS-132",
+    "STS-133",
+    "STS-134",
+    "STS-135",
+]
+
 # Configuration - Albums to process
 ALBUM_KEYWORDS = [
     "Axiom",
@@ -48,20 +92,30 @@ ALBUM_KEYWORDS = [
     "Progress",
     "Zarya",
     "Station",
+    "Spacewalks",
+    "Thanksgiving",
+    "ISS - One Year Crew",
+    "Christmas in Space",
+    "YearInSpace",
+    "Automated Transfer Vehicle",
+    "Kounotori",
+    "Northrop",
+    "Zinnias",
+    "International Space Station Exterior",
 ]
 
 # Directory paths
-EARTH_PHOTOGRAPHY_FOLDER = (
-    os.path.join(WEB_ASSETS_FOLDER, "earth_photography") if WEB_ASSETS_FOLDER else None
+PHOTOS_EARTH_FOLDER = (
+    os.path.join(WEB_ASSETS_FOLDER, "photos_earth") if WEB_ASSETS_FOLDER else None
 )
 FLICKR_ALBUMS_FOLDER = (
     os.path.join(RAW_FOLDER, "photos_flickr", "albums") if RAW_FOLDER else None
 )
 
 # NASA ID pattern - matches NASA photo IDs with specific prefixes and formats
-# Examples: iss067e253397, jsc2023e052795, nhq202111080001, jsc2021e044353_alt, iss071e581260_alt, iss068-s-002
+# Examples: iss067e253397, jsc2023e052795, nhq202111080001, jsc2021e044353_alt, iss071e581260_alt, iss068-s-002, S135-E-007551, S101-E-5087
 NASA_ID_PATTERN = re.compile(
-    r"^((?:iss|jsc)\d+e\d+|nhq\d+|iss\d+-s-\d+)\s*", re.IGNORECASE
+    r"^((?:iss|jsc)\d+e\d+|nhq\d+|iss\d+-s-\d+|s\d+-e-\d+)\s*", re.IGNORECASE
 )
 
 # Cache for all photo NASA IDs
@@ -497,6 +551,7 @@ def find_raw_albums() -> List[Path]:
     """
     Find all raw album JSON files in the albums folder that match target keywords
     Excludes already filtered albums (those ending with _filtered.json)
+    For STS albums, only includes missions that went to the ISS
 
     Returns:
         List of Path objects for matching raw albums
@@ -515,15 +570,56 @@ def find_raw_albums() -> List[Path]:
 
     # Filter by keywords
     matching_albums = []
+    sts_filtered_albums = []
+
     for album in raw_albums:
+        # Check if album matches any of the general keywords
         if any(keyword in album.name for keyword in ALBUM_KEYWORDS):
-            matching_albums.append(album)
+            album_name = album.name.upper()
+
+            # If this is an STS album, apply additional ISS mission filter
+            if album_name.startswith("STS"):
+                # Extract STS mission number from filename
+                # Patterns: "STS-88", "STS51I", "STS51-F", etc.
+                sts_match = re.search(r"STS-?(\d+)(?:-?[A-Z])?", album_name)
+                if sts_match:
+                    mission_num = sts_match.group(1)
+                    # Try to match against known ISS missions
+                    # First try exact match with STS-XXX format
+                    sts_mission = f"STS-{mission_num}"
+                    if sts_mission in shuttle_missions_to_station:
+                        matching_albums.append(album)
+                        print(
+                            f"   ✅ STS mission to ISS: {sts_mission} -> {album.name}"
+                        )
+                    else:
+                        sts_filtered_albums.append((album.name, sts_mission))
+                        print(
+                            f"   🚫 STS mission not to ISS: {sts_mission} -> {album.name} (skipped)"
+                        )
+                else:
+                    # STS album but couldn't extract mission number, include it to be safe
+                    matching_albums.append(album)
+                    print(
+                        f"   ⚠️  STS album with unclear mission number: {album.name} (included)"
+                    )
+            else:
+                # Non-STS album that matches keywords
+                matching_albums.append(album)
 
     # Sort by filename for consistent processing order
     matching_albums.sort(key=lambda x: x.name)
 
     print(f"✅ Found {len(matching_albums)} matching raw albums to process")
     print(f"   Target keywords: {', '.join(ALBUM_KEYWORDS)}")
+    print(
+        f"   STS missions to ISS: {len([a for a in matching_albums if 'STS' in a.name.upper()])}"
+    )
+    if sts_filtered_albums:
+        print(f"   STS missions filtered out (not to ISS): {len(sts_filtered_albums)}")
+        for album_name, mission in sts_filtered_albums:
+            print(f"     - {mission}: {album_name}")
+
     return matching_albums
 
 
@@ -615,20 +711,20 @@ def main():
         print("❌ Environment variables RAW_FOLDER and WEB_ASSETS_FOLDER must be set")
         return False
 
-    if not EARTH_PHOTOGRAPHY_FOLDER or not os.path.exists(EARTH_PHOTOGRAPHY_FOLDER):
-        print(f"❌ Earth photography folder not found: {EARTH_PHOTOGRAPHY_FOLDER}")
+    if not PHOTOS_EARTH_FOLDER or not os.path.exists(PHOTOS_EARTH_FOLDER):
+        print(f"❌ Earth photography folder not found: {PHOTOS_EARTH_FOLDER}")
         return False
 
     if not FLICKR_ALBUMS_FOLDER or not os.path.exists(FLICKR_ALBUMS_FOLDER):
         print(f"❌ Flickr albums folder not found: {FLICKR_ALBUMS_FOLDER}")
         return False
 
-    print(f"📁 Earth photography folder: {EARTH_PHOTOGRAPHY_FOLDER}")
+    print(f"📁 Earth photography folder: {PHOTOS_EARTH_FOLDER}")
     print(f"📁 Web assets folder: {WEB_ASSETS_FOLDER}")
     print(f"📁 Flickr albums folder: {FLICKR_ALBUMS_FOLDER}")
 
     # Initialize all photo cache
-    photo_cache = AllPhotoIDCache(EARTH_PHOTOGRAPHY_FOLDER, WEB_ASSETS_FOLDER)
+    photo_cache = AllPhotoIDCache(PHOTOS_EARTH_FOLDER, WEB_ASSETS_FOLDER)
 
     # Preload all photo IDs for fast lookup
     print("🌍 Preloading all photo IDs from all sources...")

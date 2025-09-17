@@ -49,12 +49,12 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     const { ID, type } = photoItem;
 
     switch (type) {
-      case "earth_photography":
+      case "photos_earth":
         // Use existing smallUrl and largeUrl
         if (size === "thumb") {
           return `${imageBaseUrl}/${photoItem.smallUrl}`;
         } else if (size === "medium") {
-          return `${imageBaseUrl}/${photoItem.smallUrl}`; // earth_photography doesn't have medium, use small
+          return `${imageBaseUrl}/${photoItem.smallUrl}`; // photos_earth doesn't have medium, use small
         } else if (size === "large") {
           return `${imageBaseUrl}/${photoItem.largeUrl}`;
         }
@@ -71,7 +71,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
         return `https://data.issinrealtime.org/ISSiRT_assets/photos_manual/${manualSize}/${ID}.jpg`;
 
       default:
-        // Fallback to earth_photography format
+        // Fallback to photos_earth format
         if (size === "thumb") {
           return `${imageBaseUrl}/${photoItem.smallUrl}`;
         } else {
