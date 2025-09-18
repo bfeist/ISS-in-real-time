@@ -57,13 +57,13 @@ const Stats: FunctionComponent = (): JSX.Element => {
             <h2>Communications</h2>
             <div className={styles.statGrid}>
               <div className={styles.statItem}>
-                <span className={styles.statLabel}>Days with Transcripts:</span>
+                <span className={styles.statLabel}>Days with Space-to-Ground Comm:</span>
                 <span className={styles.statValue}>
                   {stats.comm.total_days_with_transcripts.toLocaleString()}
                 </span>
               </div>
               <div className={styles.statItem}>
-                <span className={styles.statLabel}>Days with VV Transcripts:</span>
+                <span className={styles.statLabel}>Days with Visiting Vehicle Comm:</span>
                 <span className={styles.statValue}>
                   {stats.comm.total_days_with_vv_transcripts.toLocaleString()}
                 </span>
@@ -75,11 +75,11 @@ const Stats: FunctionComponent = (): JSX.Element => {
                 </span>
               </div>
               <div className={styles.statItem}>
-                <span className={styles.statLabel}>Total Words:</span>
+                <span className={styles.statLabel}>Total Words Spoken:</span>
                 <span className={styles.statValue}>{stats.comm.total_words.toLocaleString()}</span>
               </div>
               <div className={styles.statItem}>
-                <span className={styles.statLabel}>Languages:</span>
+                <span className={styles.statLabel}>Languages Spoken:</span>
                 <span className={styles.statValue}>{stats.comm.total_languages}</span>
               </div>
             </div>
@@ -130,17 +130,11 @@ const Stats: FunctionComponent = (): JSX.Element => {
                       {stats.photos.sources.photos_earth.total_days_with_photos.toLocaleString()}
                     </span>
                   </div>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Avg/Day:</span>
-                    <span className={styles.statValue}>
-                      {stats.photos.sources.photos_earth.avg_photos_per_day.toFixed(1)}
-                    </span>
-                  </div>
                 </div>
               </div>
 
               <div className={styles.source}>
-                <h3>Flickr Photos</h3>
+                <h3>Mission Photography</h3>
                 <div className={styles.statGrid}>
                   <div className={styles.statItem}>
                     <span className={styles.statLabel}>Photos:</span>
@@ -152,12 +146,6 @@ const Stats: FunctionComponent = (): JSX.Element => {
                     <span className={styles.statLabel}>Days:</span>
                     <span className={styles.statValue}>
                       {stats.photos.sources.photos_flickr.total_days_with_photos.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Avg/Day:</span>
-                    <span className={styles.statValue}>
-                      {stats.photos.sources.photos_flickr.avg_photos_per_day.toFixed(1)}
                     </span>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 import os
 import json
 import csv  # new import
+import re  # new import for regex
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
@@ -73,30 +74,38 @@ def check_activity_summary(date):
     return os.path.exists(path)
 
 
-def check_photos_earth(date):
-    # Check if the earth photography manifest exists for the given date
-    year, month, day = date.split("-")
-    path = os.path.join(
-        WEB_ASSETS_FOLDER,
-        "photos_earth",
-        year,
-        month,
-        f"images-manifest_{year}-{month}-{day}.json",
-    )
-    return os.path.exists(path)
+def get_earth_photo_dates():
+    """Scan for all earth photo dates using the same method as analyze_photos"""
+    earth_dates = set()
+    images_folder = WEB_ASSETS_FOLDER + "photos_earth/"
+
+    if os.path.exists(images_folder):
+        for root, dirs, files in os.walk(images_folder):
+            for file in files:
+                if file.endswith(".json") and "images-manifest_" in file:
+                    date_match = re.search(
+                        r"images-manifest_(\d{4}-\d{2}-\d{2})\.json", file
+                    )
+                    if date_match:
+                        earth_dates.add(date_match.group(1))
+    return earth_dates
 
 
-def check_photos_flickr(date):
-    # Check if the Flickr photos manifest exists for the given date
-    year, month, day = date.split("-")
-    path = os.path.join(
-        WEB_ASSETS_FOLDER,
-        "photos_flickr",
-        year,
-        month,
-        f"photos-manifest_{year}-{month}-{day}.json",
-    )
-    return os.path.exists(path)
+def get_flickr_photo_dates():
+    """Scan for all flickr photo dates using the same method as analyze_photos"""
+    flickr_dates = set()
+    flickr_folder = WEB_ASSETS_FOLDER + "photos_flickr/"
+
+    if os.path.exists(flickr_folder):
+        for root, dirs, files in os.walk(flickr_folder):
+            for file in files:
+                if file.endswith(".json") and "photos-manifest_" in file:
+                    date_match = re.search(
+                        r"photos-manifest_(\d{4}-\d{2}-\d{2})\.json", file
+                    )
+                    if date_match:
+                        flickr_dates.add(date_match.group(1))
+    return flickr_dates
 
 
 if __name__ == "__main__":
@@ -126,6 +135,10 @@ if __name__ == "__main__":
         for eva in evas:
             eva_dates.add(eva["startTime"].split("T")[0])
 
+    # Get all photo dates upfront using the same method as analyze_photos
+    earth_photo_dates = get_earth_photo_dates()
+    flickr_photo_dates = get_flickr_photo_dates()
+
     # compile the available media for each date
     date_records = []
     for date in available_dates:
@@ -136,8 +149,8 @@ if __name__ == "__main__":
         has_eva = date in eva_dates
         has_blog = check_blog_articles(date)
         has_activity_summary = check_activity_summary(date)
-        has_earth = check_photos_earth(date)
-        has_flickr = check_photos_flickr(date)
+        has_earth = date in earth_photo_dates
+        has_flickr = date in flickr_photo_dates
 
         # Only include dates that have at least one data type available
         if (

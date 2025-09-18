@@ -28,18 +28,33 @@ def analyze_comm():
     """Analyze communication transcripts and return statistics"""
 
     total_words = 0
-    comm_days = 0
     languages = set()
     word_counts = {}
     channel_word_counts = {}
     vv_days_set = set()  # Track unique days with AG or DG files
     total_utterances = 0  # Track total number of utterances
 
+    # Get day counts from CSV data (consistent with data availability section)
+    comm_days_from_csv = 0
+    vv_comm_days_from_csv = 0
+
+    if os.path.exists(DATA_AVAILABILITY_CSV):
+        try:
+            with open(DATA_AVAILABILITY_CSV, "r", encoding="utf-8") as f:
+                reader = csv.reader(f, delimiter="|")
+                header = next(reader)
+                for row in reader:
+                    if len(row) >= 3:  # Ensure we have comm and vvComm columns
+                        if row[1].strip() == "1":  # comm column
+                            comm_days_from_csv += 1
+                        if row[2].strip() == "1":  # vvComm column
+                            vv_comm_days_from_csv += 1
+        except:
+            pass
+
     for root, dirs, files in os.walk(COMM_FOLDER):
         for file in files:
             if file.endswith(".csv"):
-                comm_days += 1
-
                 # Extract date from file path (assumes directory structure contains date)
                 date_match = re.search(r"(\d{4}-\d{2}-\d{2})", root)
                 file_date = date_match.group(1) if date_match else None
@@ -88,11 +103,10 @@ def analyze_comm():
                         else:
                             word_counts[language] = word_count
 
-    # Update vv_days count from the set
-    vv_days = len(vv_days_set)
-
-    # Calculate average utterances per day
-    avg_utterances_per_day = total_utterances / comm_days if comm_days > 0 else 0
+    # Calculate average utterances per day using CSV-based comm days
+    avg_utterances_per_day = (
+        total_utterances / comm_days_from_csv if comm_days_from_csv > 0 else 0
+    )
 
     # sort languages by word count
     word_counts = dict(
@@ -107,8 +121,8 @@ def analyze_comm():
         languages_dict[full_lang] = count
 
     return {
-        "total_days_with_transcripts": comm_days,
-        "total_days_with_vv_transcripts": vv_days,
+        "total_days_with_transcripts": comm_days_from_csv,
+        "total_days_with_vv_transcripts": vv_comm_days_from_csv,
         "total_utterances": total_utterances,
         "avg_utterances_per_day": round(avg_utterances_per_day, 2),
         "total_words": total_words,
@@ -133,13 +147,31 @@ def extract_year_from_date(date_taken):
 
 
 def analyze_photos():
-    """Analyze all earth photography JSON files and return statistics"""
+    """Analyze photos using data availability CSV and count photos from JSON files"""
+
+    # Get day counts from CSV data (consistent with data availability section)
+    earth_days_from_csv = 0
+    flickr_days_from_csv = 0
+
+    if os.path.exists(DATA_AVAILABILITY_CSV):
+        try:
+            with open(DATA_AVAILABILITY_CSV, "r", encoding="utf-8") as f:
+                reader = csv.reader(f, delimiter="|")
+                header = next(reader)
+                for row in reader:
+                    if len(row) >= 9:  # Ensure we have all columns
+                        if row[7].strip() == "1":  # earthPhotos column
+                            earth_days_from_csv += 1
+                        if row[8].strip() == "1":  # flickrPhotos column
+                            flickr_days_from_csv += 1
+        except:
+            pass
 
     # Initialize stats for each source
     sources = {
         "photos_earth": {
             "total_photos": 0,
-            "total_days_with_photos": 0,
+            "total_days_with_photos": earth_days_from_csv,
             "photos_per_day": [],
             "earliest_date": None,
             "latest_date": None,
@@ -147,7 +179,7 @@ def analyze_photos():
         },
         "photos_flickr": {
             "total_photos": 0,
-            "total_days_with_photos": 0,
+            "total_days_with_photos": flickr_days_from_csv,
             "photos_per_day": [],
             "earliest_date": None,
             "latest_date": None,
@@ -217,7 +249,8 @@ def analyze_photos():
                     print(f"Error reading {file_path}: {e}")
                     continue
 
-    source["total_days_with_photos"] = len(source["days_with_photos"])
+    # Don't override the CSV count
+    # source["total_days_with_photos"] = len(source["days_with_photos"])
 
     # Process Flickr photos-manifest files
     print(f"Scanning directory: {FLICKR_FOLDER}")
@@ -279,7 +312,8 @@ def analyze_photos():
                         print(f"Error reading {file_path}: {e}")
                         continue
 
-        source["total_days_with_photos"] = len(source["days_with_photos"])
+        # Don't override the CSV count
+        # source["total_days_with_photos"] = len(source["days_with_photos"])
     else:
         print(f"Flickr photos directory not found: {FLICKR_FOLDER}")
 
@@ -289,6 +323,22 @@ def analyze_photos():
     combined_earliest_date = None
     combined_latest_date = None
     combined_total_photos = 0
+
+    # Combined days from CSV - count unique days with either earth or flickr photos
+    combined_days_from_csv = 0
+    if os.path.exists(DATA_AVAILABILITY_CSV):
+        try:
+            with open(DATA_AVAILABILITY_CSV, "r", encoding="utf-8") as f:
+                reader = csv.reader(f, delimiter="|")
+                header = next(reader)
+                for row in reader:
+                    if len(row) >= 9:  # Ensure we have all columns
+                        has_earth = row[7].strip() == "1"  # earthPhotos column
+                        has_flickr = row[8].strip() == "1"  # flickrPhotos column
+                        if has_earth or has_flickr:
+                            combined_days_from_csv += 1
+        except:
+            pass
 
     for source_name, source_data in sources.items():
         combined_days_with_photos.update(source_data["days_with_photos"])
@@ -307,6 +357,16 @@ def analyze_photos():
                 or source_data["latest_date"] > combined_latest_date
             ):
                 combined_latest_date = source_data["latest_date"]
+
+    total_days = 0
+    if os.path.exists(DATA_AVAILABILITY_CSV):
+        try:
+            with open(DATA_AVAILABILITY_CSV, "r", encoding="utf-8") as f:
+                reader = csv.reader(f, delimiter="|")
+                next(reader)  # skip header
+                total_days = sum(1 for row in reader)
+        except:
+            pass
 
     # Calculate individual source stats
     result = {"sources": {}, "combined": {}}
@@ -358,16 +418,13 @@ def analyze_photos():
     max_photos_per_day = max(combined_photos_per_day) if combined_photos_per_day else 0
     min_photos_per_day = min(combined_photos_per_day) if combined_photos_per_day else 0
 
-    coverage_percentage = 0
-    if combined_earliest_date and combined_latest_date:
-        total_days_in_range = (combined_latest_date - combined_earliest_date).days + 1
-        coverage_percentage = (
-            len(combined_days_with_photos) / total_days_in_range
-        ) * 100
+    coverage_percentage = (
+        (combined_days_from_csv / total_days) * 100 if total_days > 0 else 0
+    )
 
     result["combined"] = {
         "total_photos": combined_total_photos,
-        "total_days_with_photos": len(combined_days_with_photos),
+        "total_days_with_photos": combined_days_from_csv,  # Use CSV count for consistency
         "avg_photos_per_day": round(avg_photos_per_day, 2),
         "max_photos_per_day": max_photos_per_day,
         "min_photos_per_day": min_photos_per_day,
@@ -391,6 +448,21 @@ def analyze_photos():
 
 def analyze_videos():
     """Analyze YouTube and IA videos and return statistics"""
+
+    # Get video day counts from CSV data (consistent with data availability section)
+    video_days_from_csv = 0
+
+    if os.path.exists(DATA_AVAILABILITY_CSV):
+        try:
+            with open(DATA_AVAILABILITY_CSV, "r", encoding="utf-8") as f:
+                reader = csv.reader(f, delimiter="|")
+                header = next(reader)
+                for row in reader:
+                    if len(row) >= 4:  # Ensure we have video column
+                        if row[3].strip() == "1":  # video column
+                            video_days_from_csv += 1
+        except:
+            pass
 
     youtube_stats = {}
     ia_stats = {}
@@ -448,7 +520,11 @@ def analyze_videos():
         except (json.JSONDecodeError, IOError) as e:
             print(f"Error reading {IA_VIDEOS_JSON}: {e}")
 
-    return {"youtube": youtube_stats, "ia": ia_stats}
+    return {
+        "youtube": youtube_stats,
+        "ia": ia_stats,
+        "total_days_with_videos": video_days_from_csv,
+    }
 
 
 def analyze_data_availability():
@@ -465,7 +541,7 @@ def analyze_data_availability():
         "blog",
         "actSum",
         "earthPhotos",
-        "photos",
+        "flickrPhotos",
     ]
     counts = {dt: 0 for dt in data_types}
     total_days = 0
