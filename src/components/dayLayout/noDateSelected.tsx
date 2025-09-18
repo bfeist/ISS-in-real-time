@@ -1,7 +1,7 @@
 import { FunctionComponent, JSX, useState } from "react";
-import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import { faChartBar } from "@fortawesome/free-solid-svg-icons";
 import IconButton from "../common/iconButton";
-import Stats from "./stats";
+import StatsModal from "./statsModal";
 import styles from "./noDateSelected.module.css";
 
 const NoDateSelected: FunctionComponent = (): JSX.Element => {
@@ -10,12 +10,12 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
   return (
     <div className={styles.container}>
       <IconButton
-        icon={showStats ? faEyeSlash : faEye}
-        label={showStats ? "Hide Stats" : "Show Stats"}
-        onClick={() => setShowStats(!showStats)}
+        icon={faChartBar}
+        label="View Data Stats"
+        onClick={() => setShowStats(true)}
         className={styles.statsButton}
       />
-      {showStats && <Stats />}
+      <StatsModal isOpen={showStats} onClose={() => setShowStats(false)} />
     </div>
   );
 };

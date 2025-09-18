@@ -1,0 +1,163 @@
+import { FunctionComponent, JSX, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useGeneralStats } from "../../api/useGeneralData";
+import styles from "./statsModal.module.css";
+
+const StatsModal: FunctionComponent<{
+  isOpen: boolean;
+  onClose: () => void;
+}> = ({ isOpen, onClose }): JSX.Element => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const { data: stats, isLoading, error } = useGeneralStats();
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return <></>;
+
+  return createPortal(
+    <div className={styles.overlay}>
+      <div className={styles.modal} ref={modalRef}>
+        <div className={styles.header}>
+          <h3>ISS Data Overview</h3>
+          <button className={styles.closeButton} onClick={onClose}>
+            ×
+          </button>
+        </div>
+        <div className={styles.content}>
+          {isLoading && <div className={styles.loading}>Loading stats...</div>}
+          {error && <div className={styles.error}>Error loading stats: {error.message}</div>}
+          {!stats && !isLoading && !error && (
+            <div className={styles.noData}>No stats available</div>
+          )}
+          {stats && (
+            <div className={styles.statsGrid}>
+              <div className={styles.statsSection}>
+                <h4>Communications</h4>
+                <div className={styles.statRow}>
+                  <span>Days with S-G Comm:</span>
+                  <span>{stats.comm.total_days_with_transcripts.toLocaleString()}</span>
+                </div>
+                <div className={styles.statRow}>
+                  <span>Total Utterances:</span>
+                  <span>{stats.comm.total_utterances.toLocaleString()}</span>
+                </div>
+                <div className={styles.statRow}>
+                  <span>Total Words:</span>
+                  <span>{stats.comm.total_words.toLocaleString()}</span>
+                </div>
+                <div className={styles.statRow}>
+                  <span>Languages:</span>
+                  <span>{stats.comm.total_languages}</span>
+                </div>
+              </div>
+
+              <div className={styles.stackedSection}>
+                <div className={styles.statsSection}>
+                  <h4>Photos</h4>
+                  <div className={styles.statRow}>
+                    <span>Total Photos:</span>
+                    <span>{stats.photos.combined.total_photos.toLocaleString()}</span>
+                  </div>
+                  <div className={styles.statRow}>
+                    <span>Days with Photos:</span>
+                    <span>{stats.photos.combined.total_days_with_photos.toLocaleString()}</span>
+                  </div>
+                  <div className={styles.statRow}>
+                    <span>Coverage:</span>
+                    <span>{stats.photos.combined.coverage_percentage.toFixed(1)}%</span>
+                  </div>
+                </div>
+
+                <div className={styles.statsSection}>
+                  <h4>Videos</h4>
+                  <div className={styles.statRow}>
+                    <span>YouTube Videos:</span>
+                    <span>{stats.videos.youtube.total_videos}</span>
+                  </div>
+                  <div className={styles.statRow}>
+                    <span>IA Videos:</span>
+                    <span>{stats.videos.ia.total_videos}</span>
+                  </div>
+                  <div className={styles.statRow}>
+                    <span>YT Duration:</span>
+                    <span>
+                      {Math.floor(stats.videos.youtube.total_duration_seconds / 3600)}h{" "}
+                      {Math.floor((stats.videos.youtube.total_duration_seconds % 3600) / 60)}m
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.statsSection}>
+                <h4>Per Day Data</h4>
+                <div className={styles.statRow}>
+                  <span>Total Days:</span>
+                  <span>{stats.data_availability.total_days.toLocaleString()}</span>
+                </div>
+                <div className={styles.statRow}>
+                  <span>Avg Types/Day:</span>
+                  <span>{stats.data_availability.avg_data_types_per_day.toFixed(1)}</span>
+                </div>
+                {Object.entries(stats.data_availability.counts).map(([type, count]) => {
+                  const getDataTypeLabel = (type: string): string => {
+                    const labels: Record<string, string> = {
+                      comm: "Space-to-Ground Comm",
+                      vvComm: "Visiting Vehicle Comm",
+                      video: "Videos",
+                      eva: "EVAs",
+                      blog: "Articles",
+                      actSum: "Activity Summaries",
+                      earthPhotos: "Earth Photos",
+                      flickrPhotos: "Mission Photos",
+                    };
+                    return (
+                      labels[type] ||
+                      type.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())
+                    );
+                  };
+
+                  return (
+                    <div key={type} className={styles.statRow}>
+                      <span>{getDataTypeLabel(type)}:</span>
+                      <span>{count.toLocaleString()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {stats && (
+            <div className={styles.generatedAt}>
+              Generated: {new Date(stats.generated_at).toLocaleString()}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+export default StatsModal;
