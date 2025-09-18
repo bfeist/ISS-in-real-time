@@ -9,3 +9,10 @@
   position: relative;
   padding-top: 20px;
 }
+
+.statsButton {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 4;
+}

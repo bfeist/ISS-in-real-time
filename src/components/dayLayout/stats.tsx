@@ -50,7 +50,7 @@ const Stats: FunctionComponent = (): JSX.Element => {
   return (
     <div className={styles.container}>
       <div className={styles.statsContainer}>
-        <h1 className={styles.title}>ISS In Real Time - Overall Statistics</h1>
+        <h1 className={styles.title}>ISS In Real Time - Data Overview</h1>
 
         <div className={styles.sectionsGrid}>
           <section className={styles.section}>
@@ -225,7 +225,7 @@ const Stats: FunctionComponent = (): JSX.Element => {
         </div>
 
         <div className={styles.generatedAt}>
-          Generated: {new Date(stats.generated_at).toLocaleString()}
+          Stats generated: {new Date(stats.generated_at).toLocaleString()}
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@
   overflow: hidden;
 }
 
-.contentWrapper {
+.dayContentWrapper {
   position: absolute;
   top: 160px; /* Adjust this value based on header (50px) + timeline height */
   left: 0;

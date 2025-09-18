@@ -10,7 +10,7 @@
 }
 
 .statsContainer {
-  background: var(--grey1);
+  background: var(--grey2);
   border-radius: 6px;
   padding: 0.75rem;
   width: 100%;
@@ -104,7 +104,7 @@
 }
 
 .source {
-  background: var(--grey1);
+  background: var(--grey2);
   border-radius: 4px;
   padding: 0.25rem;
   border: 1px solid var(--grey3);

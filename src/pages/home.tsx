@@ -30,7 +30,7 @@ const HomePage: FunctionComponent = (): JSX.Element => {
     <div className={styles.page}>
       <Header />
       <TimelineYears2Container />
-      <div className={styles.contentWrapper}>
+      <div className={styles.dayContentWrapper}>
         {selectedDate ? <DayLayout /> : <NoDateSelected />}
         {showTimelineYears && (
           <div
