@@ -260,7 +260,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             );
           })}
         </div>
-        <SearchComponent />
+        {showTimelineYears && <SearchComponent />}
 
         {/* Mega Overlay */}
         {megaOverlayVisible && megaOverlayYear && (

@@ -11,7 +11,7 @@
 
 .dayContentWrapper {
   position: absolute;
-  top: 160px; /* Adjust this value based on header (50px) + timeline height */
+  top: 125px; /* Adjust this value based on header (50px) + timeline height */
   left: 0;
   right: 0;
   bottom: 0;
