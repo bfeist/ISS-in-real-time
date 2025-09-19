@@ -240,7 +240,28 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
           }
         }}
       >
-        <div className={styles.years} style={{ gap: YEAR_GAP }}>
+        <div
+          className={styles.years}
+          style={{ gap: YEAR_GAP }}
+          onMouseLeave={() => {
+            // Only clear hovered year state if we're not moving to the mega overlay
+            // Use a timeout to allow the overlay mouse events to fire first
+            const timeout = setTimeout(() => {
+              // If we're not over the mega overlay, clear the hover state
+              if (!isOverMegaOverlayRef.current) {
+                if (hideOverlayTimeout) {
+                  clearTimeout(hideOverlayTimeout);
+                  setHideOverlayTimeout(null);
+                }
+                setHoveredYearIndex(null);
+                setMegaOverlayVisible(false);
+                setMegaOverlayYear(null);
+              }
+            }, 50); // Small delay to allow overlay events to register
+
+            setHideOverlayTimeout(timeout);
+          }}
+        >
           {years.map((year, index) => {
             const monthRange = getYearMonthRange(year);
             return (
