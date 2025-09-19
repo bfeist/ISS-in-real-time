@@ -1,0 +1,32 @@
+.sourceButton {
+  float: right;
+  background: var(--grey3);
+  border: 1px solid var(--grey4);
+  color: white;
+  border-radius: var(--radius);
+  padding: 4px;
+  font-size: 0.7em;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sourceButton:hover {
+  background: var(--grey4);
+}
+
+/* Variant for buttons with text and icon */
+.withText {
+  gap: 4px;
+  width: 70px;
+  height: 20px;
+}
+
+/* Variant for icon-only buttons */
+.iconOnly {
+  width: 20px;
+  height: 20px;
+  margin-left: 8px;
+}

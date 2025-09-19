@@ -1,3 +1,22 @@
+"""
+NASA Expedition Data Scraper
+
+This script scrapes NASA's expedition pages to collect information about ISS expeditions 1-42.
+For each expedition, it extracts:
+- Crew and cargo mission links and names
+- Spacewalk dates and associated URLs (only spacewalks with valid dates)
+
+The script parses date strings from the NASA website, handling various formats and common
+formatting issues (e.g., "Sept." -> "Sep.", malformed dates). It filters spacewalks to only
+include those with parseable dates in ISO format (YYYY-MM-DD).
+
+Output: Individual JSON files for each expedition saved to {RAW_FOLDER}/early_status_urls/
+containing the structured expedition data including crew/cargo missions and spacewalks.
+
+This data is used as part of the ISS historical data collection pipeline for the ISS-in-real-time
+application to provide detailed mission information and spacewalk records.
+"""
+
 import requests
 from bs4 import BeautifulSoup
 import json

@@ -8,6 +8,7 @@ import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import PhotoToggle from "../common/photoToggle";
 import { useDateEarthPhotography, useDatePhotosFlickr } from "api/useDateSpecificData";
+import SourceButton from "../common/sourceButton";
 
 const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "short" }) => {
   const { selectedDate, setClock } = useStateClock();
@@ -157,16 +158,15 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
           <div className={`${styles.descriptionOverlay} ${styles.visible}`}>
             <div className={styles.descriptionContent}>
               {mostRecentImage.sourceUrl && (
-                <button
-                  className={styles.sourceButton}
+                <SourceButton
                   onClick={(e) => {
                     e.stopPropagation();
                     window.open(mostRecentImage.sourceUrl, "_blank");
                   }}
-                  aria-label="View source"
+                  variant="iconOnly"
                 >
                   <FontAwesomeIcon icon={faExternalLinkAlt} />
-                </button>
+                </SourceButton>
               )}
               <p>{mostRecentImage.description}</p>
             </div>

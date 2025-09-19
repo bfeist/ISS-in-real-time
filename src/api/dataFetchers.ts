@@ -243,7 +243,15 @@ export async function fetchActivitySummary(date: string): Promise<ActivitySummar
     throw new Error("Failed to fetch Activity Summary data");
   }
 
-  return response.json();
+  const data = await response.json();
+
+  // Convert source_url to sourceUrl for camelCase consistency
+  if (data.source_url) {
+    data.sourceUrl = data.source_url;
+    delete data.source_url;
+  }
+
+  return data;
 }
 
 export async function fetchBlogArticles(date: string): Promise<BlogArticle[]> {

@@ -188,7 +188,7 @@ type ActivitySummary = {
   general?: ActivitySummaryGeneral[];
   tasklist?: ActivitySummaryTasklist[];
   ground?: ActivitySummaryGround[];
-  source_url?: string;
+  sourceUrl?: string;
 };
 
 type BlogArticle = {

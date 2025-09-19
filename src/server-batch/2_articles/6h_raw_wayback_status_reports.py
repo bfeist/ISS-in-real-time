@@ -124,9 +124,13 @@ def fetch_wayback_data(session, json_file):
                 try:
                     response = session.get(wayback_url)
                     if response.status_code == 200:
-                        filename = save_html(url, response.text)
-                        if filename:
-                            sources[filename] = wayback_url
+                        saved_filename = save_html(url, response.text)
+                        # Always record the source, whether file was newly saved or already existed
+                        sources[filename] = wayback_url
+                        if saved_filename:
+                            print(f"Successfully fetched and saved: {filename}")
+                        else:
+                            print(f"File already existed, source recorded: {filename}")
                         break
                     else:
                         print(f"Failed to retrieve {wayback_url}")
@@ -178,10 +182,18 @@ def fetch_incremental_wayback(session, url):
             RAW_FOLDER, "early_status_rawhtml", non_padded_filename
         )
 
-        # Neither file exists, proceed with fetching
+        # Proceed with fetching
         curr_url = padded_url if use_padding else non_padded_url
         curr_filename = get_filename(curr_url)
-        if curr_filename in sources:
+        curr_filepath = os.path.join(RAW_FOLDER, "early_status_rawhtml", curr_filename)
+
+        # Check if file already exists before making wayback request
+        if os.path.exists(curr_filepath):
+            # Need to get wayback URL to record the source
+            wayback_url = get_wayback_url(session, curr_url)
+            if wayback_url:
+                sources[curr_filename] = wayback_url
+                print(f"File already exists, added to sources: {curr_filepath}")
             entry_number += 1
             continue
 
@@ -205,21 +217,17 @@ def fetch_incremental_wayback(session, url):
             print(f"No snapshot found for {curr_url}")
             break
 
-        curr_filepath = os.path.join(RAW_FOLDER, "early_status_rawhtml", curr_filename)
-
-        if os.path.exists(curr_filepath):
-            sources[curr_filename] = wayback_url
-            print(f"File already exists, added to sources: {curr_filepath}")
-            entry_number += 1
-            continue
-
         for attempt in range(3):
             try:
                 response = session.get(wayback_url)
                 if response.status_code == 200:
                     filename = save_html(curr_url, response.text)
+                    # Always record the source, whether file was newly saved or already existed
+                    sources[curr_filename] = wayback_url
                     if filename:
-                        sources[filename] = wayback_url
+                        print(f"Successfully fetched and saved: {curr_filename}")
+                    else:
+                        print(f"File already existed, source recorded: {curr_filename}")
                     break
                 else:
                     print(

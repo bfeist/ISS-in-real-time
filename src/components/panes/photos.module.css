@@ -92,12 +92,13 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--grey2);
+  /* background: var(--grey2); */
+  background: rgb(0 0 0 / 60%);
   color: white;
   padding: 12px;
   font-size: 0.8em;
   line-height: 1.4;
-  border-radius: 0 0 var(--panel-radius) var(--panel-radius);
+  border-radius: var(--panel-radius);
   transform: translateY(100%);
   transition: transform 0.2s ease-in-out;
   pointer-events: none;
@@ -109,26 +110,4 @@
 
 .descriptionContent {
   pointer-events: auto;
-}
-
-.sourceButton {
-  float: right;
-  background: var(--grey3);
-  border: 1px solid var(--grey4);
-  color: white;
-  border-radius: var(--radius);
-  padding: 4px;
-  font-size: 0.7em;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  margin-left: 8px;
-}
-
-.sourceButton:hover {
-  background: var(--grey4);
 }
