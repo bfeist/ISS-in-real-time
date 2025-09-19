@@ -60,7 +60,7 @@ const DateTooltip: FunctionComponent<{
       return { pointerEvents: "none", visibility: "hidden" };
     }
 
-    const offset = 10;
+    const offset = 30;
     const tooltipElement = tooltipRef.current;
 
     const tooltipWidth = tooltipElement ? tooltipElement.offsetWidth || 600 : 600;
