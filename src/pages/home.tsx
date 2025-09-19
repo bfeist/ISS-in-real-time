@@ -1,6 +1,7 @@
 import styles from "./home.module.css";
 import { FunctionComponent, JSX, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { Tooltip } from "react-tooltip";
 import DayLayout from "components/dayLayout/dayLayout";
 import { useStateClock } from "../store/hooks/useStateClock";
 import { useStateToggle } from "../store/hooks/useStateToggle";
@@ -48,6 +49,7 @@ const HomePage: FunctionComponent = (): JSX.Element => {
           />
         )}
       </div>
+      <Tooltip id="source-button-tooltip" style={{ zIndex: 100 }} delayShow={500} />
     </div>
   );
 };

@@ -39,9 +39,9 @@ const Blog: FunctionComponent = () => {
                         e.stopPropagation();
                         window.open(blogArticle.source_url, "_blank");
                       }}
-                      variant="withText"
+                      variant="iconOnly"
                     >
-                      Source <FontAwesomeIcon icon={faExternalLinkAlt} />
+                      <FontAwesomeIcon icon={faExternalLinkAlt} />
                     </SourceButton>
                   )}
                 </h3>
@@ -75,7 +75,7 @@ const Blog: FunctionComponent = () => {
 
         {activitySummary && Object.keys(activitySummary).length > 0 && (
           <div className={styles.activitySummary}>
-            <h3 className={styles.sectionTitle}>
+            <div className={styles.sectionTitle}>
               Activity Summary{" "}
               {activitySummary.sourceUrl && (
                 <SourceButton
@@ -83,12 +83,12 @@ const Blog: FunctionComponent = () => {
                     e.stopPropagation();
                     window.open(activitySummary.sourceUrl, "_blank");
                   }}
-                  variant="withText"
+                  variant="iconOnly"
                 >
-                  Source <FontAwesomeIcon icon={faExternalLinkAlt} />
+                  <FontAwesomeIcon icon={faExternalLinkAlt} />
                 </SourceButton>
               )}
-            </h3>
+            </div>
 
             {activitySummary.general && activitySummary.general.length > 0 && (
               <div className={styles.activityCategory}>

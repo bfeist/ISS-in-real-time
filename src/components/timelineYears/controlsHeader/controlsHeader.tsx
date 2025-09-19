@@ -57,10 +57,16 @@ const ControlsHeader: FunctionComponent = () => {
                   icon={isRunning ? faPause : faPlay}
                   flash={!isRunning}
                   onClick={() => (isRunning ? stopClock() : startClock())}
+                  data-tooltip-id="source-button-tooltip"
+                  data-tooltip-content={isRunning ? "Pause Time" : "Play Time"}
+                  data-tooltip-place="top"
                 />
                 <IconButton
                   icon={globalMute ? faVolumeMute : faVolumeUp}
                   onClick={() => setGlobalMute(!globalMute)}
+                  data-tooltip-id="source-button-tooltip"
+                  data-tooltip-content={globalMute ? "Unmute Sound" : "Mute Sound"}
+                  data-tooltip-place="top"
                 />
                 <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
               </div>

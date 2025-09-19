@@ -98,7 +98,10 @@ const ShareButton: FunctionComponent<ShareButtonProps> = ({ selectedDate, appSec
       <IconButton
         icon={faShare}
         onClick={() => setIsModalOpen(true)}
-        aria-label="Share current view"
+        aria-label="Create shareable link of this moment"
+        data-tooltip-id="source-button-tooltip"
+        data-tooltip-content="Create shareable link of this moment"
+        data-tooltip-place="top"
       />
       <ShareModal
         isOpen={isModalOpen}

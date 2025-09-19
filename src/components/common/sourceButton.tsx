@@ -6,6 +6,7 @@ interface SourceButtonProps {
   ariaLabel?: string;
   variant?: "withText" | "iconOnly";
   children: React.ReactNode;
+  tooltip?: string;
 }
 
 const SourceButton: FunctionComponent<SourceButtonProps> = ({
@@ -13,13 +14,21 @@ const SourceButton: FunctionComponent<SourceButtonProps> = ({
   ariaLabel = "View source",
   variant = "iconOnly",
   children,
+  tooltip = "View source",
 }) => {
   const className = `${styles.sourceButton} ${
     variant === "withText" ? styles.withText : styles.iconOnly
   }`;
 
   return (
-    <button className={className} onClick={onClick} aria-label={ariaLabel}>
+    <button
+      className={className}
+      onClick={onClick}
+      aria-label={ariaLabel}
+      data-tooltip-id={tooltip ? "source-button-tooltip" : undefined}
+      data-tooltip-content={tooltip}
+      data-tooltip-place="left"
+    >
       {children}
     </button>
   );

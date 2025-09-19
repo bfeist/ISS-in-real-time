@@ -20,6 +20,9 @@ const PhotoToggle: FunctionComponent<{
             opacity: showEarthPhotos ? 1 : 0.5,
             backgroundColor: showEarthPhotos ? "rgb(255 255 255 / 10%)" : "transparent",
           }}
+          data-tooltip-id="source-button-tooltip"
+          data-tooltip-content={"Toggle Earth Photos"}
+          data-tooltip-place="left"
         />
       </div>
       <div className={styles.toggleButton}>
@@ -30,6 +33,9 @@ const PhotoToggle: FunctionComponent<{
             opacity: showMissionPhotos ? 1 : 0.5,
             backgroundColor: showMissionPhotos ? "rgb(255 255 255 / 10%)" : "transparent",
           }}
+          data-tooltip-id="source-button-tooltip"
+          data-tooltip-content={"Toggle Mission Photos"}
+          data-tooltip-place="left"
         />
       </div>
     </div>

@@ -15,7 +15,13 @@ const GlobeMapToggle: FunctionComponent<GlobeMapToggleProps> = ({ isVisible }) =
 
   return (
     <div className={styles.toggleButton}>
-      <IconButton icon={showGlobe ? faMap : faGlobe} onClick={() => setShowGlobe(!showGlobe)} />
+      <IconButton
+        icon={showGlobe ? faMap : faGlobe}
+        onClick={() => setShowGlobe(!showGlobe)}
+        data-tooltip-id="source-button-tooltip"
+        data-tooltip-content={"Toggle Globe/Map View"}
+        data-tooltip-place="left"
+      />
     </div>
   );
 };

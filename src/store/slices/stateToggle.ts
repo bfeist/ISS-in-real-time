@@ -2,7 +2,7 @@ import { StateCreator } from "zustand";
 
 export const createStateToggle: StateCreator<AppState, [], [], ToggleState> = (set) => ({
   // ToggleState initial state
-  globalMute: true,
+  globalMute: false,
   showGlobe: true,
   showTimelineYears: false,
   hoveringYearsLabels: false,
