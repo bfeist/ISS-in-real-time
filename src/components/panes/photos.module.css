@@ -39,6 +39,7 @@
   overflow-y: visible;
   margin-top: 4px;
   gap: 4px;
+  position: relative;
 }
 
 .imageThumb {
@@ -110,4 +111,29 @@
 
 .descriptionContent {
   pointer-events: auto;
+}
+
+.autoScrollButton {
+  position: absolute;
+  bottom: 80px;
+  right: 8px;
+  z-index: 10;
+  background: var(--grey1);
+  border: 1px solid var(--highlight);
+  border-radius: var(--radius);
+  color: var(--highlight);
+  font-size: 14px;
+  padding: 6px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 24px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+}
+
+.autoScrollButton:hover {
+  background: var(--grey3);
+  box-shadow: 0 3px 6px rgb(0 0 0 / 25%);
 }

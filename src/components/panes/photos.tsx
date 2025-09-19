@@ -1,6 +1,6 @@
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
+import { faArrowsSpin, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photos.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
@@ -70,8 +70,14 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   const [mostRecentImage, setMostRecentImage] = useState(null);
   const [isHoveringImage, setIsHoveringImage] = useState(false);
   const [isHoveringContainer, setIsHoveringContainer] = useState(false);
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const [clickedPhotoFilename, setClickedPhotoFilename] = useState<string | null>(null);
 
   const observer = useRef<IntersectionObserver | null>(null);
+  const thumbnailsContainerRef = useRef<HTMLDivElement>(null);
+  const lastAppSecondsRef = useRef<number | null>(null);
+  const isProgrammaticScrollingRef = useRef(false);
+  const isPointerDownRef = useRef(false);
 
   useEffect(() => {
     observer.current = new IntersectionObserver(
@@ -96,35 +102,134 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     };
   }, [photoItemsCombined]);
 
+  // Handle scroll event detection
+  useEffect(() => {
+    const container = thumbnailsContainerRef.current;
+    if (!container) return;
+
+    const handleManualScroll = () => {
+      if (isAutoScrollEnabled && !isProgrammaticScrollingRef.current) {
+        console.log("Disabling auto-scroll due to manual scroll");
+        setIsAutoScrollEnabled(false);
+      }
+    };
+
+    const handleScroll = () => {
+      if (isPointerDownRef.current) {
+        handleManualScroll();
+      }
+    };
+
+    const handleWheel = () => {
+      handleManualScroll();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)) {
+        handleManualScroll();
+      }
+    };
+
+    const handlePointerDown = (e: PointerEvent) => {
+      // Only set pointer down if not clicking on a thumbnail
+      if (!(e.target as Element).closest(".thumbContent")) {
+        isPointerDownRef.current = true;
+      }
+    };
+
+    const handlePointerUp = () => {
+      isPointerDownRef.current = false;
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    container.addEventListener("wheel", handleWheel, { passive: true });
+    container.addEventListener("keydown", handleKeyDown);
+    container.addEventListener("pointerdown", handlePointerDown);
+    container.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("keydown", handleKeyDown);
+      container.removeEventListener("pointerdown", handlePointerDown);
+      container.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [isAutoScrollEnabled]);
+
   useEffect(() => {
     if (!appSeconds) return;
 
-    // Find the closest image to the current time (before the current time)
-    let closestImageItem = photoItemsCombined[0] || null;
-    if (!closestImageItem) return;
+    // Clear clicked photo state when time changes (unless it's the first run)
+    if (
+      lastAppSecondsRef.current !== null &&
+      lastAppSecondsRef.current !== appSeconds &&
+      clickedPhotoFilename
+    ) {
+      setClickedPhotoFilename(null);
+    }
 
-    let appSecondsDiff = null;
-    for (const imageItem of photoItemsCombined) {
+    // Update the last app seconds tracker
+    lastAppSecondsRef.current = appSeconds;
+
+    // Find all images at the current time
+    const imagesAtCurrentTime = photoItemsCombined.filter((imageItem) => {
       const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
-      if (imageSeconds > appSeconds) {
-        break;
+      return imageSeconds === appSeconds;
+    });
+
+    let closestImageItem = null;
+
+    if (imagesAtCurrentTime.length > 0) {
+      // If there are images at the exact current time, prioritize the clicked one
+      if (clickedPhotoFilename) {
+        const clickedImage = imagesAtCurrentTime.find((img) => img.ID === clickedPhotoFilename);
+        if (clickedImage) {
+          closestImageItem = clickedImage;
+        } else {
+          closestImageItem = imagesAtCurrentTime[0];
+        }
+      } else {
+        closestImageItem = imagesAtCurrentTime[0];
       }
-      const diff = Math.abs(appSeconds - imageSeconds);
-      if (appSecondsDiff === null || diff <= appSecondsDiff) {
-        appSecondsDiff = diff;
-        closestImageItem = imageItem;
+    } else {
+      // No images at exact current time, find the closest image before current time
+      closestImageItem = photoItemsCombined[0] || null;
+      if (closestImageItem) {
+        let appSecondsDiff = null;
+        for (const imageItem of photoItemsCombined) {
+          const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
+          if (imageSeconds > appSeconds) {
+            break;
+          }
+          const diff = Math.abs(appSeconds - imageSeconds);
+          if (appSecondsDiff === null || diff <= appSecondsDiff) {
+            appSecondsDiff = diff;
+            closestImageItem = imageItem;
+          }
+        }
       }
     }
 
-    const closestImageTimeStr = closestImageItem.dateTaken.split("T")[1];
+    if (!closestImageItem) return;
 
-    const targetElement = document.querySelector(`[data-time="${closestImageTimeStr}"]`);
-    targetElement?.scrollIntoView({ behavior: "smooth" });
+    // Only auto-scroll if enabled
+    if (isAutoScrollEnabled) {
+      const closestImageTimeStr = closestImageItem.dateTaken.split("T")[1];
+      const targetElement = document.querySelector(`[data-time="${closestImageTimeStr}"]`);
+
+      if (targetElement) {
+        // Set flag to indicate this is programmatic scrolling
+        isProgrammaticScrollingRef.current = true;
+        targetElement.scrollIntoView({ behavior: "instant" });
+        // Clear the flag immediately after programmatic scroll
+        isProgrammaticScrollingRef.current = false;
+      }
+    }
 
     if (closestImageItem.ID !== mostRecentImage?.ID) {
       setMostRecentImage(closestImageItem);
     }
-  }, [appSeconds, photoItemsCombined, mostRecentImage]);
+  }, [appSeconds, photoItemsCombined, mostRecentImage, isAutoScrollEnabled, clickedPhotoFilename]);
 
   if (isLoading) {
     return <div>Loading Photos...</div>;
@@ -173,7 +278,14 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
           </div>
         )}
       </div>
-      <div className={styles.imageThumbsContainer}>
+      <div
+        className={styles.imageThumbsContainer}
+        ref={thumbnailsContainerRef}
+        onDoubleClick={() => {
+          console.log("Double-click test - toggling auto-scroll");
+          setIsAutoScrollEnabled(!isAutoScrollEnabled);
+        }}
+      >
         {photoItemsCombined.map((item, index) => (
           <div
             key={index}
@@ -186,16 +298,27 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
               role="button"
               tabIndex={0}
               onClick={() => {
-                setClock(appSecondsFromTimeStr(item.dateTaken.split("T")[1]));
+                const targetTime = appSecondsFromTimeStr(item.dateTaken.split("T")[1]);
+                setClock(targetTime);
+                setClickedPhotoFilename(item.ID);
               }}
               onKeyUp={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
-                  setClock(appSecondsFromTimeStr(item.dateTaken.split("T")[1]));
+                  const targetTime = appSecondsFromTimeStr(item.dateTaken.split("T")[1]);
+                  setClock(targetTime);
+                  setClickedPhotoFilename(item.ID);
                 }
               }}
             >
               {visibleImages.has(index) ? (
-                <img src={getImageUrl(item, "thumb")} alt={item.ID} loading="lazy" />
+                <img
+                  src={getImageUrl(item, "thumb")}
+                  alt={item.ID}
+                  loading="lazy"
+                  data-tooltip-id="source-button-tooltip"
+                  data-tooltip-html={`${item.dateTaken.split("T")[1]} <br/> ${appSeconds - appSecondsFromTimeStr(item.dateTaken.split("T")[1])}s`}
+                  data-tooltip-place="top"
+                />
               ) : (
                 <div className={styles.thumbPlaceholder} />
               )}
@@ -203,6 +326,20 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
           </div>
         ))}
       </div>
+      {!isAutoScrollEnabled && (
+        <button
+          className={styles.autoScrollButton}
+          onClick={() => {
+            setIsAutoScrollEnabled(true);
+          }}
+          type="button"
+          data-tooltip-id="source-button-tooltip"
+          data-tooltip-content={"Re-enable automatic scrolling"}
+          data-tooltip-place="left"
+        >
+          <FontAwesomeIcon icon={faArrowsSpin} />
+        </button>
+      )}
     </div>
   );
 };
