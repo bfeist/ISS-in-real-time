@@ -131,7 +131,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
 
     const handlePointerDown = (e: PointerEvent) => {
       // Only set pointer down if not clicking on a thumbnail
-      if (!(e.target as Element).closest(".thumbContent")) {
+      if (!(e.target as Element).closest(`.${styles.thumbContent}`)) {
         isPointerDownRef.current = true;
       }
     };
