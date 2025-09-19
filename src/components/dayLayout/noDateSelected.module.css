@@ -49,6 +49,8 @@ h2 {
 .pageContent {
   margin: 20px;
   height: 100%;
-  color: white;
+  color: var(--grey5);
   text-shadow: 0 0 5px rgb(0 0 0 / 70%);
+  position: relative;
+  z-index: 2;
 }

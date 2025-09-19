@@ -21,7 +21,7 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
           This multimedia project contains all publicly available data from every day on the ISS. It
           consists entirely of original historical mission material.
         </p>
-        <p>Click any date on the timeline to get started.</p>
+        <p>Select any date on the years timeline to get started.</p>
       </div>
       <IconButton
         icon={faChartBar}
