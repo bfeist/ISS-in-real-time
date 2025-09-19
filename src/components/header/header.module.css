@@ -48,7 +48,15 @@
 /* removed centerContainer and related styles; moved to timelineYearsControls */
 
 .right {
+  float: right;
   display: flex;
-  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.rightButtons {
+  display: flex;
+  gap: 8px;
   justify-content: flex-end;
+  margin: 0 10px 0 0;
 }

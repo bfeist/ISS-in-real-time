@@ -1,9 +1,9 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { faShare } from "@fortawesome/free-solid-svg-icons";
+import { faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import styles from "./share.module.css";
 import { generateShareUrl } from "utils/params";
-import IconButton from "../../common/iconButton";
+import IconButton from "../common/iconButton";
 const ShareModal: FunctionComponent<{
   isOpen: boolean;
   onClose: () => void;
@@ -94,14 +94,16 @@ const ShareButton: FunctionComponent<ShareButtonProps> = ({ selectedDate, appSec
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
-    <>
+    <div>
       <IconButton
-        icon={faShare}
-        onClick={() => setIsModalOpen(true)}
+        icon={faShareNodes}
+        label="Share"
+        style={{ width: "100px", fontSize: "0.7rem" }}
+        onClick={(e) => {
+          setIsModalOpen(true);
+          e.stopPropagation();
+        }}
         aria-label="Create shareable link of this moment"
-        data-tooltip-id="source-button-tooltip"
-        data-tooltip-content="Create shareable link of this moment"
-        data-tooltip-place="top"
       />
       <ShareModal
         isOpen={isModalOpen}
@@ -109,7 +111,7 @@ const ShareButton: FunctionComponent<ShareButtonProps> = ({ selectedDate, appSec
         shareUrl={generateShareUrl(selectedDate, appSeconds)}
         hasSelectedDate={!!selectedDate}
       />
-    </>
+    </div>
   );
 };
 

@@ -24,7 +24,7 @@ const IconButton: FunctionComponent<IconButtonProps> = ({
 
   return (
     <button className={buttonClasses} style={style} aria-label={label} {...props}>
-      <FontAwesomeIcon icon={icon} />
+      <FontAwesomeIcon icon={icon} className={styles.icon} />
       {label && <span className={styles.label}>{label}</span>}
     </button>
   );

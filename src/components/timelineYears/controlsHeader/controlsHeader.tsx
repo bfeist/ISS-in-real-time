@@ -13,14 +13,12 @@ import {
   faCaretRight,
 } from "@fortawesome/free-solid-svg-icons";
 import IconButton from "../../common/iconButton";
-import ShareButton from "./share";
 import HeaderTelemetry from "./headerTelemetry";
 import ClockInterval from "../../panes/clockInterval";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import ToggleCalendarButton from "./toggleCalendarButton";
 import ContentIndicatorsSection from "../subcomponents/contentIndicatorsSection";
 import dayjs from "dayjs";
-import React from "react";
 
 const ControlsHeader: FunctionComponent = () => {
   const { isRunning, startClock, stopClock, handleDayRollover, selectedDate, setSelectedDate } =
@@ -111,7 +109,6 @@ const ControlsHeader: FunctionComponent = () => {
                   data-tooltip-content={globalMute ? "Unmute Sound" : "Mute Sound"}
                   data-tooltip-place="top"
                 />
-                <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
               </div>
               <FontAwesomeIcon
                 icon={faClose}
