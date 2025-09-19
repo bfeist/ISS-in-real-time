@@ -16,8 +16,8 @@ const DayCounter: React.FC = () => {
   });
 
   useEffect(() => {
-    // November 3, 2000 epoch
-    const epochDate = dayjs("2000-11-03");
+    // November 2, 2000 time of hatch opening in UTC
+    const epochDate = dayjs("2000-11-02T10:23:00Z");
 
     const updateCounter = () => {
       const now = dayjs();
