@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 3px;
+  padding: 4px;
   border: 1px solid var(--headerbutton);
   border-radius: var(--radius);
   cursor: pointer;

@@ -258,12 +258,13 @@ const Comm: FunctionComponent = () => {
       }
     }
 
-    // Find a comm item that matches the current time
-    const commItem = commItems.find(
+    // Find ALL comm items that match the current time (there can be multiple with same timestamp)
+    const commItemsAtCurrentTime = commItems.filter(
       (item) => appSecondsFromTimeStr(item.utteranceTime) === appSeconds
     );
 
-    if (commItem) {
+    // Play audio for each comm item that matches the current time
+    commItemsAtCurrentTime.forEach((commItem) => {
       const [year, month, day] = selectedDate.split("-");
       const aacFileUrl = `${baseStaticUrl}/comm/${year}/${month}/${day}/${commItem.filename}`;
 
@@ -300,7 +301,7 @@ const Comm: FunctionComponent = () => {
           audioRefCh5.current.play();
         }
       }
-    }
+    });
   }, [appSeconds, commItems, audioRefCh1, selectedDate, isRunning, channelVisibility]);
 
   return (

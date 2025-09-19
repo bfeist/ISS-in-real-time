@@ -9,6 +9,8 @@ import {
   faVolumeUp,
   faVolumeMute,
   faClose,
+  faCaretLeft,
+  faCaretRight,
 } from "@fortawesome/free-solid-svg-icons";
 import IconButton from "../../common/iconButton";
 import ShareButton from "./share";
@@ -16,6 +18,8 @@ import HeaderTelemetry from "./headerTelemetry";
 import ClockInterval from "../../panes/clockInterval";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import ToggleCalendarButton from "./toggleCalendarButton";
+import dayjs from "dayjs";
+import React from "react";
 
 const ControlsHeader: FunctionComponent = () => {
   const { isRunning, startClock, stopClock, handleDayRollover, selectedDate, setSelectedDate } =
@@ -23,6 +27,20 @@ const ControlsHeader: FunctionComponent = () => {
   const { globalMute, setGlobalMute } = useStateToggle();
   const [appSeconds, setAppSeconds] = useState(0);
   const rolloverTriggeredRef = useRef(false);
+
+  const incrementDate = (days: number) => {
+    if (!selectedDate) return;
+    const currentDate = new Date(selectedDate);
+    currentDate.setUTCDate(currentDate.getUTCDate() + days);
+    const newDate = dayjs(currentDate);
+    const epochDate = dayjs("2000-11-02");
+    const today = dayjs().startOf("day");
+    if (newDate.isBefore(epochDate) || newDate.isAfter(today)) {
+      return;
+    }
+    const newDateStr = currentDate.toISOString().split("T")[0];
+    setSelectedDate(newDateStr);
+  };
 
   // Handle day rollover when appSeconds >= 86400 (24 hours)
   useEffect(() => {
@@ -49,8 +67,30 @@ const ControlsHeader: FunctionComponent = () => {
           {selectedDate ? (
             <>
               <div className={styles.dateTimeContainer}>
-                <div>{selectedDate}</div>
-                <div>+{hhmmssFromAppSeconds(appSeconds)} Z</div>
+                <div className={styles.dateContainer}>
+                  <div
+                    className={styles.dateButtonLeft}
+                    onClick={() => incrementDate(-1)}
+                    onKeyDown={() => incrementDate(-1)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Previous date"
+                  >
+                    <FontAwesomeIcon icon={faCaretLeft} />
+                  </div>
+                  <div className={styles.dateValue}>{selectedDate}</div>
+                  <div
+                    className={styles.dateButtonRight}
+                    onClick={() => incrementDate(1)}
+                    onKeyDown={() => incrementDate(1)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Next date"
+                  >
+                    <FontAwesomeIcon icon={faCaretRight} />
+                  </div>
+                </div>
+                <div className={styles.timeValue}>+{hhmmssFromAppSeconds(appSeconds)}Z</div>
               </div>
               <div className={styles.buttons}>
                 <IconButton
