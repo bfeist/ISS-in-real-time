@@ -1,36 +1,71 @@
 .telemetryContainer {
   display: flex;
   flex-direction: row;
-  gap: 20px;
+  gap: 3px;
+  cursor: default;
 }
 
 .telemetryGroup {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  color: var(--grey5);
-  font-size: 0.8rem;
-  font-family: "Roboto Mono", monospace;
+  gap: 3px;
   align-self: flex-start;
 }
 
 .telemetryGroup:first-child {
-  min-width: 240px;
+  min-width: 50px;
+}
+
+.telemetryGroup:nth-child(2) {
+  min-width: 140px;
 }
 
 .telemetryGroup:last-child {
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .telemetryItem {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+  font-size: 0.6em;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  background-color: var(--grey2);
+  color: #ffffff;
+  border: 1px solid var(--grey3);
+  font-family: "Roboto Mono", monospace;
+}
+
+.telemetryItemMultiLine {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px 6px;
+  border-radius: var(--radius);
+  font-size: 0.6em;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  background-color: var(--grey2);
+  color: #ffffff;
+  border: 1px solid var(--grey3);
+  font-family: "Roboto Mono", monospace;
+}
+
+.telemetryLine {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .label {
-  color: var(--highlight);
+  color: var(--grey5);
   min-width: fit-content;
 }
 
@@ -39,18 +74,17 @@
 }
 
 .value {
-  font-weight: 500;
-  min-width: 60px;
-  text-align: right;
+  font-weight: 300;
+  color: #ffffff;
 }
 
 .valueLeft {
-  font-weight: 500;
-  min-width: 60px;
-  text-align: left;
+  font-weight: 400;
+  color: #ffffff;
 }
 
 .unit {
   font-size: 0.75em;
   opacity: 0.8;
+  color: #ffffff;
 }

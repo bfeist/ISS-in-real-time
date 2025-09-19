@@ -49,7 +49,7 @@ const HomePage: FunctionComponent = (): JSX.Element => {
           />
         )}
       </div>
-      <Tooltip id="source-button-tooltip" style={{ zIndex: 100 }} delayShow={500} />
+      <Tooltip id="source-button-tooltip" className="tooltip-style" delayShow={500} />
     </div>
   );
 };

@@ -46,6 +46,12 @@ pre,
   font-family: var(--font-mono);
 }
 
+.tooltip-style {
+  z-index: 100;
+  background-color: var(--grey3) !important;
+  opacity: 1 !important;
+}
+
 /* Custom scrollbar styling */
 ::-webkit-scrollbar {
   width: 4px;

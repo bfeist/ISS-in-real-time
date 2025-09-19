@@ -202,32 +202,36 @@ const HeaderTelemetry: FunctionComponent = () => {
 
   return (
     <div className={styles.telemetryContainer}>
-      <div className={styles.telemetryGroup} style={{ minWidth: "50px" }}>
+      <div className={styles.telemetryGroup}>
         <div className={styles.telemetryItem}>
           <span className={styles.label}>Orbit</span>
           <span className={styles.value} ref={orbitRef} />
         </div>
       </div>
       <div className={styles.telemetryGroup}>
-        <div className={styles.telemetryItem}>
-          <span className={styles.label}>Velocity</span>
-          <span className={styles.valueLeft} ref={velocityRef} />
-          <span className={styles.unit}>km/h</span>
-        </div>
-        <div className={styles.telemetryItem}>
-          <span className={styles.label}>Altitude</span>
-          <span className={styles.valueLeft} ref={altitudeRef} />
-          <span className={styles.unit}>km</span>
+        <div className={styles.telemetryItemMultiLine}>
+          <div className={styles.telemetryLine}>
+            <span className={styles.label}>Velocity</span>
+            <span className={styles.valueLeft} ref={velocityRef} />
+            <span className={styles.unit}>km/h</span>
+          </div>
+          <div className={styles.telemetryLine}>
+            <span className={styles.label}>Altitude</span>
+            <span className={styles.valueLeft} ref={altitudeRef} />
+            <span className={styles.unit}>km</span>
+          </div>
         </div>
       </div>
       <div className={styles.telemetryGroup}>
-        <div className={styles.telemetryItem}>
-          <span className={styles.label}>Lat</span>
-          <span className={styles.value} ref={latRef} />
-        </div>
-        <div className={styles.telemetryItem}>
-          <span className={styles.label}>Lng</span>
-          <span className={styles.value} ref={lngRef} />
+        <div className={styles.telemetryItemMultiLine}>
+          <div className={styles.telemetryLine}>
+            <span className={styles.label}>Lat</span>
+            <span className={styles.value} ref={latRef} />
+          </div>
+          <div className={styles.telemetryLine}>
+            <span className={styles.label}>Lng</span>
+            <span className={styles.value} ref={lngRef} />
+          </div>
         </div>
       </div>
     </div>

@@ -4,10 +4,12 @@ import styles from "./contentIndicatorsSection.module.css";
 
 interface ContentIndicatorsSectionProps {
   hoveredDate: string | null;
+  combineComm?: boolean;
 }
 
 const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps> = ({
   hoveredDate,
+  combineComm = false,
 }) => {
   const { data: dataAvailabilityItems } = useGeneralDataAvailabilities();
 
@@ -17,20 +19,22 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
     return dataAvailabilityItems.find((item) => item.date === hoveredDate);
   }, [hoveredDate, dataAvailabilityItems]);
 
-  const getAvailability = (key: string, availability: DataAvailability) => {
-    switch (key) {
-      case "blog":
-        return availability.blog || availability.actSum;
-      default:
-        return availability[key as keyof DataAvailability];
-    }
-  };
-
   // Define content types with their availability
   const contentTypes = useMemo(() => {
+    const getAvailability = (key: string, availability: DataAvailability) => {
+      switch (key) {
+        case "blog":
+          return availability.blog || availability.actSum;
+        case "comm":
+          return combineComm ? availability.comm || availability.vvComm : availability.comm;
+        default:
+          return availability[key as keyof DataAvailability];
+      }
+    };
+
     const baseTypes = [
       { key: "comm", label: "Comm" },
-      { key: "vvComm", label: "Comm (Visiting Vehicle)" },
+      ...(combineComm ? [] : [{ key: "vvComm", label: "Comm (Visiting Vehicle)" }]),
       { key: "video", label: "Video" },
       { key: "eva", label: "EVA" },
       { key: "blog", label: "Article" },
@@ -42,26 +46,29 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
       ...type,
       available: contentAvailability ? getAvailability(type.key, contentAvailability) : false,
     }));
-  }, [contentAvailability]);
+  }, [contentAvailability, combineComm]);
 
   if (contentTypes.length === 0) {
     return null;
   }
 
   return (
-    <div className={styles.contentIndicators}>
-      <div className={styles.contentIndicatorsList}>
-        {contentTypes.map((contentType) => (
-          <span
-            key={contentType.key}
-            className={`${styles.contentIndicator} ${
-              contentType.available ? styles.available : styles.unavailable
-            }`}
-          >
-            {contentType.label}
-          </span>
-        ))}
-      </div>
+    <div
+      className={styles.contentIndicatorsList}
+      data-tooltip-id="source-button-tooltip"
+      data-tooltip-content={"Date Content Availability"}
+      data-tooltip-place="bottom"
+    >
+      {contentTypes.map((contentType) => (
+        <span
+          key={contentType.key}
+          className={`${styles.contentIndicator} ${
+            contentType.available ? styles.available : styles.unavailable
+          }`}
+        >
+          {contentType.label}
+        </span>
+      ))}
     </div>
   );
 };

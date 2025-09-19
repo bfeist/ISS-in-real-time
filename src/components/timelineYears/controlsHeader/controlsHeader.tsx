@@ -18,6 +18,7 @@ import HeaderTelemetry from "./headerTelemetry";
 import ClockInterval from "../../panes/clockInterval";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import ToggleCalendarButton from "./toggleCalendarButton";
+import ContentIndicatorsSection from "../subcomponents/contentIndicatorsSection";
 import dayjs from "dayjs";
 import React from "react";
 
@@ -61,7 +62,9 @@ const ControlsHeader: FunctionComponent = () => {
   return (
     <div className={styles.controlsPositioner}>
       <ClockInterval setAppSeconds={setAppSeconds} />
-      <div className={styles.left}>{/* Left column - empty for now */}</div>
+      <div className={styles.left}>
+        {selectedDate && <ContentIndicatorsSection hoveredDate={selectedDate} combineComm={true} />}
+      </div>
       <div className={styles.center}>
         <div className={styles.centerWithBackground}>
           {selectedDate ? (

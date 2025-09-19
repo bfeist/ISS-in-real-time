@@ -4,7 +4,7 @@ import { useGeneralDataAvailabilities, useGeneralOrbitsDaily } from "api/useGene
 import ExpeditionsSection from "./subcomponents/expeditionsSection";
 import CrewOnboardSection from "./subcomponents/crewOnboardSection";
 import VehiclesDockedSection from "./subcomponents/vehiclesDockedSection";
-import ContentIndicatorsSection from "./subcomponents/contentIndicatorsSection";
+import ContentIndicatorsSection from "../subcomponents/contentIndicatorsSection";
 import FirstCommSection from "./subcomponents/firstCommSection";
 
 const DateTooltip: FunctionComponent<{
@@ -138,7 +138,9 @@ const DateTooltip: FunctionComponent<{
             </div>
           </div>
 
-          <ContentIndicatorsSection hoveredDate={hoveredDate} />
+          <div className={styles.contentIndicatorsWrapper}>
+            <ContentIndicatorsSection hoveredDate={hoveredDate} />
+          </div>
 
           <FirstCommSection hoveredDate={hoveredDate} hasCommData={hasCommData} />
         </>

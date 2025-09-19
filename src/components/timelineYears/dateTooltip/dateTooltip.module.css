@@ -117,3 +117,9 @@
 .tooltipCancelButton:hover {
   color: #e2e8f0;
 }
+
+.contentIndicatorsWrapper {
+  padding: 8px 16px;
+  background-color: #1a202c;
+  border-top: 1px solid #4a5568;
+}
