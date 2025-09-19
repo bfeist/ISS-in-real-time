@@ -11,6 +11,7 @@ import {
   faExpand,
   faCompress,
 } from "@fortawesome/free-solid-svg-icons";
+import VideoNone from "./videoNone";
 
 interface VideoIaComponentProps {
   videoIaRecordings: VideoIaItem[];
@@ -234,7 +235,12 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
   }, [currentVideo, appSeconds, isReady, hasWindowFocus]);
 
   if (!currentVideo) {
-    return <div>No video available for this time</div>;
+    return (
+      <>
+        <ClockInterval setAppSeconds={setAppSeconds} />
+        <VideoNone />
+      </>
+    );
   }
 
   if (videoError) {

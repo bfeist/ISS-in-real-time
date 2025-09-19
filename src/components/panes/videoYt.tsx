@@ -11,6 +11,7 @@ import {
   faExpand,
   faCompress,
 } from "@fortawesome/free-solid-svg-icons";
+import VideoNone from "./videoNone";
 
 interface YtVideoComponentProps {
   videoId: string;
@@ -367,7 +368,7 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
           </div>
         </div>
       ) : (
-        <div>No video available for this time</div>
+        <VideoNone />
       )}
     </>
   );
