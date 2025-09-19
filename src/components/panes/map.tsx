@@ -24,7 +24,7 @@ import styles from "./map.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useDateEphemera } from "api/useDateSpecificData";
-import GlobeMapToggle from "../common/globeMapToggle";
+import GlobeMapToggle from "./globeMapToggle";
 
 const MapComponent: FunctionComponent = () => {
   const { selectedDate } = useStateClock();

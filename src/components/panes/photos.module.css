@@ -130,7 +130,7 @@
   justify-content: center;
   min-width: 28px;
   min-height: 24px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+  box-shadow: 0 6px 12px rgb(0 0 0 / 50%);
 }
 
 .autoScrollButton:hover {

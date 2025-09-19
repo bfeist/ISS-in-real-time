@@ -6,13 +6,14 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
-import PhotoToggle from "../common/photoToggle";
+import PhotoToggle from "./photoToggle";
 import { useDateEarthPhotography, useDatePhotosFlickr } from "api/useDateSpecificData";
 import SourceButton from "../common/sourceButton";
 
 const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "short" }) => {
   const { selectedDate, setClock } = useStateClock();
-  const { showEarthPhotos, showMissionPhotos } = useStateToggle();
+  const { showEarthPhotos, showMissionPhotos, setShowEarthPhotos, setShowMissionPhotos } =
+    useStateToggle();
   const { data: earthPhotographyItems = [], isLoading: earthPhotographyIsLoading } =
     useDateEarthPhotography(selectedDate || "");
   const { data: flickrPhotosItems = [], isLoading: flickrPhotosIsLoading } = useDatePhotosFlickr(
@@ -23,6 +24,36 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
 
   const hasEarthPhotos = earthPhotographyItems.length > 0;
   const hasMissionPhotos = flickrPhotosItems.length > 0;
+
+  // Smart toggle preservation: ensure at least one photo type is enabled if available
+  useEffect(() => {
+    // Skip if data is still loading or no date selected
+    if (isLoading || !selectedDate) return;
+
+    // Check if current toggle state would result in no photos being shown
+    const wouldShowEarthPhotos = showEarthPhotos && hasEarthPhotos;
+    const wouldShowMissionPhotos = showMissionPhotos && hasMissionPhotos;
+    const wouldShowAnyPhotos = wouldShowEarthPhotos || wouldShowMissionPhotos;
+
+    // If no photos would be shown but we have photos available, enable at least one type
+    if (!wouldShowAnyPhotos && (hasEarthPhotos || hasMissionPhotos)) {
+      // Priority: enable earth photos if available, otherwise mission photos
+      if (hasEarthPhotos && !showEarthPhotos) {
+        setShowEarthPhotos(true);
+      } else if (hasMissionPhotos && !showMissionPhotos) {
+        setShowMissionPhotos(true);
+      }
+    }
+  }, [
+    selectedDate,
+    isLoading,
+    hasEarthPhotos,
+    hasMissionPhotos,
+    showEarthPhotos,
+    showMissionPhotos,
+    setShowEarthPhotos,
+    setShowMissionPhotos,
+  ]);
 
   const photoItemsCombined = useMemo(() => {
     const earthPhotos = showEarthPhotos ? earthPhotographyItems : [];
@@ -77,6 +108,44 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   const lastAppSecondsRef = useRef<number | null>(null);
   const isProgrammaticScrollingRef = useRef(false);
   const isPointerDownRef = useRef(false);
+  const lastSelectedDateRef = useRef<string | null>(null);
+
+  // Smart toggle preservation: ensure at least one photo type is enabled if available
+  // Only runs when the date changes, not when toggles change
+  useEffect(() => {
+    // Skip if data is still loading or no date selected
+    if (isLoading || !selectedDate) return;
+
+    // Only run when the date actually changes
+    if (lastSelectedDateRef.current === selectedDate) return;
+
+    // Update the last selected date
+    lastSelectedDateRef.current = selectedDate;
+
+    // Check if current toggle state would result in no photos being shown
+    const wouldShowEarthPhotos = showEarthPhotos && hasEarthPhotos;
+    const wouldShowMissionPhotos = showMissionPhotos && hasMissionPhotos;
+    const wouldShowAnyPhotos = wouldShowEarthPhotos || wouldShowMissionPhotos;
+
+    // If no photos would be shown but we have photos available, enable at least one type
+    if (!wouldShowAnyPhotos && (hasEarthPhotos || hasMissionPhotos)) {
+      // Priority: enable earth photos if available, otherwise mission photos
+      if (hasEarthPhotos && !showEarthPhotos) {
+        setShowEarthPhotos(true);
+      } else if (hasMissionPhotos && !showMissionPhotos) {
+        setShowMissionPhotos(true);
+      }
+    }
+  }, [
+    selectedDate,
+    isLoading,
+    hasEarthPhotos,
+    hasMissionPhotos,
+    showEarthPhotos,
+    showMissionPhotos,
+    setShowEarthPhotos,
+    setShowMissionPhotos,
+  ]);
 
   useEffect(() => {
     observer.current = new IntersectionObserver(

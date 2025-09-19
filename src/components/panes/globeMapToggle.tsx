@@ -1,7 +1,7 @@
 import { FunctionComponent } from "react";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { faGlobe, faMap } from "@fortawesome/free-solid-svg-icons";
-import IconButton from "./iconButton";
+import IconButton from "../common/iconButton";
 import styles from "./globeMapToggle.module.css";
 
 interface GlobeMapToggleProps {

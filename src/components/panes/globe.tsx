@@ -19,7 +19,7 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { hhmmssFromAppSeconds } from "utils/time";
 import { useDateEphemera } from "api/useDateSpecificData";
-import GlobeMapToggle from "../common/globeMapToggle";
+import GlobeMapToggle from "./globeMapToggle";
 
 // Set Cesium Ion access token
 Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
