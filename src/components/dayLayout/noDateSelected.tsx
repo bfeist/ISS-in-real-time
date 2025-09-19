@@ -13,7 +13,7 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
       <div className={styles.pageContent}>
         <h2>Re-live every day of the past 25 years onboard the ISS</h2>
         <p>
-          November 2, 2025 marks 25 years of sustained human presence onboard the International
+          November 3, 2025 marks 25 years of sustained human presence onboard the International
           Space Station
         </p>
         <DayCounter />
