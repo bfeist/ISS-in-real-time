@@ -68,7 +68,6 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   const [visibleImages, setVisibleImages] = useState<Set<number>>(new Set());
   const [appSeconds, setAppSeconds] = useState(0);
   const [mostRecentImage, setMostRecentImage] = useState(null);
-  const [isHoveringImage, setIsHoveringImage] = useState(false);
   const [isHoveringContainer, setIsHoveringContainer] = useState(false);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [clickedPhotoFilename, setClickedPhotoFilename] = useState<string | null>(null);
@@ -253,14 +252,12 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
             window.open(getImageUrl(mostRecentImage, "large"), "_blank");
           }
         }}
-        onMouseEnter={() => setIsHoveringImage(true)}
-        onMouseLeave={() => setIsHoveringImage(false)}
       >
         {mostRecentImage && (
           <img src={getImageUrl(mostRecentImage, "medium")} alt={mostRecentImage.ID} />
         )}
-        {mostRecentImage && mostRecentImage.description && isHoveringImage && (
-          <div className={`${styles.descriptionOverlay} ${styles.visible}`}>
+        {mostRecentImage && mostRecentImage.description && (
+          <div className={styles.descriptionOverlay}>
             <div className={styles.descriptionContent}>
               {mostRecentImage.sourceUrl && (
                 <SourceButton
