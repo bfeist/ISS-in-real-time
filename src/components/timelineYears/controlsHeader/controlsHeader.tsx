@@ -24,7 +24,7 @@ import React from "react";
 const ControlsHeader: FunctionComponent = () => {
   const { isRunning, startClock, stopClock, handleDayRollover, selectedDate, setSelectedDate } =
     useStateClock();
-  const { globalMute, setGlobalMute } = useStateToggle();
+  const { globalMute, setGlobalMute, showTimelineYears, setShowTimelineYears } = useStateToggle();
   const [appSeconds, setAppSeconds] = useState(0);
   const rolloverTriggeredRef = useRef(false);
 
@@ -120,7 +120,21 @@ const ControlsHeader: FunctionComponent = () => {
               />
             </>
           ) : (
-            <div className={styles.noDateSelectedMessage}>Please select a date</div>
+            <div
+              className={styles.noDateSelectedMessage}
+              onClick={() => setShowTimelineYears(!showTimelineYears)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setShowTimelineYears(!showTimelineYears);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Please select a date"
+            >
+              Please select a date
+            </div>
           )}
         </div>
       </div>

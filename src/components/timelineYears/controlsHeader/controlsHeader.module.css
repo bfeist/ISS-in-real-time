@@ -105,6 +105,7 @@
   font-weight: 400;
   color: var(--highlight);
   text-align: center;
+  cursor: pointer;
 }
 
 .buttons {
