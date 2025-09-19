@@ -6,6 +6,8 @@ import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useGeneralVideoYt, useGeneralVideoIa } from "api/useGeneralData";
 import { getBaseStaticUrl } from "utils/api";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faVolumeHigh, faVolumeMute } from "@fortawesome/free-solid-svg-icons";
 
 const VideoComponent: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
@@ -327,6 +329,7 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
   const [videoError, setVideoError] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [hasWindowFocus, setHasWindowFocus] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
 
   const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
 
@@ -388,6 +391,24 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
     setVideoError(null);
     setIsReady(false);
   }, [currentVideo]);
+
+  // Handle mute toggle
+  const handleMuteToggle = () => {
+    setIsMuted((prev) => {
+      const newMutedState = !prev;
+      if (videoRef.current) {
+        videoRef.current.muted = newMutedState;
+      }
+      return newMutedState;
+    });
+  };
+
+  // Update video element muted property when state changes
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
 
   useEffect(() => {
     if (!videoRef.current || !currentVideo || !isReady) return;
@@ -501,19 +522,39 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
   return (
     <>
       <ClockInterval setAppSeconds={setAppSeconds} />
-      <video
-        key={currentVideo.filename}
-        ref={videoRef}
-        className={styles.yt} // Reuse the same CSS class for consistent styling
-        controls={true}
-        muted
-        style={{ width: "100%", height: "100%" }}
-        onError={() => setVideoError(`Failed to load video: ${currentVideo.filename}`)}
-        onCanPlay={() => setIsReady(true)}
+      <div
+        className={styles.videoContainer}
+        onClick={handleMuteToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleMuteToggle();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={isMuted ? "Unmute video" : "Mute video"}
       >
-        <source src={videoUrl} type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
+        <video
+          key={currentVideo.filename}
+          ref={videoRef}
+          className={styles.yt} // Reuse the same CSS class for consistent styling
+          controls={false}
+          muted={isMuted}
+          style={{ width: "100%", height: "100%" }}
+          onError={() => setVideoError(`Failed to load video: ${currentVideo.filename}`)}
+          onCanPlay={() => setIsReady(true)}
+        >
+          <source src={videoUrl} type="video/mp4" />
+          <track kind="captions" srcLang="en" label="No captions available" />
+          Your browser does not support the video tag.
+        </video>
+        <div className={styles.muteOverlay}>
+          <div className={styles.muteIcon}>
+            <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeHigh} />
+          </div>
+        </div>
+      </div>
     </>
   );
 };
