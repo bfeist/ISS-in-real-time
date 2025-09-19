@@ -31,7 +31,7 @@ const _unusedClasses = [
 ];
 
 const Comm: FunctionComponent = () => {
-  const { isRunning, setClock, selectedDate } = useStateClock();
+  const { isRunning, setClock, selectedDate, appSecondsAtStartStop } = useStateClock();
   const { globalMute } = useStateToggle();
 
   const { isLoading: isDataAvailabilityLoading } = useDateDataAvailability(selectedDate);
@@ -115,6 +115,39 @@ const Comm: FunctionComponent = () => {
       [channelNumber]: !prev[channelNumber],
     }));
   };
+
+  // Effect to immediately stop audio when channels are toggled off
+  useEffect(() => {
+    // Get audio ref for each channel
+    const audioRefs = [
+      { ref: audioRefCh1, channel: 1 },
+      { ref: audioRefCh2, channel: 2 },
+      { ref: audioRefCh3, channel: 3 },
+      { ref: audioRefCh4, channel: 4 },
+      { ref: audioRefCh5, channel: 5 },
+    ];
+
+    // Stop audio for any disabled channels
+    audioRefs.forEach(({ ref, channel }) => {
+      if (!channelVisibility[channel] && ref.current) {
+        ref.current.pause();
+        ref.current.currentTime = 0; // Reset to beginning
+      }
+    });
+  }, [channelVisibility]);
+
+  // Effect to stop audio when user manually changes time (timeline click, etc.)
+  useEffect(() => {
+    // Stop all audio when appSecondsAtStartStop changes (indicating manual time change)
+    const audioRefs = [audioRefCh1, audioRefCh2, audioRefCh3, audioRefCh4, audioRefCh5];
+
+    audioRefs.forEach((ref) => {
+      if (ref.current) {
+        ref.current.pause();
+        ref.current.currentTime = 0; // Reset to beginning
+      }
+    });
+  }, [appSecondsAtStartStop]);
 
   const getClosestCommItem = useCallback(() => {
     // Find the closest comm item to the current time from visible channels

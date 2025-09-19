@@ -5,7 +5,12 @@ import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { getBaseStaticUrl } from "utils/api";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faVolumeHigh, faVolumeMute } from "@fortawesome/free-solid-svg-icons";
+import {
+  faVolumeHigh,
+  faVolumeMute,
+  faExpand,
+  faCompress,
+} from "@fortawesome/free-solid-svg-icons";
 
 interface VideoIaComponentProps {
   videoIaRecordings: VideoIaItem[];
@@ -20,6 +25,7 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
   const [isReady, setIsReady] = useState(false);
   const [hasWindowFocus, setHasWindowFocus] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
 
@@ -83,7 +89,8 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
   }, [currentVideo]);
 
   // Handle mute toggle
-  const handleMuteToggle = () => {
+  const handleMuteToggle = (event: React.MouseEvent) => {
+    event.stopPropagation();
     setIsMuted((prev) => {
       const newMutedState = !prev;
       if (videoRef.current) {
@@ -92,6 +99,35 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
       return newMutedState;
     });
   };
+
+  // Handle fullscreen toggle
+  const handleFullscreenToggle = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    const container = videoRef.current?.parentElement;
+    if (!container) return;
+
+    if (!isFullscreen) {
+      if (container.requestFullscreen) {
+        container.requestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   // Update video element muted property when state changes
   useEffect(() => {
@@ -212,19 +248,7 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
   return (
     <>
       <ClockInterval setAppSeconds={setAppSeconds} />
-      <div
-        className={styles.videoContainer}
-        onClick={handleMuteToggle}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handleMuteToggle();
-          }
-        }}
-        role="button"
-        tabIndex={0}
-        aria-label={isMuted ? "Unmute video" : "Mute video"}
-      >
+      <div className={styles.videoContainer}>
         <video
           key={currentVideo.filename}
           ref={videoRef}
@@ -239,10 +263,23 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
           <track kind="captions" srcLang="en" label="No captions available" />
           Your browser does not support the video tag.
         </video>
-        <div className={styles.muteOverlay}>
-          <div className={styles.muteIcon}>
+        <div className={styles.controlsOverlay}>
+          <button
+            className={styles.controlButton}
+            onClick={handleMuteToggle}
+            type="button"
+            aria-label={isMuted ? "Unmute video" : "Mute video"}
+          >
             <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeHigh} />
-          </div>
+          </button>
+          <button
+            className={styles.controlButton}
+            onClick={handleFullscreenToggle}
+            type="button"
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          >
+            <FontAwesomeIcon icon={isFullscreen ? faCompress : faExpand} />
+          </button>
         </div>
       </div>
     </>

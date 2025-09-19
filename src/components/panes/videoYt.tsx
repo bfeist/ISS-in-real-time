@@ -5,7 +5,12 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faVolumeHigh, faVolumeMute } from "@fortawesome/free-solid-svg-icons";
+import {
+  faVolumeHigh,
+  faVolumeMute,
+  faExpand,
+  faCompress,
+} from "@fortawesome/free-solid-svg-icons";
 
 interface YtVideoComponentProps {
   videoId: string;
@@ -23,6 +28,7 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [hasWindowFocus, setHasWindowFocus] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
 
@@ -70,9 +76,39 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
     }
   };
 
-  const handleMuteToggle = () => {
+  const handleMuteToggle = (event: React.MouseEvent) => {
+    event.stopPropagation();
     setIsMuted((prev) => !prev);
   };
+
+  // Handle fullscreen toggle
+  const handleFullscreenToggle = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    const container = document.querySelector(`.${styles.videoContainer}`) as HTMLElement;
+    if (!container) return;
+
+    if (!isFullscreen) {
+      if (container.requestFullscreen) {
+        container.requestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   // Update player mute state when isMuted changes
   useEffect(() => {
@@ -298,19 +334,7 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
     <>
       <ClockInterval setAppSeconds={setAppSeconds} />
       {isInRange ? (
-        <div
-          className={styles.videoContainer}
-          onClick={handleMuteToggle}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              handleMuteToggle();
-            }
-          }}
-          role="button"
-          tabIndex={0}
-          aria-label={isMuted ? "Unmute video" : "Mute video"}
-        >
+        <div className={styles.videoContainer}>
           <YouTube
             className={`${styles.yt} ${styles.ytNoPointer}`}
             videoId={videoId}
@@ -323,10 +347,23 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
               width: "100%",
             }}
           />
-          <div className={styles.muteOverlay}>
-            <div className={styles.muteIcon}>
+          <div className={styles.controlsOverlay}>
+            <button
+              className={styles.controlButton}
+              onClick={handleMuteToggle}
+              type="button"
+              aria-label={isMuted ? "Unmute video" : "Mute video"}
+            >
               <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeHigh} />
-            </div>
+            </button>
+            <button
+              className={styles.controlButton}
+              onClick={handleFullscreenToggle}
+              type="button"
+              aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            >
+              <FontAwesomeIcon icon={isFullscreen ? faCompress : faExpand} />
+            </button>
           </div>
         </div>
       ) : (
