@@ -117,10 +117,15 @@ const Comm: FunctionComponent = () => {
   };
 
   const getClosestCommItem = useCallback(() => {
-    // Find the closest comm item to the current time
-    let closestComm = commItems[0];
+    // Find the closest comm item to the current time from visible channels
+    const visibleCommItems = commItems.filter((item) => {
+      const channelInfo = extractChannelInfoFromFilename(item.filename);
+      return channelInfo && channelVisibility[channelInfo.routingChannel];
+    });
+
+    let closestComm = visibleCommItems[0];
     let appSecondsDiff = null;
-    for (const item of commItems) {
+    for (const item of visibleCommItems) {
       const itemSeconds = appSecondsFromTimeStr(item.utteranceTime);
       if (itemSeconds > appSeconds) {
         break;
@@ -132,7 +137,7 @@ const Comm: FunctionComponent = () => {
       }
     }
     return closestComm;
-  }, [appSeconds, commItems]);
+  }, [appSeconds, commItems, channelVisibility]);
 
   const scrollToCurrentCommItem = useCallback(() => {
     if (appSeconds && commItems.length > 0) {
