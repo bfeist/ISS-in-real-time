@@ -18,11 +18,11 @@
 .contentIndicator.available {
   background-color: var(--grey2);
   color: var(--grey5);
-  border: 1px solid var(--grey4);
+  border: 1px solid var(--grey2);
 }
 
 .contentIndicator.unavailable {
   background-color: var(--grey1);
   color: var(--grey4);
-  border: 1px solid var(--grey4);
+  border: 1px solid var(--grey2);
 }

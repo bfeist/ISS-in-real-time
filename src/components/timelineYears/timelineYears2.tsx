@@ -256,6 +256,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
                 forceRedraw={forceRedrawCounter}
                 startMonth={monthRange.startMonth}
                 endMonth={monthRange.endMonth}
+                selectedDate={selectedDate}
               />
             );
           })}
@@ -273,6 +274,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             forceRedraw={forceRedrawCounter}
             startMonth={getYearMonthRange(megaOverlayYear).startMonth}
             endMonth={getYearMonthRange(megaOverlayYear).endMonth}
+            selectedDate={selectedDate}
           />
         )}
       </div>

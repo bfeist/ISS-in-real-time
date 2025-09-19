@@ -37,7 +37,7 @@
   transition: all 0.2s ease;
   background-color: var(--grey2);
   color: #ffffff;
-  border: 1px solid var(--grey3);
+  border: 1px solid var(--grey2);
   font-family: "Roboto Mono", monospace;
 }
 
@@ -54,7 +54,7 @@
   transition: all 0.2s ease;
   background-color: var(--grey2);
   color: #ffffff;
-  border: 1px solid var(--grey3);
+  border: 1px solid var(--grey2);
   font-family: "Roboto Mono", monospace;
 }
 

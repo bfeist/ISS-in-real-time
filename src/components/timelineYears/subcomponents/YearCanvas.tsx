@@ -8,8 +8,8 @@ const ROW_GAP = 1;
 
 // Color constants
 const COLORS = {
-  hover: "red",
-  selected: "red",
+  hover: "#ffd600",
+  selected: "#ffd600",
   noData: "#5b5d77ff",
   someData: "#6d7090",
   commData: "#7a7ea5ff",
@@ -31,6 +31,7 @@ interface YearCanvasProps {
   forceRedraw?: number;
   startMonth?: number; // 0-based month index (0 = January)
   endMonth?: number; // 0-based month index (11 = December)
+  selectedDate?: string | null;
 }
 
 // Individual year canvas component
@@ -45,6 +46,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
   forceRedraw,
   startMonth = 0, // Default to January
   endMonth = 11, // Default to December
+  selectedDate,
 }) => {
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
@@ -92,8 +94,17 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
     ctx.clearRect(0, 0, rect.width, rect.height);
 
     // Draw calendar grid for the year
-    drawYearCalendar(ctx, year, rect.width, rect.height, highlights, startMonth, endMonth);
-  }, [year, highlights, startMonth, endMonth]);
+    drawYearCalendar(
+      ctx,
+      year,
+      rect.width,
+      rect.height,
+      highlights,
+      startMonth,
+      endMonth,
+      selectedDate
+    );
+  }, [year, highlights, startMonth, endMonth, selectedDate]);
 
   const drawYearCalendar = (
     ctx: CanvasRenderingContext2D,
@@ -102,7 +113,8 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
     height: number,
     highlights: Map<string, { fill: string; stroke?: string }>,
     startMonth: number = 0,
-    endMonth: number = 11
+    endMonth: number = 11,
+    selectedDate: string | null = null
   ) => {
     const maxDaysInMonth = 31;
     // Use full 12-month width calculation for consistent layout, but only draw visible months
@@ -131,6 +143,13 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
         if (strokeColor) {
           ctx.strokeStyle = strokeColor;
           ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, cellWidth, cellHeight);
+        }
+
+        // Draw red outline if this is the selected date
+        if (dateStr === selectedDate) {
+          ctx.strokeStyle = COLORS.selected;
+          ctx.lineWidth = 2;
           ctx.strokeRect(x, y, cellWidth, cellHeight);
         }
       }

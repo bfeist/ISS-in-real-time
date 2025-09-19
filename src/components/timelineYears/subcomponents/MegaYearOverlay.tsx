@@ -16,6 +16,7 @@ interface MegaYearOverlayProps {
   forceRedraw?: number;
   startMonth?: number; // 0-based month index (0 = January)
   endMonth?: number; // 0-based month index (11 = December)
+  selectedDate?: string | null;
 }
 
 // Mega Overlay Component for zoomed year view
@@ -28,6 +29,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   forceRedraw,
   startMonth = 0, // Default to January
   endMonth = 11, // Default to December
+  selectedDate,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -110,6 +112,13 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
             ctx.strokeRect(x, y, cellWidth, cellSize);
           }
 
+          // If this is the selected date, draw red outline
+          if (dateStr === selectedDate) {
+            ctx.strokeStyle = COLORS.selected;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, cellWidth, cellSize);
+          }
+
           // If this is the hovered date, draw red border
           if (dateStr === hoveredDate) {
             ctx.strokeStyle = COLORS.hover;
@@ -127,6 +136,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     cellSize,
     totalHeight,
     hoveredDate,
+    selectedDate,
     startMonth,
     endMonth,
   ]);
