@@ -10,6 +10,7 @@ import {
   faVolumeMute,
   faExpand,
   faCompress,
+  faShare,
 } from "@fortawesome/free-solid-svg-icons";
 import VideoNone from "./videoNone";
 
@@ -97,6 +98,13 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
         document.exitFullscreen();
       }
     }
+  };
+
+  // Handle share button - open video on YouTube in new window
+  const handleShare = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    window.open(youtubeUrl, "_blank", "noopener,noreferrer");
   };
 
   // Listen for fullscreen changes
@@ -364,6 +372,14 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
               aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
             >
               <FontAwesomeIcon icon={isFullscreen ? faCompress : faExpand} />
+            </button>
+            <button
+              className={styles.controlButton}
+              onClick={handleShare}
+              type="button"
+              aria-label="Open video on YouTube"
+            >
+              <FontAwesomeIcon icon={faShare} />
             </button>
           </div>
         </div>
