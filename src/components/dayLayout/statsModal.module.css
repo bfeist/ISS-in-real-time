@@ -77,11 +77,16 @@
   color: #e74c3c;
 }
 
+.statsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .statsGrid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
-  margin-bottom: 8px;
 }
 
 .stackedSection {

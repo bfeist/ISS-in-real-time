@@ -24,6 +24,17 @@ IA_VIDEOS_JSON = WEB_ASSETS_FOLDER + "videoIa.json"
 DATA_AVAILABILITY_CSV = WEB_ASSETS_FOLDER + "data_availability.csv"
 
 
+def calculate_total_days_since_epoch():
+    """Calculate the total number of days from ISS epoch (2000-11-03) to current date
+
+    This is used for coverage calculations to ensure we count ALL possible days
+    since the ISS epoch, not just days that appear in the CSV (which may have gaps).
+    """
+    epoch_date = datetime(2000, 11, 3)
+    current_date = datetime.now()
+    return (current_date - epoch_date).days + 1  # +1 to include the epoch day itself
+
+
 def analyze_comm():
     """Analyze communication transcripts and return statistics"""
 
@@ -358,15 +369,8 @@ def analyze_photos():
             ):
                 combined_latest_date = source_data["latest_date"]
 
-    total_days = 0
-    if os.path.exists(DATA_AVAILABILITY_CSV):
-        try:
-            with open(DATA_AVAILABILITY_CSV, "r", encoding="utf-8") as f:
-                reader = csv.reader(f, delimiter="|")
-                next(reader)  # skip header
-                total_days = sum(1 for row in reader)
-        except:
-            pass
+    # Calculate total days since ISS epoch for coverage calculations
+    total_days_since_epoch = calculate_total_days_since_epoch()
 
     # Calculate individual source stats
     result = {"sources": {}, "combined": {}}
@@ -379,14 +383,10 @@ def analyze_photos():
         max_photos_per_day = max(photos_per_day) if photos_per_day else 0
         min_photos_per_day = min(photos_per_day) if photos_per_day else 0
 
-        coverage_percentage = 0
-        if source_data["earliest_date"] and source_data["latest_date"]:
-            total_days_in_range = (
-                source_data["latest_date"] - source_data["earliest_date"]
-            ).days + 1
-            coverage_percentage = (
-                source_data["total_days_with_photos"] / total_days_in_range
-            ) * 100
+        # Use total days since epoch for coverage calculation
+        coverage_percentage = (
+            source_data["total_days_with_photos"] / total_days_since_epoch
+        ) * 100
 
         result["sources"][source_name] = {
             "total_photos": source_data["total_photos"],
@@ -418,9 +418,8 @@ def analyze_photos():
     max_photos_per_day = max(combined_photos_per_day) if combined_photos_per_day else 0
     min_photos_per_day = min(combined_photos_per_day) if combined_photos_per_day else 0
 
-    coverage_percentage = (
-        (combined_days_from_csv / total_days) * 100 if total_days > 0 else 0
-    )
+    # Use total days since epoch for coverage calculation
+    coverage_percentage = (combined_days_from_csv / total_days_since_epoch) * 100
 
     result["combined"] = {
         "total_photos": combined_total_photos,
