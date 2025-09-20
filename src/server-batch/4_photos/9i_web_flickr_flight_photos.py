@@ -289,11 +289,23 @@ def extract_flickr_urls(photo: Dict) -> Dict[str, str]:
     if not urls["medUrl"]:
         # Try any remaining URL fields that haven't been used
         all_url_fields = [key for key in photo.keys() if key.startswith("url_")]
-        fallback_fields = ["url_z", "url_c", "url_w", "url_m", "url_n", "url_s", "url_t"]
-        
+        fallback_fields = [
+            "url_z",
+            "url_c",
+            "url_w",
+            "url_m",
+            "url_n",
+            "url_s",
+            "url_t",
+        ]
+
         for url_field in fallback_fields:
-            if (url_field in photo and photo[url_field] and 
-                url_field not in used_urls and url_field in all_url_fields):
+            if (
+                url_field in photo
+                and photo[url_field]
+                and url_field not in used_urls
+                and url_field in all_url_fields
+            ):
                 full_url = photo[url_field]
                 if full_url and full_url.startswith(FLICKR_BASE_URL):
                     path = full_url.replace(FLICKR_BASE_URL + "/", "")
@@ -402,6 +414,11 @@ def process_photo(photo: Dict, album_info: Dict) -> Optional[Dict]:
 
     # Skip photos without a valid date
     if final_date is None:
+        return None
+
+    # Filter out photos taken before January 1, 2000
+    cutoff_date = datetime(2000, 1, 1)
+    if final_date < cutoff_date:
         return None
 
     # Extract Flickr URLs

@@ -5,7 +5,7 @@ This script processes filtered Flickr photo albums (created by 9g_filter_against
 and uses AI classification to determine whether photos were taken during flight operations (keep)
 or are ancillary photos like training, portraits, press events, etc. (exclude).
 
-Uses OpenWebUI/Ollama API with pipeline processing for optimal performance:
+Uses Ollama API with pipeline processing for optimal performance:
 - Processes results as they arrive (streaming)
 - Better GPU utilization (no waiting for slow requests)
 - Faster feedback (saves every 10 photos)
@@ -22,19 +22,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 import sys
 from datetime import datetime
-import asyncio
-import aiohttp
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List, Dict, Any
+import multiprocessing as mp
+from functools import partial
 
 # Load environment variables
 load_dotenv(dotenv_path="../../../.env")
 
 RAW_FOLDER = os.getenv("RAW_FOLDER")
-OPENWEBUI_URL = "http://localhost:1010"  # OpenWebUI endpoint
-OLLAMA_DIRECT_URL = "http://localhost:11434"  # Direct Ollama API endpoint
-OLLAMA_API_URL = f"{OPENWEBUI_URL}/ollama/api"
+OLLAMA_API_URL = "http://localhost:11434"  # Direct Ollama API endpoint
 
 # Configuration
 # Process filtered albums (created by 9g_filter_against_existing_photos.py)
@@ -57,46 +55,27 @@ OUTPUT_FOLDER = (
 # MODEL_NAME = "qwen2.5:14b"       # Previous generation but proven
 # MODEL_NAME = "mistral-nemo:12b"  # Good alternative
 
-MODEL_NAME = "gemma3:27b"  # Using non-reasoning model for better classification
+# MODEL_NAME = "gemma3:27b"  # Using non-reasoning model for better classification
+MODEL_NAME = "gpt-oss:20b"  # Open-source GPT-style model with good reasoning
 
 # ============================================================================
-# GPU OPTIMIZATION SETTINGS - ADJUST THESE FOR YOUR HARDWARE
+# MULTIPROCESSING CONFIGURATION
 # ============================================================================
-# Pipeline processing configuration
-MAX_CONCURRENT_REQUESTS = 8  # Maximum concurrent API requests
-
-# For RTX 3090 or lower-end cards, consider:
-# MAX_CONCURRENT_REQUESTS = 16
-
-# For RTX 4070/4080:
-# MAX_CONCURRENT_REQUESTS = 24
-
+NUM_WORKERS = 3  # Fixed number of worker processes
 REQUEST_TIMEOUT = 60  # Request timeout for API calls
 
-# ============================================================================
-# PIPELINE PROCESSING CONFIGURATION
-# ============================================================================
-# Uses producer-consumer pattern with async queues:
-#   - Processes results as they arrive (streaming)
-#   - Better GPU utilization (no waiting for slow requests)
-#   - Faster feedback (saves every 10 photos)
-#   - More consistent performance
-#   - Maintains steady concurrent request flow
 
-
-def make_ollama_request(prompt, model=MODEL_NAME):
+def make_ollama_request_full(prompt, model=MODEL_NAME):
     """
-    Make a request to Ollama API - try direct connection first, then OpenWebUI
-    Optimized for GPU efficiency with better parameters
+    Make a request to Ollama API and return full JSON response
 
     Args:
         prompt: The text prompt to send
-        model: The model to use (default: gemma3:27b)
+        model: The model to use
 
     Returns:
-        Response text or None if error
+        Full JSON response dict or None if error
     """
-    # Try direct Ollama API first with GPU-optimized parameters
     try:
         payload = {
             "model": model,
@@ -119,17 +98,31 @@ def make_ollama_request(prompt, model=MODEL_NAME):
         }
 
         response = requests.post(
-            f"{OLLAMA_DIRECT_URL}/api/generate", json=payload, timeout=REQUEST_TIMEOUT
+            f"{OLLAMA_API_URL}/api/generate", json=payload, timeout=REQUEST_TIMEOUT
         )
 
         if response.status_code == 200:
-            result = response.json()
-            return result.get("response", "").strip()
+            return response.json()
+        else:
+            print(f"Ollama API Error: {response.status_code} - {response.text}")
+            return None
 
     except Exception as e:
-        print(f"Direct Ollama API failed: {e}")
+        print(f"Error making Ollama API request: {e}")
+        return None
 
-    # Try via OpenWebUI if direct failed
+
+def make_ollama_request(prompt, model=MODEL_NAME):
+    """
+    Make a request to Ollama API with GPU-optimized parameters
+
+    Args:
+        prompt: The text prompt to send
+        model: The model to use (default: gemma3:27b)
+
+    Returns:
+        Response text or None if error
+    """
     try:
         payload = {
             "model": model,
@@ -138,140 +131,139 @@ def make_ollama_request(prompt, model=MODEL_NAME):
             "options": {
                 "temperature": 0.2,  # Low temperature for consistent classification
                 "top_p": 0.95,
-                "max_tokens": 500,  # Longer response for batch processing
-                "num_ctx": 4096,
-                "num_batch": 512,
-                "num_gpu_layers": -1,
+                "top_k": 40,
+                "num_predict": -1,  # Let model determine response length for batch processing
+                "repeat_penalty": 1.1,
+                # GPU optimization parameters
+                "num_ctx": 4096,  # Context window size
+                "num_batch": 512,  # Batch size for processing
+                "num_gpu_layers": -1,  # Use all GPU layers (-1 = auto)
+                "num_thread": 8,  # CPU threads for non-GPU parts
+                "use_mmap": True,  # Memory mapping for efficiency
+                "use_mlock": True,  # Lock memory to prevent swapping
             },
         }
 
         response = requests.post(
-            f"{OLLAMA_API_URL}/generate", json=payload, timeout=REQUEST_TIMEOUT
+            f"{OLLAMA_API_URL}/api/generate", json=payload, timeout=REQUEST_TIMEOUT
         )
 
         if response.status_code == 200:
             result = response.json()
-            return result.get("response", "").strip()
+            response_text = result.get("response", "").strip()
+            thinking_text = result.get("thinking", "").strip()
+
+            # For thinking models, return both thinking and response
+            if thinking_text and response_text:
+                # Both thinking and response available - combine them
+                full_response = (
+                    f"🧠 THINKING:\n{thinking_text}\n\n💡 RESPONSE:\n{response_text}"
+                )
+                return full_response
+            elif response_text:
+                return response_text
+            elif thinking_text:
+                return thinking_text
+            else:
+                return ""
         else:
-            print(f"OpenWebUI API Error: {response.status_code} - {response.text}")
+            print(f"Ollama API Error: {response.status_code} - {response.text}")
             return None
 
     except Exception as e:
-        print(f"Error making OpenWebUI API request: {e}")
+        print(f"Error making Ollama API request: {e}")
         return None
 
 
-async def make_ollama_request_async(session, prompt, model=MODEL_NAME):
+def queue_worker(photo_queue, result_queue, worker_id):
     """
-    Async version of Ollama API request for concurrent processing
+    Queue-based worker function that processes photos from a shared queue
 
     Args:
-        session: aiohttp ClientSession
-        prompt: The text prompt to send
-        model: The model to use
-
-    Returns:
-        Response text or None if error
+        photo_queue: Queue containing photos to process
+        result_queue: Queue to put results into
+        worker_id: Unique identifier for this worker
     """
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {
-            "temperature": 0.2,
-            "top_p": 0.95,
-            "top_k": 40,
-            "num_predict": 30,
-            "repeat_penalty": 1.1,
-            "num_ctx": 4096,
-            "num_batch": 512,
-            "num_gpu_layers": -1,
-            "num_thread": 8,
-            "use_mmap": True,
-            "use_mlock": True,
-        },
-    }
+    processed_count = 0
+    start_time = time.time()
 
-    try:
-        async with session.post(
-            f"{OLLAMA_DIRECT_URL}/api/generate",
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
-        ) as response:
-            if response.status == 200:
-                result = await response.json()
-                return result.get("response", "").strip()
-            else:
-                print(f"Async API Error: {response.status}")
-                return None
-    except Exception as e:
-        print(f"Async API request failed: {e}")
-        return None
-
-
-async def classify_photos_pipeline(
-    photos_list: List[Dict[str, Any]],
-    save_callback: callable,
-    progress_callback: callable = None,
-) -> List[Dict[str, Any]]:
-    """
-    Pipeline-based photo classification that processes results as they arrive
-    Better GPU utilization by not waiting for entire batches to complete
-
-    Args:
-        photos_list: List of photo dictionaries to classify
-        save_callback: Function to call with each completed result
-        progress_callback: Optional function to call with progress updates
-
-    Returns:
-        List of all classification results
-    """
-    import asyncio
-    from asyncio import Queue
-
-    # Create queues for pipeline stages
-    input_queue = Queue(maxsize=MAX_CONCURRENT_REQUESTS * 2)  # Buffer input
-    result_queue = Queue()  # Unbounded results queue
-
-    # Semaphore to limit concurrent API requests
-    semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-
-    # Track completion
-    total_photos = len(photos_list)
-    completed_results = []
-
-    async def producer():
-        """Add photos to input queue"""
-        for i, photo in enumerate(photos_list):
-            await input_queue.put((i, photo))
-
-        # Signal completion
-        for _ in range(MAX_CONCURRENT_REQUESTS):
-            await input_queue.put(None)  # Sentinel values
-
-    async def worker(session, worker_id):
-        """Process photos from input queue, put results in result queue"""
-        while True:
-            item = await input_queue.get()
-            if item is None:  # Sentinel - worker should exit
+    while True:
+        try:
+            # Get next photo from queue
+            item = photo_queue.get(timeout=5)  # 5 second timeout
+            if item is None:  # Sentinel value - worker should exit
                 break
 
             photo_index, photo = item
+            processed_count += 1
 
-            async with semaphore:
-                try:
-                    # Build prompt
-                    title = photo.get("title", "")
-                    description = photo.get("description", "")
-                    if isinstance(description, dict):
-                        description = description.get("_content", "")
-                    elif description is None:
-                        description = ""
-                    tags = photo.get("tags", "")
+            # Process the photo
+            result = classify_single_photo((photo_index, photo, worker_id))
 
-                    prompt = f"""Classify this NASA ISS photo as FLIGHT or ANCILLARY.
+            # Add worker statistics to result
+            elapsed = time.time() - start_time
+            worker_rate = processed_count / elapsed if elapsed > 0 else 0
+            result["worker_stats"] = {
+                "processed_count": processed_count,
+                "worker_rate": worker_rate,
+                "elapsed_time": elapsed,
+            }
 
-FLIGHT = Photos taken aboard the ISS during flight operations (keep these photos)
+            # Put result in result queue
+            result_queue.put(result)
+
+        except Exception as e:
+            # Handle errors
+            error_result = {
+                "classification": "ERROR",
+                "confidence": "none",
+                "ai_response": f"Queue worker error: {e}",
+                "reasoning": "Processing failed",
+                "photo_id": "unknown",
+                "photo_index": -1,
+                "photo": {},
+                "worker_id": worker_id,
+                "worker_stats": {
+                    "processed_count": processed_count,
+                    "worker_rate": 0,
+                    "elapsed_time": time.time() - start_time,
+                },
+            }
+            result_queue.put(error_result)
+
+    # Worker finished - put final stats
+    elapsed = time.time() - start_time
+    final_rate = processed_count / elapsed if elapsed > 0 else 0
+    print(
+        f"   Worker {worker_id} finished: {processed_count} photos in {elapsed:.1f}s ({final_rate:.2f} photos/sec)"
+    )
+
+
+def classify_single_photo(photo_data):
+    """
+    Worker function to classify a single photo
+
+    Args:
+        photo_data: Tuple of (photo_index, photo_dict, worker_id)
+
+    Returns:
+        Classification result dictionary
+    """
+    photo_index, photo, worker_id = photo_data
+
+    try:
+        # Build prompt
+        title = photo.get("title", "")
+        description = photo.get("description", "")
+        if isinstance(description, dict):
+            description = description.get("_content", "")
+        elif description is None:
+            description = ""
+        tags = photo.get("tags", "")
+
+        prompt = f"""Classify this NASA photo as FLIGHT or ANCILLARY.
+
+FLIGHT = Photos taken during flight operations (keep these photos)
 ANCILLARY = Ground-based activities (exclude these photos)
 
 Photo details:
@@ -281,11 +273,21 @@ Photo details:
 
 Key indicators for FLIGHT (KEEP):
 - ANY photo taken "aboard the International Space Station" or "inside the International Space Station"
+- ANY photo taken in space. this includes other spacecraft such as Soyuz, Space Shuttle, SpaceX, Starliner, etc.
 - ANY photo taken in ISS modules (Unity, Harmony, Kibo, Columbus, Cupola, etc.)
-- Portraits, crew photos, group photos taken INSIDE the ISS
+- ANY photo taken of an object in space
+- ANY photo taken of the ISS. By definition any photo of the ISS is taken in space
+- ANY photo that says "Backdropped" or "backdrop" - NASA frequently uses this term for space photos
+- ANY photo "Backdropped against Earth's horizon" or with any backdrop mentioned. This is taken in space.
+- ALL Space Shuttle photos - if Space Shuttle is mentioned, it's a FLIGHT photo
+- ANY photo with Earth as backdrop, background, or any backdrop/background mentioned
+- Portraits, crew photos, group photos taken while in space
 - "microgravity", "zero-g"
 - ISS experiments, crew activities, spacewalks (EVAs) in space
 - Docking operations, spacecraft approaches to the ISS in orbit
+- Photos of approaching spacecraft (Space Shuttle, Soyuz, Dragon, etc.) taken FROM the ISS
+- Photos showing spacecraft "over Earth" or "against Earth's backdrop" - these are taken FROM the ISS
+- If description mentions ISS components (Progress, Soyuz, etc.) "in the foreground", photo is taken FROM the ISS
 - Astronauts working, eating, exercising, sleeping inside ISS
 - Scientific research, equipment setup aboard ISS
 - Spacecraft operations, maintenance aboard the ISS
@@ -294,12 +296,18 @@ Key indicators for FLIGHT (KEEP):
 - Views of cities, oceans, weather, aurora, hurricanes from the ISS
 - Terminator line photos (day/night boundary) from space
 
-CRITICAL: If the description mentions any ISS location or "aboard/inside the International Space Station", classify as FLIGHT regardless of whether it's a portrait.
+
+CRITICAL: We only want photography to be classified as FLIGHT, not illustrations or computer renderings
 CRITICAL: Earth photography taken FROM THE ISS is considered FLIGHT operations, not ancillary.
+CRITICAL: Photos of spacecraft "over Earth" or "approaching the ISS" are typically taken FROM the ISS - classify as FLIGHT
+CRITICAL: ANY mention of "backdrop" or "backdropped" = FLIGHT (NASA's standard term for space photography)
+CRITICAL: ANY photo with Earth or space as backdrop/background = FLIGHT
 
 Key indicators for ANCILLARY (EXCLUDE - Ground-based activities):
 - Training activities on Earth (NBL, pools, simulators)
+- Photos in mission control rooms on Earth
 - Press events, family photos taken on Earth
+- Portraits taken on Earth
 - NBL, Neutral Buoyancy Laboratory activities  
 - Ceremonies and events on Earth
 - ROCKET ASSEMBLY activities at Baikonur Cosmodrome or other launch sites
@@ -312,82 +320,124 @@ Key indicators for ANCILLARY (EXCLUDE - Ground-based activities):
 - Soyuz capsule on ground, Dragon capsule recovery, parachute landings
 - Crew talking to family after landing on Earth
 - ANY activity that takes place on Earth's surface
+- Ambiguous descriptions with only crew name and affiliation (no space context indicators)
 
 CRITICAL: Launch operations and landing operations are GROUND-BASED activities that happen on EARTH - classify as ANCILLARY.
 CRITICAL: Baikonur Cosmodrome, Kennedy Space Center activities are on EARTH - classify as ANCILLARY.
 CRITICAL: Post-landing recovery, phone calls, ceremonies on Earth are ANCILLARY.
+CRITICAL: If description is ambiguous with only crew name/affiliation and no clear space indicators - classify as ANCILLARY.
 
 Answer with exactly one word: FLIGHT or ANCILLARY"""
 
-                    response = await make_ollama_request_async(session, prompt)
-                    result = process_classification_response(response)
-                    result["photo_id"] = photo.get("id", "unknown")
-                    result["photo_index"] = photo_index
-                    result["photo"] = photo
+        # Make API request and get full response
+        full_json = make_ollama_request_full(prompt)
+        if full_json:
+            response_text = full_json.get("response", "").strip()
+            thinking_text = full_json.get("thinking", "").strip()
 
-                    await result_queue.put(result)
+            # Create detailed AI response for display
+            if thinking_text and response_text:
+                full_ai_response = (
+                    f"🧠 THINKING:\n{thinking_text}\n\n💡 RESPONSE:\n{response_text}"
+                )
+                # Use just the response for classification processing
+                classification_text = response_text
+            elif response_text:
+                full_ai_response = response_text
+                classification_text = response_text
+            elif thinking_text:
+                full_ai_response = thinking_text
+                classification_text = thinking_text
+            else:
+                full_ai_response = "No response"
+                classification_text = ""
+        else:
+            full_ai_response = "API request failed"
+            classification_text = ""
 
-                except Exception as e:
-                    error_result = {
-                        "classification": "ERROR",
-                        "confidence": "none",
-                        "ai_response": f"Processing error: {e}",
-                        "reasoning": "Failed to process",
-                        "photo_id": photo.get("id", "unknown"),
-                        "photo_index": photo_index,
-                        "photo": photo,
-                    }
-                    await result_queue.put(error_result)
+        result = process_classification_response(classification_text)
 
-                finally:
-                    input_queue.task_done()
+        # Add metadata
+        result["photo_id"] = photo.get("id", "unknown")
+        result["photo_index"] = photo_index
+        result["photo"] = photo
+        result["worker_id"] = worker_id
+        result["ai_response"] = full_ai_response
+        result["thinking"] = thinking_text if full_json else ""
+        result["response"] = response_text if full_json else ""
 
-    async def consumer():
-        """Process results as they arrive"""
-        processed_count = 0
+        return result
 
-        while processed_count < total_photos:
-            result = await result_queue.get()
-            completed_results.append(result)
-            processed_count += 1
+    except Exception as e:
+        error_result = {
+            "classification": "ERROR",
+            "confidence": "none",
+            "ai_response": f"Processing error: {e}",
+            "reasoning": "Failed to process",
+            "photo_id": photo.get("id", "unknown"),
+            "photo_index": photo_index,
+            "photo": photo,
+            "worker_id": worker_id,
+        }
+        return error_result
 
-            # Call save callback immediately
-            if save_callback:
-                save_callback(result)
 
-            # Call progress callback
-            if progress_callback:
-                progress_callback(processed_count, total_photos, result)
+def classify_photos_multiprocessing(
+    photos_list: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Queue-based multiprocessing photo classification with NUM_WORKERS workers
+    This provides better resume functionality as workers pull photos from a shared queue
 
-            result_queue.task_done()
+    Args:
+        photos_list: List of photo dictionaries to classify
 
-    # Start pipeline
-    async with aiohttp.ClientSession() as session:
-        # Start all coroutines
-        tasks = []
+    Returns:
+        List of all classification results
+    """
+    if not photos_list:
+        return []
 
-        # Producer task
-        tasks.append(asyncio.create_task(producer()))
+    # Create queues for communication
+    photo_queue = mp.Queue()
+    result_queue = mp.Queue()
 
-        # Worker tasks
-        for worker_id in range(MAX_CONCURRENT_REQUESTS):
-            tasks.append(asyncio.create_task(worker(session, worker_id)))
+    # Add all photos to the queue with their index
+    for i, photo in enumerate(photos_list):
+        photo_queue.put((i, photo))
 
-        # Consumer task
-        tasks.append(asyncio.create_task(consumer()))
+    # Add sentinel values to signal workers to stop
+    for _ in range(NUM_WORKERS):
+        photo_queue.put(None)
 
-        # Wait for producer and consumer to finish
-        await tasks[0]  # Producer
-        await tasks[-1]  # Consumer
+    # Start worker processes
+    processes = []
+    for worker_id in range(NUM_WORKERS):
+        p = mp.Process(target=queue_worker, args=(photo_queue, result_queue, worker_id))
+        p.start()
+        processes.append(p)
 
-        # Cancel remaining worker tasks
-        for task in tasks[1:-1]:
-            task.cancel()
+    # Collect results
+    results = []
+    for _ in range(len(photos_list)):
+        try:
+            result = result_queue.get(timeout=30)
+            results.append(result)
+        except Exception as e:
+            print(f"Error getting result: {e}")
+            break
 
-        # Wait for cancellation
-        await asyncio.gather(*tasks[1:-1], return_exceptions=True)
+    # Wait for all processes to finish
+    for p in processes:
+        p.join(timeout=10)
+        if p.is_alive():
+            p.terminate()
+            p.join()
 
-    return completed_results
+    # Sort results by photo_index to maintain order
+    results.sort(key=lambda x: x.get("photo_index", 0))
+
+    return results
 
 
 def process_classification_response(response: str) -> Dict[str, Any]:
@@ -504,7 +554,7 @@ def process_classification_response(response: str) -> Dict[str, Any]:
 def classify_photo_description(description, title="", tags=""):
     """
     Legacy single-photo classification function - kept for backward compatibility
-    Uses pipeline processing for single photo
+    Uses multiprocessing for single photo
 
     Args:
         description: Photo description text
@@ -514,46 +564,34 @@ def classify_photo_description(description, title="", tags=""):
     Returns:
         dict with classification result
     """
-    # Use pipeline processing for single photo
+    # Use multiprocessing for single photo
     photo = {"id": "single", "title": title, "description": description, "tags": tags}
 
-    # Simple callback to collect result
-    result_container = []
-
-    def save_callback(result):
-        result_container.append(result)
-
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        results = loop.run_until_complete(
-            classify_photos_pipeline([photo], save_callback=save_callback)
-        )
+        results = classify_photos_multiprocessing([photo])
 
         if results:
             result = results[0]
-            # Remove photo_id and pipeline-specific fields for backward compatibility
+            # Remove photo_id and multiprocessing-specific fields for backward compatibility
             result.pop("photo_id", None)
             result.pop("photo_index", None)
             result.pop("photo", None)
+            result.pop("worker_id", None)
             return result
         else:
             return {
                 "classification": "ERROR",
                 "confidence": "none",
-                "ai_response": "Pipeline processing failed",
+                "ai_response": "Multiprocessing failed",
                 "reasoning": "Could not connect to AI model",
             }
     except Exception as e:
         return {
             "classification": "ERROR",
             "confidence": "none",
-            "ai_response": f"Pipeline error: {e}",
+            "ai_response": f"Processing error: {e}",
             "reasoning": "Processing failed",
         }
-    finally:
-        loop.close()
 
 
 def find_filtered_albums():
@@ -891,49 +929,152 @@ def process_album(file_path):
                 f"   💾 Saved progress: {already_processed + total_completed}/{total_photos} photos processed"
             )
 
-    def progress_callback(completed, total, result):
-        """Called after each photo for progress updates"""
-        classification = result.get("classification", "ERROR")
-        confidence = result.get("confidence", "none")
-        photo_id = result.get("photo_id", "unknown")
-        current_num = already_processed + completed
+    # Run multiprocessing with streaming results
+    try:
+        print(f"   🚀 Processing {to_process} photos with {NUM_WORKERS} workers...")
 
-        # Show classification result
-        if classification == "FLIGHT":
-            status_icon = "✅"
-        elif classification == "ANCILLARY":
-            status_icon = "🚫"
-        else:
-            status_icon = "❓"
+        # Track processing statistics
+        worker_stats = {}
+        for i in range(NUM_WORKERS):
+            worker_stats[i] = {"processed": 0, "start_time": time.time()}
 
-        elapsed = time.time() - start_time
-        photos_per_second = completed / elapsed if elapsed > 0 else 0
+        # Create a queue-based system for better resume functionality
+        # Workers pull photos one at a time from the queue
+        photo_queue = mp.Queue()
+        result_queue = mp.Queue()
+
+        # Add all photos to the queue with their index
+        for i, photo in enumerate(photos_to_process):
+            photo_queue.put((i, photo))
+
+        # Add sentinel values to signal workers to stop
+        for _ in range(NUM_WORKERS):
+            photo_queue.put(None)
+
+        results = []
+        completed_count = 0
+
+        # Start worker processes
+        processes = []
+        for worker_id in range(NUM_WORKERS):
+            p = mp.Process(
+                target=queue_worker, args=(photo_queue, result_queue, worker_id)
+            )
+            p.start()
+            processes.append(p)
+
+        # Process results as they come in (streaming)
+        while completed_count < len(photos_to_process):
+            try:
+                result = result_queue.get(timeout=30)  # 30 second timeout
+                if result is None:  # Error signal
+                    break
+
+                results.append(result)
+                completed_count += 1
+
+                # Process each result immediately as it completes
+                save_result(result)
+
+                # Update worker statistics
+                worker_id = result.get("worker_id", 0)
+                if worker_id in worker_stats:
+                    worker_stats[worker_id]["processed"] += 1
+
+                # Show progress for each photo as it completes
+                classification = result.get("classification", "ERROR")
+                confidence = result.get("confidence", "none")
+                photo_id = result.get("photo_id", "unknown")
+                ai_response = result.get("ai_response", "")
+
+                # Show classification result
+                if classification == "FLIGHT":
+                    status_icon = "✅"
+                elif classification == "ANCILLARY":
+                    status_icon = "🚫"
+                else:
+                    status_icon = "❓"
+
+                # Get photo details for context
+                photo = result.get("photo", {})
+                title = photo.get("title", "No title")
+                description = photo.get("description", "")
+                if isinstance(description, dict):
+                    description = description.get("_content", "")
+                elif description is None:
+                    description = ""
+                tags = photo.get("tags", "")
+
+                current_num = already_processed + completed_count
+
+                # Calculate current processing speed
+                elapsed = time.time() - start_time
+                current_rate = completed_count / elapsed if elapsed > 0 else 0
+
+                # Get worker stats if available
+                worker_stats_info = result.get("worker_stats", {})
+                worker_rate = worker_stats_info.get("worker_rate", 0)
+                worker_processed = worker_stats_info.get("processed_count", 0)
+
+                print(f"\n" + "=" * 80)
+                print(f"📁 ALBUM: {base_name}")
+                print(f"📷 PHOTO {current_num}/{total_photos} - ID: {photo_id}")
+                print(f"   Title: {title}")
+                print(
+                    f"   Description: {description[:200]}{'...' if len(description) > 200 else ''}"
+                )
+                print(f"   Tags: {tags}")
+                print(f"\n🤖 FULL AI RESPONSE:")
+                print(f"   {ai_response}")
+                print(
+                    f"\n🎯 CLASSIFICATION: {status_icon} {classification} (confidence: {confidence})"
+                )
+                print(
+                    f"👷 Worker ID: {worker_id} (processed {worker_processed} photos at {worker_rate:.2f} photos/sec)"
+                )
+                print(
+                    f"⚡ Overall Speed: {current_rate:.2f} photos/sec ({completed_count}/{to_process} completed)"
+                )
+
+            except Exception as e:
+                print(f"❌ Error getting result from queue: {e}")
+                break
+
+        # Wait for all worker processes to finish
+        for p in processes:
+            p.join(timeout=10)
+            if p.is_alive():
+                print(f"⚠️ Force terminating worker process {p.pid}")
+                p.terminate()
+                p.join()
+
+        # Calculate and display final worker statistics
+        elapsed_total = time.time() - start_time
+        total_processed = len(results)
+        overall_rate = total_processed / elapsed_total if elapsed_total > 0 else 0
+
+        print(f"\n📊 WORKER STATISTICS:")
+        for worker_id, stats in worker_stats.items():
+            worker_processed = stats["processed"]
+            if worker_processed > 0:
+                worker_rate = (
+                    worker_processed / elapsed_total if elapsed_total > 0 else 0
+                )
+                print(
+                    f"   Worker {worker_id}: {worker_processed} photos ({worker_rate:.2f} photos/sec)"
+                )
 
         print(
-            f"   {status_icon} Photo {current_num}/{total_photos} - {photo_id} → {classification} ({confidence}) [{photos_per_second:.1f} photos/sec]"
+            f"⚡ COMBINED RATE: {overall_rate:.2f} photos/sec across {NUM_WORKERS} workers"
         )
 
-    # Run pipeline processing
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        pipeline_results = loop.run_until_complete(
-            classify_photos_pipeline(
-                photos_to_process,
-                save_callback=save_result,
-                progress_callback=progress_callback,
-            )
-        )
     except Exception as e:
-        print(f"   ❌ Pipeline processing failed: {e}")
+        print(f"   ❌ Multiprocessing failed: {e}")
         return {
             "status": "error",
             "filename": filename,
-            "error": f"Pipeline processing failed: {e}",
+            "error": f"Multiprocessing failed: {e}",
         }
-    finally:
-        loop.close()
 
     # Final save and return results
     all_flight_photos = existing_flight_photos + new_flight_photos
@@ -954,8 +1095,14 @@ def process_album(file_path):
         elapsed_total = time.time() - start_time
         avg_photos_per_sec = to_process / elapsed_total if elapsed_total > 0 else 0
 
+        print(f"\n🏁 PROCESSING COMPLETE")
+        print(f"   ⏱️  Total time: {elapsed_total:.1f}s")
         print(
-            f"   🏁 Pipeline completed in {elapsed_total:.1f}s (avg: {avg_photos_per_sec:.1f} photos/sec)"
+            f"   ⚡ Overall rate: {avg_photos_per_sec:.2f} photos/sec across {NUM_WORKERS} workers"
+        )
+        print(f"   📸 New photos processed: {to_process}")
+        print(
+            f"   ✅ FLIGHT: {new_flight_count}, 🚫 ANCILLARY: {new_ancillary_count}, ❓ ERRORS: {new_error_count}"
         )
 
         return {
@@ -979,33 +1126,31 @@ def process_album(file_path):
 
 def batch_process_albums():
     """
-    Process all matching album files using pipeline approach
-    Enhanced with GPU optimization and streaming results processing
+    Process all matching album files using multiprocessing approach
+    Enhanced with 4-worker processing and cross-worker statistics
     """
-    print(f"NASA ISS Photo Classification - Pipeline Processing (GPU Optimized)")
+    print(f"NASA ISS Photo Classification - Multiprocessing ({NUM_WORKERS} Workers)")
     print("=" * 60)
 
     # Check API connectivity
     print(f"Testing connection to Ollama API...")
-    print(f"  Direct Ollama: {OLLAMA_DIRECT_URL}")
-    print(f"  OpenWebUI: {OPENWEBUI_URL}")
+    print(f"  Ollama API: {OLLAMA_API_URL}")
     print(f"  Model: {MODEL_NAME}")
-    print(f"  Pipeline concurrent requests: {MAX_CONCURRENT_REQUESTS}")
+    print(f"  Workers: {NUM_WORKERS}")
 
     test_response = make_ollama_request("Hello", MODEL_NAME)
     if not test_response:
         print(f"❌ Cannot connect to Ollama API")
         print("Please ensure Ollama is running and model is available")
-        print("\nTips for better GPU utilization:")
-        print("  1. Make sure Gemma 3:27B is loaded: ollama pull gemma3:27b")
+        print("\nTips for setup:")
+        print(f"  1. Make sure {MODEL_NAME} is loaded: ollama pull {MODEL_NAME}")
         print("  2. Check GPU memory: nvidia-smi")
         print("  3. Restart Ollama if needed: ollama serve")
         return False
     else:
         print(f"✅ API connection successful")
         print(f"✅ Using model: {MODEL_NAME}")
-        print(f"✅ GPU optimization enabled")
-        print(f"✅ Pipeline concurrent processing: {MAX_CONCURRENT_REQUESTS} requests")
+        print(f"✅ Multiprocessing enabled with {NUM_WORKERS} workers")
 
     # Find filtered albums
     album_files = find_filtered_albums()
@@ -1100,17 +1245,18 @@ def batch_process_albums():
 
         # Show performance summary
         if results["total_processing_time"] > 0:
-            total_new_processed = sum(
-                1 for _ in range(results["success"])
-            )  # This is a rough estimate
             avg_photos_per_sec = (
                 results["total_photos"] / results["total_processing_time"]
             )
-            print(f"⚡ Average processing speed: {avg_photos_per_sec:.1f} photos/sec")
-            print(f"⏱️  Total processing time: {results['total_processing_time']:.1f}s")
+            print(f"⚡ OVERALL PROCESSING SPEED: {avg_photos_per_sec:.2f} photos/sec")
+            print(f"   👷 {NUM_WORKERS} workers processing in parallel")
+            print(
+                f"   ⏱️  Total processing time: {results['total_processing_time']:.1f}s"
+            )
+            print(f"   📸 Total photos processed: {results['total_photos']}")
 
-    print(f"📁 Filtered albums saved to: {OUTPUT_FOLDER}")
-    print(f"🔧 Processing mode: Pipeline (streaming results)")
+    print(f"\n📁 Filtered albums saved to: {OUTPUT_FOLDER}")
+    print(f"🔧 Processing mode: Multiprocessing ({NUM_WORKERS} workers)")
 
     return True
 
@@ -1120,15 +1266,16 @@ def batch_process_albums():
 
 def main():
     """
-    Main function for pipeline processing filtered NASA ISS photo albums
+    Main function for multiprocessing filtered NASA ISS photo albums
     """
-    print("NASA ISS Photo AI Classification - Pipeline Processor")
+    print("NASA ISS Photo AI Classification - Multiprocessing Processor")
     print(
         "Processing filtered albums (created by 9g_filter_against_existing_photos.py)"
     )
-    print("Using Ollama API with pipeline processing for optimal performance")
-    print(f"Direct Ollama: {OLLAMA_DIRECT_URL}")
-    print(f"OpenWebUI: {OPENWEBUI_URL}")
+    print(
+        f"Using Ollama API with {NUM_WORKERS} worker processes for optimal performance"
+    )
+    print(f"Ollama API: {OLLAMA_API_URL}")
     print(f"Model: {MODEL_NAME}")
 
     # Check configuration
@@ -1156,4 +1303,6 @@ def main():
 
 
 if __name__ == "__main__":
+    # Enable multiprocessing on Windows
+    mp.set_start_method("spawn", force=True)
     main()
