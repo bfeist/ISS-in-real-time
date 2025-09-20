@@ -351,7 +351,14 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
             onError={onPlayerError}
             onStateChange={onPlayerStateChange}
             opts={{
-              playerVars: { autoplay: 0, controls: 0 },
+              playerVars: {
+                autoplay: 0,
+                controls: 0,
+                rel: 0,
+                showinfo: 0,
+                modestbranding: 1,
+                iv_load_policy: 3,
+              },
               height: "100%",
               width: "100%",
             }}
