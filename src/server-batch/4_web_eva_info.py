@@ -12,8 +12,18 @@ WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 # URL of the Wikipedia page
 url = "https://en.wikipedia.org/wiki/List_of_International_Space_Station_spacewalks"
 
+# Headers to avoid being blocked by Wikipedia
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+}
+
 # Send a GET request to fetch the page content
-response = requests.get(url)
+response = requests.get(url, headers=headers)
 response.raise_for_status()  # Raise an exception for HTTP errors
 
 # Parse the page content with BeautifulSoup
