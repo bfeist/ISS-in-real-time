@@ -38,10 +38,10 @@
 
 .closeButton {
   background: transparent;
-  border: 1px solid var(--headerbutton);
+  border: 1px solid var(--grey5);
   font-size: 18px;
   cursor: pointer;
-  color: var(--headerbutton);
+  color: var(--grey5);
   padding: 4px;
   width: 30px;
   height: 30px;

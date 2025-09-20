@@ -131,12 +131,18 @@
 .closeDayButton {
   position: absolute;
   right: 60px;
+  background: transparent;
+  border: 1px solid var(--grey5);
   cursor: pointer;
   color: var(--grey5);
-  font-size: 1rem;
-  transition: color 0.2s ease-in-out;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
 }
 
 .closeDayButton:hover {
-  color: var(--highlight);
+  background-color: var(--grey3);
 }

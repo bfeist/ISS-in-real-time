@@ -110,13 +110,14 @@ const ControlsHeader: FunctionComponent = () => {
                   data-tooltip-place="top"
                 />
               </div>
-              <FontAwesomeIcon
+              <IconButton
                 icon={faClose}
                 className={styles.closeDayButton}
                 onClick={() => setSelectedDate(null)}
                 data-tooltip-id="source-button-tooltip"
                 data-tooltip-content={"Close Day"}
                 data-tooltip-place="top"
+                aria-label="Close day"
               />
             </>
           ) : (
