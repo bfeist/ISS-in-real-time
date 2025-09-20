@@ -16,7 +16,7 @@ const COLORS = {
   contentHighlightStroke: "#C500AB",
   contentHighlightFill: "#d4b5d0ff",
   transparent: "rgba(0, 0, 0, 0)",
-  crewOnboard: "#E2DB00",
+  crewOnboard: "#ff9355",
   satisfiesHighlights: "#d9d9d9cc",
 } as const;
 
@@ -25,7 +25,7 @@ interface YearCanvasProps {
   index: number;
   isActive?: boolean;
   isSelected?: boolean;
-  highlights: Map<string, { fill: string; stroke?: string }>;
+  highlights: Map<string, { fill: string; stroke?: string; expedition?: boolean }>;
   onYearHover?: (yearIndex: number) => void;
   onYearLeave?: () => void;
   forceRedraw?: number;
@@ -111,7 +111,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
     year: number,
     width: number,
     height: number,
-    highlights: Map<string, { fill: string; stroke?: string }>,
+    highlights: Map<string, { fill: string; stroke?: string; expedition?: boolean }>,
     startMonth: number = 0,
     endMonth: number = 11,
     selectedDate: string | null = null
@@ -135,6 +135,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
         const highlightInfo = highlights.get(dateStr);
         const fillColor = highlightInfo?.fill || COLORS.noData;
         const strokeColor = highlightInfo?.stroke;
+        const hasExpedition = highlightInfo?.expedition;
 
         ctx.fillStyle = fillColor;
         ctx.fillRect(x, y, cellWidth, cellHeight);
@@ -151,6 +152,18 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
           ctx.strokeStyle = COLORS.selected;
           ctx.lineWidth = 2;
           ctx.strokeRect(x, y, cellWidth, cellHeight);
+        }
+
+        // Draw dot in center if this date is part of a selected expedition
+        if (hasExpedition) {
+          const centerX = x + cellWidth / 2;
+          const centerY = y + cellHeight / 2;
+          const dotRadius = Math.min(cellWidth, cellHeight) * 0.25; // 25% of the smaller dimension
+
+          ctx.fillStyle = "white";
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, dotRadius, 0, 2 * Math.PI);
+          ctx.fill();
         }
       }
     }

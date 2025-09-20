@@ -4,6 +4,7 @@ import { faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import styles from "./share.module.css";
 import { generateShareUrl } from "utils/params";
 import IconButton from "../common/iconButton";
+import { faTimes } from "@fortawesome/free-solid-svg-icons";
 const ShareModal: FunctionComponent<{
   isOpen: boolean;
   onClose: () => void;
@@ -63,15 +64,16 @@ const ShareModal: FunctionComponent<{
           <h3>
             {hasSelectedDate ? "Share this exact moment on the ISS" : "Share ISS in Real Time"}
           </h3>
-          <button
-            className={styles.closeButton}
+          <IconButton
+            icon={faTimes}
             onClick={(e) => {
               e.stopPropagation();
               onClose();
             }}
-          >
-            ×
-          </button>
+            className={styles.closeButton}
+            aria-label="Close modal"
+            style={{ width: "30px", height: "30px" }}
+          />
         </div>
         <div className={styles.content}>
           <div className={styles.urlContainer}>

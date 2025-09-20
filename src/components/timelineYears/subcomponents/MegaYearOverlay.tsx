@@ -10,7 +10,7 @@ import { COLORS } from "./YearCanvas";
 interface MegaYearOverlayProps {
   year: number;
   position: { left: number; top: number; width: number };
-  highlights: Map<string, { fill: string; stroke?: string }>;
+  highlights: Map<string, { fill: string; stroke?: string; expedition?: boolean }>;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   forceRedraw?: number;
@@ -101,6 +101,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
           const highlightInfo = highlights.get(dateStr);
           const fillColor = highlightInfo?.fill || COLORS.noData;
           const strokeColor = highlightInfo?.stroke;
+          const hasExpedition = highlightInfo?.expedition;
 
           ctx.fillStyle = fillColor;
           ctx.fillRect(x, y, cellWidth, cellSize);
@@ -124,6 +125,18 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
             ctx.strokeStyle = COLORS.hover;
             ctx.lineWidth = 3;
             ctx.strokeRect(x, y, cellWidth, cellSize);
+          }
+
+          // Draw dot in center if this date is part of a selected expedition
+          if (hasExpedition) {
+            const centerX = x + cellWidth / 2;
+            const centerY = y + cellSize / 2;
+            const dotRadius = Math.min(cellWidth, cellSize) * 0.25; // 25% of the smaller dimension
+
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, dotRadius, 0, 2 * Math.PI);
+            ctx.fill();
           }
         }
       }

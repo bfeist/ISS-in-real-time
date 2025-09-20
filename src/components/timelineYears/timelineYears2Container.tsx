@@ -8,7 +8,7 @@ import {
 } from "../../api/useGeneralData";
 import { useStateClock } from "../../store/hooks/useStateClock";
 import { useStateContentHighlights } from "../../store/hooks/useStateContentHighlights";
-import { useStateCrewSelection } from "../../store/hooks/useStateCrewSelection";
+import { useStateSearch } from "../../store/hooks/useStateSearch";
 import ControlsHeader from "./controlsHeader/controlsHeader";
 
 // Constants for year range and colors (from testtimeline.tsx)
@@ -19,7 +19,7 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
   // Global state hooks
   const { selectedDate } = useStateClock();
   const { contentHighlights } = useStateContentHighlights();
-  const { selectedCrewMember } = useStateCrewSelection();
+  const { selectedCrewMember, selectedExpedition } = useStateSearch();
 
   // Fetch data availability
   const { data: dataAvailabilityItems, isLoading, error } = useGeneralDataAvailabilities();
@@ -37,11 +37,28 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
     );
   }, [crewArrDep, selectedCrewMember]);
 
+  // Check if a date falls within the selected expedition
+  const isDateInExpedition = useMemo(() => {
+    if (!selectedExpedition) return () => false;
+
+    const expeditionStart = new Date(selectedExpedition.start);
+    const expeditionEnd = new Date(selectedExpedition.end);
+
+    return (dateStr: string) => {
+      const date = new Date(dateStr);
+      return date >= expeditionStart && date <= expeditionEnd;
+    };
+  }, [selectedExpedition]);
+
   // Create data availability highlights from the actual data
   const dataAvailabilityHighlights = useMemo(() => {
-    if (!dataAvailabilityItems) return new Map<string, { fill: string; stroke?: string }>();
+    if (!dataAvailabilityItems)
+      return new Map<string, { fill: string; stroke?: string; expedition?: boolean }>();
 
-    const dataHighlights = new Map<string, { fill: string; stroke?: string }>();
+    const dataHighlights = new Map<
+      string,
+      { fill: string; stroke?: string; expedition?: boolean }
+    >();
 
     // Generate highlights for all dates in the range
     for (let year = START_YEAR; year <= END_YEAR; year++) {
@@ -75,13 +92,16 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
             dayColor = COLORS.crewOnboard;
           }
 
-          dataHighlights.set(dateStr, { fill: dayColor });
+          // Check if this date is part of the selected expedition
+          const isExpeditionDate = isDateInExpedition(dateStr);
+
+          dataHighlights.set(dateStr, { fill: dayColor, expedition: isExpeditionDate });
         }
       }
     }
 
     return dataHighlights;
-  }, [dataAvailabilityItems, selectedCrewStays]);
+  }, [dataAvailabilityItems, selectedCrewStays, isDateInExpedition]);
 
   // Combine content highlights with data availability highlights
   const combinedHighlights = useMemo(() => {
@@ -128,6 +148,7 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
             combined.set(dateStr, {
               fill: COLORS.contentHighlightFill,
               stroke: COLORS.contentHighlightStroke,
+              expedition: false, // Default to no expedition if creating new entry
             });
           }
         }

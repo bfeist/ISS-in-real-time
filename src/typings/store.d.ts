@@ -40,9 +40,12 @@ interface ToggleState {
 
 interface CrewSelectionState {
   selectedCrewMember: CrewMember | null;
+  selectedExpedition: ExpeditionInfo | null;
 
   // Actions
   setSelectedCrewMember: (crewMember: CrewMember | null) => void;
+  setSelectedExpedition: (expedition: ExpeditionInfo | null) => void;
+  clearAllSearchHighlights: () => void;
 }
 
 interface ContentHighlightsState {

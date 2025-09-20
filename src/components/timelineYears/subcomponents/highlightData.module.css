@@ -78,3 +78,35 @@
   min-height: 200px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
 }
+
+.searchIndicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.searchIndicatorLabel {
+  color: #87ceeb;
+  font-weight: 500;
+  white-space: nowrap;
+  font-size: 0.85em;
+}
+
+.clearSearchButton {
+  background: none;
+  border: none;
+  color: #ff6b6b;
+  font-size: 16px;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.clearSearchButton:hover {
+  background-color: rgb(255 107 107 / 20%);
+}
