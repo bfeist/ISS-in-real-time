@@ -36,7 +36,8 @@ const ShareModal: FunctionComponent<{
     };
   }, [isOpen, onClose]);
 
-  const handleCopyToClipboard = async () => {
+  const handleCopyToClipboard = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       await navigator.clipboard.writeText(shareUrl);
       onClose();
@@ -59,13 +60,20 @@ const ShareModal: FunctionComponent<{
     <div className={styles.overlay}>
       <div className={styles.modal} ref={modalRef}>
         <div className={styles.header}>
-          <h3>Share Current View</h3>
-          <button className={styles.closeButton} onClick={onClose}>
+          <h3>
+            {hasSelectedDate ? "Share this exact moment on the ISS" : "Share ISS in Real Time"}
+          </h3>
+          <button
+            className={styles.closeButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+          >
             ×
           </button>
         </div>
         <div className={styles.content}>
-          <p>{hasSelectedDate ? "Share this exact time on the ISS:" : "Share ISS in Real Time"}</p>
           <div className={styles.urlContainer}>
             <input
               type="text"

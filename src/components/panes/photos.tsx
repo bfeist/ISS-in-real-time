@@ -170,20 +170,36 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     };
   }, [photoItemsCombined]);
 
-  // Handle scroll event detection
+  // Enhanced scroll event detection with multiple interaction methods and debouncing
   useEffect(() => {
     const container = thumbnailsContainerRef.current;
     if (!container) return;
 
+    // Capture timeout refs at the beginning of the effect
+    let debounceTimeout: NodeJS.Timeout | null = null;
+
     const handleManualScroll = () => {
-      if (isAutoScrollEnabled && !isProgrammaticScrollingRef.current) {
-        console.log("Disabling auto-scroll due to manual scroll");
-        setIsAutoScrollEnabled(false);
+      // Clear any existing debounce
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
       }
+
+      // Debounce the auto-scroll disable to prevent rapid toggling
+      debounceTimeout = setTimeout(() => {
+        if (isAutoScrollEnabled && !isProgrammaticScrollingRef.current) {
+          console.log("Disabling auto-scroll due to manual scroll");
+          setIsAutoScrollEnabled(false);
+        }
+      }, 50); // 50ms debounce
     };
 
     const handleScroll = () => {
-      if (isPointerDownRef.current) {
+      // Check multiple conditions for manual scroll detection
+      if (
+        isPointerDownRef.current ||
+        container.matches(":active") ||
+        document.activeElement === container
+      ) {
         handleManualScroll();
       }
     };
@@ -199,9 +215,16 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     };
 
     const handlePointerDown = (e: PointerEvent) => {
-      // Only set pointer down if not clicking on a thumbnail
+      // Set pointer down for any interaction within the container
+      // but exclude thumbnail clicks which have their own behavior
       if (!(e.target as Element).closest(`.${styles.thumbContent}`)) {
         isPointerDownRef.current = true;
+
+        // For drag scrolling, immediately disable auto-scroll
+        // This provides more immediate feedback for drag interactions
+        if (e.pointerType === "mouse" && e.button === 0) {
+          handleManualScroll();
+        }
       }
     };
 
@@ -209,11 +232,17 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       isPointerDownRef.current = false;
     };
 
+    const handleTouchStart = () => {
+      // Touch scrolling should also disable auto-scroll
+      handleManualScroll();
+    };
+
     container.addEventListener("scroll", handleScroll, { passive: true });
     container.addEventListener("wheel", handleWheel, { passive: true });
     container.addEventListener("keydown", handleKeyDown);
     container.addEventListener("pointerdown", handlePointerDown);
     container.addEventListener("pointerup", handlePointerUp);
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
 
     return () => {
       container.removeEventListener("scroll", handleScroll);
@@ -221,6 +250,12 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       container.removeEventListener("keydown", handleKeyDown);
       container.removeEventListener("pointerdown", handlePointerDown);
       container.removeEventListener("pointerup", handlePointerUp);
+      container.removeEventListener("touchstart", handleTouchStart);
+
+      // Clean up local timeout
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
     };
   }, [isAutoScrollEnabled]);
 
@@ -289,8 +324,14 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
         // Set flag to indicate this is programmatic scrolling
         isProgrammaticScrollingRef.current = true;
         targetElement.scrollIntoView({ behavior: "instant" });
-        // Clear the flag immediately after programmatic scroll
-        isProgrammaticScrollingRef.current = false;
+
+        // Clear the flag after a short delay to allow for the scroll event to fire
+        // Use requestAnimationFrame to ensure the scroll has completed
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            isProgrammaticScrollingRef.current = false;
+          });
+        });
       }
     }
 
