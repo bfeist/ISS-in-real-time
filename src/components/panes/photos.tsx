@@ -122,6 +122,9 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     // Update the last selected date
     lastSelectedDateRef.current = selectedDate;
 
+    // If both photo types are available, we don't need to do anything
+    if (hasEarthPhotos && hasMissionPhotos) return;
+
     // Check if current toggle state would result in no photos being shown
     const wouldShowEarthPhotos = showEarthPhotos && hasEarthPhotos;
     const wouldShowMissionPhotos = showMissionPhotos && hasMissionPhotos;
@@ -214,18 +217,9 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       }
     };
 
-    const handlePointerDown = (e: PointerEvent) => {
-      // Set pointer down for any interaction within the container
-      // but exclude thumbnail clicks which have their own behavior
-      if (!(e.target as Element).closest(`.${styles.thumbContent}`)) {
-        isPointerDownRef.current = true;
-
-        // For drag scrolling, immediately disable auto-scroll
-        // This provides more immediate feedback for drag interactions
-        if (e.pointerType === "mouse" && e.button === 0) {
-          handleManualScroll();
-        }
-      }
+    const handlePointerDown = () => {
+      isPointerDownRef.current = true;
+      handleManualScroll();
     };
 
     const handlePointerUp = () => {
