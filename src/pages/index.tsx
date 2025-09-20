@@ -7,7 +7,6 @@ const Home = (): JSX.Element => {
   return (
     <div className={`${styles.page} ${styles.home}`}>
       <h1>Coming Soon</h1>
-      <img src="/images/nasa-logo.svg" alt="Coming Soon" width="100px" />
     </div>
   );
 };
