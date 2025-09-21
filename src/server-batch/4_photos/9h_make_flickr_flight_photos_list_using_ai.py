@@ -274,12 +274,15 @@ Photo details:
 Key indicators for FLIGHT (KEEP):
 - ANY photo taken "aboard the International Space Station" or "inside the International Space Station"
 - ANY photo taken in space. this includes other spacecraft such as Soyuz, Space Shuttle, SpaceX, Starliner, etc.
+- ANY photo taken from the ISS of another spacecraft (like a Shuttle, Soyuz, or Dragon) is FLIGHT. A clue is if the description mentions a part of the station is in the foreground while another spacecraft is approaching. 
+- ANY photo that mentions docking, undocking, or docked must be in space.
+- ANY photo that mentions a vehicle "approaching" must be in space.
 - ANY photo taken in ISS modules (Unity, Harmony, Kibo, Columbus, Cupola, etc.)
 - ANY photo taken of an object in space
 - ANY photo taken of the ISS. By definition any photo of the ISS is taken in space
 - ANY photo that says "Backdropped" or "backdrop" - NASA frequently uses this term for space photos
 - ANY photo "Backdropped against Earth's horizon" or with any backdrop mentioned. This is taken in space.
-- ALL Space Shuttle photos - if Space Shuttle is mentioned, it's a FLIGHT photo
+- Space Shuttle photos are FLIGHT only when clearly ON ORBIT (rendezvous/docking, in-space operations, photographed from ISS or in space). Shuttle photos on the ground (rollout, pad, launch, landing, runway) are ANCILLARY.
 - ANY photo with Earth as backdrop, background, or any backdrop/background mentioned
 - Portraits, crew photos, group photos taken while in space
 - "microgravity", "zero-g"
@@ -485,14 +488,10 @@ def process_classification_response(response: str) -> Dict[str, Any]:
         "AURORA",
         "HURRICANE",
         "TERMINATOR",
-        "LAUNCH",
-        "ROCKET",
         "SPACECRAFT",
         "SOYUZ",
         "DRAGON",
         "PROGRESS",
-        "LANDING",
-        "SPLASHDOWN",
     ]
     ancillary_indicators = [
         "ANCILLARY",
@@ -503,6 +502,18 @@ def process_classification_response(response: str) -> Dict[str, Any]:
         "UNDERWATER",
         "POOL",
         "SIMULATOR",
+        "LAUNCH",
+        "ROCKET",
+        "LANDING",
+        "SPLASHDOWN",
+        "RECOVERY",
+        "LAUNCH PAD",
+        "ROLLOUT",
+        "ROLL OUT",
+        "RUNWAY",
+        "BAIKONUR",
+        "KENNEDY SPACE CENTER",
+        "KSC",
     ]
 
     flight_score = sum(
