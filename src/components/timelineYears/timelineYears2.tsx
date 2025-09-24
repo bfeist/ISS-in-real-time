@@ -59,6 +59,14 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     }
   }, [showTimelineYears]);
 
+  // Stop audio when a day is selected
+  useEffect(() => {
+    if (selectedDate && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, [selectedDate]);
+
   // Debounced audio playback when hoveredDate changes
   useEffect(() => {
     if (!hoveredDate || !commFirstData || !audioRef.current || !showTimelineYears) {

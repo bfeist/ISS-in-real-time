@@ -130,6 +130,20 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
     };
   }, []);
 
+  // Cleanup video when component unmounts
+  useEffect(() => {
+    const video = videoRef.current;
+    return () => {
+      if (video) {
+        video.pause();
+        video.src = "";
+        video.load(); // This helps ensure the video is fully stopped and resources are freed
+        // Clear any cached reference to prevent memory leaks
+        videoRef.current = null;
+      }
+    };
+  }, []);
+
   // Update video element muted property when state changes
   useEffect(() => {
     if (videoRef.current) {
