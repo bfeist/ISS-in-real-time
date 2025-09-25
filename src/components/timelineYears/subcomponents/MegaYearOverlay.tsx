@@ -33,6 +33,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [isTouchInteraction, setIsTouchInteraction] = useState(false);
   const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
@@ -46,15 +47,6 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   // Handle date click using global state with touch device logic
   const handleDateClick = useCallback(
     (dateStr: string) => {
-      // Check if this is a touch device
-      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-
-      // For touch devices, don't auto-select on click - require using the Go button
-      if (isTouchDevice) {
-        return;
-      }
-
-      // For mouse devices, proceed with normal click behavior
       setSelectedDate(dateStr);
     },
     [setSelectedDate]
@@ -173,10 +165,12 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   };
 
   const handleTouchStart = (_event: React.TouchEvent<HTMLDivElement>) => {
+    isDragging.current = false;
     setIsTouchInteraction(true);
   };
 
   const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    isDragging.current = true;
     if (event.touches.length === 0) return;
 
     const overlay = event.currentTarget;
@@ -200,6 +194,10 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   };
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (isDragging.current) {
+      isDragging.current = false; // Reset for the next touch
+      return;
+    }
     const overlay = event.currentTarget;
     const rect = overlay.getBoundingClientRect();
     const x = event.clientX - rect.left;
