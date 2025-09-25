@@ -5,6 +5,7 @@ import { appSecondsFromTimeStr } from "utils/time";
 import YtVideoComponent from "./videoYt";
 import VideoIaComponent from "./videoIa";
 import ClockInterval from "./clockInterval";
+import VideoNone from "./videoNone";
 
 const VideoComponent: FunctionComponent = () => {
   const { selectedDate, appSecondsAtStartStop, isRunning, startStopTimestamp } = useStateClock();
@@ -102,7 +103,7 @@ const VideoComponent: FunctionComponent = () => {
     return (
       <>
         <ClockInterval setAppSeconds={setAppSeconds} />
-        <div>No video available for current time</div>
+        <VideoNone />
       </>
     );
   }
@@ -110,7 +111,7 @@ const VideoComponent: FunctionComponent = () => {
   return (
     <>
       <ClockInterval setAppSeconds={setAppSeconds} />
-      <div>No video available for this date</div>
+      <VideoNone />
     </>
   );
 };
