@@ -1,4 +1,4 @@
-import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
+import { FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowsSpin, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photos.module.css";
@@ -20,41 +20,27 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     selectedDate || ""
   );
 
-  const isLoading = earthPhotographyIsLoading || flickrPhotosIsLoading;
+  // State
+  const [visibleImages, setVisibleImages] = useState<Set<number>>(new Set());
+  const [appSeconds, setAppSeconds] = useState(0);
+  const [mostRecentImage, setMostRecentImage] = useState(null);
+  const [isHoveringContainer, setIsHoveringContainer] = useState(false);
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const [clickedPhotoFilename, setClickedPhotoFilename] = useState<string | null>(null);
+  const [lastAppSeconds, setLastAppSeconds] = useState<number | null>(null);
 
+  // Refs (only for values that don't trigger re-renders)
+  const observer = useRef<IntersectionObserver | null>(null);
+  const thumbnailsContainerRef = useRef<HTMLDivElement>(null);
+  const isProgrammaticScrollingRef = useRef(false);
+  const isPointerDownRef = useRef(false);
+
+  // Computed values
+  const isLoading = earthPhotographyIsLoading || flickrPhotosIsLoading;
   const hasEarthPhotos = earthPhotographyItems.length > 0;
   const hasMissionPhotos = flickrPhotosItems.length > 0;
 
-  // Smart toggle preservation: ensure at least one photo type is enabled if available
-  useEffect(() => {
-    // Skip if data is still loading or no date selected
-    if (isLoading || !selectedDate) return;
-
-    // Check if current toggle state would result in no photos being shown
-    const wouldShowEarthPhotos = showEarthPhotos && hasEarthPhotos;
-    const wouldShowMissionPhotos = showMissionPhotos && hasMissionPhotos;
-    const wouldShowAnyPhotos = wouldShowEarthPhotos || wouldShowMissionPhotos;
-
-    // If no photos would be shown but we have photos available, enable at least one type
-    if (!wouldShowAnyPhotos && (hasEarthPhotos || hasMissionPhotos)) {
-      // Priority: enable earth photos if available, otherwise mission photos
-      if (hasEarthPhotos && !showEarthPhotos) {
-        setShowEarthPhotos(true);
-      } else if (hasMissionPhotos && !showMissionPhotos) {
-        setShowMissionPhotos(true);
-      }
-    }
-  }, [
-    selectedDate,
-    isLoading,
-    hasEarthPhotos,
-    hasMissionPhotos,
-    showEarthPhotos,
-    showMissionPhotos,
-    setShowEarthPhotos,
-    setShowMissionPhotos,
-  ]);
-
+  // Combined and sorted photos
   const photoItemsCombined = useMemo(() => {
     const earthPhotos = showEarthPhotos ? earthPhotographyItems : [];
     const missionPhotos = showMissionPhotos ? flickrPhotosItems : [];
@@ -64,75 +50,52 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     );
   }, [earthPhotographyItems, flickrPhotosItems, showEarthPhotos, showMissionPhotos]);
 
+  // URL generation
   const issirtDataBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL.replace("\\x3a", ":");
   const flickrBaseUrl = "https://live.staticflickr.com";
 
-  // Function to generate image URL based on type and size
-  const getImageUrl = (photoItem: PhotoItem, size: "thumb" | "medium" | "large") => {
-    const { type } = photoItem;
+  const getImageUrl = useCallback(
+    (photoItem: PhotoItem, size: "thumb" | "medium" | "large") => {
+      const { type } = photoItem;
 
-    switch (type) {
-      case "photos_earth":
-        // Use existing smallUrl and largeUrl
-        if (size === "thumb") {
-          return `${issirtDataBaseUrl}/${photoItem.smallUrl}`;
-        } else if (size === "medium") {
-          return `${issirtDataBaseUrl}/${photoItem.smallUrl}`; // photos_earth doesn't have medium, use small
-        } else if (size === "large") {
+      switch (type) {
+        case "photos_earth":
+          if (size === "thumb" || size === "medium") {
+            return `${issirtDataBaseUrl}/${photoItem.smallUrl}`;
+          }
           return `${issirtDataBaseUrl}/${photoItem.largeUrl}`;
-        }
-        break;
 
-      case "photos_flickr":
-        // Flickr photos have smallUrl, medUrl, and largeUrl - these are direct Flickr URLs
-        if (size === "thumb") {
-          return `${flickrBaseUrl}/${photoItem.smallUrl || ""}`;
-        } else if (size === "medium") {
-          return `${flickrBaseUrl}/${photoItem.medUrl || photoItem.smallUrl || ""}`;
-        } else if (size === "large") {
+        case "photos_flickr":
+          if (size === "thumb") {
+            return `${flickrBaseUrl}/${photoItem.smallUrl || ""}`;
+          } else if (size === "medium") {
+            return `${flickrBaseUrl}/${photoItem.medUrl || photoItem.smallUrl || ""}`;
+          }
           return `${flickrBaseUrl}/${photoItem.largeUrl || photoItem.medUrl || photoItem.smallUrl || ""}`;
-        }
-        break;
+
+        default:
+          return "";
+      }
+    },
+    [issirtDataBaseUrl, flickrBaseUrl]
+  );
+
+  // Auto-scroll management
+  const disableAutoScroll = useCallback(() => {
+    if (isAutoScrollEnabled && !isProgrammaticScrollingRef.current) {
+      setIsAutoScrollEnabled(false);
     }
-  };
-
-  const [visibleImages, setVisibleImages] = useState<Set<number>>(new Set());
-  const [appSeconds, setAppSeconds] = useState(0);
-  const [mostRecentImage, setMostRecentImage] = useState(null);
-  const [isHoveringContainer, setIsHoveringContainer] = useState(false);
-  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
-  const [clickedPhotoFilename, setClickedPhotoFilename] = useState<string | null>(null);
-
-  const observer = useRef<IntersectionObserver | null>(null);
-  const thumbnailsContainerRef = useRef<HTMLDivElement>(null);
-  const lastAppSecondsRef = useRef<number | null>(null);
-  const isProgrammaticScrollingRef = useRef(false);
-  const isPointerDownRef = useRef(false);
-  const lastSelectedDateRef = useRef<string | null>(null);
+  }, [isAutoScrollEnabled]);
 
   // Smart toggle preservation: ensure at least one photo type is enabled if available
-  // Only runs when the date changes, not when toggles change
   useEffect(() => {
-    // Skip if data is still loading or no date selected
     if (isLoading || !selectedDate) return;
 
-    // Only run when the date actually changes
-    if (lastSelectedDateRef.current === selectedDate) return;
-
-    // Update the last selected date
-    lastSelectedDateRef.current = selectedDate;
-
-    // If both photo types are available, we don't need to do anything
-    if (hasEarthPhotos && hasMissionPhotos) return;
-
-    // Check if current toggle state would result in no photos being shown
     const wouldShowEarthPhotos = showEarthPhotos && hasEarthPhotos;
     const wouldShowMissionPhotos = showMissionPhotos && hasMissionPhotos;
     const wouldShowAnyPhotos = wouldShowEarthPhotos || wouldShowMissionPhotos;
 
-    // If no photos would be shown but we have photos available, enable at least one type
     if (!wouldShowAnyPhotos && (hasEarthPhotos || hasMissionPhotos)) {
-      // Priority: enable earth photos if available, otherwise mission photos
       if (hasEarthPhotos && !showEarthPhotos) {
         setShowEarthPhotos(true);
       } else if (hasMissionPhotos && !showMissionPhotos) {
@@ -150,6 +113,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     setShowMissionPhotos,
   ]);
 
+  // Intersection Observer for lazy loading
   useEffect(() => {
     observer.current = new IntersectionObserver(
       (entries) => {
@@ -164,7 +128,6 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       { threshold: 0.1 }
     );
 
-    // Observe all thumbnail containers (they all exist now as placeholders)
     const elements = document.querySelectorAll(".lazy-load");
     elements.forEach((el) => observer.current?.observe(el));
 
@@ -173,28 +136,19 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     };
   }, [photoItemsCombined]);
 
-  // Handle scroll event detection
+  // Scroll event detection
   useEffect(() => {
     const container = thumbnailsContainerRef.current;
     if (!container) return;
 
-    const handleManualScroll = () => {
-      if (isAutoScrollEnabled && !isProgrammaticScrollingRef.current) {
-        setIsAutoScrollEnabled(false);
-      }
-    };
-
     const handleScroll = () => {
-      // Only disable autoscroll if this is a user-initiated scroll
-      // (pointer interaction) and not a programmatic scroll
       if (isPointerDownRef.current && !isProgrammaticScrollingRef.current) {
-        handleManualScroll();
+        disableAutoScroll();
       }
     };
 
-    const handleWheel = () => {
-      handleManualScroll();
-    };
+    const handleWheel = () => disableAutoScroll();
+    const handleTouchStart = () => disableAutoScroll();
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -210,22 +164,16 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
           " ",
         ].includes(e.key)
       ) {
-        handleManualScroll();
+        disableAutoScroll();
       }
     };
 
     const handlePointerDown = () => {
-      // Set pointer down for any interaction with the scrollable container
       isPointerDownRef.current = true;
     };
 
     const handlePointerUp = () => {
       isPointerDownRef.current = false;
-    };
-
-    const handleTouchStart = () => {
-      // Touch scrolling should also disable auto-scroll
-      handleManualScroll();
     };
 
     container.addEventListener("scroll", handleScroll, { passive: true });
@@ -243,24 +191,19 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       container.removeEventListener("pointerup", handlePointerUp);
       container.removeEventListener("touchstart", handleTouchStart);
     };
-  }, [isAutoScrollEnabled]);
+  }, [photoItemsCombined, disableAutoScroll]);
 
+  // Auto-scroll to current image
   useEffect(() => {
     if (!appSeconds) return;
 
-    // Clear clicked photo state when time changes (unless it's the first run)
-    if (
-      lastAppSecondsRef.current !== null &&
-      lastAppSecondsRef.current !== appSeconds &&
-      clickedPhotoFilename
-    ) {
+    // Clear clicked photo state when time changes
+    if (lastAppSeconds !== null && lastAppSeconds !== appSeconds && clickedPhotoFilename) {
       setClickedPhotoFilename(null);
     }
+    setLastAppSeconds(appSeconds);
 
-    // Update the last app seconds tracker
-    lastAppSecondsRef.current = appSeconds;
-
-    // Find all images at the current time
+    // Find images at current time or closest before
     const imagesAtCurrentTime = photoItemsCombined.filter((imageItem) => {
       const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
       return imageSeconds === appSeconds;
@@ -269,27 +212,22 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     let closestImageItem = null;
 
     if (imagesAtCurrentTime.length > 0) {
-      // If there are images at the exact current time, prioritize the clicked one
+      // Prioritize clicked image if available
       if (clickedPhotoFilename) {
         const clickedImage = imagesAtCurrentTime.find((img) => img.ID === clickedPhotoFilename);
-        if (clickedImage) {
-          closestImageItem = clickedImage;
-        } else {
-          closestImageItem = imagesAtCurrentTime[0];
-        }
+        closestImageItem = clickedImage || imagesAtCurrentTime[0];
       } else {
         closestImageItem = imagesAtCurrentTime[0];
       }
     } else {
-      // No images at exact current time, find the closest image before current time
+      // Find closest image before current time
       closestImageItem = photoItemsCombined[0] || null;
       if (closestImageItem) {
         let appSecondsDiff = null;
         for (const imageItem of photoItemsCombined) {
           const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
-          if (imageSeconds > appSeconds) {
-            break;
-          }
+          if (imageSeconds > appSeconds) break;
+
           const diff = Math.abs(appSeconds - imageSeconds);
           if (appSecondsDiff === null || diff <= appSecondsDiff) {
             appSecondsDiff = diff;
@@ -301,31 +239,47 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
 
     if (!closestImageItem) return;
 
-    // Only auto-scroll if enabled
+    // Auto-scroll if enabled
     if (isAutoScrollEnabled) {
       const closestImageTimeStr = closestImageItem.dateTaken.split("T")[1];
       const targetElement = document.querySelector(`[data-time="${closestImageTimeStr}"]`);
 
       if (targetElement) {
-        // Set flag to indicate this is programmatic scrolling
         isProgrammaticScrollingRef.current = true;
         targetElement.scrollIntoView({ behavior: "instant" });
 
-        // Clear the flag after a short delay to allow for the scroll event to fire
         setTimeout(() => {
           isProgrammaticScrollingRef.current = false;
         }, 100);
       }
     }
 
+    // Update most recent image
     if (closestImageItem.ID !== mostRecentImage?.ID) {
       setMostRecentImage(closestImageItem);
     }
-  }, [appSeconds, photoItemsCombined, mostRecentImage, isAutoScrollEnabled, clickedPhotoFilename]);
+  }, [
+    appSeconds,
+    photoItemsCombined,
+    mostRecentImage,
+    isAutoScrollEnabled,
+    clickedPhotoFilename,
+    lastAppSeconds,
+  ]);
+
+  const handleThumbnailClick = useCallback(
+    (item: PhotoItem) => {
+      const targetTime = appSecondsFromTimeStr(item.dateTaken.split("T")[1]);
+      setClock(targetTime);
+      setClickedPhotoFilename(item.ID);
+    },
+    [setClock]
+  );
 
   if (isLoading) {
     return <div>Loading Photos...</div>;
   }
+
   return (
     <div
       className={styles.imageComponentContainer}
@@ -334,14 +288,17 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     >
       {hasEarthPhotos && hasMissionPhotos && <PhotoToggle isVisible={isHoveringContainer} />}
       <ClockInterval setAppSeconds={setAppSeconds} />
+
       <div
         className={styles.currentImage}
         style={height === "short" ? { maxHeight: "35vh" } : undefined}
         role="button"
         tabIndex={0}
-        onClick={() => window.open(getImageUrl(mostRecentImage, "large"), "_blank")}
+        onClick={() =>
+          mostRecentImage && window.open(getImageUrl(mostRecentImage, "large"), "_blank")
+        }
         onKeyUp={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
+          if ((e.key === "Enter" || e.key === " ") && mostRecentImage) {
             window.open(getImageUrl(mostRecentImage, "large"), "_blank");
           }
         }}
@@ -368,12 +325,11 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
           </div>
         )}
       </div>
+
       <div
         className={styles.imageThumbsContainer}
         ref={thumbnailsContainerRef}
-        onDoubleClick={() => {
-          setIsAutoScrollEnabled(!isAutoScrollEnabled);
-        }}
+        onDoubleClick={() => setIsAutoScrollEnabled(!isAutoScrollEnabled)}
       >
         {photoItemsCombined.map((item, index) => (
           <div
@@ -386,21 +342,14 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
               className={styles.thumbContent}
               role="button"
               tabIndex={0}
-              onClick={() => {
-                const targetTime = appSecondsFromTimeStr(item.dateTaken.split("T")[1]);
-                setClock(targetTime);
-                setClickedPhotoFilename(item.ID);
-              }}
+              onClick={() => handleThumbnailClick(item)}
               onKeyUp={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
-                  const targetTime = appSecondsFromTimeStr(item.dateTaken.split("T")[1]);
-                  setClock(targetTime);
-                  setClickedPhotoFilename(item.ID);
+                  handleThumbnailClick(item);
                 }
               }}
               onPointerDown={(e) => {
-                // Prevent the container's pointer down handler from triggering
-                // when clicking on thumbnails (we want thumbnails to not disable autoscroll)
+                // Prevent container's pointer handler from triggering for thumbnail clicks
                 e.stopPropagation();
               }}
             >
@@ -420,15 +369,14 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
           </div>
         ))}
       </div>
+
       {!isAutoScrollEnabled && (
         <button
           className={styles.autoScrollButton}
-          onClick={() => {
-            setIsAutoScrollEnabled(true);
-          }}
+          onClick={() => setIsAutoScrollEnabled(true)}
           type="button"
           data-tooltip-id="source-button-tooltip"
-          data-tooltip-content={"Re-enable automatic scrolling"}
+          data-tooltip-content="Re-enable automatic scrolling"
           data-tooltip-place="left"
         >
           <FontAwesomeIcon icon={faArrowsSpin} />
