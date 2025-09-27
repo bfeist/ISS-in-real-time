@@ -41,6 +41,9 @@ export const initializePaperCanvas = ({
   project.activeLayer.addChild(clockCursorGroup);
   project.activeLayer.addChild(hoverCursorGroup);
 
+  // Track the last rendered clock cursor so we can restore it after redraws
+  let lastClockCursorSeconds: number | null = null;
+
   // Constants
   const COLORS = {
     clockCursor: "#d10b0b", // Red for clock cursor
@@ -659,6 +662,9 @@ export const initializePaperCanvas = ({
     clockCursorGroup.addChild(textBg);
     clockCursorGroup.addChild(timeText);
 
+    // Remember the last drawn position so it can be restored after redraws
+    lastClockCursorSeconds = seconds;
+
     // Ensure the view is updated after drawing clock cursor
     if (project && project.view) {
       project.view.update();
@@ -805,6 +811,11 @@ export const initializePaperCanvas = ({
             project.view.requestUpdate();
           }
         }
+
+        // After the redraw, restore the clock cursor if we have a previous value
+        if (lastClockCursorSeconds !== null) {
+          drawClockCursor(lastClockCursorSeconds);
+        }
       } catch (error) {
         console.error("Error in timelineDay drawPaperItems:", error);
       }
@@ -842,6 +853,8 @@ export const initializePaperCanvas = ({
     if (hoverCursorGroup) {
       hoverCursorGroup.removeChildren();
     }
+
+    lastClockCursorSeconds = null;
 
     // Note: Don't remove the project here - it will be removed by the scope cleanup in the container
   };

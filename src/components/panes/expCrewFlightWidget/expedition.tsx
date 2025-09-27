@@ -30,32 +30,41 @@ const Expeditions: FunctionComponent = () => {
 
       return `
       @keyframes expedition-fade-${index} {
-        0% { opacity: 0; }
-        ${startTime}% { opacity: 0; }
-        ${startTime + fadePercent}% { opacity: 1; }
-        ${endTime - fadePercent}% { opacity: 1; }
-        ${endTime}% { opacity: 0; }
-        100% { opacity: 0; }
+        0% { opacity: 0; visibility: hidden; }
+        ${startTime}% { opacity: 0; visibility: hidden; }
+        ${startTime + fadePercent}% { opacity: 1; visibility: visible; }
+        ${endTime - fadePercent}% { opacity: 1; visibility: visible; }
+        ${endTime}% { opacity: 0; visibility: hidden; }
+        100% { opacity: 0; visibility: hidden; }
       }
     `;
     })
     .join("\n");
 
-  const renderExpedition = (expedition: ExpeditionInfo) => (
-    <>
-      <div className={styles.expeditionTitle}>Expedition {expedition.expedition}</div>
-      <div className={styles.expeditionBody}>
-        <img
-          className={styles.patchImg}
-          src={expedition.patchUrl}
-          alt={expedition.expedition.toString()}
-        />
-        <div className={styles.expeditionBlurb}>
-          <p>{expedition.expeditionBlurb}</p>
+  const renderExpedition = (expedition: ExpeditionInfo) => {
+    const expeditionUrl = `https://www.nasa.gov/mission/expedition-${expedition.expedition}`;
+
+    return (
+      <a
+        className={styles.expeditionLink}
+        href={expeditionUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <div className={styles.expeditionTitle}>Expedition {expedition.expedition}</div>
+        <div className={styles.expeditionBody}>
+          <img
+            className={styles.patchImg}
+            src={expedition.patchUrl}
+            alt={expedition.expedition.toString()}
+          />
+          <div className={styles.expeditionBlurb}>
+            <p>{expedition.expeditionBlurb}</p>
+          </div>
         </div>
-      </div>
-    </>
-  );
+      </a>
+    );
+  };
 
   return (
     <>

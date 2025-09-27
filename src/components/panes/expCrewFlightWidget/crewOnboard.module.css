@@ -79,6 +79,12 @@
   font-size: 0.9em;
   font-weight: 500;
   color: var(--highlight);
+  text-decoration: none;
+}
+
+.crewName:hover,
+.crewName:focus-visible {
+  text-decoration: underline;
 }
 
 .timeOnboard {

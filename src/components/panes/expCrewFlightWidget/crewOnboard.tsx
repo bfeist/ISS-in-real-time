@@ -33,38 +33,48 @@ const CrewOnboard: FunctionComponent = () => {
       </div>
       <div className={styles.crewOnboard}>
         <ClockInterval setAppSeconds={setAppSeconds} />
-        {crewOnboard.map((crewItem) => (
-          <div key={`${crewItem.arrivalDate}_${crewItem.name_first}_${crewItem.name_last}`}>
-            <div className={styles.crewItem}>
-              <div className={styles.flagContainer}>
-                <img
-                  className={styles.flag}
-                  src={flagUrlByCountryName[crewItem.nationality]}
-                  alt={crewItem.nationality}
-                />
+        {crewOnboard.map((crewItem) => {
+          const crewFullName = `${crewItem.name_first} ${crewItem.name_last}`.trim();
+          const wikipediaSearchUrl = `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(crewFullName)}`;
+
+          return (
+            <div key={`${crewItem.arrivalDate}_${crewItem.name_first}_${crewItem.name_last}`}>
+              <div className={styles.crewItem}>
+                <div className={styles.flagContainer}>
+                  <img
+                    className={styles.flag}
+                    src={flagUrlByCountryName[crewItem.nationality]}
+                    alt={crewItem.nationality}
+                  />
+                </div>
+                <div className={styles.crewText}>
+                  <a
+                    className={styles.crewName}
+                    href={wikipediaSearchUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {crewFullName}
+                  </a>
+                </div>
               </div>
-              <div className={styles.crewText}>
-                <div className={styles.crewName}>
-                  {crewItem.name_first} {crewItem.name_last}
+              <div className={styles.timeOnboard}>
+                <div>
+                  <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowUp} />
+                  {ddhhmmssBetweenDateStrings(crewItem.arrivalDate, currentTimeStr)}
+                </div>
+                <div>
+                  {crewItem.departureDate !== null && (
+                    <>
+                      <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowDown} />
+                      {ddhhmmssBetweenDateStrings(currentTimeStr, crewItem.departureDate)}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
-            <div className={styles.timeOnboard}>
-              <div>
-                <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowUp} />
-                {ddhhmmssBetweenDateStrings(crewItem.arrivalDate, currentTimeStr)}
-              </div>
-              <div>
-                {crewItem.departureDate !== null && (
-                  <>
-                    <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowDown} />
-                    {ddhhmmssBetweenDateStrings(currentTimeStr, crewItem.departureDate)}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
