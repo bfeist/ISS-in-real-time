@@ -235,6 +235,14 @@ const Comm: FunctionComponent = () => {
       }
     };
 
+    const handleTouchStart = () => {
+      isPointerDownRef.current = true;
+    };
+
+    const handleTouchEnd = () => {
+      isPointerDownRef.current = false;
+    };
+
     const handlePointerUp = () => {
       isPointerDownRef.current = false;
     };
@@ -244,6 +252,9 @@ const Comm: FunctionComponent = () => {
     container.addEventListener("keydown", handleKeyDown);
     container.addEventListener("pointerdown", handlePointerDown);
     container.addEventListener("pointerup", handlePointerUp);
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+    container.addEventListener("touchcancel", handleTouchEnd, { passive: true });
 
     return () => {
       container.removeEventListener("scroll", handleScroll);
@@ -251,6 +262,9 @@ const Comm: FunctionComponent = () => {
       container.removeEventListener("keydown", handleKeyDown);
       container.removeEventListener("pointerdown", handlePointerDown);
       container.removeEventListener("pointerup", handlePointerUp);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchcancel", handleTouchEnd);
     };
   }, [isAutoScrollEnabled]);
 
