@@ -50,6 +50,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   const thumbnailsContainerRef = useRef<HTMLDivElement>(null);
   const isProgrammaticScrollingRef = useRef(false);
   const isPointerDownRef = useRef(false);
+  const userScrollIntentRef = useRef(false);
   const previousStartStopTimestampRef = useRef<string | null>(null);
 
   // Auto-scroll management
@@ -211,8 +212,14 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     if (!container) return;
 
     const handleScroll = () => {
-      // Disable auto-scroll on user interaction
-      disableAutoScroll();
+      const isUserInitiatedScroll =
+        (isPointerDownRef.current || userScrollIntentRef.current) &&
+        !isProgrammaticScrollingRef.current;
+
+      if (isUserInitiatedScroll) {
+        disableAutoScroll();
+        userScrollIntentRef.current = false;
+      }
 
       // Edge detection for window expansion
       if (windowedPhotos.length === 0) return;
@@ -235,8 +242,22 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     };
 
     // Other scroll-related event handlers
-    const handleWheel = () => disableAutoScroll();
-    const handleTouchStart = () => disableAutoScroll();
+    const handleWheel = () => {
+      userScrollIntentRef.current = true;
+      if (isProgrammaticScrollingRef.current) {
+        return;
+      }
+      disableAutoScroll();
+      userScrollIntentRef.current = false;
+    };
+    const handleTouchStart = () => {
+      userScrollIntentRef.current = true;
+      if (isProgrammaticScrollingRef.current) {
+        return;
+      }
+      disableAutoScroll();
+      userScrollIntentRef.current = false;
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
         [
@@ -251,14 +272,25 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
           " ",
         ].includes(e.key)
       ) {
+        userScrollIntentRef.current = true;
+        if (isProgrammaticScrollingRef.current) {
+          return;
+        }
         disableAutoScroll();
+        userScrollIntentRef.current = false;
       }
     };
     const handlePointerDown = () => {
       isPointerDownRef.current = true;
+      userScrollIntentRef.current = true;
     };
     const handlePointerUp = () => {
       isPointerDownRef.current = false;
+      userScrollIntentRef.current = false;
+    };
+    const handlePointerCancel = () => {
+      isPointerDownRef.current = false;
+      userScrollIntentRef.current = false;
     };
 
     // Add event listeners
@@ -267,6 +299,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     container.addEventListener("keydown", handleKeyDown);
     container.addEventListener("pointerdown", handlePointerDown);
     container.addEventListener("pointerup", handlePointerUp);
+    container.addEventListener("pointercancel", handlePointerCancel);
     container.addEventListener("touchstart", handleTouchStart, { passive: true });
 
     return () => {
@@ -275,6 +308,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       container.removeEventListener("keydown", handleKeyDown);
       container.removeEventListener("pointerdown", handlePointerDown);
       container.removeEventListener("pointerup", handlePointerUp);
+      container.removeEventListener("pointercancel", handlePointerCancel);
       container.removeEventListener("touchstart", handleTouchStart);
     };
   }, [
