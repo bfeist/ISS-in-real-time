@@ -17,6 +17,7 @@ interface MegaYearOverlayProps {
   startMonth?: number; // 0-based month index (0 = January)
   endMonth?: number; // 0-based month index (11 = December)
   selectedDate?: string | null;
+  externalCursorPosition?: { x: number; y: number } | null;
 }
 
 // Mega Overlay Component for zoomed year view
@@ -30,6 +31,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   startMonth = 0, // Default to January
   endMonth = 11, // Default to December
   selectedDate,
+  externalCursorPosition,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -210,13 +212,23 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     setShowTimelineYears(false);
   };
 
-  const handleTouchGo = useCallback(() => {
-    if (pendingTouchDate) {
-      handleDateClick(pendingTouchDate);
+  const handleTouchGo = useCallback(
+    (date?: string | null) => {
+      const dateToSelect = date ?? pendingTouchDate ?? hoveredDate;
+
+      if (!dateToSelect) {
+        return;
+      }
+
+      handleDateClick(dateToSelect);
       setPendingTouchDate(null);
       setIsTouchInteraction(false);
-    }
-  }, [pendingTouchDate, handleDateClick]);
+      setHoveredDate(null);
+      setCursorPosition(null);
+      setShowTimelineYears(false);
+    },
+    [pendingTouchDate, hoveredDate, handleDateClick, setShowTimelineYears, setHoveredDate]
+  );
 
   const handleTouchCancel = useCallback(() => {
     setPendingTouchDate(null);
@@ -264,6 +276,13 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     };
   }, [hideTimeout]);
 
+  useEffect(() => {
+    if (externalCursorPosition) {
+      setCursorPosition(externalCursorPosition);
+      setIsTouchInteraction(true);
+    }
+  }, [externalCursorPosition]);
+
   if (!showTimelineYears) return null;
 
   return (
@@ -309,7 +328,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
 };
 
 // Helper function for mega overlay hit detection
-const getMegaDateFromCoordinates = (
+export const getMegaDateFromCoordinates = (
   x: number,
   y: number,
   year: number,

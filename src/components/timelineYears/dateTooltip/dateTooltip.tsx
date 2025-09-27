@@ -11,7 +11,7 @@ const DateTooltip: FunctionComponent<{
   hoveredDate: string | null;
   cursorPosition: { x: number; y: number } | null;
   isTouchInteraction: boolean;
-  onTouchGo: () => void;
+  onTouchGo: (date: string | null) => void;
   onTouchCancel: () => void;
   containerRef: React.RefObject<HTMLDivElement>;
 }> = ({
@@ -23,6 +23,8 @@ const DateTooltip: FunctionComponent<{
   containerRef,
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const goButtonTouchActiveRef = useRef(false);
+  const cancelButtonTouchActiveRef = useRef(false);
 
   // Extract data from React Query hooks
   const { data: dataAvailabilityItems } = useGeneralDataAvailabilities();
@@ -98,8 +100,75 @@ const DateTooltip: FunctionComponent<{
     };
   }, [cursorPosition, hoveredDate, isTouchInteraction, containerRef]);
 
+  const stopEventPropagation = (event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  };
+
+  const handleGoButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (goButtonTouchActiveRef.current) {
+      goButtonTouchActiveRef.current = false;
+      return;
+    }
+    onTouchGo(hoveredDate);
+  };
+
+  const handleGoButtonTouchStart = (event: React.TouchEvent<HTMLButtonElement>) => {
+    goButtonTouchActiveRef.current = true;
+    event.stopPropagation();
+    event.preventDefault();
+  };
+
+  const handleGoButtonTouchEnd = (event: React.TouchEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    event.preventDefault();
+    onTouchGo(hoveredDate);
+    goButtonTouchActiveRef.current = false;
+  };
+
+  const handleGoButtonTouchCancel = (event: React.TouchEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    event.preventDefault();
+    goButtonTouchActiveRef.current = false;
+  };
+
+  const handleCancelButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (cancelButtonTouchActiveRef.current) {
+      cancelButtonTouchActiveRef.current = false;
+      return;
+    }
+    onTouchCancel();
+  };
+
+  const handleCancelButtonTouchStart = (event: React.TouchEvent<HTMLButtonElement>) => {
+    cancelButtonTouchActiveRef.current = true;
+    event.stopPropagation();
+    event.preventDefault();
+  };
+
+  const handleCancelButtonTouchEnd = (event: React.TouchEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    event.preventDefault();
+    onTouchCancel();
+    cancelButtonTouchActiveRef.current = false;
+  };
+
+  const handleCancelButtonTouchCancel = (event: React.TouchEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    event.preventDefault();
+    cancelButtonTouchActiveRef.current = false;
+  };
+
   return (
-    <div ref={tooltipRef} className={styles.dateTooltip} style={getTooltipStyle()}>
+    <div
+      ref={tooltipRef}
+      className={styles.dateTooltip}
+      style={getTooltipStyle()}
+      onTouchStart={stopEventPropagation}
+      onTouchMove={stopEventPropagation}
+      onTouchEnd={stopEventPropagation}
+    >
       {hoveredDate && (
         <>
           <div className={styles.tooltipHeader}>
@@ -110,12 +179,25 @@ const DateTooltip: FunctionComponent<{
               )}
               {isTouchInteraction && (
                 <div className={styles.tooltipButtons}>
-                  <button className={styles.tooltipGoButton} onClick={onTouchGo} type="button">
+                  <button
+                    className={styles.tooltipGoButton}
+                    onClick={handleGoButtonClick}
+                    onTouchStart={handleGoButtonTouchStart}
+                    onTouchMove={stopEventPropagation}
+                    onTouchEnd={handleGoButtonTouchEnd}
+                    onTouchCancel={handleGoButtonTouchCancel}
+                    type="button"
+                    disabled={!hoveredDate}
+                  >
                     Go
                   </button>
                   <button
                     className={styles.tooltipCancelButton}
-                    onClick={onTouchCancel}
+                    onClick={handleCancelButtonClick}
+                    onTouchStart={handleCancelButtonTouchStart}
+                    onTouchMove={stopEventPropagation}
+                    onTouchEnd={handleCancelButtonTouchEnd}
+                    onTouchCancel={handleCancelButtonTouchCancel}
                     type="button"
                     title="Close"
                   >
