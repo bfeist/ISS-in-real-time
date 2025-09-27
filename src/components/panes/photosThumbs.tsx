@@ -94,12 +94,44 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   const expandWindowStart = useCallback(() => {
     if (windowStartIndex <= 0) return; // Already at beginning of full photo set
 
+    const container = thumbnailsContainerRef.current;
+    if (!container) return;
+
     const newStart = Math.max(0, windowStartIndex - 20);
     const additionalPhotos = photoItemsCombined.slice(newStart, windowStartIndex);
 
-    setWindowedPhotos((prev) => [...additionalPhotos, ...prev]);
+    // Mark as programmatic to prevent scroll events from disabling auto-scroll
+    isProgrammaticScrollingRef.current = true;
+
+    // Save current scroll position before adding photos
+    const currentScrollLeft = container.scrollLeft;
+    const currentScrollWidth = container.scrollWidth;
+
+    setWindowedPhotos((prev) => {
+      const newWindowedPhotos = [...additionalPhotos, ...prev];
+
+      // If the number of photos exceeds 200, reset the view
+      if (newWindowedPhotos.length > 200 && mostRecentImage) {
+        calculateInitialWindow(mostRecentImage);
+        return [];
+      }
+
+      return newWindowedPhotos;
+    });
     setWindowStartIndex(newStart);
-  }, [windowStartIndex, photoItemsCombined]);
+
+    // Adjust scroll position after DOM update to maintain visual position
+    requestAnimationFrame(() => {
+      const newScrollWidth = container.scrollWidth;
+      const scrollDiff = newScrollWidth - currentScrollWidth;
+      container.scrollLeft = currentScrollLeft + scrollDiff;
+
+      // Reset flag after position adjustment
+      requestAnimationFrame(() => {
+        isProgrammaticScrollingRef.current = false;
+      });
+    });
+  }, [windowStartIndex, photoItemsCombined, mostRecentImage, calculateInitialWindow]);
 
   const expandWindowEnd = useCallback(() => {
     if (windowEndIndex >= photoItemsCombined.length - 1) return; // Already at end of full photo set
@@ -107,9 +139,27 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     const newEnd = Math.min(photoItemsCombined.length, windowEndIndex + 21);
     const additionalPhotos = photoItemsCombined.slice(windowEndIndex + 1, newEnd);
 
-    setWindowedPhotos((prev) => [...prev, ...additionalPhotos]);
+    // Mark as programmatic to prevent scroll events from disabling auto-scroll
+    isProgrammaticScrollingRef.current = true;
+
+    setWindowedPhotos((prev) => {
+      const newWindowedPhotos = [...prev, ...additionalPhotos];
+
+      // If the number of photos exceeds 200, reset the view
+      if (newWindowedPhotos.length > 200 && mostRecentImage) {
+        calculateInitialWindow(mostRecentImage);
+        return [];
+      }
+
+      return newWindowedPhotos;
+    });
     setWindowEndIndex(newEnd - 1);
-  }, [windowEndIndex, photoItemsCombined]);
+
+    // Reset flag after DOM updates
+    requestAnimationFrame(() => {
+      isProgrammaticScrollingRef.current = false;
+    });
+  }, [windowEndIndex, photoItemsCombined, mostRecentImage, calculateInitialWindow]);
 
   // Clock jump detection - Reset window when user manually changes time
   useEffect(() => {
