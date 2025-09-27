@@ -49,7 +49,12 @@ const HomePage: FunctionComponent = (): JSX.Element => {
           />
         )}
       </div>
-      <Tooltip id="source-button-tooltip" className="tooltip-style" delayShow={500} />
+      <Tooltip
+        id="source-button-tooltip"
+        className="tooltip-style"
+        delayShow={500}
+        closeEvents={{ mouseout: true, mouseleave: true, blur: true, click: true }}
+      />
     </div>
   );
 };
