@@ -105,74 +105,208 @@ export const initializePaperCanvas = ({
   // Create tool after scope is activated
   // Tools are automatically associated with the current project when created
 
-  // Mouse event handlers using direct DOM events instead of Paper.js tool events
-  const handleCanvasMouseMove = (event: MouseEvent) => {
-    if (!project.view) return;
-
-    paperScope.activate(); // Activate scope for mouse events
-
+  const getRelativePosition = (clientX: number, clientY?: number) => {
     const rect = canvasElement.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-
-    const _timelineWidth = getTimelineWidth();
-    const pixelsPerSecond = getPixelsPerSecond();
-
-    // Only check horizontal bounds - allow hover cursor anywhere vertically on canvas
-    if (x < LEFT_MARGIN || x > LEFT_MARGIN + _timelineWidth) {
-      hoverCursorGroup.removeChildren();
-      if (project && project.view) {
-        project.view.update();
-      }
-      return;
-    }
-
-    const seconds = Math.floor((x - LEFT_MARGIN) / pixelsPerSecond);
-    if (seconds >= 0 && seconds < SECONDS_IN_24_HOURS) {
-      drawHoverCursor(seconds);
-      hoverSecondsSetter?.(seconds);
-    }
+    return {
+      x: clientX - rect.left,
+      y: typeof clientY === "number" ? clientY - rect.top : undefined,
+    };
   };
 
-  const handleCanvasClick = (event: MouseEvent) => {
-    if (!project.view) return;
-
-    paperScope.activate(); // Activate scope for mouse events
-
-    const rect = canvasElement.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-
-    const _timelineWidth = getTimelineWidth();
-    const pixelsPerSecond = getPixelsPerSecond();
-
-    // Check if click is within the timeline area
-    if (x < LEFT_MARGIN || x > LEFT_MARGIN + _timelineWidth) {
-      return;
+  const getSecondsFromClientX = (clientX: number): number | null => {
+    const { x } = getRelativePosition(clientX);
+    const timelineWidth = getTimelineWidth();
+    if (x < LEFT_MARGIN || x > LEFT_MARGIN + timelineWidth) {
+      return null;
     }
+    const seconds = Math.floor((x - LEFT_MARGIN) / getPixelsPerSecond());
+    if (seconds < 0 || seconds >= SECONDS_IN_24_HOURS) {
+      return null;
+    }
+    return seconds;
+  };
 
-    // Check if click is within the data rows area
+  const isPointWithinTimeline = (clientX: number, clientY: number): boolean => {
+    const { x, y } = getRelativePosition(clientX, clientY);
+    const timelineWidth = getTimelineWidth();
     const timelineBottom = TOP_MARGIN + getTotalDataRowsHeight();
-    if (y < TOP_MARGIN || y > timelineBottom) {
-      return;
+
+    if (x < LEFT_MARGIN || x > LEFT_MARGIN + timelineWidth) {
+      return false;
     }
 
-    const seconds = Math.floor((x - LEFT_MARGIN) / pixelsPerSecond);
-    if (seconds >= 0 && seconds < SECONDS_IN_24_HOURS && onTimelineClick) {
-      onTimelineClick(seconds);
+    if (typeof y !== "number") {
+      return true;
     }
+
+    return y >= TOP_MARGIN && y <= timelineBottom;
   };
 
-  // Add event listeners directly to the canvas
-  canvasElement.addEventListener("mousemove", handleCanvasMouseMove);
-  canvasElement.addEventListener("mousedown", handleCanvasClick); // Using mousedown to match original onMouseDown behavior
-
-  // Function to clear hover cursor - will be called from container level
-  const clearHoverCursor = () => {
+  const removeHoverCursor = () => {
     if (project && project.view) {
       paperScope.activate();
       hoverCursorGroup.removeChildren();
       project.view.update();
     }
+  };
+
+  const applyHoverFromClientX = (clientX: number): number | null => {
+    const seconds = getSecondsFromClientX(clientX);
+    if (seconds === null) {
+      removeHoverCursor();
+      return null;
+    }
+
+    drawHoverCursor(seconds);
+    hoverSecondsSetter?.(seconds);
+    return seconds;
+  };
+
+  const TAP_MAX_MOVEMENT_PX = 12;
+  const TAP_MAX_DURATION_MS = 300;
+  let touchStartX: number | null = null;
+  let touchStartY: number | null = null;
+  let touchStartTime = 0;
+  let isTouchDragging = false;
+  let lastTouchSeconds: number | null = null;
+  let activeTouchId: number | null = null;
+
+  const findTouchById = (touchList: TouchList, id: number | null): Touch | null => {
+    if (id === null) {
+      return touchList.length ? touchList.item(0) : null;
+    }
+    for (let i = 0; i < touchList.length; i++) {
+      const touch = touchList.item(i);
+      if (touch && touch.identifier === id) {
+        return touch;
+      }
+    }
+    return null;
+  };
+
+  // Mouse event handlers using direct DOM events instead of Paper.js tool events
+  const handleCanvasMouseMove = (event: MouseEvent) => {
+    if (!project.view) return;
+
+    applyHoverFromClientX(event.clientX);
+  };
+
+  const handleCanvasClick = (event: MouseEvent) => {
+    if (!project.view) return;
+
+    const seconds = getSecondsFromClientX(event.clientX);
+    if (seconds === null) {
+      return;
+    }
+
+    if (!isPointWithinTimeline(event.clientX, event.clientY)) {
+      return;
+    }
+
+    if (onTimelineClick) {
+      onTimelineClick(seconds);
+    }
+  };
+
+  const handleCanvasTouchStart = (event: TouchEvent) => {
+    if (!project.view || !event.changedTouches.length) return;
+
+    const touch = event.changedTouches[0];
+    activeTouchId = touch.identifier;
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchStartTime = Date.now();
+    isTouchDragging = false;
+
+    const seconds = applyHoverFromClientX(touch.clientX);
+    lastTouchSeconds = seconds;
+  };
+
+  const handleCanvasTouchMove = (event: TouchEvent) => {
+    if (!project.view) return;
+
+    const touch = findTouchById(event.touches, activeTouchId);
+    if (!touch) {
+      return;
+    }
+
+    if (touchStartX !== null && touchStartY !== null && !isTouchDragging) {
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+      if (Math.hypot(deltaX, deltaY) > TAP_MAX_MOVEMENT_PX) {
+        isTouchDragging = true;
+      }
+    }
+
+    const seconds = applyHoverFromClientX(touch.clientX);
+    lastTouchSeconds = seconds ?? lastTouchSeconds;
+
+    event.preventDefault();
+  };
+
+  const handleCanvasTouchEnd = (event: TouchEvent) => {
+    if (!project.view) return;
+
+    const touch = findTouchById(event.changedTouches, activeTouchId);
+    if (!touch) {
+      return;
+    }
+
+    const duration = Date.now() - touchStartTime;
+    let seconds = getSecondsFromClientX(touch.clientX);
+    const releaseWithinTimeline =
+      typeof touch.clientY === "number" && isPointWithinTimeline(touch.clientX, touch.clientY);
+
+    if (seconds === null && lastTouchSeconds !== null && releaseWithinTimeline) {
+      seconds = lastTouchSeconds;
+    }
+
+    if (seconds !== null) {
+      lastTouchSeconds = seconds;
+    }
+
+    const wasTap = !isTouchDragging && duration <= TAP_MAX_DURATION_MS;
+    const shouldClick = seconds !== null && releaseWithinTimeline && (wasTap || isTouchDragging);
+
+    if (shouldClick && seconds !== null && onTimelineClick) {
+      onTimelineClick(seconds);
+    }
+
+    removeHoverCursor();
+    hoverSecondsSetter?.(null);
+    lastTouchSeconds = null;
+
+    activeTouchId = null;
+    touchStartX = null;
+    touchStartY = null;
+    touchStartTime = 0;
+    isTouchDragging = false;
+
+    event.preventDefault();
+  };
+
+  const handleCanvasTouchCancel = () => {
+    activeTouchId = null;
+    touchStartX = null;
+    touchStartY = null;
+    touchStartTime = 0;
+    isTouchDragging = false;
+    lastTouchSeconds = null;
+    removeHoverCursor();
+    hoverSecondsSetter?.(null);
+  };
+
+  // Add event listeners directly to the canvas
+  canvasElement.addEventListener("mousemove", handleCanvasMouseMove);
+  canvasElement.addEventListener("mousedown", handleCanvasClick); // Using mousedown to match original onMouseDown behavior
+  canvasElement.addEventListener("touchstart", handleCanvasTouchStart, { passive: false });
+  canvasElement.addEventListener("touchmove", handleCanvasTouchMove, { passive: false });
+  canvasElement.addEventListener("touchend", handleCanvasTouchEnd);
+  canvasElement.addEventListener("touchcancel", handleCanvasTouchCancel);
+
+  // Function to clear hover cursor - will be called from container level
+  const clearHoverCursor = () => {
+    removeHoverCursor();
   };
 
   const drawTimeTicks = (): paper.Group => {
@@ -690,6 +824,10 @@ export const initializePaperCanvas = ({
     // Remove canvas event listeners
     canvasElement.removeEventListener("mousemove", handleCanvasMouseMove);
     canvasElement.removeEventListener("mousedown", handleCanvasClick);
+    canvasElement.removeEventListener("touchstart", handleCanvasTouchStart);
+    canvasElement.removeEventListener("touchmove", handleCanvasTouchMove);
+    canvasElement.removeEventListener("touchend", handleCanvasTouchEnd);
+    canvasElement.removeEventListener("touchcancel", handleCanvasTouchCancel);
 
     // Activate scope before cleanup operations
     paperScope.activate();
