@@ -77,8 +77,13 @@ const Comm: FunctionComponent = () => {
 
   const availableChannels = getAvailableChannels();
 
+  type Channel5DisplayNames = {
+    channelName: string;
+    toggleString: string;
+  };
+
   // Function to determine what channel 5 toggle should display (DG-1 or AG-1)
-  const getChannel5DisplayName = useCallback((): string => {
+  const getChannel5DisplayNames = useCallback((): Channel5DisplayNames => {
     let hasDG = false;
     let hasAG = false;
 
@@ -95,11 +100,11 @@ const Comm: FunctionComponent = () => {
 
     // DG-1 takes priority, fall back to AG-1, or default to DG-1
     if (hasDG) {
-      return "DG-1";
+      return { channelName: "DG-1", toggleString: "Toggle Dragon-to-Ground 1" };
     } else if (hasAG) {
-      return "AG-1";
+      return { channelName: "AG-1", toggleString: "Toggle Air-to-Ground 1" };
     } else {
-      return "DG-1";
+      return { channelName: "DG-1", toggleString: "Toggle Dragon-to-Ground 1" };
     }
   }, [commItems]);
 
@@ -363,9 +368,14 @@ const Comm: FunctionComponent = () => {
           const isChannelAvailable = availableChannels.has(channelNum);
           const isChannelVisible = channelVisibility[channelNum];
 
+          const channel5names = getChannel5DisplayNames();
+
           // Get display name for channel 5, otherwise use SG-{channelNum}
           const channelDisplayName =
-            channelNum === 5 ? getChannel5DisplayName() : `SG-${channelNum}`;
+            channelNum === 5 ? channel5names.channelName : `SG-${channelNum}`;
+
+          const channelToggleTooltip =
+            channelNum === 5 ? channel5names.toggleString : `Toggle Space-to-ground ${channelNum}`;
 
           let toggleClassName;
           if (!isChannelAvailable) {
@@ -400,9 +410,12 @@ const Comm: FunctionComponent = () => {
               }}
               aria-pressed={isChannelVisible}
               aria-disabled={!isChannelAvailable}
-              aria-label={`Toggle ${channelDisplayName} channel ${
+              aria-label={`Toggle Space-to-ground ${channelNum} ${
                 !isChannelAvailable ? "(no data available)" : isChannelVisible ? "off" : "on"
               }`}
+              data-tooltip-id="source-button-tooltip"
+              data-tooltip-content={channelToggleTooltip}
+              data-tooltip-place="bottom"
             >
               {channelDisplayName}
               <FontAwesomeIcon icon={toggleIcon} className={styles.channelToggleIcon} />

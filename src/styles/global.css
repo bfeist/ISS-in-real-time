@@ -49,7 +49,7 @@ pre,
 
 .tooltip-style {
   z-index: 100;
-  background-color: var(--grey3) !important;
+  background-color: var(--grey4) !important;
   opacity: 1 !important;
 }
 
