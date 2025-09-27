@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowsSpin } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photosThumbs.module.css";
 import { appSecondsFromTimeStr } from "utils/time";
+import { useStateClock } from "store/hooks/useStateClock";
 
 interface PhotosThumbsProps {
   photoItemsCombined: PhotoItem[];
@@ -33,23 +34,104 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   setClickedPhotoFilename,
   setLastAppSeconds,
 }) => {
-  // State
+  // Global state
+  const { startStopTimestamp } = useStateClock();
+
+  // Window state for custom lazy loading
+  const [windowedPhotos, setWindowedPhotos] = useState<PhotoItem[]>([]);
+  const [windowStartIndex, setWindowStartIndex] = useState(0);
+  const [windowEndIndex, setWindowEndIndex] = useState(0);
+
+  // Lazy loading state
   const [visibleImages, setVisibleImages] = useState<Set<number>>(new Set());
 
-  // Refs (only for values that don't trigger re-renders)
+  // Refs
   const observer = useRef<IntersectionObserver | null>(null);
   const thumbnailsContainerRef = useRef<HTMLDivElement>(null);
   const isProgrammaticScrollingRef = useRef(false);
   const isPointerDownRef = useRef(false);
+  const previousStartStopTimestampRef = useRef<string | null>(null);
 
   // Auto-scroll management
   const disableAutoScroll = useCallback(() => {
-    if (isAutoScrollEnabled && !isProgrammaticScrollingRef.current) {
+    // Don't disable auto-scroll during programmatic scrolling
+    if (isProgrammaticScrollingRef.current) return;
+
+    if (isAutoScrollEnabled) {
       onDisableAutoScroll();
     }
   }, [isAutoScrollEnabled, onDisableAutoScroll]);
 
-  // Intersection Observer for lazy loading
+  // === WINDOW MANAGEMENT ===
+  const calculateInitialWindow = useCallback(
+    (centerPhoto: PhotoItem | null) => {
+      if (!centerPhoto || photoItemsCombined.length === 0) {
+        setWindowedPhotos([]);
+        setWindowStartIndex(0);
+        setWindowEndIndex(0);
+        return;
+      }
+
+      const centerIndex = photoItemsCombined.findIndex((photo) => photo.ID === centerPhoto.ID);
+      if (centerIndex === -1) {
+        setWindowedPhotos([]);
+        setWindowStartIndex(0);
+        setWindowEndIndex(0);
+        return;
+      }
+
+      const start = Math.max(0, centerIndex - 20);
+      const end = Math.min(photoItemsCombined.length, centerIndex + 21);
+      const window = photoItemsCombined.slice(start, end);
+
+      setWindowedPhotos(window);
+      setWindowStartIndex(start);
+      setWindowEndIndex(end - 1);
+    },
+    [photoItemsCombined]
+  );
+
+  const expandWindowStart = useCallback(() => {
+    if (windowStartIndex <= 0) return; // Already at beginning of full photo set
+
+    const newStart = Math.max(0, windowStartIndex - 20);
+    const additionalPhotos = photoItemsCombined.slice(newStart, windowStartIndex);
+
+    setWindowedPhotos((prev) => [...additionalPhotos, ...prev]);
+    setWindowStartIndex(newStart);
+  }, [windowStartIndex, photoItemsCombined]);
+
+  const expandWindowEnd = useCallback(() => {
+    if (windowEndIndex >= photoItemsCombined.length - 1) return; // Already at end of full photo set
+
+    const newEnd = Math.min(photoItemsCombined.length, windowEndIndex + 21);
+    const additionalPhotos = photoItemsCombined.slice(windowEndIndex + 1, newEnd);
+
+    setWindowedPhotos((prev) => [...prev, ...additionalPhotos]);
+    setWindowEndIndex(newEnd - 1);
+  }, [windowEndIndex, photoItemsCombined]);
+
+  // Clock jump detection - Reset window when user manually changes time
+  useEffect(() => {
+    if (!mostRecentImage) return;
+
+    const currentTimestamp = startStopTimestamp;
+    const previousTimestamp = previousStartStopTimestampRef.current;
+
+    // If this is the first time or startStopTimestamp has changed, reset window
+    const hasTimestampChanged =
+      previousTimestamp === null || currentTimestamp !== previousTimestamp;
+
+    if (hasTimestampChanged) {
+      calculateInitialWindow(mostRecentImage);
+    }
+
+    // Update the ref for next comparison
+    previousStartStopTimestampRef.current = currentTimestamp;
+  }, [startStopTimestamp, mostRecentImage, calculateInitialWindow]);
+
+  // === LAZY LOADING ===
+  // Intersection Observer for lazy loading images
   useEffect(() => {
     observer.current = new IntersectionObserver(
       (entries) => {
@@ -70,22 +152,41 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     return () => {
       observer.current?.disconnect();
     };
-  }, [photoItemsCombined]);
+  }, [windowedPhotos]);
 
-  // Scroll event detection
+  // === SCROLL HANDLING ===
+  // Scroll event detection and window expansion
   useEffect(() => {
     const container = thumbnailsContainerRef.current;
     if (!container) return;
 
     const handleScroll = () => {
-      if (!isProgrammaticScrollingRef.current) {
-        disableAutoScroll();
+      // Disable auto-scroll on user interaction
+      disableAutoScroll();
+
+      // Edge detection for window expansion
+      if (windowedPhotos.length === 0) return;
+
+      const scrollLeft = container.scrollLeft;
+      const scrollWidth = container.scrollWidth;
+      const clientWidth = container.clientWidth;
+
+      // Check if scrolled near start (within 3 thumbnails worth of space)
+      const nearStart = scrollLeft < 180; // Roughly 3 thumbnails × 60px each
+      if (nearStart && windowStartIndex > 0) {
+        expandWindowStart();
+      }
+
+      // Check if scrolled near end (within 3 thumbnails worth of space)
+      const nearEnd = scrollLeft + clientWidth > scrollWidth - 180;
+      if (nearEnd && windowEndIndex < photoItemsCombined.length - 1) {
+        expandWindowEnd();
       }
     };
 
+    // Other scroll-related event handlers
     const handleWheel = () => disableAutoScroll();
     const handleTouchStart = () => disableAutoScroll();
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
         [
@@ -103,15 +204,14 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
         disableAutoScroll();
       }
     };
-
     const handlePointerDown = () => {
       isPointerDownRef.current = true;
     };
-
     const handlePointerUp = () => {
       isPointerDownRef.current = false;
     };
 
+    // Add event listeners
     container.addEventListener("scroll", handleScroll, { passive: true });
     container.addEventListener("wheel", handleWheel, { passive: true });
     container.addEventListener("keydown", handleKeyDown);
@@ -127,11 +227,20 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       container.removeEventListener("pointerup", handlePointerUp);
       container.removeEventListener("touchstart", handleTouchStart);
     };
-  }, [photoItemsCombined, disableAutoScroll]);
+  }, [
+    windowedPhotos,
+    disableAutoScroll,
+    expandWindowStart,
+    expandWindowEnd,
+    windowStartIndex,
+    windowEndIndex,
+    photoItemsCombined.length,
+  ]);
 
-  // Auto-scroll to current image
+  // === AUTO-SCROLL MANAGEMENT ===
+  // Auto-scroll to current image based on appSeconds
   useEffect(() => {
-    if (!appSeconds) return;
+    if (!appSeconds || windowedPhotos.length === 0) return;
 
     // Clear clicked photo state when time changes
     if (lastAppSeconds !== null && lastAppSeconds !== appSeconds && clickedPhotoFilename) {
@@ -139,8 +248,8 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     }
     setLastAppSeconds(appSeconds);
 
-    // Find images at current time or closest before
-    const imagesAtCurrentTime = photoItemsCombined.filter((imageItem) => {
+    // Find images at current time or closest before in windowed photos
+    const imagesAtCurrentTime = windowedPhotos.filter((imageItem) => {
       const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
       return imageSeconds === appSeconds;
     });
@@ -156,19 +265,44 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
         closestImageItem = imagesAtCurrentTime[0];
       }
     } else {
-      // Find closest image before current time
-      closestImageItem = photoItemsCombined[0] || null;
-      if (closestImageItem) {
-        let appSecondsDiff = null;
-        for (const imageItem of photoItemsCombined) {
-          const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
-          if (imageSeconds > appSeconds) break;
+      // Check if target time is within the current window range
+      if (windowedPhotos.length > 0) {
+        const firstPhotoSeconds = appSecondsFromTimeStr(windowedPhotos[0].dateTaken.split("T")[1]);
+        const lastPhotoSeconds = appSecondsFromTimeStr(
+          windowedPhotos[windowedPhotos.length - 1].dateTaken.split("T")[1]
+        );
 
-          const diff = Math.abs(appSeconds - imageSeconds);
-          if (appSecondsDiff === null || diff <= appSecondsDiff) {
-            appSecondsDiff = diff;
-            closestImageItem = imageItem;
+        if (appSeconds >= firstPhotoSeconds && appSeconds <= lastPhotoSeconds) {
+          // Target time is within current window - find closest image
+          let appSecondsDiff = null;
+          for (const imageItem of windowedPhotos) {
+            const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
+            if (imageSeconds > appSeconds) break;
+
+            const diff = Math.abs(appSeconds - imageSeconds);
+            if (appSecondsDiff === null || diff <= appSecondsDiff) {
+              appSecondsDiff = diff;
+              closestImageItem = imageItem;
+            }
           }
+        } else {
+          // Target time is outside current window - trigger complete window reset
+          // Find the photo closest to target time in the full photo set
+          const targetPhoto = photoItemsCombined.reduce((closest, photo) => {
+            const photoSeconds = appSecondsFromTimeStr(photo.dateTaken.split("T")[1]);
+            const closestSeconds = appSecondsFromTimeStr(closest.dateTaken.split("T")[1]);
+
+            const photoDiff = Math.abs(appSeconds - photoSeconds);
+            const closestDiff = Math.abs(appSeconds - closestSeconds);
+
+            return photoDiff < closestDiff ? photo : closest;
+          });
+
+          // Reset the window around this target photo
+          calculateInitialWindow(targetPhoto);
+
+          // Don't set closestImageItem here - let the window reset effect handle scrolling
+          return;
         }
       }
     }
@@ -180,23 +314,40 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       const closestImageTimeStr = closestImageItem.dateTaken.split("T")[1];
       const targetElement = document.querySelector(`[data-time="${closestImageTimeStr}"]`);
 
-      if (targetElement) {
+      if (targetElement && thumbnailsContainerRef.current) {
         isProgrammaticScrollingRef.current = true;
-        targetElement.scrollIntoView({ behavior: "instant" });
 
-        setTimeout(() => {
+        // Center the target element in the viewport
+        const container = thumbnailsContainerRef.current;
+        const targetRect = targetElement.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        // Calculate the scroll position to center the element
+        const targetCenterX = targetRect.left + targetRect.width / 2;
+        const containerCenterX = containerRect.left + containerRect.width / 2;
+        const scrollOffset = targetCenterX - containerCenterX;
+
+        container.scrollBy({
+          left: scrollOffset,
+          behavior: "instant",
+        });
+
+        // Use requestAnimationFrame to reset flag after scroll completes
+        requestAnimationFrame(() => {
           isProgrammaticScrollingRef.current = false;
-        }, 100);
+        });
       }
     }
   }, [
     appSeconds,
-    photoItemsCombined,
+    windowedPhotos,
     isAutoScrollEnabled,
     clickedPhotoFilename,
     lastAppSeconds,
     setClickedPhotoFilename,
     setLastAppSeconds,
+    calculateInitialWindow,
+    photoItemsCombined,
   ]);
 
   const handleThumbnailClick = useCallback(
@@ -213,7 +364,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
         ref={thumbnailsContainerRef}
         onDoubleClick={() => onAutoScrollToggle(!isAutoScrollEnabled)}
       >
-        {photoItemsCombined.map((item, index) => (
+        {windowedPhotos.map((item, index) => (
           <div
             key={index}
             className={`${styles.imageThumb} ${mostRecentImage?.ID === item.ID ? styles.active : ""} lazy-load`}
