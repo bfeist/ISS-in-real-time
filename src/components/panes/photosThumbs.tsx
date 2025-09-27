@@ -100,6 +100,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
 
     const newStart = Math.max(0, windowStartIndex - 20);
     const additionalPhotos = photoItemsCombined.slice(newStart, windowStartIndex);
+    if (additionalPhotos.length === 0) return;
 
     // Mark as programmatic to prevent scroll events from disabling auto-scroll
     isProgrammaticScrollingRef.current = true;
@@ -108,17 +109,38 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     const currentScrollLeft = container.scrollLeft;
     const currentScrollWidth = container.scrollWidth;
 
+    let shouldResetWindow = false;
+    let resetAnchor: PhotoItem | null = null;
+
     setWindowedPhotos((prev) => {
       const newWindowedPhotos = [...additionalPhotos, ...prev];
 
-      // If the number of photos exceeds 200, reset the view
-      if (newWindowedPhotos.length > 200 && mostRecentImage) {
-        calculateInitialWindow(mostRecentImage);
-        return [];
+      // If the number of photos exceeds 200, reset the view around a stable anchor
+      if (newWindowedPhotos.length > 200) {
+        shouldResetWindow = true;
+        resetAnchor =
+          mostRecentImage ??
+          prev[Math.max(0, Math.floor(prev.length / 2))] ??
+          newWindowedPhotos[Math.max(0, Math.floor(newWindowedPhotos.length / 2))] ??
+          null;
+        return prev;
       }
 
       return newWindowedPhotos;
     });
+
+    if (shouldResetWindow) {
+      if (resetAnchor) {
+        requestAnimationFrame(() => {
+          calculateInitialWindow(resetAnchor);
+          isProgrammaticScrollingRef.current = false;
+        });
+      } else {
+        isProgrammaticScrollingRef.current = false;
+      }
+      return;
+    }
+
     setWindowStartIndex(newStart);
 
     // Adjust scroll position after DOM update to maintain visual position
@@ -139,21 +161,43 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
 
     const newEnd = Math.min(photoItemsCombined.length, windowEndIndex + 21);
     const additionalPhotos = photoItemsCombined.slice(windowEndIndex + 1, newEnd);
+    if (additionalPhotos.length === 0) return;
 
     // Mark as programmatic to prevent scroll events from disabling auto-scroll
     isProgrammaticScrollingRef.current = true;
 
+    let shouldResetWindow = false;
+    let resetAnchor: PhotoItem | null = null;
+
     setWindowedPhotos((prev) => {
       const newWindowedPhotos = [...prev, ...additionalPhotos];
 
-      // If the number of photos exceeds 200, reset the view
-      if (newWindowedPhotos.length > 200 && mostRecentImage) {
-        calculateInitialWindow(mostRecentImage);
-        return [];
+      // If the number of photos exceeds 200, reset the view around a stable anchor
+      if (newWindowedPhotos.length > 200) {
+        shouldResetWindow = true;
+        resetAnchor =
+          mostRecentImage ??
+          prev[Math.max(0, Math.floor(prev.length / 2))] ??
+          additionalPhotos[Math.max(0, Math.floor(additionalPhotos.length / 2))] ??
+          null;
+        return prev;
       }
 
       return newWindowedPhotos;
     });
+
+    if (shouldResetWindow) {
+      if (resetAnchor) {
+        requestAnimationFrame(() => {
+          calculateInitialWindow(resetAnchor);
+          isProgrammaticScrollingRef.current = false;
+        });
+      } else {
+        isProgrammaticScrollingRef.current = false;
+      }
+      return;
+    }
+
     setWindowEndIndex(newEnd - 1);
 
     // Reset flag after DOM updates
