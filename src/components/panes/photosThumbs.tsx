@@ -45,6 +45,13 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   // Lazy loading state
   const [visibleImages, setVisibleImages] = useState<Set<number>>(new Set());
 
+  const resetWindowState = useCallback(() => {
+    setWindowedPhotos([]);
+    setWindowStartIndex(0);
+    setWindowEndIndex(0);
+    setVisibleImages(new Set());
+  }, []);
+
   // Refs
   const observer = useRef<IntersectionObserver | null>(null);
   const thumbnailsContainerRef = useRef<HTMLDivElement>(null);
@@ -67,17 +74,13 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   const calculateInitialWindow = useCallback(
     (centerPhoto: PhotoItem | null) => {
       if (!centerPhoto || photoItemsCombined.length === 0) {
-        setWindowedPhotos([]);
-        setWindowStartIndex(0);
-        setWindowEndIndex(0);
+        resetWindowState();
         return;
       }
 
       const centerIndex = photoItemsCombined.findIndex((photo) => photo.ID === centerPhoto.ID);
       if (centerIndex === -1) {
-        setWindowedPhotos([]);
-        setWindowStartIndex(0);
-        setWindowEndIndex(0);
+        resetWindowState();
         return;
       }
 
@@ -89,8 +92,25 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       setWindowStartIndex(start);
       setWindowEndIndex(end - 1);
     },
-    [photoItemsCombined]
+    [photoItemsCombined, resetWindowState]
   );
+
+  useEffect(() => {
+    if (photoItemsCombined.length === 0) {
+      resetWindowState();
+      return;
+    }
+
+    const mostRecentImageInSet = mostRecentImage
+      ? photoItemsCombined.find((photo) => photo.ID === mostRecentImage.ID)
+      : null;
+
+    const centerPhoto = mostRecentImageInSet ?? photoItemsCombined[0];
+
+    if (centerPhoto) {
+      calculateInitialWindow(centerPhoto);
+    }
+  }, [photoItemsCombined, mostRecentImage, calculateInitialWindow, resetWindowState]);
 
   const expandWindowStart = useCallback(() => {
     if (windowStartIndex <= 0) return; // Already at beginning of full photo set
@@ -416,6 +436,11 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
         } else {
           // Target time is outside current window - trigger complete window reset
           // Find the photo closest to target time in the full photo set
+          if (photoItemsCombined.length === 0) {
+            resetWindowState();
+            return;
+          }
+
           const targetPhoto = photoItemsCombined.reduce((closest, photo) => {
             const photoSeconds = appSecondsFromTimeStr(photo.dateTaken.split("T")[1]);
             const closestSeconds = appSecondsFromTimeStr(closest.dateTaken.split("T")[1]);
@@ -424,7 +449,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
             const closestDiff = Math.abs(appSeconds - closestSeconds);
 
             return photoDiff < closestDiff ? photo : closest;
-          });
+          }, photoItemsCombined[0]);
 
           // Reset the window around this target photo
           calculateInitialWindow(targetPhoto);
@@ -476,6 +501,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     setLastAppSeconds,
     calculateInitialWindow,
     photoItemsCombined,
+    resetWindowState,
   ]);
 
   const handleThumbnailClick = useCallback(
