@@ -61,7 +61,7 @@ const ControlsHeader: FunctionComponent = () => {
     <div className={styles.controlsPositioner}>
       <ClockInterval setAppSeconds={setAppSeconds} />
       <div className={styles.left}>
-        {selectedDate && <ContentIndicatorsSection hoveredDate={selectedDate} combineComm={true} />}
+        {selectedDate && <ContentIndicatorsSection hoveredDate={selectedDate} compact={true} />}
       </div>
       <div className={styles.center}>
         <div className={styles.centerWithBackground}>

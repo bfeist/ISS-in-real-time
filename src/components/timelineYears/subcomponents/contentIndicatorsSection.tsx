@@ -4,12 +4,12 @@ import styles from "./contentIndicatorsSection.module.css";
 
 interface ContentIndicatorsSectionProps {
   hoveredDate: string | null;
-  combineComm?: boolean;
+  compact?: boolean;
 }
 
 const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps> = ({
   hoveredDate,
-  combineComm = false,
+  compact = false,
 }) => {
   const { data: dataAvailabilityItems } = useGeneralDataAvailabilities();
 
@@ -26,7 +26,7 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
         case "blog":
           return availability.blog || availability.actSum;
         case "comm":
-          return combineComm ? availability.comm || availability.vvComm : availability.comm;
+          return compact ? availability.comm || availability.vvComm : availability.comm;
         default:
           return availability[key as keyof DataAvailability];
       }
@@ -34,7 +34,7 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
 
     const baseTypes = [
       { key: "comm", label: "Comm" },
-      ...(combineComm ? [] : [{ key: "vvComm", label: "Comm (Visiting Vehicle)" }]),
+      ...(compact ? [] : [{ key: "vvComm", label: "Comm (Visiting Vehicle)" }]),
       { key: "video", label: "Video" },
       { key: "eva", label: "EVA" },
       { key: "blog", label: "Article" },
@@ -46,7 +46,7 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
       ...type,
       available: contentAvailability ? getAvailability(type.key, contentAvailability) : false,
     }));
-  }, [contentAvailability, combineComm]);
+  }, [contentAvailability, compact]);
 
   if (contentTypes.length === 0) {
     return null;

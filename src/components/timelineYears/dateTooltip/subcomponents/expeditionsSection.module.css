@@ -1,17 +1,10 @@
-.columnContent {
-  padding: 12px;
-  border-right: 1px solid #4a5568;
-  min-height: 120px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.columnContent:last-child {
-  border-right: none;
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .expeditionItem {
-  margin-bottom: 4px;
   color: #e2e8f0;
   font-size: 12px;
 }

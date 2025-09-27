@@ -18,7 +18,7 @@ const ExpeditionsSection: FunctionComponent<ExpeditionsSectionProps> = ({ hovere
   }, [hoveredDate, expeditionInfo]);
 
   return (
-    <div className={styles.columnContent}>
+    <div className={styles.sectionBody}>
       {expeditionsOnHoveredDate.length > 0 ? (
         expeditionsOnHoveredDate.map((expedition: ExpeditionInfo) => (
           <div key={expedition.expedition} className={styles.expeditionItem}>

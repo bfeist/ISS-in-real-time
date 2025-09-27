@@ -1,17 +1,17 @@
 .columnContent {
   padding: 12px;
-  border-right: 1px solid #4a5568;
   min-height: 120px;
   max-height: 300px;
   overflow-y: auto;
-}
-
-.columnContent:last-child {
-  border-right: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .vehicleSection {
-  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .vehicleType {
@@ -23,7 +23,6 @@
 }
 
 .vehicleItem {
-  margin-bottom: 2px;
   margin-left: 12px;
   padding-left: 12px;
   text-indent: -12px;

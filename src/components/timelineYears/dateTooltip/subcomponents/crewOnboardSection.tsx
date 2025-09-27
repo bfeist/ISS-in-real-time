@@ -20,7 +20,7 @@ const CrewOnboardSection: FunctionComponent<CrewOnboardSectionProps> = ({ hovere
   }, [hoveredDate, crewArrDep]);
 
   return (
-    <div className={styles.columnContent}>
+    <div className={styles.sectionBody}>
       {crewOnboardList.length > 0 ? (
         crewOnboardList.map((crewMember) => (
           <div

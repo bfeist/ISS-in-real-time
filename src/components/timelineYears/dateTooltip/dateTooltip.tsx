@@ -210,18 +210,25 @@ const DateTooltip: FunctionComponent<{
 
           <div className={styles.tooltipContent}>
             <div className={styles.tooltipGrid}>
-              <div className={styles.columnHeader}>Expeditions</div>
-              <div className={styles.columnHeader}>Crew Onboard</div>
+              <div className={styles.columnHeader}>Expeditions &amp; Crew</div>
               <div className={styles.columnHeader}>Vehicles Docked</div>
 
-              <ExpeditionsSection hoveredDate={hoveredDate} />
-              <CrewOnboardSection hoveredDate={hoveredDate} />
+              <div className={styles.combinedColumn}>
+                <div className={styles.subSection}>
+                  <div className={styles.subSectionTitle}>Expeditions</div>
+                  <ExpeditionsSection hoveredDate={hoveredDate} />
+                </div>
+                <div className={styles.subSection}>
+                  <div className={styles.subSectionTitle}>Crew Onboard</div>
+                  <CrewOnboardSection hoveredDate={hoveredDate} />
+                </div>
+              </div>
               <VehiclesDockedSection hoveredDate={hoveredDate} />
             </div>
           </div>
 
           <div className={styles.contentIndicatorsWrapper}>
-            <ContentIndicatorsSection hoveredDate={hoveredDate} />
+            <ContentIndicatorsSection hoveredDate={hoveredDate} compact={true} />
           </div>
 
           <FirstCommSection hoveredDate={hoveredDate} hasCommData={hasCommData} />

@@ -6,6 +6,7 @@ type DataAvailability = {
   eva: boolean;
   blog: boolean;
   actSum: boolean;
+  photos?: boolean;
   earthPhotos: boolean;
   flickrPhotos: boolean;
 };
