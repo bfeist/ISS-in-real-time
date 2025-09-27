@@ -156,6 +156,11 @@ const Comm: FunctionComponent = () => {
       return channelInfo && channelVisibility[channelInfo.routingChannel];
     });
 
+    // Return null if no visible comm items
+    if (visibleCommItems.length === 0) {
+      return null;
+    }
+
     let closestComm = visibleCommItems[0];
     let appSecondsDiff = null;
     for (const item of visibleCommItems) {
@@ -175,6 +180,9 @@ const Comm: FunctionComponent = () => {
   const scrollToCurrentCommItem = useCallback(() => {
     if (appSeconds && commItems.length > 0) {
       const closestComm = getClosestCommItem();
+      if (!closestComm) {
+        return; // No visible comm items
+      }
       const closestCommTimeStr = closestComm.utteranceTime;
       const targetElement = document.querySelector(`[data-time="${closestCommTimeStr}"]`);
       if (targetElement) {
@@ -248,6 +256,10 @@ const Comm: FunctionComponent = () => {
     if (!appSeconds || commItems.length === 0) return;
 
     const closestComm = getClosestCommItem();
+    if (!closestComm) {
+      return; // No visible comm items
+    }
+
     const closestCommTimeStr = closestComm.utteranceTime;
 
     if (lastScrolledToTimeStr === closestCommTimeStr) return;

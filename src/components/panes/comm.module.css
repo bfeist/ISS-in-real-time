@@ -109,6 +109,7 @@
   font-weight: 800;
   transition: all 0.2s ease;
   color: black;
+  user-select: none;
 }
 
 .channelToggleIcon {
