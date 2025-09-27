@@ -180,13 +180,11 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
       if (isRunning) {
         // If clock is running but video is paused, restart it
         if (video.paused && !video.ended) {
-          console.log("Clock running but IA video paused, restarting playback");
           video.play().catch(console.error);
         }
       } else {
         // If clock is stopped but video is still playing, pause it
         if (!video.paused) {
-          console.log("Clock stopped but IA video playing, pausing playback");
           video.pause();
         }
       }
@@ -209,7 +207,6 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
 
       // Force play if clock is running but video is paused
       if (video.paused && !video.ended) {
-        console.log("Window focus regained, forcing IA video play");
         video.play().catch(console.error);
       }
 

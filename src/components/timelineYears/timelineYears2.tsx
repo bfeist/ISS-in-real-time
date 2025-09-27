@@ -190,7 +190,6 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     // Use a delay to allow transition from overlay back to year headers
     const timeout = setTimeout(() => {
       // Only hide if we're truly not over any year header or overlay
-      console.log("Checking to hide overlay:", isOverMegaOverlayRef.current);
       if (!isOverMegaOverlayRef.current) {
         setMegaOverlayVisible(false);
         setHoveredYearIndex(null);

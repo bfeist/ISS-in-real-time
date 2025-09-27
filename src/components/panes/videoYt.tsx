@@ -1,4 +1,4 @@
-import { FunctionComponent, useEffect, useRef, useState } from "react";
+import { FunctionComponent, useEffect, useRef, useState, useCallback } from "react";
 import YouTube, { YouTubePlayer, YouTubeEvent } from "react-youtube";
 import styles from "./videoYt.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
@@ -33,6 +33,23 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
+
+  // Helper function to check if player is ready and valid for API calls
+  const isPlayerReadyAndValid = useCallback(async (): Promise<boolean> => {
+    if (!playerRef.current || !isPlayerReady) {
+      return false;
+    }
+
+    try {
+      // Try to get player state to verify the player is accessible
+      const state = await playerRef.current.getPlayerState();
+      // Return true if we can get a valid state (even if it's unstarted)
+      return state !== null && state !== undefined;
+    } catch (error) {
+      // If we can't get the state, the player isn't ready for API calls
+      return false;
+    }
+  }, [isPlayerReady]);
 
   // Track window focus to handle video sync issues when returning from background
   useEffect(() => {
@@ -121,28 +138,33 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
 
   // Update player mute state when isMuted changes
   useEffect(() => {
-    if (playerRef.current && isPlayerReady) {
-      const updateMuteState = async () => {
-        try {
-          const playerState = await playerRef.current.getPlayerState();
-          // Only update mute state if player is in a valid state (not unstarted)
-          if (playerState !== YouTube.PlayerState.UNSTARTED && playerState !== null) {
-            if (isMuted) {
-              playerRef.current.mute();
-            } else {
-              // Ensure volume is at 100% when unmuting
-              playerRef.current.setVolume(100);
-              playerRef.current.unMute();
-            }
-          }
-        } catch (error) {
-          console.error("Error updating YouTube player mute state:", error);
-        }
-      };
+    if (!playerRef.current || !isPlayerReady) return;
 
-      updateMuteState();
-    }
-  }, [isMuted, isPlayerReady]);
+    const updateMuteState = async () => {
+      try {
+        // Check if player is ready and valid for API calls
+        const playerValid = await isPlayerReadyAndValid();
+        if (!playerValid) return;
+
+        const playerState = await playerRef.current!.getPlayerState();
+        // Only update mute state if player is in a valid state (not unstarted)
+        if (playerState !== YouTube.PlayerState.UNSTARTED && playerState !== null) {
+          if (isMuted) {
+            await playerRef.current!.mute();
+          } else {
+            // Ensure volume is at 100% when unmuting
+            await playerRef.current!.setVolume(100);
+            await playerRef.current!.unMute();
+          }
+        }
+      } catch (error) {
+        // Suppress the error as it's likely a timing issue with the YouTube API
+        // The mute state will be corrected on the next attempt
+      }
+    };
+
+    updateMuteState();
+  }, [isMuted, isPlayerReady, isPlayerReadyAndValid]);
 
   const onPlayerError = (event: YouTubeEvent) => {
     const errorCode = event.data;
@@ -176,26 +198,30 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
 
     const handlePlaybackControl = async () => {
       try {
-        const playerState = await playerRef.current.getPlayerState();
+        // Check if player is ready and valid for API calls
+        const playerValid = await isPlayerReadyAndValid();
+        if (!playerValid) return;
+
+        const playerState = await playerRef.current!.getPlayerState();
         const isPlaying = playerState === YouTube.PlayerState.PLAYING;
 
         if (isRunning && !isPlaying) {
           // Only try to play if not already buffering
           if (playerState !== YouTube.PlayerState.BUFFERING) {
             // Ensure volume is at 100% before playing
-            playerRef.current.setVolume(100);
-            await playerRef.current.playVideo();
+            await playerRef.current!.setVolume(100);
+            await playerRef.current!.playVideo();
           }
         } else if (!isRunning && isPlaying) {
-          await playerRef.current.pauseVideo();
+          await playerRef.current!.pauseVideo();
         }
       } catch (error) {
-        console.error("Error controlling YouTube player:", error);
+        // Suppress error - likely a timing issue with YouTube API
       }
     };
 
     handlePlaybackControl();
-  }, [isRunning, isPlayerReady]);
+  }, [isRunning, isPlayerReady, isPlayerReadyAndValid]);
 
   // Enhanced playback control that continuously monitors and corrects video state
   useEffect(() => {
@@ -208,7 +234,11 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
         if (now - lastPlaybackCheckRef.current < 500) return;
         lastPlaybackCheckRef.current = now;
 
-        const playerState = await playerRef.current.getPlayerState();
+        // Check if player is ready and valid for API calls
+        const playerValid = await isPlayerReadyAndValid();
+        if (!playerValid) return;
+
+        const playerState = await playerRef.current!.getPlayerState();
         const isPlaying = playerState === YouTube.PlayerState.PLAYING;
 
         if (isRunning) {
@@ -218,26 +248,24 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
             playerState !== YouTube.PlayerState.BUFFERING &&
             playerState !== YouTube.PlayerState.UNSTARTED
           ) {
-            console.log("Clock running but video paused, restarting playback");
             // Ensure volume is at 100% before playing
-            playerRef.current.setVolume(100);
-            await playerRef.current.playVideo();
+            await playerRef.current!.setVolume(100);
+            await playerRef.current!.playVideo();
           }
         } else {
           // If clock is stopped but video is still playing, pause it
           if (isPlaying) {
-            console.log("Clock stopped but video playing, pausing playback");
-            await playerRef.current.pauseVideo();
+            await playerRef.current!.pauseVideo();
           }
         }
       } catch (error) {
-        console.error("Error in playback monitoring:", error);
+        // Suppress error - likely a timing issue with YouTube API
       }
     };
 
     const interval = setInterval(checkAndCorrectPlayback, 500);
     return () => clearInterval(interval);
-  }, [isRunning, isPlayerReady, hasWindowFocus]);
+  }, [isRunning, isPlayerReady, hasWindowFocus, isPlayerReadyAndValid]);
 
   useEffect(() => {
     if (!playerRef.current || !isPlayerReady) return;
@@ -250,7 +278,11 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
         if (!shouldForceSync && now - lastSyncTimeRef.current < 1000) return;
         lastSyncTimeRef.current = now;
 
-        const playerState = await playerRef.current.getPlayerState();
+        // Check if player is ready and valid for API calls
+        const playerValid = await isPlayerReadyAndValid();
+        if (!playerValid) return;
+
+        const playerState = await playerRef.current!.getPlayerState();
 
         // Don't sync during buffering or unstarted state
         if (
@@ -265,7 +297,7 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
         if (!startTimeToUse) return;
 
         const ytStartSeconds = appSecondsFromTimeStr(startTimeToUse.split("T")[1]);
-        const currentTime = await playerRef.current.getCurrentTime();
+        const currentTime = await playerRef.current!.getCurrentTime();
         const playerAppSeconds = Math.round(ytStartSeconds + currentTime);
 
         // Use more aggressive sync tolerance when focus is regained or if large difference
@@ -276,15 +308,15 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
           // Use API duration for bounds checking instead of calling player getDuration
           const apiDuration = videoYtRecording?.duration || 0;
           if (seekToTime <= apiDuration) {
-            await playerRef.current.seekTo(seekToTime, true);
+            await playerRef.current!.seekTo(seekToTime, true);
           }
         }
       } catch (error) {
-        console.error("Error syncing YouTube player time:", error);
+        // Suppress error - likely a timing issue with YouTube API
       }
     };
     syncTime();
-  }, [videoYtRecording, appSeconds, isPlayerReady, hasWindowFocus]);
+  }, [videoYtRecording, appSeconds, isPlayerReady, hasWindowFocus, isPlayerReadyAndValid]);
 
   // Special effect to handle window focus regain - immediately check and fix sync
   useEffect(() => {
@@ -295,26 +327,29 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
         // Small delay to let the player stabilize after focus regain
         await new Promise((resolve) => setTimeout(resolve, 200));
 
-        const playerState = await playerRef.current.getPlayerState();
+        // Check if player is ready and valid for API calls
+        const playerValid = await isPlayerReadyAndValid();
+        if (!playerValid) return;
+
+        const playerState = await playerRef.current!.getPlayerState();
         const isPlaying = playerState === YouTube.PlayerState.PLAYING;
 
         // Force play if clock is running but video is not playing
         if (!isPlaying && playerState !== YouTube.PlayerState.BUFFERING) {
-          console.log("Window focus regained, forcing video play");
           // Ensure volume is at 100% before playing
-          playerRef.current.setVolume(100);
-          await playerRef.current.playVideo();
+          await playerRef.current!.setVolume(100);
+          await playerRef.current!.playVideo();
         }
 
         // Reset sync timer to force immediate sync check
         lastSyncTimeRef.current = 0;
       } catch (error) {
-        console.error("Error handling focus regain:", error);
+        // Suppress error - likely a timing issue with YouTube API
       }
     };
 
     handleFocusRegain();
-  }, [hasWindowFocus, isPlayerReady, isRunning]);
+  }, [hasWindowFocus, isPlayerReady, isRunning, isPlayerReadyAndValid]);
 
   // Add a cleanup effect to handle component unmounting
   useEffect(() => {

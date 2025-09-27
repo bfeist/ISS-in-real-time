@@ -195,7 +195,6 @@ const Comm: FunctionComponent = () => {
 
     const handleManualScroll = () => {
       if (isAutoScrollEnabled && !isProgrammaticScrollingRef.current) {
-        console.log("Disabling auto-scroll due to manual scroll");
         setIsAutoScrollEnabled(false);
       }
     };

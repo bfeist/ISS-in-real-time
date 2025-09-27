@@ -190,7 +190,6 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       // Debounce the auto-scroll disable to prevent rapid toggling
       debounceTimeout = setTimeout(() => {
         if (isAutoScrollEnabled && !isProgrammaticScrollingRef.current) {
-          console.log("Disabling auto-scroll due to manual scroll");
           setIsAutoScrollEnabled(false);
         }
       }, 50); // 50ms debounce
@@ -383,7 +382,6 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
         className={styles.imageThumbsContainer}
         ref={thumbnailsContainerRef}
         onDoubleClick={() => {
-          console.log("Double-click test - toggling auto-scroll");
           setIsAutoScrollEnabled(!isAutoScrollEnabled);
         }}
       >

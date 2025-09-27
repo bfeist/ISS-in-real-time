@@ -34,11 +34,8 @@ const CrewOnboard: FunctionComponent = () => {
       <div className={styles.crewOnboard}>
         <ClockInterval setAppSeconds={setAppSeconds} />
         {crewOnboard.map((crewItem) => (
-          <>
-            <div
-              key={`${crewItem.arrivalDate}_${crewItem.name_first}_${crewItem.name_last}`}
-              className={styles.crewItem}
-            >
+          <div key={`${crewItem.arrivalDate}_${crewItem.name_first}_${crewItem.name_last}`}>
+            <div className={styles.crewItem}>
               <div className={styles.flagContainer}>
                 <img
                   className={styles.flag}
@@ -66,7 +63,7 @@ const CrewOnboard: FunctionComponent = () => {
                 )}
               </div>
             </div>
-          </>
+          </div>
         ))}
       </div>
     </div>
