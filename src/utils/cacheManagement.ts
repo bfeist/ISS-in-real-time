@@ -43,7 +43,7 @@ export function manageDateCache(queryClient: QueryClient, currentDate: string): 
     });
 
     if (import.meta.env.DEV) {
-      const stats = getCacheStats(queryClient);
+      // const stats = getCacheStats(queryClient);
       // console.log("📊 Cache stats after cleanup:", stats);
     }
   }

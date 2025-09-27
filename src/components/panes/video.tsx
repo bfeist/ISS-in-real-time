@@ -8,7 +8,7 @@ import ClockInterval from "./clockInterval";
 import VideoNone from "./videoNone";
 
 const VideoComponent: FunctionComponent = () => {
-  const { selectedDate, appSecondsAtStartStop, isRunning, startStopTimestamp } = useStateClock();
+  const { selectedDate, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
   const [appSeconds, setAppSeconds] = useState(() => {
     const secondsSinceStarted = (Date.now() - Date.parse(startStopTimestamp)) / 1000;
     const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);

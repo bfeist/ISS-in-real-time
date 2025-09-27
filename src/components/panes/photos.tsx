@@ -173,35 +173,21 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     };
   }, [photoItemsCombined]);
 
-  // Enhanced scroll event detection with multiple interaction methods and debouncing
+  // Handle scroll event detection
   useEffect(() => {
     const container = thumbnailsContainerRef.current;
     if (!container) return;
 
-    // Capture timeout refs at the beginning of the effect
-    let debounceTimeout: NodeJS.Timeout | null = null;
-
     const handleManualScroll = () => {
-      // Clear any existing debounce
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
+      if (isAutoScrollEnabled && !isProgrammaticScrollingRef.current) {
+        setIsAutoScrollEnabled(false);
       }
-
-      // Debounce the auto-scroll disable to prevent rapid toggling
-      debounceTimeout = setTimeout(() => {
-        if (isAutoScrollEnabled && !isProgrammaticScrollingRef.current) {
-          setIsAutoScrollEnabled(false);
-        }
-      }, 50); // 50ms debounce
     };
 
     const handleScroll = () => {
-      // Check multiple conditions for manual scroll detection
-      if (
-        isPointerDownRef.current ||
-        container.matches(":active") ||
-        document.activeElement === container
-      ) {
+      // Only disable autoscroll if this is a user-initiated scroll
+      // (pointer interaction) and not a programmatic scroll
+      if (isPointerDownRef.current && !isProgrammaticScrollingRef.current) {
         handleManualScroll();
       }
     };
@@ -211,14 +197,26 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)) {
+      if (
+        [
+          "ArrowUp",
+          "ArrowDown",
+          "ArrowLeft",
+          "ArrowRight",
+          "PageUp",
+          "PageDown",
+          "Home",
+          "End",
+          " ",
+        ].includes(e.key)
+      ) {
         handleManualScroll();
       }
     };
 
     const handlePointerDown = () => {
+      // Set pointer down for any interaction with the scrollable container
       isPointerDownRef.current = true;
-      handleManualScroll();
     };
 
     const handlePointerUp = () => {
@@ -244,11 +242,6 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       container.removeEventListener("pointerdown", handlePointerDown);
       container.removeEventListener("pointerup", handlePointerUp);
       container.removeEventListener("touchstart", handleTouchStart);
-
-      // Clean up local timeout
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
-      }
     };
   }, [isAutoScrollEnabled]);
 
@@ -319,12 +312,9 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
         targetElement.scrollIntoView({ behavior: "instant" });
 
         // Clear the flag after a short delay to allow for the scroll event to fire
-        // Use requestAnimationFrame to ensure the scroll has completed
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            isProgrammaticScrollingRef.current = false;
-          });
-        });
+        setTimeout(() => {
+          isProgrammaticScrollingRef.current = false;
+        }, 100);
       }
     }
 
@@ -407,6 +397,11 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
                   setClock(targetTime);
                   setClickedPhotoFilename(item.ID);
                 }
+              }}
+              onPointerDown={(e) => {
+                // Prevent the container's pointer down handler from triggering
+                // when clicking on thumbnails (we want thumbnails to not disable autoscroll)
+                e.stopPropagation();
               }}
             >
               {visibleImages.has(index) ? (

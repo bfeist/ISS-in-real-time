@@ -50,6 +50,7 @@
   max-height: 60px;
   cursor: pointer;
   border-radius: var(--radius);
+  user-select: none;
 }
 
 .thumbContent {
