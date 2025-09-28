@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import styles from "./timelineYears2.module.css";
+import styles from "./timelineYears.module.css";
 import { useStateToggle } from "../../store/hooks/useStateToggle";
 import { useStateHover } from "../../store/hooks/useStateHover";
 import SearchComponent from "./subcomponents/highlightData";

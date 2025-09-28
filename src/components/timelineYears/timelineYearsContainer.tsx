@@ -1,6 +1,6 @@
 import React, { FunctionComponent, JSX, useMemo } from "react";
-import TimelineYears2, { COLORS } from "./timelineYears2";
-import styles from "./timelineYears2Container.module.css";
+import TimelineYears2, { COLORS } from "./timelineYears";
+import styles from "./timelineYearsContainer.module.css";
 import {
   useGeneralDataAvailabilities,
   useGeneralCrewArrDep,

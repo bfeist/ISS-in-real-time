@@ -9,7 +9,7 @@ import Header from "components/header/header";
 import NoDateSelected from "../components/dayLayout/noDateSelected";
 import { parseDateTimeSlug } from "../utils/params";
 import { appSecondsFromTimeStr } from "../utils/time";
-import TimelineYears2Container from "components/timelineYears/timelineYears2Container";
+import TimelineYears2Container from "components/timelineYears/timelineYearsContainer";
 
 const HomePage: FunctionComponent = (): JSX.Element => {
   const { dateTimeSlug } = useParams();
