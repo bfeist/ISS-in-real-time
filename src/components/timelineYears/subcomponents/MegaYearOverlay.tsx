@@ -5,7 +5,7 @@ import { useStateClock } from "../../../store/hooks/useStateClock";
 import { useStateHover } from "../../../store/hooks/useStateHover";
 import DateTooltip from "../dateTooltip/dateTooltip";
 
-import { COLORS } from "./YearCanvas";
+import { COLORS } from "./yearCanvas";
 
 interface MegaYearOverlayProps {
   year: number;

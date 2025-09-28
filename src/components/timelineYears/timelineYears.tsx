@@ -5,8 +5,8 @@ import styles from "./timelineYears.module.css";
 import { useStateToggle } from "../../store/hooks/useStateToggle";
 import { useStateHover } from "../../store/hooks/useStateHover";
 import SearchComponent from "./subcomponents/highlightData";
-import YearCanvas, { COLORS } from "./subcomponents/YearCanvas";
-import MegaYearOverlay, { getMegaDateFromCoordinates } from "./subcomponents/MegaYearOverlay";
+import YearCanvas, { COLORS } from "./subcomponents/yearCanvas";
+import MegaYearOverlay, { getMegaDateFromCoordinates } from "./subcomponents/megaYearOverlay";
 
 // Configure dayjs to use UTC plugin
 dayjs.extend(utc);

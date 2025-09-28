@@ -1,11 +1,11 @@
 import React, { FunctionComponent, useRef, useCallback, useMemo } from "react";
 import styles from "./dateTooltip.module.css";
 import { useGeneralDataAvailabilities, useGeneralOrbitsDaily } from "api/useGeneralData";
-import ExpeditionsSection from "./subcomponents/expeditionsSection";
-import CrewOnboardSection from "./subcomponents/crewOnboardSection";
-import VehiclesDockedSection from "./subcomponents/vehiclesDockedSection";
+import ExpeditionsSection from "./expeditionsSection";
+import CrewOnboardSection from "./crewOnboardSection";
+import VehiclesDockedSection from "./vehiclesDockedSection";
 import ContentIndicatorsSection from "../subcomponents/contentIndicatorsSection";
-import FirstCommSection from "./subcomponents/firstCommSection";
+import FirstCommSection from "./firstCommSection";
 
 const DateTooltip: FunctionComponent<{
   hoveredDate: string | null;
