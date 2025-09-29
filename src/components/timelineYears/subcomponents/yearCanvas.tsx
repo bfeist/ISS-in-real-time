@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from "react";
-import styles from "./YearCanvas.module.css";
+import styles from "./yearCanvas.module.css";
 import { useStateToggle } from "store/hooks/useStateToggle";
 
 // Constants from the original HTML

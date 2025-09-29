@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
-import styles from "./MegaYearOverlay.module.css";
+import styles from "./megaYearOverlay.module.css";
 import { useStateToggle } from "../../../store/hooks/useStateToggle";
 import { useStateClock } from "../../../store/hooks/useStateClock";
 import { useStateHover } from "../../../store/hooks/useStateHover";
