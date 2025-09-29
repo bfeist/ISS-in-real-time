@@ -36,6 +36,7 @@ type PhotoItem = {
   description?: string;
   sourceUrl?: string;
   type: "photos_earth" | "photos_flickr";
+  isTimelapse?: boolean;
 };
 
 type EphemeraItem = {

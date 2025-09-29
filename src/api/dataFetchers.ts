@@ -1,6 +1,6 @@
 import { getBaseStaticUrl } from "../utils/api";
 import { processCommCsv } from "../utils/comm";
-import { generateEarthPhotoUrls } from "../utils/earthPhotoUrls";
+import { generateEarthPhotoUrls, markTimelapsePhotos } from "../utils/earthPhotos";
 
 // Individual fetch functions for each data type
 export async function fetchDataAvailabilities(): Promise<DataAvailability[]> {
@@ -146,7 +146,7 @@ export async function fetchEarthPhotography(date: string): Promise<PhotoItem[]> 
     data.sort((a: EarthPhotoRaw, b: EarthPhotoRaw) => a.dateTaken.localeCompare(b.dateTaken));
   }
 
-  return data.map((item: EarthPhotoRaw) => {
+  const photos = data.map((item: EarthPhotoRaw) => {
     // Convert ID to nasaId and generate URLs
     const { ID, ...itemWithoutId } = item;
     const urls = generateEarthPhotoUrls(ID);
@@ -157,6 +157,9 @@ export async function fetchEarthPhotography(date: string): Promise<PhotoItem[]> 
       type: "photos_earth" as const,
     };
   });
+
+  // Apply timelapse detection to the photos
+  return markTimelapsePhotos(photos);
 }
 
 interface FlickrPhotoRaw {
