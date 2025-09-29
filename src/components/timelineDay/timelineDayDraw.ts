@@ -746,21 +746,25 @@ export const initializePaperCanvas = ({
         // Get device pixel ratio for high DPI displays
         const devicePixelRatio = window.devicePixelRatio || 1;
 
+        // Set Paper.js view size to match display dimensions (logical pixels)
+        project.view.viewSize = new paperScope.Size(displayWidth, displayHeight);
+
         // Set canvas physical dimensions scaled for high DPI
         canvasElement.width = displayWidth * devicePixelRatio;
         canvasElement.height = displayHeight * devicePixelRatio;
 
-        // Set CSS display size (what user sees)
+        // CRITICAL: Reset CSS size properties to prevent conflicts with percentage sizing
+        canvasElement.style.width = "";
+        canvasElement.style.height = "";
+        canvasElement.style.maxWidth = "";
+        canvasElement.style.maxHeight = "";
+
+        // Set explicit dimensions that work with the CSS container
         canvasElement.style.width = `${displayWidth}px`;
         canvasElement.style.height = `${displayHeight}px`;
 
-        // Set Paper.js view size to match display dimensions (not physical)
-        project.view.viewSize = new paperScope.Size(displayWidth, displayHeight);
-
-        // Scale the canvas context for crisp high DPI rendering
-        if (devicePixelRatio !== 1) {
-          project.view.matrix = project.view.matrix.scale(devicePixelRatio);
-        }
+        // Reset and scale Paper.js transformation matrix for crisp high DPI rendering
+        project.view.matrix = new paperScope.Matrix().scale(devicePixelRatio);
 
         // Clear existing content but preserve cursor groups
         timelineGroup.removeChildren();
