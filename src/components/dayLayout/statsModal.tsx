@@ -156,11 +156,11 @@ const StatsModal: FunctionComponent<{
                       </span>
                     </div>
                     <div className={styles.statRow}>
-                      <span>IA Videos:</span>
+                      <span>Mission Videos:</span>
                       <span>{stats.videos.ia.total_videos.toLocaleString()}</span>
                     </div>
                     <div className={styles.statRow}>
-                      <span>IA Duration:</span>
+                      <span>MV Duration:</span>
                       <span>
                         {Math.floor(stats.videos.ia.total_duration_seconds / 3600)}h{" "}
                         {Math.floor((stats.videos.ia.total_duration_seconds % 3600) / 60)}m
@@ -218,7 +218,7 @@ const StatsModal: FunctionComponent<{
                 </div>
 
                 <div className={styles.statsSection}>
-                  <h4>Languages Used</h4>
+                  <h4>Words in Languages</h4>
                   {Object.entries(stats.comm.languages)
                     .sort(([, a], [, b]) => b - a)
                     .slice(0, 6)

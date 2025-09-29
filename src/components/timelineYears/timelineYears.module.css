@@ -27,7 +27,7 @@
 
 @media (width <= 1299px) {
   .yearsScrollContainer {
-    overflow-x: auto;
+    overflow-x: hidden;
     overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scrollbar-gutter: stable both-edges;

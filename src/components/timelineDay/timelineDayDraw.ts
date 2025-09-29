@@ -743,14 +743,24 @@ export const initializePaperCanvas = ({
         const displayWidth = canvasWidth;
         const displayHeight = canvasHeight;
 
-        // Set canvas dimensions to match display size
-        canvasElement.width = displayWidth;
-        canvasElement.height = displayHeight;
+        // Get device pixel ratio for high DPI displays
+        const devicePixelRatio = window.devicePixelRatio || 1;
+
+        // Set canvas physical dimensions scaled for high DPI
+        canvasElement.width = displayWidth * devicePixelRatio;
+        canvasElement.height = displayHeight * devicePixelRatio;
+
+        // Set CSS display size (what user sees)
         canvasElement.style.width = `${displayWidth}px`;
         canvasElement.style.height = `${displayHeight}px`;
 
-        // Set Paper.js view size to match canvas dimensions
+        // Set Paper.js view size to match display dimensions (not physical)
         project.view.viewSize = new paperScope.Size(displayWidth, displayHeight);
+
+        // Scale the canvas context for crisp high DPI rendering
+        if (devicePixelRatio !== 1) {
+          project.view.matrix = project.view.matrix.scale(devicePixelRatio);
+        }
 
         // Clear existing content but preserve cursor groups
         timelineGroup.removeChildren();
@@ -758,7 +768,7 @@ export const initializePaperCanvas = ({
         // Force a canvas clear to ensure we start fresh
         const ctx = canvasElement.getContext("2d");
         if (ctx) {
-          ctx.clearRect(0, 0, displayWidth, displayHeight);
+          ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         }
 
         // Draw background
