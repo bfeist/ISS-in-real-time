@@ -9,6 +9,7 @@ export const createStateToggle: StateCreator<AppState, [], [], ToggleState> = (s
   hoveringYearsLabels: false,
   showEarthPhotos: true,
   showMissionPhotos: true,
+  showTimelapsePhotos: true,
 
   // Actions
   setCommMute: (mute: boolean) => set({ commMute: mute }),
@@ -18,4 +19,5 @@ export const createStateToggle: StateCreator<AppState, [], [], ToggleState> = (s
   setHoveringYearsLabels: (hovering: boolean) => set({ hoveringYearsLabels: hovering }),
   setShowEarthPhotos: (show: boolean) => set({ showEarthPhotos: show }),
   setShowMissionPhotos: (show: boolean) => set({ showMissionPhotos: show }),
+  setShowTimelapsePhotos: (show: boolean) => set({ showTimelapsePhotos: show }),
 });

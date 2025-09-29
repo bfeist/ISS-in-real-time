@@ -16,6 +16,8 @@ export const useStateToggle = (): {
   setShowEarthPhotos: (show: boolean) => void;
   showMissionPhotos: boolean;
   setShowMissionPhotos: (show: boolean) => void;
+  showTimelapsePhotos: boolean;
+  setShowTimelapsePhotos: (show: boolean) => void;
 } =>
   useAppStore(
     useShallow((state) => ({
@@ -33,5 +35,7 @@ export const useStateToggle = (): {
       setShowEarthPhotos: state.setShowEarthPhotos,
       showMissionPhotos: state.showMissionPhotos,
       setShowMissionPhotos: state.setShowMissionPhotos,
+      showTimelapsePhotos: state.showTimelapsePhotos,
+      setShowTimelapsePhotos: state.setShowTimelapsePhotos,
     }))
   );

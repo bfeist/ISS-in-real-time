@@ -19,7 +19,7 @@ const TimelineDayContainer = (): JSX.Element => {
   const { selectedDate, setClock, appSecondsAtStartStop, isRunning, startStopTimestamp } =
     useStateClock();
   const { setHoverSeconds } = useStateHover();
-  const { showEarthPhotos, showMissionPhotos } = useStateToggle();
+  const { showEarthPhotos, showMissionPhotos, showTimelapsePhotos } = useStateToggle();
   const { data: ephemeraItems = [], isLoading: isLoadingEphemera } = useDateEphemera(
     selectedDate || ""
   );
@@ -236,6 +236,7 @@ const TimelineDayContainer = (): JSX.Element => {
         paperScope: scopeRef.current,
         showEarthPhotos,
         showMissionPhotos,
+        showTimelapsePhotos,
       });
 
       // Store the draw function for later use
@@ -315,6 +316,7 @@ const TimelineDayContainer = (): JSX.Element => {
     isLoadingYt,
     showEarthPhotos,
     showMissionPhotos,
+    showTimelapsePhotos,
   ]); // Put loading states back in dependencies
 
   // Separate effect to redraw when data changes (but not toggle changes)

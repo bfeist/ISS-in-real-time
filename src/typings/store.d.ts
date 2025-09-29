@@ -29,6 +29,7 @@ interface ToggleState {
   hoveringYearsLabels: boolean;
   showEarthPhotos: boolean;
   showMissionPhotos: boolean;
+  showTimelapsePhotos: boolean;
 
   // Actions
   setCommMute: (mute: boolean) => void;
@@ -38,6 +39,7 @@ interface ToggleState {
   setHoveringYearsLabels: (hovering: boolean) => void;
   setShowEarthPhotos: (show: boolean) => void;
   setShowMissionPhotos: (show: boolean) => void;
+  setShowTimelapsePhotos: (show: boolean) => void;
 }
 
 interface CrewSelectionState {

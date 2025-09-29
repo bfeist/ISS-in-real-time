@@ -13,8 +13,13 @@ import PhotosThumbs from "./photosThumbs";
 
 const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "short" }) => {
   const { selectedDate, setClock } = useStateClock();
-  const { showEarthPhotos, showMissionPhotos, setShowEarthPhotos, setShowMissionPhotos } =
-    useStateToggle();
+  const {
+    showEarthPhotos,
+    showMissionPhotos,
+    showTimelapsePhotos,
+    setShowEarthPhotos,
+    setShowMissionPhotos,
+  } = useStateToggle();
   const { data: earthPhotographyItems = [], isLoading: earthPhotographyIsLoading } =
     useDateEarthPhotography(selectedDate || "");
   const { data: flickrPhotosItems = [], isLoading: flickrPhotosIsLoading } = useDatePhotosFlickr(
@@ -36,13 +41,27 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
 
   // Combined and sorted photos
   const photoItemsCombined = useMemo(() => {
-    const earthPhotos = showEarthPhotos ? earthPhotographyItems : [];
+    // Filter out timelapse photos from Earth photos if showTimelapsePhotos is false
+    // Note: Only Earth photos can be timelapse, Flickr photos are never timelapse
+    const earthPhotos = showEarthPhotos
+      ? showTimelapsePhotos
+        ? earthPhotographyItems
+        : earthPhotographyItems.filter((photo) => !photo.isTimelapse)
+      : [];
     const missionPhotos = showMissionPhotos ? flickrPhotosItems : [];
 
-    return [...earthPhotos, ...missionPhotos].sort(
+    const allPhotos = [...earthPhotos, ...missionPhotos];
+
+    return allPhotos.sort(
       (a, b) => new Date(a.dateTaken).getTime() - new Date(b.dateTaken).getTime()
     );
-  }, [earthPhotographyItems, flickrPhotosItems, showEarthPhotos, showMissionPhotos]);
+  }, [
+    earthPhotographyItems,
+    flickrPhotosItems,
+    showEarthPhotos,
+    showMissionPhotos,
+    showTimelapsePhotos,
+  ]);
 
   // URL generation
   const flickrBaseUrl = "https://live.staticflickr.com";

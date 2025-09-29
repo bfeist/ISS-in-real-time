@@ -12,6 +12,7 @@ export const initializePaperCanvas = ({
   paperScope,
   showEarthPhotos = true,
   showMissionPhotos = true,
+  showTimelapsePhotos = true,
 }: {
   canvasElement: HTMLCanvasElement;
   canvasWidth?: number;
@@ -22,6 +23,7 @@ export const initializePaperCanvas = ({
   paperScope: paper.PaperScope;
   showEarthPhotos?: boolean;
   showMissionPhotos?: boolean;
+  showTimelapsePhotos?: boolean;
 }): {
   drawPaperItems: () => void;
   cleanupInputHandlers: () => void;
@@ -817,7 +819,7 @@ export const initializePaperCanvas = ({
 
             // Special handling for photos row - combine earthPhotos and flickrPhotos with source info
             if (rowConfig.key === "photos") {
-              const earthPhotos = showEarthPhotos
+              let earthPhotos = showEarthPhotos
                 ? ((data.earthPhotos as unknown[]) || []).map((item) => ({
                     item,
                     source: "earth",
@@ -829,6 +831,16 @@ export const initializePaperCanvas = ({
                     source: "flickr",
                   }))
                 : [];
+
+              // Filter out timelapse photos if showTimelapsePhotos is false
+              // Note: Only Earth photos can be timelapse, Flickr photos are never timelapse
+              if (!showTimelapsePhotos) {
+                earthPhotos = earthPhotos.filter((photoWrapper) => {
+                  const photoItem = photoWrapper.item as PhotoItem;
+                  return !photoItem.isTimelapse;
+                });
+              }
+
               items = [...earthPhotos, ...flickrPhotos] as unknown[];
             }
 
