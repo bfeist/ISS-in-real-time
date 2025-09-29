@@ -27,34 +27,56 @@
 /* Mobile tabs container */
 .tabs {
   display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  height: 45px;
   overflow-x: auto;
-  background-color: #f1f1f1;
-  border-bottom: 1px solid #cccccc;
+  overflow-y: hidden;
+  background-color: var(--grey3);
+}
+
+.tabsOverflow {
+  justify-content: flex-start;
 }
 
 /* Individual tab styling */
 .tab {
-  background-color: inherit;
-  border: none;
-  outline: none;
+  flex: 0 0 auto;
+  height: 100%;
+  display: grid;
+  place-items: center;
   cursor: pointer;
-  padding: 10px 16px;
-  font-size: 16px;
-  transition: 0.3s;
-  text-transform: capitalize;
+  border-right: 1px solid var(--grey1);
+  outline: none;
+  background-color: inherit;
+  box-shadow: none;
+  font-size: 0.9em;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--grey5);
+  transition:
+    color 0.16s ease,
+    font-size 0.12s ease;
   white-space: nowrap;
+  user-select: none;
+  padding: 0 15px;
+}
+
+.tab:first-child {
+  border-left: 1px solid var(--grey1);
 }
 
 .tab:hover {
-  background-color: #dddddd;
+  color: var(--hi-yellow);
 }
 
 .activeTab {
-  background-color: #cccccc;
+  color: var(--hi-yellow);
 }
 
 .activeTab:hover {
-  background-color: #cccccc;
+  color: var(--hi-yellow);
 }
 
 /* Mobile tab content */

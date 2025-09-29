@@ -1,4 +1,4 @@
-import { FunctionComponent, useEffect, useState } from "react";
+import { FunctionComponent, useEffect, useRef, useState } from "react";
 import TimelineDayContainer from "components/timelineDay/timelineDayContainer";
 import Comm from "components/panes/comm";
 import Articles from "components/panes/articles";
@@ -9,7 +9,7 @@ import EvaInfo from "components/panes/evaInfo";
 import { GlobeOrMap } from "./globeOrMap";
 import styles from "./mobileLayout.module.css";
 
-export type TabName = "video" | "photos" | "globe" | "comm" | "articles" | "exp/onboard" | "eva";
+export type TabName = "video" | "photos" | "globe" | "comm" | "articles" | "onboard" | "eva";
 
 interface MobileLayoutProps {
   tabs: TabName[];
@@ -17,6 +17,8 @@ interface MobileLayoutProps {
 
 const MobileLayout: FunctionComponent<MobileLayoutProps> = ({ tabs }) => {
   const [activeTab, setActiveTab] = useState<TabName>(() => tabs[0] ?? "globe");
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
 
   useEffect(() => {
     if (tabs.length === 0) {
@@ -27,6 +29,24 @@ const MobileLayout: FunctionComponent<MobileLayoutProps> = ({ tabs }) => {
       setActiveTab(tabs[0]);
     }
   }, [tabs, activeTab]);
+
+  useEffect(() => {
+    if (tabsRef.current) {
+      const checkOverflow = () => {
+        const element = tabsRef.current;
+        if (element) {
+          setIsOverflowing(element.scrollWidth > element.clientWidth);
+        }
+      };
+
+      checkOverflow();
+
+      const handleResize = () => checkOverflow();
+      window.addEventListener("resize", handleResize);
+
+      return () => window.removeEventListener("resize", handleResize);
+    }
+  }, [tabs]);
 
   const renderActiveTab = (tab: TabName) => {
     switch (tab) {
@@ -40,7 +60,7 @@ const MobileLayout: FunctionComponent<MobileLayoutProps> = ({ tabs }) => {
         return <Comm />;
       case "articles":
         return <Articles />;
-      case "exp/onboard":
+      case "onboard":
         return <Widget />;
       case "eva":
         return <EvaInfo long={false} />;
@@ -58,15 +78,27 @@ const MobileLayout: FunctionComponent<MobileLayoutProps> = ({ tabs }) => {
       </div>
       <div className={styles.mobileBody}>
         {tabs.length > 0 && (
-          <div className={styles.tabs}>
+          <div
+            ref={tabsRef}
+            className={`${styles.tabs} ${isOverflowing ? styles.tabsOverflow : ""}`}
+          >
             {tabs.map((tab) => (
-              <button
+              <div
                 key={tab}
+                role="button"
+                tabIndex={0}
                 className={`${styles.tab} ${currentTab === tab ? styles.activeTab : ""}`}
                 onClick={() => setActiveTab(tab)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setActiveTab(tab);
+                  }
+                }}
+                aria-pressed={currentTab === tab}
               >
                 {tab}
-              </button>
+              </div>
             ))}
           </div>
         )}

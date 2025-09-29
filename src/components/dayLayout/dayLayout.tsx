@@ -217,7 +217,7 @@ const DayLayout: FunctionComponent = () => {
       { name: "comm", visible: hasType("comm") },
       { name: "articles", visible: hasType("article") },
       {
-        name: "exp/onboard",
+        name: "onboard",
         visible: hasType("widget", "widget-tall", "widget-rest"),
       },
       { name: "eva", visible: hasType("eva", "eva-long") },
