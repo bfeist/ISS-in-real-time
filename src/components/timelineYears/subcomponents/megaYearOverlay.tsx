@@ -36,6 +36,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+  const ignoreMouseEventsRef = useRef(false);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [isTouchInteraction, setIsTouchInteraction] = useState(false);
   const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
@@ -162,13 +163,28 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     // Update cursor position for tooltip
     setCursorPosition({ x: event.clientX, y: event.clientY });
 
-    // Reset touch interaction flag when mouse is used
-    setIsTouchInteraction(false);
+    const nativeEvent = event.nativeEvent as MouseEvent & {
+      sourceCapabilities?: { firesTouchEvents?: boolean };
+    };
+
+    if (ignoreMouseEventsRef.current) {
+      ignoreMouseEventsRef.current = false;
+      return;
+    }
+
+    if (nativeEvent.sourceCapabilities?.firesTouchEvents) {
+      return;
+    }
+
+    if (isTouchInteraction) {
+      setIsTouchInteraction(false);
+    }
   };
 
   const handleTouchStart = (_event: React.TouchEvent<HTMLDivElement>) => {
     isDragging.current = false;
     setIsTouchInteraction(true);
+    ignoreMouseEventsRef.current = true;
   };
 
   const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -186,6 +202,8 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
 
     // Update cursor position for tooltip
     setCursorPosition({ x: touch.clientX, y: touch.clientY });
+
+    ignoreMouseEventsRef.current = true;
   };
 
   const handleTouchEnd = (_event: React.TouchEvent<HTMLDivElement>) => {
@@ -197,6 +215,8 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     if (hoveredDate) {
       setIsTouchInteraction(true);
     }
+
+    ignoreMouseEventsRef.current = true;
   };
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -230,6 +250,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       setHoveredDate(null);
       setCursorPosition(null);
       setShowTimelineYears(false);
+      ignoreMouseEventsRef.current = false;
     },
     [pendingTouchDate, hoveredDate, handleDateClick, setShowTimelineYears, setHoveredDate]
   );
@@ -238,6 +259,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     setPendingTouchDate(null);
     setIsTouchInteraction(false);
     setCursorPosition(null);
+    ignoreMouseEventsRef.current = false;
   }, []);
 
   const handleMouseLeave = () => {
@@ -273,7 +295,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     }
   }, [forceRedraw, draw]);
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (hideTimeout) clearTimeout(hideTimeout);
