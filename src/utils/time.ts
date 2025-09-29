@@ -14,9 +14,55 @@ export const findClosestDate = (dateTime: Date, dates: Date[]): Date | undefined
   return closestDate;
 };
 
+export const timeComponentFromDateTime = (dateTime?: string | null): string | null => {
+  if (!dateTime) {
+    return null;
+  }
+
+  const [, timePortionCandidate] = dateTime.split("T");
+  const rawTime = timePortionCandidate ?? dateTime;
+  const trimmed = rawTime.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const withoutTrailingZone = trimmed.replace(/z$/i, "");
+  const baseTime = withoutTrailingZone.split(/[+-]/)[0]?.trim();
+
+  if (!baseTime) {
+    return null;
+  }
+
+  const segments = baseTime.split(":");
+
+  if (segments.length < 2) {
+    return null;
+  }
+
+  const [hoursRaw, minutesRaw, secondsRaw] = segments;
+  const seconds = secondsRaw ? secondsRaw.split(".")[0] : "00";
+
+  const hours = hoursRaw.padStart(2, "0");
+  const minutes = minutesRaw.padStart(2, "0");
+  const secs = seconds.padStart(2, "0");
+
+  return `${hours}:${minutes}:${secs}`;
+};
+
 export const appSecondsFromTimeStr = (timeStr: string): number => {
-  const [hours, minutes, seconds] = timeStr.split(":").map((x) => parseInt(x));
+  const [hours, minutes, seconds] = timeStr.split(":").map((value) => Number.parseInt(value, 10));
   return hours * 3600 + minutes * 60 + seconds;
+};
+
+export const appSecondsFromDateTime = (dateTime?: string | null): number | null => {
+  const timeComponent = timeComponentFromDateTime(dateTime);
+
+  if (!timeComponent) {
+    return null;
+  }
+
+  return appSecondsFromTimeStr(timeComponent);
 };
 
 export function hhmmssFromAppSeconds(appSeconds: number): string {

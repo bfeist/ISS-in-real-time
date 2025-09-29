@@ -4,7 +4,7 @@ import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photos.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
-import { appSecondsFromTimeStr } from "utils/time";
+import { appSecondsFromDateTime } from "utils/time";
 import ClockInterval from "./clockInterval";
 import PhotoToggle from "./photoToggle";
 import { useDateEarthPhotography, useDatePhotosFlickr } from "api/useDateSpecificData";
@@ -105,10 +105,32 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     if (!appSeconds || photoItemsCombined.length === 0) return;
 
     // Find images at current time or closest before
-    const imagesAtCurrentTime = photoItemsCombined.filter((imageItem) => {
-      const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
-      return imageSeconds === appSeconds;
-    });
+    const photoEntries = photoItemsCombined
+      .map((imageItem) => {
+        const imageSeconds = appSecondsFromDateTime(imageItem.dateTaken);
+        if (imageSeconds === null) {
+          return null;
+        }
+
+        return { imageItem, imageSeconds };
+      })
+      .filter((entry): entry is { imageItem: PhotoItem; imageSeconds: number } => entry !== null);
+
+    const invalidPhotoFallback = photoItemsCombined.length
+      ? photoItemsCombined.find((photo) => photo.ID === clickedPhotoFilename) ||
+        photoItemsCombined[0]
+      : null;
+
+    if (photoEntries.length === 0) {
+      if (invalidPhotoFallback && invalidPhotoFallback.ID !== mostRecentImage?.ID) {
+        setMostRecentImage(invalidPhotoFallback);
+      }
+      return;
+    }
+
+    const imagesAtCurrentTime = photoEntries
+      .filter(({ imageSeconds }) => imageSeconds === appSeconds)
+      .map(({ imageItem }) => imageItem);
 
     let closestImageItem = null;
 
@@ -122,11 +144,11 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       }
     } else {
       // Find closest image before current time
-      closestImageItem = photoItemsCombined[0] || null;
+      closestImageItem = photoEntries[0]?.imageItem || invalidPhotoFallback || null;
+
       if (closestImageItem) {
         let appSecondsDiff = null;
-        for (const imageItem of photoItemsCombined) {
-          const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
+        for (const { imageItem, imageSeconds } of photoEntries) {
           if (imageSeconds > appSeconds) break;
 
           const diff = Math.abs(appSeconds - imageSeconds);
@@ -145,8 +167,10 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
 
   const handleThumbnailClick = useCallback(
     (item: PhotoItem) => {
-      const targetTime = appSecondsFromTimeStr(item.dateTaken.split("T")[1]);
-      setClock(targetTime);
+      const targetTime = appSecondsFromDateTime(item.dateTaken);
+      if (targetTime !== null) {
+        setClock(targetTime);
+      }
       setClickedPhotoFilename(item.ID);
     },
     [setClock]

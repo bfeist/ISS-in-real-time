@@ -13,28 +13,44 @@ const basePhoto: PhotoItem = {
   type: "photos_earth",
 };
 
-describe("PhotosThumbs", () => {
-  it("handles photo dataset becoming empty without throwing", async () => {
-    const getImageUrl = vi.fn(() => "https://example.com/image.jpg");
-    const onThumbnailClick = vi.fn();
-    const onAutoScrollToggle = vi.fn();
-    const onDisableAutoScroll = vi.fn();
-    const setClickedPhotoFilename = vi.fn();
-    const setLastAppSeconds = vi.fn();
+const createBaseProps = () => {
+  const getImageUrl = vi.fn(() => "https://example.com/image.jpg");
+  const onThumbnailClick = vi.fn();
+  const onAutoScrollToggle = vi.fn();
+  const onDisableAutoScroll = vi.fn();
+  const setClickedPhotoFilename = vi.fn();
+  const setLastAppSeconds = vi.fn();
 
-    const baseProps: Omit<ComponentProps<typeof PhotosThumbs>, "photoItemsCombined"> = {
-      appSeconds: 100,
-      mostRecentImage: basePhoto,
-      clickedPhotoFilename: null,
-      lastAppSeconds: null,
-      isAutoScrollEnabled: false,
+  const props: Omit<ComponentProps<typeof PhotosThumbs>, "photoItemsCombined"> = {
+    appSeconds: 100,
+    mostRecentImage: basePhoto,
+    clickedPhotoFilename: null,
+    lastAppSeconds: null,
+    isAutoScrollEnabled: false,
+    getImageUrl,
+    onThumbnailClick,
+    onAutoScrollToggle,
+    onDisableAutoScroll,
+    setClickedPhotoFilename,
+    setLastAppSeconds,
+  };
+
+  return {
+    props,
+    mocks: {
       getImageUrl,
       onThumbnailClick,
       onAutoScrollToggle,
       onDisableAutoScroll,
       setClickedPhotoFilename,
       setLastAppSeconds,
-    };
+    },
+  };
+};
+
+describe("PhotosThumbs", () => {
+  it("handles photo dataset becoming empty without throwing", async () => {
+    const { props: baseProps, mocks } = createBaseProps();
 
     const { rerender, container } = render(
       <PhotosThumbs {...baseProps} photoItemsCombined={[basePhoto]} />
@@ -50,10 +66,32 @@ describe("PhotosThumbs", () => {
       expect(container.querySelectorAll("[data-index]").length).toBe(0);
     });
 
-    expect(onThumbnailClick).not.toHaveBeenCalled();
-    expect(onAutoScrollToggle).not.toHaveBeenCalled();
-    expect(onDisableAutoScroll).not.toHaveBeenCalled();
-    expect(setClickedPhotoFilename).not.toHaveBeenCalled();
-    expect(setLastAppSeconds).toHaveBeenCalledWith(100);
+    expect(mocks.onThumbnailClick).not.toHaveBeenCalled();
+    expect(mocks.onAutoScrollToggle).not.toHaveBeenCalled();
+    expect(mocks.onDisableAutoScroll).not.toHaveBeenCalled();
+    expect(mocks.setClickedPhotoFilename).not.toHaveBeenCalled();
+    expect(mocks.setLastAppSeconds).toHaveBeenCalledWith(100);
+  });
+
+  it("renders photos lacking time metadata without crashing", async () => {
+    const { props: baseProps } = createBaseProps();
+    const photoWithoutTime: PhotoItem = {
+      ...basePhoto,
+      ID: "photo-missing-time",
+      dateTaken: "2025-01-02",
+    };
+
+    const { container } = render(
+      <PhotosThumbs
+        {...baseProps}
+        appSeconds={150}
+        mostRecentImage={photoWithoutTime}
+        photoItemsCombined={[photoWithoutTime]}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll("[data-index]").length).toBeGreaterThan(0);
+    });
   });
 });

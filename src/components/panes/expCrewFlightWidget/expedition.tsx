@@ -50,6 +50,7 @@ const Expeditions: FunctionComponent = () => {
         href={expeditionUrl}
         target="_blank"
         rel="noopener noreferrer"
+        key={expedition.expedition}
       >
         <div className={styles.expeditionTitle}>Expedition {expedition.expedition}</div>
         <div className={styles.expeditionBody}>

@@ -2,7 +2,7 @@ import { FunctionComponent, useCallback, useEffect, useRef, useState } from "rea
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowsSpin } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photosThumbs.module.css";
-import { appSecondsFromTimeStr } from "utils/time";
+import { appSecondsFromDateTime, timeComponentFromDateTime } from "utils/time";
 import { useStateClock } from "store/hooks/useStateClock";
 
 interface PhotosThumbsProps {
@@ -400,92 +400,121 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   useEffect(() => {
     if (!appSeconds || windowedPhotos.length === 0) return;
 
-    // Clear clicked photo state when time changes
     if (lastAppSeconds !== null && lastAppSeconds !== appSeconds && clickedPhotoFilename) {
       setClickedPhotoFilename(null);
     }
     setLastAppSeconds(appSeconds);
 
-    // Find images at current time or closest before in windowed photos
-    const imagesAtCurrentTime = windowedPhotos.filter((imageItem) => {
-      const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
-      return imageSeconds === appSeconds;
-    });
+    const windowedEntries = windowedPhotos
+      .map((photo) => {
+        const seconds = appSecondsFromDateTime(photo.dateTaken);
+        if (seconds === null) {
+          return null;
+        }
 
-    let closestImageItem = null;
+        return { photo, seconds };
+      })
+      .filter((entry): entry is { photo: PhotoItem; seconds: number } => entry !== null);
+
+    const combinedEntries = photoItemsCombined
+      .map((photo) => {
+        const seconds = appSecondsFromDateTime(photo.dateTaken);
+        if (seconds === null) {
+          return null;
+        }
+
+        return { photo, seconds };
+      })
+      .filter((entry): entry is { photo: PhotoItem; seconds: number } => entry !== null);
+
+    const fallbackPhoto =
+      windowedPhotos.find((photo) => photo.ID === clickedPhotoFilename) ??
+      windowedPhotos[0] ??
+      null;
+
+    if (windowedEntries.length === 0) {
+      if (combinedEntries.length === 0) {
+        return;
+      }
+
+      const targetEntry = combinedEntries.reduce((closest, entry) => {
+        const diff = Math.abs(appSeconds - entry.seconds);
+        const closestDiff = Math.abs(appSeconds - closest.seconds);
+        return diff < closestDiff ? entry : closest;
+      }, combinedEntries[0]);
+
+      calculateInitialWindow(targetEntry.photo);
+      return;
+    }
+
+    const imagesAtCurrentTime = windowedEntries
+      .filter(({ seconds }) => seconds === appSeconds)
+      .map(({ photo }) => photo);
+
+    let closestImageItem: PhotoItem | null = null;
 
     if (imagesAtCurrentTime.length > 0) {
-      // Prioritize clicked image if available
       if (clickedPhotoFilename) {
-        const clickedImage = imagesAtCurrentTime.find((img) => img.ID === clickedPhotoFilename);
-        closestImageItem = clickedImage || imagesAtCurrentTime[0];
+        closestImageItem =
+          imagesAtCurrentTime.find((img) => img.ID === clickedPhotoFilename) ||
+          imagesAtCurrentTime[0];
       } else {
         closestImageItem = imagesAtCurrentTime[0];
       }
     } else {
-      // Check if target time is within the current window range
-      if (windowedPhotos.length > 0) {
-        const firstPhotoSeconds = appSecondsFromTimeStr(windowedPhotos[0].dateTaken.split("T")[1]);
-        const lastPhotoSeconds = appSecondsFromTimeStr(
-          windowedPhotos[windowedPhotos.length - 1].dateTaken.split("T")[1]
-        );
+      const firstPhotoSeconds = windowedEntries[0].seconds;
+      const lastPhotoSeconds = windowedEntries[windowedEntries.length - 1].seconds;
 
-        if (appSeconds >= firstPhotoSeconds && appSeconds <= lastPhotoSeconds) {
-          // Target time is within current window - find closest image
-          let appSecondsDiff = null;
-          for (const imageItem of windowedPhotos) {
-            const imageSeconds = appSecondsFromTimeStr(imageItem.dateTaken.split("T")[1]);
-            if (imageSeconds > appSeconds) break;
+      if (appSeconds >= firstPhotoSeconds && appSeconds <= lastPhotoSeconds) {
+        let appSecondsDiff: number | null = null;
 
-            const diff = Math.abs(appSeconds - imageSeconds);
-            if (appSecondsDiff === null || diff <= appSecondsDiff) {
-              appSecondsDiff = diff;
-              closestImageItem = imageItem;
-            }
+        for (const { photo, seconds } of windowedEntries) {
+          if (seconds > appSeconds) break;
+
+          const diff = Math.abs(appSeconds - seconds);
+          if (appSecondsDiff === null || diff <= appSecondsDiff) {
+            appSecondsDiff = diff;
+            closestImageItem = photo;
           }
-        } else {
-          // Target time is outside current window - trigger complete window reset
-          // Find the photo closest to target time in the full photo set
-          if (photoItemsCombined.length === 0) {
-            resetWindowState();
-            return;
-          }
+        }
 
-          const targetPhoto = photoItemsCombined.reduce((closest, photo) => {
-            const photoSeconds = appSecondsFromTimeStr(photo.dateTaken.split("T")[1]);
-            const closestSeconds = appSecondsFromTimeStr(closest.dateTaken.split("T")[1]);
-
-            const photoDiff = Math.abs(appSeconds - photoSeconds);
-            const closestDiff = Math.abs(appSeconds - closestSeconds);
-
-            return photoDiff < closestDiff ? photo : closest;
-          }, photoItemsCombined[0]);
-
-          // Reset the window around this target photo
-          calculateInitialWindow(targetPhoto);
-
-          // Don't set closestImageItem here - let the window reset effect handle scrolling
+        if (!closestImageItem && fallbackPhoto) {
+          closestImageItem = fallbackPhoto;
+        }
+      } else {
+        if (combinedEntries.length === 0) {
+          resetWindowState();
           return;
         }
+
+        const targetEntry = combinedEntries.reduce((closest, entry) => {
+          const diff = Math.abs(appSeconds - entry.seconds);
+          const closestDiff = Math.abs(appSeconds - closest.seconds);
+          return diff < closestDiff ? entry : closest;
+        }, combinedEntries[0]);
+
+        calculateInitialWindow(targetEntry.photo);
+        return;
       }
     }
 
     if (!closestImageItem) return;
 
-    // Auto-scroll if enabled
     if (isAutoScrollEnabled) {
-      const closestImageTimeStr = closestImageItem.dateTaken.split("T")[1];
+      const closestImageTimeStr = timeComponentFromDateTime(closestImageItem.dateTaken);
+      if (!closestImageTimeStr) {
+        return;
+      }
+
       const targetElement = document.querySelector(`[data-time="${closestImageTimeStr}"]`);
 
       if (targetElement && thumbnailsContainerRef.current) {
         isProgrammaticScrollingRef.current = true;
 
-        // Center the target element in the viewport
         const container = thumbnailsContainerRef.current;
         const targetRect = targetElement.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
 
-        // Calculate the scroll position to center the element
         const targetCenterX = targetRect.left + targetRect.width / 2;
         const containerCenterX = containerRect.left + containerRect.width / 2;
         const scrollOffset = targetCenterX - containerCenterX;
@@ -495,7 +524,6 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
           behavior: "instant",
         });
 
-        // Use requestAnimationFrame to reset flag after scroll completes
         requestAnimationFrame(() => {
           isProgrammaticScrollingRef.current = false;
         });
@@ -528,43 +556,53 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
         ref={thumbnailsContainerRef}
         onDoubleClick={() => onAutoScrollToggle(!isAutoScrollEnabled)}
       >
-        {windowedPhotos.map((item, index) => (
-          <div
-            key={index}
-            className={`${styles.imageThumb} ${mostRecentImage?.ID === item.ID ? styles.active : ""} lazy-load`}
-            data-index={index}
-            data-time={item.dateTaken.split("T")[1]}
-          >
+        {windowedPhotos.map((item, index) => {
+          const timeLabel = timeComponentFromDateTime(item.dateTaken);
+          const imageSeconds = appSecondsFromDateTime(item.dateTaken);
+          const tooltipHtml =
+            timeLabel && imageSeconds !== null
+              ? `${timeLabel} <br/> ${appSeconds - imageSeconds}s`
+              : "Time unavailable";
+          const dataTimeValue = timeLabel ?? `unknown-${item.ID}`;
+
+          return (
             <div
-              className={styles.thumbContent}
-              role="button"
-              tabIndex={0}
-              onClick={() => handleThumbnailClick(item)}
-              onKeyUp={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  handleThumbnailClick(item);
-                }
-              }}
-              onPointerDown={(e) => {
-                // Prevent container's pointer handler from triggering for thumbnail clicks
-                e.stopPropagation();
-              }}
+              key={index}
+              className={`${styles.imageThumb} ${mostRecentImage?.ID === item.ID ? styles.active : ""} lazy-load`}
+              data-index={index}
+              data-time={dataTimeValue}
             >
-              {visibleImages.has(index) ? (
-                <img
-                  src={getImageUrl(item, "thumb")}
-                  alt={item.ID}
-                  loading="lazy"
-                  data-tooltip-id="source-button-tooltip"
-                  data-tooltip-html={`${item.dateTaken.split("T")[1]} <br/> ${appSeconds - appSecondsFromTimeStr(item.dateTaken.split("T")[1])}s`}
-                  data-tooltip-place="top"
-                />
-              ) : (
-                <div className={styles.thumbPlaceholder} />
-              )}
+              <div
+                className={styles.thumbContent}
+                role="button"
+                tabIndex={0}
+                onClick={() => handleThumbnailClick(item)}
+                onKeyUp={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    handleThumbnailClick(item);
+                  }
+                }}
+                onPointerDown={(e) => {
+                  // Prevent container's pointer handler from triggering for thumbnail clicks
+                  e.stopPropagation();
+                }}
+              >
+                {visibleImages.has(index) ? (
+                  <img
+                    src={getImageUrl(item, "thumb")}
+                    alt={item.ID}
+                    loading="lazy"
+                    data-tooltip-id="source-button-tooltip"
+                    data-tooltip-html={tooltipHtml}
+                    data-tooltip-place="top"
+                  />
+                ) : (
+                  <div className={styles.thumbPlaceholder} />
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {!isAutoScrollEnabled && (
