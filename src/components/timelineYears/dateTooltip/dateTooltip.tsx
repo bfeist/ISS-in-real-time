@@ -25,11 +25,11 @@ const DateTooltip: FunctionComponent<{
   const tooltipRef = useRef<HTMLDivElement>(null);
   const goButtonTouchActiveRef = useRef(false);
   const cancelButtonTouchActiveRef = useRef(false);
-  const [isLargeScreen, setIsLargeScreen] = useState(() => {
+  const [viewportWidth, setViewportWidth] = useState(() => {
     if (typeof window === "undefined") {
-      return true;
+      return 1024;
     }
-    return window.innerWidth >= 1024;
+    return window.innerWidth;
   });
 
   useEffect(() => {
@@ -38,7 +38,7 @@ const DateTooltip: FunctionComponent<{
     }
 
     const handleResize = () => {
-      setIsLargeScreen(window.innerWidth >= 1024);
+      setViewportWidth(window.innerWidth);
     };
 
     handleResize();
@@ -48,6 +48,9 @@ const DateTooltip: FunctionComponent<{
       window.removeEventListener("resize", handleResize);
     };
   }, []);
+
+  const isLargeScreen = viewportWidth >= 1024;
+  const isExtraSmallScreen = viewportWidth < 740;
 
   // Extract data from React Query hooks
   const { data: dataAvailabilityItems } = useGeneralDataAvailabilities();
@@ -85,7 +88,7 @@ const DateTooltip: FunctionComponent<{
       return { pointerEvents: "none", visibility: "hidden" };
     }
 
-    const offset = 30;
+    const offset = isLargeScreen ? 30 : 5;
     const tooltipElement = tooltipRef.current;
 
     const tooltipWidth = tooltipElement ? tooltipElement.offsetWidth || 600 : 600;
@@ -121,7 +124,7 @@ const DateTooltip: FunctionComponent<{
       visibility: "visible",
       pointerEvents: isTouchInteraction ? "auto" : "none", // Enable pointer events for touch interactions
     };
-  }, [cursorPosition, hoveredDate, isTouchInteraction, containerRef]);
+  }, [cursorPosition, hoveredDate, isTouchInteraction, containerRef, isLargeScreen]);
 
   const stopEventPropagation = (event: React.SyntheticEvent) => {
     event.stopPropagation();
@@ -183,10 +186,23 @@ const DateTooltip: FunctionComponent<{
     cancelButtonTouchActiveRef.current = false;
   };
 
+  const tooltipClassNames = [styles.dateTooltip];
+  if (!isLargeScreen) {
+    tooltipClassNames.push(styles.compactTooltip);
+  }
+  if (isExtraSmallScreen) {
+    tooltipClassNames.push(styles.extraCompactTooltip);
+  }
+
+  const tooltipGridClassNames = [styles.tooltipGrid];
+  if (!isLargeScreen) {
+    tooltipGridClassNames.push(styles.singleColumn);
+  }
+
   return (
     <div
       ref={tooltipRef}
-      className={`${styles.dateTooltip} ${!isLargeScreen ? styles.compactTooltip : ""}`}
+      className={tooltipClassNames.join(" ")}
       style={getTooltipStyle()}
       onTouchStart={stopEventPropagation}
       onTouchMove={stopEventPropagation}
@@ -197,7 +213,7 @@ const DateTooltip: FunctionComponent<{
           <div className={styles.tooltipHeader}>
             <div className={styles.tooltipDate}>{formatTooltipDate(hoveredDate)}</div>
             <div className={styles.tooltipHeaderRight}>
-              {orbitsDaily && orbitsDaily[hoveredDate] && (
+              {!isExtraSmallScreen && orbitsDaily && orbitsDaily[hoveredDate] && (
                 <div className={styles.tooltipOrbits}>Orbits: {orbitsDaily[hoveredDate]}</div>
               )}
               {isTouchInteraction && (
@@ -231,28 +247,32 @@ const DateTooltip: FunctionComponent<{
             </div>
           </div>
 
-          <div className={styles.tooltipContent}>
-            <div className={`${styles.tooltipGrid} ${!isLargeScreen ? styles.singleColumn : ""}`}>
-              <div className={styles.columnHeader}>Expeditions &amp; Crew</div>
-              {isLargeScreen && <div className={styles.columnHeader}>Vehicles Docked</div>}
+          {!isExtraSmallScreen && (
+            <div className={styles.tooltipContent}>
+              <div className={tooltipGridClassNames.join(" ")}>
+                <div className={styles.columnHeader}>Expeditions &amp; Crew</div>
+                {isLargeScreen && <div className={styles.columnHeader}>Vehicles Docked</div>}
 
-              <div className={styles.combinedColumn}>
-                <div className={styles.subSection}>
-                  <div className={styles.subSectionTitle}>Expeditions</div>
-                  <ExpeditionsSection hoveredDate={hoveredDate} />
+                <div className={styles.combinedColumn}>
+                  <div className={styles.subSection}>
+                    <div className={styles.subSectionTitle}>Expeditions</div>
+                    <ExpeditionsSection hoveredDate={hoveredDate} />
+                  </div>
+                  <div className={styles.subSection}>
+                    <div className={styles.subSectionTitle}>Crew Onboard</div>
+                    <CrewOnboardSection hoveredDate={hoveredDate} />
+                  </div>
                 </div>
-                <div className={styles.subSection}>
-                  <div className={styles.subSectionTitle}>Crew Onboard</div>
-                  <CrewOnboardSection hoveredDate={hoveredDate} />
-                </div>
+                {isLargeScreen && <VehiclesDockedSection hoveredDate={hoveredDate} />}
               </div>
-              {isLargeScreen && <VehiclesDockedSection hoveredDate={hoveredDate} />}
             </div>
-          </div>
+          )}
 
-          <div className={styles.contentIndicatorsWrapper}>
-            <ContentIndicatorsSection hoveredDate={hoveredDate} compact={true} />
-          </div>
+          {!isExtraSmallScreen && (
+            <div className={styles.contentIndicatorsWrapper}>
+              <ContentIndicatorsSection hoveredDate={hoveredDate} compact={true} />
+            </div>
+          )}
 
           <FirstCommSection hoveredDate={hoveredDate} hasCommData={hasCommData} />
         </>

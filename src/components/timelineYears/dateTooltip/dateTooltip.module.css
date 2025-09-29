@@ -26,6 +26,12 @@
 
 .compactTooltip {
   width: 300px;
+  min-height: 0;
+}
+
+.extraCompactTooltip {
+  width: 150px;
+  min-height: 0;
 }
 
 .tooltipHeader {
