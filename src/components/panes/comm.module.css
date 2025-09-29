@@ -9,6 +9,8 @@
   border: 1px solid var(--grey3);
   border-radius: var(--panel-radius);
   box-sizing: border-box;
+  container-type: inline-size;
+  container-name: comm;
 }
 
 .commContent {
@@ -131,7 +133,7 @@
   user-select: none;
 }
 
-@media (width <= 1024px) {
+@container comm (width <= 270px) {
   .channelToggleContainer {
     gap: 4px;
     padding: 8px 6px;

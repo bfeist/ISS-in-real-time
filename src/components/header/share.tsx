@@ -98,17 +98,22 @@ const ShareModal: FunctionComponent<{
 interface ShareButtonProps {
   selectedDate: string | null;
   appSeconds: number;
+  windowWidth: number;
 }
 
-const ShareButton: FunctionComponent<ShareButtonProps> = ({ selectedDate, appSeconds }) => {
+const ShareButton: FunctionComponent<ShareButtonProps> = ({
+  selectedDate,
+  appSeconds,
+  windowWidth,
+}) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <div>
       <IconButton
         icon={faShareNodes}
-        label="Share"
-        style={{ width: "100px", fontSize: "0.7rem" }}
+        label={windowWidth > 525 ? "Share" : undefined}
+        style={{ width: windowWidth > 525 ? "100px" : undefined, fontSize: "0.7rem" }}
         onClick={(e) => {
           setIsModalOpen(true);
           e.stopPropagation();

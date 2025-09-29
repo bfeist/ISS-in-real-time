@@ -1,4 +1,4 @@
-import { FunctionComponent, useState } from "react";
+import { FunctionComponent, useState, useEffect } from "react";
 import styles from "./header.module.css";
 import { useStateToggle } from "../../store/hooks/useStateToggle";
 import ShareButton from "components/header/share";
@@ -12,6 +12,31 @@ const Header: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
 
   const [appSeconds, setAppSeconds] = useState(0);
+  const [windowWidth, setWindowWidth] = useState(() => {
+    if (typeof window === "undefined") {
+      return 1024;
+    }
+    return window.innerWidth;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  const showAboutLabel = windowWidth >= 525;
 
   return (
     <>
@@ -41,14 +66,18 @@ const Header: FunctionComponent = () => {
           <div className={styles.rightButtons}>
             <IconButton
               icon={faInfoCircle}
-              label="About this project"
-              style={{ width: "130px", fontSize: "0.7rem" }}
+              label={showAboutLabel ? "About this project" : undefined}
+              style={{ width: showAboutLabel ? "130px" : undefined, fontSize: "0.7rem" }}
               onClick={(e) => {
                 window.open("https://benfeist.com", "_blank");
                 e.stopPropagation();
               }}
             />
-            <ShareButton selectedDate={selectedDate} appSeconds={appSeconds} />
+            <ShareButton
+              selectedDate={selectedDate}
+              appSeconds={appSeconds}
+              windowWidth={windowWidth}
+            />
           </div>
         </div>
       </div>

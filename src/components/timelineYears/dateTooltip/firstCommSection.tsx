@@ -17,11 +17,13 @@ const _unusedClasses = [
 interface FirstCommSectionProps {
   hoveredDate: string | null;
   hasCommData: boolean;
+  extraCompact?: boolean;
 }
 
 const FirstCommSection: FunctionComponent<FirstCommSectionProps> = ({
   hoveredDate,
   hasCommData,
+  extraCompact = false,
 }) => {
   const { data: commFirstData } = useCommFirstData();
 
@@ -38,7 +40,9 @@ const FirstCommSection: FunctionComponent<FirstCommSectionProps> = ({
 
   return (
     <div className={styles.commPreview}>
-      <div className={styles.commPreviewHeader}>First Communication</div>
+      <div className={styles.commPreviewHeader}>
+        {!extraCompact ? "First Communication" : "First Comm"}
+      </div>
       <div className={styles.commPreviewItems}>
         {previewCommItems.map((item: CommFirstItem, index: number) => {
           const channelInfo = extractChannelInfoFromFilename(item.filename);
@@ -46,8 +50,10 @@ const FirstCommSection: FunctionComponent<FirstCommSectionProps> = ({
 
           return (
             <div key={`${item.filename}-${index}`} className={styles.commPreviewItem}>
-              {timeFromFilename && <div className={styles.commPreviewTime}>{timeFromFilename}</div>}
-              {channelInfo && (
+              {!extraCompact && timeFromFilename && (
+                <div className={styles.commPreviewTime}>{timeFromFilename}</div>
+              )}
+              {!extraCompact && channelInfo && (
                 <div
                   className={`${styles.commPreviewChannel} ${
                     styles[`channel${channelInfo.number}`]

@@ -46,6 +46,13 @@
   filter: drop-shadow(0 1px 0 var(--grey3));
 }
 
+@media (width <= 575px) {
+  .centerWithBackground {
+    background-image: none;
+    width: auto;
+  }
+}
+
 .dateTimeContainer {
   display: flex;
   flex-direction: row;
@@ -129,8 +136,6 @@
 }
 
 .closeDayButton {
-  position: absolute;
-  right: 60px;
   background: transparent;
   border: 1px solid var(--grey5);
   cursor: pointer;

@@ -274,7 +274,11 @@ const DateTooltip: FunctionComponent<{
             </div>
           )}
 
-          <FirstCommSection hoveredDate={hoveredDate} hasCommData={hasCommData} />
+          <FirstCommSection
+            hoveredDate={hoveredDate}
+            hasCommData={hasCommData}
+            extraCompact={isExtraSmallScreen}
+          />
         </>
       )}
     </div>
