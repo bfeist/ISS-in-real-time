@@ -1,5 +1,6 @@
 import { getBaseStaticUrl } from "../utils/api";
 import { processCommCsv } from "../utils/comm";
+import { generateEarthPhotoUrls } from "../utils/earthPhotoUrls";
 
 // Individual fetch functions for each data type
 export async function fetchDataAvailabilities(): Promise<DataAvailability[]> {
@@ -139,7 +140,15 @@ export async function fetchEarthPhotography(date: string): Promise<PhotoItem[]> 
   if (data.length > 0) {
     data.sort((a: PhotoItem, b: PhotoItem) => a.dateTaken.localeCompare(b.dateTaken));
   }
-  return data.map((item: PhotoItem) => ({ ...item, type: "photos_earth" }));
+
+  return data.map((item: PhotoItem) => {
+    const urls = generateEarthPhotoUrls(item.ID);
+    return {
+      ...item,
+      ...urls,
+      type: "photos_earth" as const,
+    };
+  });
 }
 
 interface FlickrPhotoRaw {

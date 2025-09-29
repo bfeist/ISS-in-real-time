@@ -207,21 +207,10 @@ def generate_manifest(grouped_data):
         # Use the stored identifier field if present
         ID = value.get("ID", f"{key[0]}{key[1]}{key[2]}")
 
-        # Get URLs
-        small_url = value.get("small")
-        large_url = value.get("large")
-
-        if not small_url or not large_url:
-            print(
-                f"Warning: Missing small or large URL for photo ID {ID}. Skipping this entry."
-            )
-            continue
-
+        # No longer need to check for URLs since we can infer them from ID
         manifest_entry = {
             "ID": ID,
             "dateTaken": date_taken,
-            "smallUrl": small_url,
-            "largeUrl": large_url,
         }
 
         manifest.append(manifest_entry)

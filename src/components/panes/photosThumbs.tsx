@@ -12,7 +12,7 @@ interface PhotosThumbsProps {
   clickedPhotoFilename: string | null;
   lastAppSeconds: number | null;
   isAutoScrollEnabled: boolean;
-  getImageUrl: (photoItem: PhotoItem, size: "thumb" | "medium" | "large") => string;
+  getImageUrl: (photoItem: PhotoItem, size: "small" | "medium" | "large") => string;
   onThumbnailClick: (item: PhotoItem) => void;
   onAutoScrollToggle: (enabled: boolean) => void;
   onDisableAutoScroll: () => void;
@@ -632,7 +632,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
               >
                 {visibleImages.has(index) ? (
                   <img
-                    src={getImageUrl(item, "thumb")}
+                    src={getImageUrl(item, "small")}
                     alt={item.ID}
                     loading="lazy"
                     data-tooltip-id="source-button-tooltip"

@@ -45,22 +45,24 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   }, [earthPhotographyItems, flickrPhotosItems, showEarthPhotos, showMissionPhotos]);
 
   // URL generation
-  const issirtDataBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL.replace("\\x3a", ":");
   const flickrBaseUrl = "https://live.staticflickr.com";
 
   const getImageUrl = useCallback(
-    (photoItem: PhotoItem, size: "thumb" | "medium" | "large") => {
+    (photoItem: PhotoItem, size: "small" | "medium" | "large") => {
       const { type } = photoItem;
 
       switch (type) {
         case "photos_earth":
-          if (size === "thumb" || size === "medium") {
-            return `${issirtDataBaseUrl}/${photoItem.smallUrl}`;
+          // Earth photos now have properly generated URLs for all sizes
+          if (size === "small") {
+            return photoItem.smallUrl || "";
+          } else if (size === "medium") {
+            return photoItem.medUrl || "";
           }
-          return `${issirtDataBaseUrl}/${photoItem.largeUrl}`;
+          return photoItem.largeUrl || "";
 
         case "photos_flickr":
-          if (size === "thumb") {
+          if (size === "small") {
             return `${flickrBaseUrl}/${photoItem.smallUrl || ""}`;
           } else if (size === "medium") {
             return `${flickrBaseUrl}/${photoItem.medUrl || photoItem.smallUrl || ""}`;
@@ -71,7 +73,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
           return "";
       }
     },
-    [issirtDataBaseUrl, flickrBaseUrl]
+    [flickrBaseUrl]
   );
 
   // Smart toggle preservation: ensure at least one photo type is enabled if available
