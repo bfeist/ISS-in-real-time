@@ -24,6 +24,10 @@
   overflow-y: auto;
 }
 
+.compactTooltip {
+  width: 300px;
+}
+
 .tooltipHeader {
   display: flex;
   justify-content: space-between;
@@ -48,6 +52,18 @@
   display: grid;
   grid-template-columns: 0.9fr 1.1fr;
   border-collapse: collapse;
+}
+
+.singleColumn {
+  grid-template-columns: 1fr;
+}
+
+.singleColumn .columnHeader {
+  border-right: none;
+}
+
+.singleColumn .combinedColumn {
+  border-right: none;
 }
 
 .columnHeader {

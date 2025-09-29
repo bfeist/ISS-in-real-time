@@ -41,8 +41,8 @@ const Header: FunctionComponent = () => {
           <div className={styles.rightButtons}>
             <IconButton
               icon={faInfoCircle}
-              label="About ISS in Real Time"
-              style={{ width: "170px", fontSize: "0.7rem" }}
+              label="About this project"
+              style={{ width: "130px", fontSize: "0.7rem" }}
               onClick={(e) => {
                 window.open("https://benfeist.com", "_blank");
                 e.stopPropagation();

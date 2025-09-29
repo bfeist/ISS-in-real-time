@@ -30,6 +30,7 @@
 }
 
 .titleContainer .title {
+  flex: 0 0 210px;
   font-size: 1.7rem;
   font-family: Exo, sans-serif;
   font-weight: 400;
@@ -45,7 +46,11 @@
   align-self: center;
 }
 
-/* removed centerContainer and related styles; moved to timelineYearsControls */
+@media (width <= 729px) {
+  .titleContainer .blurb {
+    display: none;
+  }
+}
 
 .right {
   float: right;

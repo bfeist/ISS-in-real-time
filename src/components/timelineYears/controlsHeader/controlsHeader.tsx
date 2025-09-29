@@ -25,7 +25,15 @@ const ControlsHeader: FunctionComponent = () => {
     useStateClock();
   const { globalMute, setGlobalMute, showTimelineYears, setShowTimelineYears } = useStateToggle();
   const [appSeconds, setAppSeconds] = useState(0);
+  const [isWideScreen, setIsWideScreen] = useState(() => {
+    if (typeof window === "undefined") {
+      return true;
+    }
+
+    return window.innerWidth >= 1300;
+  });
   const rolloverTriggeredRef = useRef(false);
+  const shouldShowTelemetry = Boolean(selectedDate && isWideScreen);
 
   const incrementDate = (days: number) => {
     if (!selectedDate) return;
@@ -40,6 +48,20 @@ const ControlsHeader: FunctionComponent = () => {
     const newDateStr = currentDate.toISOString().split("T")[0];
     setSelectedDate(newDateStr);
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => {
+      setIsWideScreen(window.innerWidth >= 1300);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   // Handle day rollover when appSeconds >= 86400 (24 hours)
   useEffect(() => {
@@ -61,7 +83,9 @@ const ControlsHeader: FunctionComponent = () => {
     <div className={styles.controlsPositioner}>
       <ClockInterval setAppSeconds={setAppSeconds} />
       <div className={styles.left}>
-        {selectedDate && <ContentIndicatorsSection hoveredDate={selectedDate} compact={true} />}
+        {selectedDate && isWideScreen && (
+          <ContentIndicatorsSection hoveredDate={selectedDate} compact={true} />
+        )}
       </div>
       <div className={styles.center}>
         <div className={styles.centerWithBackground}>
@@ -139,7 +163,7 @@ const ControlsHeader: FunctionComponent = () => {
           )}
         </div>
       </div>
-      <div className={styles.right}>{selectedDate && <HeaderTelemetry />}</div>
+      <div className={styles.right}>{shouldShowTelemetry ? <HeaderTelemetry /> : null}</div>
       <ToggleCalendarButton />
     </div>
   );

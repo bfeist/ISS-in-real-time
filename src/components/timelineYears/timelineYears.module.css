@@ -9,6 +9,10 @@
   height: auto;
 }
 
+.yearsScrollContainer {
+  width: 100%;
+}
+
 /* ====== YEARS (mini canvases) ====== */
 .years {
   position: relative;
@@ -16,4 +20,17 @@
   display: flex;
   align-items: flex-start;
   overflow: visible;
+}
+
+@media (width <= 1299px) {
+  .yearsScrollContainer {
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable both-edges;
+  }
+
+  .years {
+    min-width: 1300px;
+  }
 }

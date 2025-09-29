@@ -1,4 +1,4 @@
-import React, { FunctionComponent, useRef, useCallback, useMemo } from "react";
+import React, { FunctionComponent, useRef, useCallback, useMemo, useState, useEffect } from "react";
 import styles from "./dateTooltip.module.css";
 import { useGeneralDataAvailabilities, useGeneralOrbitsDaily } from "api/useGeneralData";
 import ExpeditionsSection from "./expeditionsSection";
@@ -25,6 +25,29 @@ const DateTooltip: FunctionComponent<{
   const tooltipRef = useRef<HTMLDivElement>(null);
   const goButtonTouchActiveRef = useRef(false);
   const cancelButtonTouchActiveRef = useRef(false);
+  const [isLargeScreen, setIsLargeScreen] = useState(() => {
+    if (typeof window === "undefined") {
+      return true;
+    }
+    return window.innerWidth >= 1024;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handleResize = () => {
+      setIsLargeScreen(window.innerWidth >= 1024);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   // Extract data from React Query hooks
   const { data: dataAvailabilityItems } = useGeneralDataAvailabilities();
@@ -163,7 +186,7 @@ const DateTooltip: FunctionComponent<{
   return (
     <div
       ref={tooltipRef}
-      className={styles.dateTooltip}
+      className={`${styles.dateTooltip} ${!isLargeScreen ? styles.compactTooltip : ""}`}
       style={getTooltipStyle()}
       onTouchStart={stopEventPropagation}
       onTouchMove={stopEventPropagation}
@@ -209,9 +232,9 @@ const DateTooltip: FunctionComponent<{
           </div>
 
           <div className={styles.tooltipContent}>
-            <div className={styles.tooltipGrid}>
+            <div className={`${styles.tooltipGrid} ${!isLargeScreen ? styles.singleColumn : ""}`}>
               <div className={styles.columnHeader}>Expeditions &amp; Crew</div>
-              <div className={styles.columnHeader}>Vehicles Docked</div>
+              {isLargeScreen && <div className={styles.columnHeader}>Vehicles Docked</div>}
 
               <div className={styles.combinedColumn}>
                 <div className={styles.subSection}>
@@ -223,7 +246,7 @@ const DateTooltip: FunctionComponent<{
                   <CrewOnboardSection hoveredDate={hoveredDate} />
                 </div>
               </div>
-              <VehiclesDockedSection hoveredDate={hoveredDate} />
+              {isLargeScreen && <VehiclesDockedSection hoveredDate={hoveredDate} />}
             </div>
           </div>
 
