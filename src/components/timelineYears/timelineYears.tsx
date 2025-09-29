@@ -16,9 +16,21 @@ const now = new Date();
 const START_YEAR = 2000; // Fixed start from November 2000
 const END_YEAR = now.getFullYear(); // Dynamic end year
 const YEAR_GAP = "2px"; // done in css
-const EDGE_SCROLL_ZONE_PX = 160; // Width of activation zone near edges for auto-scroll
+const BASE_EDGE_SCROLL_ZONE_PX = 160; // Width of activation zone near edges for auto-scroll on wide screens
+const NARROW_SCREEN_EDGE_SCROLL_ZONE_PX = 64; // Narrow edge zone for small screens to prevent accidental scroll
+const NARROW_SCREEN_MAX_WIDTH = 500; // px breakpoint for treating screen as narrow
 const MIN_SCROLL_SPEED_PX_PER_SEC = 120; // Slowest automatic scroll speed
 const MAX_SCROLL_SPEED_PX_PER_SEC = 800; // Fastest automatic scroll speed
+
+const getEdgeScrollZonePx = () => {
+  if (typeof window === "undefined") {
+    return BASE_EDGE_SCROLL_ZONE_PX;
+  }
+
+  return window.innerWidth <= NARROW_SCREEN_MAX_WIDTH
+    ? NARROW_SCREEN_EDGE_SCROLL_ZONE_PX
+    : BASE_EDGE_SCROLL_ZONE_PX;
+};
 
 type AutoScrollState = {
   isActive: boolean;
@@ -195,7 +207,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       }
 
       const rect = container.getBoundingClientRect();
-      const effectiveEdgeZone = Math.min(EDGE_SCROLL_ZONE_PX, rect.width / 2);
+      const effectiveEdgeZone = Math.min(getEdgeScrollZonePx(), rect.width / 2);
       if (effectiveEdgeZone <= 0) {
         stopAutoScroll();
         return;

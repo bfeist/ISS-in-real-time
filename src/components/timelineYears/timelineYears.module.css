@@ -3,6 +3,7 @@
   height: var(--years-fixed-h, auto);
   overflow: visible;
   transition: height 0.24s ease;
+  user-select: none;
 }
 
 .isCollapsed {
