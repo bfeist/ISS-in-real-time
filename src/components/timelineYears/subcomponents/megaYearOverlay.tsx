@@ -193,6 +193,10 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     if (!pendingTouchDate && hoveredDate) {
       setPendingTouchDate(hoveredDate);
     }
+    // Maintain touch interaction state when we have a pending touch
+    if (hoveredDate) {
+      setIsTouchInteraction(true);
+    }
   };
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -280,8 +284,17 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     if (externalCursorPosition) {
       setCursorPosition(externalCursorPosition);
       setIsTouchInteraction(true);
+    } else {
+      // When external cursor position is cleared, maintain touch interaction if we have a pending touch
+      if (!pendingTouchDate) {
+        setIsTouchInteraction(false);
+      }
+      // Don't clear cursor position if we have pending touch - keep tooltip visible
+      if (!pendingTouchDate) {
+        setCursorPosition(null);
+      }
     }
-  }, [externalCursorPosition]);
+  }, [externalCursorPosition, pendingTouchDate]);
 
   if (!showTimelineYears) return null;
 

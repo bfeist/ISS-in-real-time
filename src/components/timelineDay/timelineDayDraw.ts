@@ -149,7 +149,17 @@ export const initializePaperCanvas = ({
     if (project && project.view) {
       paperScope.activate();
       hoverCursorGroup.removeChildren();
-      project.view.update();
+
+      // Clear canvas and force redraw to remove ghost images
+      const ctx = canvasElement.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      }
+      // Temporarily clear lastClockCursorSeconds to prevent recursion
+      const savedClockSeconds = lastClockCursorSeconds;
+      lastClockCursorSeconds = null;
+      drawPaperItems();
+      lastClockCursorSeconds = savedClockSeconds;
     }
   };
 
@@ -632,6 +642,7 @@ export const initializePaperCanvas = ({
     // Activate scope before drawing
     paperScope.activate();
 
+    // Clear previous cursor content
     clockCursorGroup.removeChildren();
 
     const x = LEFT_MARGIN + seconds * getPixelsPerSecond();
@@ -670,9 +681,17 @@ export const initializePaperCanvas = ({
     // Remember the last drawn position so it can be restored after redraws
     lastClockCursorSeconds = seconds;
 
-    // Ensure the view is updated after drawing clock cursor
+    // Force canvas clear and redraw to prevent ghost images
     if (project && project.view) {
-      project.view.update();
+      const ctx = canvasElement.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      }
+      // Temporarily clear lastClockCursorSeconds to prevent recursion
+      const savedSeconds = lastClockCursorSeconds;
+      lastClockCursorSeconds = null;
+      drawPaperItems();
+      lastClockCursorSeconds = savedSeconds;
     }
   };
 
@@ -680,6 +699,7 @@ export const initializePaperCanvas = ({
     // Activate scope before drawing
     paperScope.activate();
 
+    // Clear previous hover cursor content
     hoverCursorGroup.removeChildren();
 
     const x = LEFT_MARGIN + seconds * getPixelsPerSecond();
@@ -716,9 +736,17 @@ export const initializePaperCanvas = ({
     hoverCursorGroup.addChild(textBg);
     hoverCursorGroup.addChild(timeText);
 
-    // Ensure the view is updated after drawing hover cursor
+    // Force canvas refresh to prevent ghost images during dragging
     if (project && project.view) {
-      project.view.update();
+      const ctx = canvasElement.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      }
+      // Temporarily clear lastClockCursorSeconds to prevent recursion
+      const savedClockSeconds = lastClockCursorSeconds;
+      lastClockCursorSeconds = null;
+      drawPaperItems();
+      lastClockCursorSeconds = savedClockSeconds;
     }
   };
 
