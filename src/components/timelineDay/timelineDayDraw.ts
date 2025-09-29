@@ -317,6 +317,7 @@ export const initializePaperCanvas = ({
     const _timelineWidth = getTimelineWidth();
     const pixelsPerSecond = getPixelsPerSecond();
     const timelineBottom = TOP_MARGIN + getTotalDataRowsHeight();
+    const labelEveryOtherHour = canvasWidth < 529;
 
     // Draw time ticks every hour
     for (let hour = 0; hour < 24; hour++) {
@@ -336,14 +337,18 @@ export const initializePaperCanvas = ({
       group.addChild(tickLine);
 
       // Draw hour label below the tick
-      const hourText = new paperScope.PointText({
-        point: new paperScope.Point(x - 6, timelineBottom + 25),
-        content: `${hour}`,
-        fillColor: COLORS.labelText,
-        fontSize: 12,
-        fontFamily: "Inter, Arial, sans-serif",
-      });
-      group.addChild(hourText);
+      const shouldRenderHourLabel = !labelEveryOtherHour || hour % 2 === 0;
+
+      if (shouldRenderHourLabel) {
+        const hourText = new paperScope.PointText({
+          point: new paperScope.Point(x - 6, timelineBottom + 25),
+          content: `${hour}`,
+          fillColor: COLORS.labelText,
+          fontSize: 12,
+          fontFamily: "Inter, Arial, sans-serif",
+        });
+        group.addChild(hourText);
+      }
     }
 
     return group;
