@@ -286,6 +286,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const isOverMegaOverlayRef = useRef(false);
   const [hideOverlayTimeout, setHideOverlayTimeout] = useState<NodeJS.Timeout | null>(null);
   const touchDragActiveRef = useRef(false);
+  const touchStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const lastTouchYearIndexRef = useRef<number | null>(null);
   const [touchCursorPosition, setTouchCursorPosition] = useState<{ x: number; y: number } | null>(
     null
@@ -298,6 +299,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         stopAutoScroll();
       }
       pointerPositionRef.current = null;
+      touchStartPositionRef.current = null;
     };
 
     const handleWindowBlur = () => {
@@ -306,6 +308,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       stopAutoScroll();
       setTouchCursorPosition(null);
       pointerPositionRef.current = null;
+      touchStartPositionRef.current = null;
     };
 
     const handleWindowTouchEnd = () => {
@@ -313,6 +316,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       stopAutoScroll();
       setTouchCursorPosition(null);
       pointerPositionRef.current = null;
+      touchStartPositionRef.current = null;
     };
 
     window.addEventListener("mouseup", handleWindowMouseUp);
@@ -601,13 +605,25 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     if (event.touches.length === 0) return;
 
     touchDragActiveRef.current = true;
-    updateHoverFromTouch(event.touches[0]);
+    const touch = event.touches[0];
+    touchStartPositionRef.current = { x: touch.clientX, y: touch.clientY };
+    updateHoverFromTouch(touch);
   };
 
   const handleTimelineTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
     if (!touchDragActiveRef.current || event.touches.length === 0) return;
 
-    updateHoverFromTouch(event.touches[0]);
+    const touch = event.touches[0];
+    const startPosition = touchStartPositionRef.current;
+    if (startPosition && event.cancelable) {
+      const deltaX = Math.abs(touch.clientX - startPosition.x);
+      const deltaY = Math.abs(touch.clientY - startPosition.y);
+      if (deltaX > deltaY) {
+        event.preventDefault();
+      }
+    }
+
+    updateHoverFromTouch(touch);
   };
 
   const handleTimelineTouchEnd = () => {
@@ -619,6 +635,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
     setTouchCursorPosition(null);
     pointerPositionRef.current = null;
+    touchStartPositionRef.current = null;
     stopAutoScroll();
   };
 
@@ -626,6 +643,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     touchDragActiveRef.current = false;
     setTouchCursorPosition(null);
     pointerPositionRef.current = null;
+    touchStartPositionRef.current = null;
     stopAutoScroll();
   };
 

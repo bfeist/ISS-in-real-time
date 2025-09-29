@@ -12,6 +12,8 @@
 
 .yearsScrollContainer {
   width: 100%;
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;
 }
 
 /* ====== YEARS (mini canvases) ====== */
