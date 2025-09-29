@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import PhotosThumbs from "../components/panes/photosThumbs";
 
 const basePhoto: PhotoItem = {
-  ID: "photo-1",
+  nasaId: "photo-1",
   dateTaken: "2025-01-01T00:01:40",
   smallUrl: "photos/photo-1-small.jpg",
   medUrl: "photos/photo-1-med.jpg",
@@ -77,7 +77,7 @@ describe("PhotosThumbs", () => {
     const { props: baseProps } = createBaseProps();
     const photoWithoutTime: PhotoItem = {
       ...basePhoto,
-      ID: "photo-missing-time",
+      nasaId: "photo-missing-time",
       dateTaken: "2025-01-02",
     };
 

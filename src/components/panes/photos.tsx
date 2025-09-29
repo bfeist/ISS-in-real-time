@@ -121,12 +121,12 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       .filter((entry): entry is { imageItem: PhotoItem; imageSeconds: number } => entry !== null);
 
     const invalidPhotoFallback = photoItemsCombined.length
-      ? photoItemsCombined.find((photo) => photo.ID === clickedPhotoFilename) ||
+      ? photoItemsCombined.find((photo) => photo.nasaId === clickedPhotoFilename) ||
         photoItemsCombined[0]
       : null;
 
     if (photoEntries.length === 0) {
-      if (invalidPhotoFallback && invalidPhotoFallback.ID !== mostRecentImage?.ID) {
+      if (invalidPhotoFallback && invalidPhotoFallback.nasaId !== mostRecentImage?.nasaId) {
         setMostRecentImage(invalidPhotoFallback);
       }
       return;
@@ -141,7 +141,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     if (imagesAtCurrentTime.length > 0) {
       // Prioritize clicked image if available
       if (clickedPhotoFilename) {
-        const clickedImage = imagesAtCurrentTime.find((img) => img.ID === clickedPhotoFilename);
+        const clickedImage = imagesAtCurrentTime.find((img) => img.nasaId === clickedPhotoFilename);
         closestImageItem = clickedImage || imagesAtCurrentTime[0];
       } else {
         closestImageItem = imagesAtCurrentTime[0];
@@ -164,7 +164,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       }
     }
 
-    if (closestImageItem && closestImageItem.ID !== mostRecentImage?.ID) {
+    if (closestImageItem && closestImageItem.nasaId !== mostRecentImage?.nasaId) {
       setMostRecentImage(closestImageItem);
     }
   }, [appSeconds, photoItemsCombined, mostRecentImage, clickedPhotoFilename]);
@@ -175,7 +175,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       if (targetTime !== null) {
         setClock(targetTime);
       }
-      setClickedPhotoFilename(item.ID);
+      setClickedPhotoFilename(item.nasaId);
     },
     [setClock]
   );
@@ -216,7 +216,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
         }}
       >
         {mostRecentImage && (
-          <img src={getImageUrl(mostRecentImage, "medium")} alt={mostRecentImage.ID} />
+          <img src={getImageUrl(mostRecentImage, "medium")} alt={mostRecentImage.nasaId} />
         )}
         {mostRecentImage && mostRecentImage.description && (
           <div className={styles.descriptionOverlay}>

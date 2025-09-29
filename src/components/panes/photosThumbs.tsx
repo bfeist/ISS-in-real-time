@@ -78,7 +78,9 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
         return;
       }
 
-      const centerIndex = photoItemsCombined.findIndex((photo) => photo.ID === centerPhoto.ID);
+      const centerIndex = photoItemsCombined.findIndex(
+        (photo) => photo.nasaId === centerPhoto.nasaId
+      );
       if (centerIndex === -1) {
         resetWindowState();
         return;
@@ -91,7 +93,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       setWindowedPhotos((prev) => {
         if (
           prev.length === window.length &&
-          prev.every((photo, index) => photo.ID === window[index].ID)
+          prev.every((photo, index) => photo.nasaId === window[index].nasaId)
         ) {
           return prev;
         }
@@ -226,7 +228,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     }
 
     const hasMostRecentInSet = mostRecentImage
-      ? photoItemsCombined.some((photo) => photo.ID === mostRecentImage.ID)
+      ? photoItemsCombined.some((photo) => photo.nasaId === mostRecentImage.nasaId)
       : false;
 
     const targetPhoto = hasMostRecentInSet ? mostRecentImage : photoItemsCombined[0];
@@ -236,7 +238,9 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       return;
     }
 
-    const targetIndex = photoItemsCombined.findIndex((photo) => photo.ID === targetPhoto.ID);
+    const targetIndex = photoItemsCombined.findIndex(
+      (photo) => photo.nasaId === targetPhoto.nasaId
+    );
 
     const windowIsEmpty = windowedPhotos.length === 0;
 
@@ -467,7 +471,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       .filter((entry): entry is { photo: PhotoItem; seconds: number } => entry !== null);
 
     const fallbackPhoto =
-      windowedPhotos.find((photo) => photo.ID === clickedPhotoFilename) ??
+      windowedPhotos.find((photo) => photo.nasaId === clickedPhotoFilename) ??
       windowedPhotos[0] ??
       null;
 
@@ -495,7 +499,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     if (imagesAtCurrentTime.length > 0) {
       if (clickedPhotoFilename) {
         closestImageItem =
-          imagesAtCurrentTime.find((img) => img.ID === clickedPhotoFilename) ||
+          imagesAtCurrentTime.find((img) => img.nasaId === clickedPhotoFilename) ||
           imagesAtCurrentTime[0];
       } else {
         closestImageItem = imagesAtCurrentTime[0];
@@ -547,7 +551,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
 
       const targetElement = Array.from(
         container.querySelectorAll<HTMLElement>("[data-photo-id]")
-      ).find((el) => el.dataset.photoId === closestImageItem.ID);
+      ).find((el) => el.dataset.photoId === closestImageItem.nasaId);
 
       if (!targetElement) {
         return;
@@ -605,14 +609,14 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
             timeLabel && imageSeconds !== null
               ? `${timeLabel} <br/> ${appSeconds - imageSeconds}s`
               : "Time unavailable";
-          const dataTimeValue = timeLabel ?? `unknown-${item.ID}`;
+          const dataTimeValue = timeLabel ?? `unknown-${item.nasaId}`;
 
           return (
             <div
               key={index}
-              className={`${styles.imageThumb} ${mostRecentImage?.ID === item.ID ? styles.active : ""} lazy-load`}
+              className={`${styles.imageThumb} ${mostRecentImage?.nasaId === item.nasaId ? styles.active : ""} lazy-load`}
               data-index={index}
-              data-photo-id={item.ID}
+              data-photo-id={item.nasaId}
               data-time={dataTimeValue}
             >
               <div
@@ -633,7 +637,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
                 {visibleImages.has(index) ? (
                   <img
                     src={getImageUrl(item, "small")}
-                    alt={item.ID}
+                    alt={item.nasaId}
                     loading="lazy"
                     data-tooltip-id="source-button-tooltip"
                     data-tooltip-html={tooltipHtml}

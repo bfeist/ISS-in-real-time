@@ -124,6 +124,11 @@ export async function fetchEphemera(date: string): Promise<EphemeraItem[]> {
   return response.json();
 }
 
+interface EarthPhotoRaw {
+  ID: string;
+  dateTaken: string;
+}
+
 export async function fetchEarthPhotography(date: string): Promise<PhotoItem[]> {
   const baseStaticUrl = getBaseStaticUrl();
   const [year, month] = date.split("-");
@@ -136,16 +141,19 @@ export async function fetchEarthPhotography(date: string): Promise<PhotoItem[]> 
     throw new Error("Failed to fetch Earth Photography data");
   }
 
-  const data = await response.json();
+  const data: EarthPhotoRaw[] = await response.json();
   if (data.length > 0) {
-    data.sort((a: PhotoItem, b: PhotoItem) => a.dateTaken.localeCompare(b.dateTaken));
+    data.sort((a: EarthPhotoRaw, b: EarthPhotoRaw) => a.dateTaken.localeCompare(b.dateTaken));
   }
 
-  return data.map((item: PhotoItem) => {
-    const urls = generateEarthPhotoUrls(item.ID);
+  return data.map((item: EarthPhotoRaw) => {
+    // Convert ID to nasaId and generate URLs
+    const { ID, ...itemWithoutId } = item;
+    const urls = generateEarthPhotoUrls(ID);
     return {
-      ...item,
+      ...itemWithoutId,
       ...urls,
+      nasaId: ID,
       type: "photos_earth" as const,
     };
   });

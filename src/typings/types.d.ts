@@ -28,15 +28,14 @@ type CommFirstItem = {
 };
 
 type PhotoItem = {
-  ID: string;
+  nasaId: string;
   dateTaken: string;
-  smallUrl?: string;
-  medUrl?: string;
-  largeUrl?: string;
-  nasaId?: string;
+  smallUrl: string;
+  medUrl: string;
+  largeUrl: string;
   description?: string;
   sourceUrl?: string;
-  type?: "photos_earth" | "photos_flickr";
+  type: "photos_earth" | "photos_flickr";
 };
 
 type EphemeraItem = {
