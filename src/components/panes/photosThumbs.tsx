@@ -88,9 +88,19 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       const end = Math.min(photoItemsCombined.length, centerIndex + 21);
       const window = photoItemsCombined.slice(start, end);
 
-      setWindowedPhotos(window);
-      setWindowStartIndex(start);
-      setWindowEndIndex(end - 1);
+      setWindowedPhotos((prev) => {
+        if (
+          prev.length === window.length &&
+          prev.every((photo, index) => photo.ID === window[index].ID)
+        ) {
+          return prev;
+        }
+
+        return window;
+      });
+
+      setWindowStartIndex((prev) => (prev === start ? prev : start));
+      setWindowEndIndex((prev) => (prev === end - 1 ? prev : end - 1));
     },
     [photoItemsCombined, resetWindowState]
   );
