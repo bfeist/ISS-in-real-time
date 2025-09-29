@@ -16,14 +16,6 @@
   z-index: 1;
 }
 
-/* Mobile layout timeline */
-.dayTimeline {
-  flex: 0 0 100px;
-  display: flex;
-  flex-direction: column;
-  margin-top: 15px;
-}
-
 /* Three column body layout */
 .body {
   display: flex;
@@ -34,55 +26,6 @@
   padding: 8px;
   padding-top: 0;
   box-sizing: border-box;
-}
-
-/* Mobile layout body */
-.mobileBody {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  overflow-y: hidden;
-}
-
-/* Mobile tabs container */
-.tabs {
-  display: flex;
-  overflow-x: auto;
-  background-color: #f1f1f1;
-  border-bottom: 1px solid #cccccc;
-}
-
-/* Individual tab styling */
-.tab {
-  background-color: inherit;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  padding: 10px 16px;
-  font-size: 16px;
-  transition: 0.3s;
-  text-transform: capitalize;
-  white-space: nowrap;
-}
-
-.tab:hover {
-  background-color: #dddddd;
-}
-
-.activeTab {
-  background-color: #cccccc;
-}
-
-.activeTab:hover {
-  background-color: #cccccc;
-}
-
-/* Mobile tab content */
-.tabContent {
-  flex: 1 1 auto;
-  display: flex;
-  height: 100%;
-  overflow: hidden;
 }
 
 /* Left column */
