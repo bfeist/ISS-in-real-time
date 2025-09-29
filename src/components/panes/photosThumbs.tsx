@@ -105,23 +105,6 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     [photoItemsCombined, resetWindowState]
   );
 
-  useEffect(() => {
-    if (photoItemsCombined.length === 0) {
-      resetWindowState();
-      return;
-    }
-
-    const mostRecentImageInSet = mostRecentImage
-      ? photoItemsCombined.find((photo) => photo.ID === mostRecentImage.ID)
-      : null;
-
-    const centerPhoto = mostRecentImageInSet ?? photoItemsCombined[0];
-
-    if (centerPhoto) {
-      calculateInitialWindow(centerPhoto);
-    }
-  }, [photoItemsCombined, mostRecentImage, calculateInitialWindow, resetWindowState]);
-
   const expandWindowStart = useCallback(() => {
     if (windowStartIndex <= 0) return; // Already at beginning of full photo set
 
@@ -235,6 +218,62 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       isProgrammaticScrollingRef.current = false;
     });
   }, [windowEndIndex, photoItemsCombined, mostRecentImage, calculateInitialWindow]);
+
+  useEffect(() => {
+    if (photoItemsCombined.length === 0) {
+      resetWindowState();
+      return;
+    }
+
+    const hasMostRecentInSet = mostRecentImage
+      ? photoItemsCombined.some((photo) => photo.ID === mostRecentImage.ID)
+      : false;
+
+    const targetPhoto = hasMostRecentInSet ? mostRecentImage : photoItemsCombined[0];
+
+    if (!targetPhoto) {
+      resetWindowState();
+      return;
+    }
+
+    const targetIndex = photoItemsCombined.findIndex((photo) => photo.ID === targetPhoto.ID);
+
+    const windowIsEmpty = windowedPhotos.length === 0;
+
+    if (windowIsEmpty || targetIndex === -1) {
+      calculateInitialWindow(targetPhoto);
+      return;
+    }
+
+    const outsideWindow = targetIndex < windowStartIndex || targetIndex > windowEndIndex;
+
+    if (outsideWindow) {
+      calculateInitialWindow(targetPhoto);
+      return;
+    }
+
+    const BUFFER_THRESHOLD = 5;
+    const nearStart = targetIndex - windowStartIndex < BUFFER_THRESHOLD && windowStartIndex > 0;
+    const nearEnd =
+      windowEndIndex - targetIndex < BUFFER_THRESHOLD &&
+      windowEndIndex < photoItemsCombined.length - 1;
+
+    if (nearStart) {
+      expandWindowStart();
+    } else if (nearEnd) {
+      expandWindowEnd();
+    }
+  }, [
+    photoItemsCombined,
+    mostRecentImage,
+    windowedPhotos.length,
+    windowStartIndex,
+    windowEndIndex,
+    calculateInitialWindow,
+    resetWindowState,
+    expandWindowStart,
+    expandWindowEnd,
+  ]);
 
   // Clock jump detection - Reset window when user manually changes time
   useEffect(() => {
@@ -501,33 +540,36 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     if (!closestImageItem) return;
 
     if (isAutoScrollEnabled) {
-      const closestImageTimeStr = timeComponentFromDateTime(closestImageItem.dateTaken);
-      if (!closestImageTimeStr) {
+      const container = thumbnailsContainerRef.current;
+      if (!container) {
         return;
       }
 
-      const targetElement = document.querySelector(`[data-time="${closestImageTimeStr}"]`);
+      const targetElement = Array.from(
+        container.querySelectorAll<HTMLElement>("[data-photo-id]")
+      ).find((el) => el.dataset.photoId === closestImageItem.ID);
 
-      if (targetElement && thumbnailsContainerRef.current) {
-        isProgrammaticScrollingRef.current = true;
-
-        const container = thumbnailsContainerRef.current;
-        const targetRect = targetElement.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-
-        const targetCenterX = targetRect.left + targetRect.width / 2;
-        const containerCenterX = containerRect.left + containerRect.width / 2;
-        const scrollOffset = targetCenterX - containerCenterX;
-
-        container.scrollBy({
-          left: scrollOffset,
-          behavior: "instant",
-        });
-
-        requestAnimationFrame(() => {
-          isProgrammaticScrollingRef.current = false;
-        });
+      if (!targetElement) {
+        return;
       }
+
+      isProgrammaticScrollingRef.current = true;
+
+      const targetRect = targetElement.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+
+      const targetCenterX = targetRect.left + targetRect.width / 2;
+      const containerCenterX = containerRect.left + containerRect.width / 2;
+      const scrollOffset = targetCenterX - containerCenterX;
+
+      container.scrollBy({
+        left: scrollOffset,
+        behavior: "instant",
+      });
+
+      requestAnimationFrame(() => {
+        isProgrammaticScrollingRef.current = false;
+      });
     }
   }, [
     appSeconds,
@@ -570,6 +612,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
               key={index}
               className={`${styles.imageThumb} ${mostRecentImage?.ID === item.ID ? styles.active : ""} lazy-load`}
               data-index={index}
+              data-photo-id={item.ID}
               data-time={dataTimeValue}
             >
               <div

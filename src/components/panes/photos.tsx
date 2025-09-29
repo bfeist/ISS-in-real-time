@@ -22,8 +22,8 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   );
 
   // State
-  const [appSeconds, setAppSeconds] = useState(0);
-  const [mostRecentImage, setMostRecentImage] = useState(null);
+  const [appSeconds, setAppSeconds] = useState<number>(0);
+  const [mostRecentImage, setMostRecentImage] = useState<PhotoItem | null>(null);
   const [isHoveringContainer, setIsHoveringContainer] = useState(false);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [clickedPhotoFilename, setClickedPhotoFilename] = useState<string | null>(null);
@@ -102,7 +102,9 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
 
   // Update most recent image based on current time
   useEffect(() => {
-    if (!appSeconds || photoItemsCombined.length === 0) return;
+    if (!Number.isFinite(appSeconds) || photoItemsCombined.length === 0) {
+      return;
+    }
 
     // Find images at current time or closest before
     const photoEntries = photoItemsCombined
