@@ -7,7 +7,8 @@ import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { useDateCommTranscript, useDateDataAvailability } from "../../api/useDateSpecificData";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faVolumeHigh, faVolumeMute, faArrowsSpin } from "@fortawesome/free-solid-svg-icons";
+import { faArrowsSpin, faVolumeMute, faVolumeUp } from "@fortawesome/free-solid-svg-icons";
+import IconButton from "components/common/iconButton";
 
 // Explicitly reference dynamic CSS classes to prevent linter warnings
 // @ts-ignore - Used to prevent unused CSS class warnings
@@ -32,7 +33,7 @@ const _unusedClasses = [
 
 const Comm: FunctionComponent = () => {
   const { isRunning, setClock, selectedDate, appSecondsAtStartStop } = useStateClock();
-  const { globalMute } = useStateToggle();
+  const { globalMute, setGlobalMute } = useStateToggle();
 
   const { isLoading: isDataAvailabilityLoading } = useDateDataAvailability(selectedDate);
   const { data: commItems = [], isLoading, error } = useDateCommTranscript(selectedDate);
@@ -377,6 +378,14 @@ const Comm: FunctionComponent = () => {
       <ClockInterval setAppSeconds={setAppSeconds} />
 
       {/* Channel toggle buttons */}
+      <div className={styles.channelToggleHeader}>
+        <IconButton
+          icon={globalMute ? faVolumeMute : faVolumeUp}
+          className={styles.muteAllIcon}
+          onClick={() => setGlobalMute(!globalMute)}
+          label={globalMute ? "All Channels Muted" : "All Channels Unmuted"}
+        />
+      </div>
       <div className={styles.channelToggleContainer}>
         {[1, 2, 3, 4, 5].map((channelNum) => {
           const isChannelAvailable = availableChannels.has(channelNum);
@@ -398,15 +407,6 @@ const Comm: FunctionComponent = () => {
             toggleClassName = styles[`channelToggle${channelNum}Active`];
           } else {
             toggleClassName = styles[`channelToggle${channelNum}Inactive`];
-          }
-
-          let toggleIcon;
-          if (!isChannelAvailable) {
-            toggleIcon = faVolumeMute;
-          } else if (isChannelVisible) {
-            toggleIcon = faVolumeHigh;
-          } else {
-            toggleIcon = faVolumeMute;
           }
 
           return (
@@ -432,7 +432,6 @@ const Comm: FunctionComponent = () => {
               data-tooltip-place="bottom"
             >
               {channelDisplayName}
-              <FontAwesomeIcon icon={toggleIcon} className={styles.channelToggleIcon} />
             </div>
           );
         })}

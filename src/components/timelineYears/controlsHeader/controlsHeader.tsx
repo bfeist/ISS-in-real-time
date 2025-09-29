@@ -6,8 +6,6 @@ import { hhmmssFromAppSeconds } from "utils/time";
 import {
   faPlay,
   faPause,
-  faVolumeUp,
-  faVolumeMute,
   faClose,
   faCaretLeft,
   faCaretRight,
@@ -23,7 +21,7 @@ import dayjs from "dayjs";
 const ControlsHeader: FunctionComponent = () => {
   const { isRunning, startClock, stopClock, handleDayRollover, selectedDate, setSelectedDate } =
     useStateClock();
-  const { globalMute, setGlobalMute, showTimelineYears, setShowTimelineYears } = useStateToggle();
+  const { showTimelineYears, setShowTimelineYears } = useStateToggle();
   const [appSeconds, setAppSeconds] = useState(0);
   const [isWideScreen, setIsWideScreen] = useState(() => {
     if (typeof window === "undefined") {
@@ -124,13 +122,6 @@ const ControlsHeader: FunctionComponent = () => {
                   onClick={() => (isRunning ? stopClock() : startClock())}
                   data-tooltip-id="source-button-tooltip"
                   data-tooltip-content={isRunning ? "Pause Time" : "Play Time"}
-                  data-tooltip-place="top"
-                />
-                <IconButton
-                  icon={globalMute ? faVolumeMute : faVolumeUp}
-                  onClick={() => setGlobalMute(!globalMute)}
-                  data-tooltip-id="source-button-tooltip"
-                  data-tooltip-content={globalMute ? "Unmute Sound" : "Mute Sound"}
                   data-tooltip-place="top"
                 />
               </div>
