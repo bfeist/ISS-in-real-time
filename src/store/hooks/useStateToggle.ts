@@ -2,8 +2,10 @@ import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../index";
 
 export const useStateToggle = (): {
-  globalMute: boolean;
-  setGlobalMute: (mute: boolean) => void;
+  commMute: boolean;
+  setCommMute: (mute: boolean) => void;
+  videoMute: boolean;
+  setVideoMute: (mute: boolean) => void;
   showGlobe: boolean;
   setShowGlobe: (show: boolean) => void;
   showTimelineYears: boolean;
@@ -17,8 +19,10 @@ export const useStateToggle = (): {
 } =>
   useAppStore(
     useShallow((state) => ({
-      globalMute: state.globalMute,
-      setGlobalMute: state.setGlobalMute,
+      commMute: state.commMute,
+      setCommMute: state.setCommMute,
+      videoMute: state.videoMute,
+      setVideoMute: state.setVideoMute,
       showGlobe: state.showGlobe,
       setShowGlobe: state.setShowGlobe,
       showTimelineYears: state.showTimelineYears,

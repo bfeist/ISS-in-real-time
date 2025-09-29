@@ -1,6 +1,7 @@
 import { FunctionComponent, useEffect, useRef, useState, useMemo } from "react";
 import styles from "./videoIa.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
+import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { getBaseStaticUrl } from "utils/api";
@@ -25,10 +26,11 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
   const [videoError, setVideoError] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [hasWindowFocus, setHasWindowFocus] = useState(true);
-  const [isMuted, setIsMuted] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
+  const { videoMute, setVideoMute } = useStateToggle();
+  const isMuted = videoMute;
 
   // Track window focus to handle video sync issues when returning from background
   useEffect(() => {
@@ -92,13 +94,11 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
   // Handle mute toggle
   const handleMuteToggle = (event: React.MouseEvent) => {
     event.stopPropagation();
-    setIsMuted((prev) => {
-      const newMutedState = !prev;
-      if (videoRef.current) {
-        videoRef.current.muted = newMutedState;
-      }
-      return newMutedState;
-    });
+    const newMutedState = !videoMute;
+    if (videoRef.current) {
+      videoRef.current.muted = newMutedState;
+    }
+    setVideoMute(newMutedState);
   };
 
   // Handle fullscreen toggle

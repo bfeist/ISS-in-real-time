@@ -33,7 +33,7 @@ const _unusedClasses = [
 
 const Comm: FunctionComponent = () => {
   const { isRunning, setClock, selectedDate, appSecondsAtStartStop } = useStateClock();
-  const { globalMute, setGlobalMute } = useStateToggle();
+  const { commMute, setCommMute } = useStateToggle();
 
   const { isLoading: isDataAvailabilityLoading } = useDateDataAvailability(selectedDate);
   const { data: commItems = [], isLoading, error } = useDateCommTranscript(selectedDate);
@@ -380,10 +380,10 @@ const Comm: FunctionComponent = () => {
       {/* Channel toggle buttons */}
       <div className={styles.channelToggleHeader}>
         <IconButton
-          icon={globalMute ? faVolumeMute : faVolumeUp}
+          icon={commMute ? faVolumeMute : faVolumeUp}
           className={styles.muteAllIcon}
-          onClick={() => setGlobalMute(!globalMute)}
-          label={globalMute ? "All Channels Muted" : "All Channels Unmuted"}
+          onClick={() => setCommMute(!commMute)}
+          label={commMute ? "All Channels Muted" : "All Channels Unmuted"}
         />
       </div>
       <div className={styles.channelToggleContainer}>
@@ -439,31 +439,31 @@ const Comm: FunctionComponent = () => {
 
       <div className={styles.commContent} ref={commContentRef}>
         <div className={styles.audioPlayer}>
-          <audio ref={audioRefCh1} controls muted={globalMute}>
+          <audio ref={audioRefCh1} controls muted={commMute}>
             <track src="" kind="captions" label="English" />
             Your browser does not support the audio element.
           </audio>
         </div>
         <div className={styles.audioPlayer}>
-          <audio ref={audioRefCh2} controls muted={globalMute}>
+          <audio ref={audioRefCh2} controls muted={commMute}>
             <track src="" kind="captions" label="English" />
             Your browser does not support the audio element.
           </audio>
         </div>
         <div className={styles.audioPlayer}>
-          <audio ref={audioRefCh3} controls muted={globalMute}>
+          <audio ref={audioRefCh3} controls muted={commMute}>
             <track src="" kind="captions" label="English" />
             Your browser does not support the audio element.
           </audio>
         </div>
         <div className={styles.audioPlayer}>
-          <audio ref={audioRefCh4} controls muted={globalMute}>
+          <audio ref={audioRefCh4} controls muted={commMute}>
             <track src="" kind="captions" label="English" />
             Your browser does not support the audio element.
           </audio>
         </div>
         <div className={styles.audioPlayer}>
-          <audio ref={audioRefCh5} controls muted={globalMute}>
+          <audio ref={audioRefCh5} controls muted={commMute}>
             <track src="" kind="captions" label="English" />
             Your browser does not support the audio element.
           </audio>

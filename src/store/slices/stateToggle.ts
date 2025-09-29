@@ -2,7 +2,8 @@ import { StateCreator } from "zustand";
 
 export const createStateToggle: StateCreator<AppState, [], [], ToggleState> = (set) => ({
   // ToggleState initial state
-  globalMute: false,
+  commMute: false,
+  videoMute: true, // Start videos muted by default
   showGlobe: true,
   showTimelineYears: false,
   hoveringYearsLabels: false,
@@ -10,7 +11,8 @@ export const createStateToggle: StateCreator<AppState, [], [], ToggleState> = (s
   showMissionPhotos: true,
 
   // Actions
-  setGlobalMute: (mute: boolean) => set({ globalMute: mute }),
+  setCommMute: (mute: boolean) => set({ commMute: mute }),
+  setVideoMute: (mute: boolean) => set({ videoMute: mute }),
   setShowGlobe: (show: boolean) => set({ showGlobe: show }),
   setShowTimelineYears: (show: boolean) => set({ showTimelineYears: show }),
   setHoveringYearsLabels: (hovering: boolean) => set({ hoveringYearsLabels: hovering }),

@@ -22,7 +22,8 @@ interface HoverState {
 }
 
 interface ToggleState {
-  globalMute: boolean;
+  commMute: boolean;
+  videoMute: boolean;
   showGlobe: boolean;
   showTimelineYears: boolean;
   hoveringYearsLabels: boolean;
@@ -30,7 +31,8 @@ interface ToggleState {
   showMissionPhotos: boolean;
 
   // Actions
-  setGlobalMute: (mute: boolean) => void;
+  setCommMute: (mute: boolean) => void;
+  setVideoMute: (mute: boolean) => void;
   setShowGlobe: (show: boolean) => void;
   setShowTimelineYears: (show: boolean) => void;
   setHoveringYearsLabels: (hovering: boolean) => void;

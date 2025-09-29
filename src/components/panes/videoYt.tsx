@@ -2,6 +2,7 @@ import { FunctionComponent, useEffect, useRef, useState, useCallback } from "rea
 import YouTube, { YouTubePlayer, YouTubeEvent } from "react-youtube";
 import styles from "./videoYt.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
+import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -29,10 +30,11 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
   const [appSeconds, setAppSeconds] = useState(0);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [hasWindowFocus, setHasWindowFocus] = useState(true);
-  const [isMuted, setIsMuted] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
+  const { videoMute, setVideoMute } = useStateToggle();
+  const isMuted = videoMute;
 
   // Helper function to check if player is ready and valid for API calls
   const isPlayerReadyAndValid = useCallback(async (): Promise<boolean> => {
@@ -86,8 +88,11 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
       playerRef.current = event.target;
       // Set volume to 100% for maximum loudness
       playerRef.current.setVolume(100);
-      // Mute the player initially since isMuted starts as true
-      playerRef.current.mute();
+      if (isMuted) {
+        playerRef.current.mute();
+      } else {
+        playerRef.current.unMute();
+      }
       setIsPlayerReady(true);
     } catch (error) {
       console.error("Error in onPlayerReady:", error);
@@ -97,7 +102,16 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
 
   const handleMuteToggle = (event: React.MouseEvent) => {
     event.stopPropagation();
-    setIsMuted((prev) => !prev);
+    const newMute = !videoMute;
+    if (playerRef.current) {
+      if (newMute) {
+        playerRef.current.mute();
+      } else {
+        playerRef.current.unMute();
+        playerRef.current.setVolume(100);
+      }
+    }
+    setVideoMute(newMute);
   };
 
   // Handle fullscreen toggle
