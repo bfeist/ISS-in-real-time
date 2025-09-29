@@ -1,18 +1,18 @@
 /**
  * Infers Earth photography URLs from NASA EOL photo IDs
  *
- * @param photoId - The photo ID (e.g., "ISS056E126840")
+ * @param nasaId - The photo ID (e.g., "ISS056E126840")
  * @param size - The image size: "small", "medium", or "large"
  * @returns The complete URL for the specified image size
  */
-export function inferEarthPhotoUrl(photoId: string, size: "small" | "medium" | "large"): string {
+export function inferEarthPhotoUrl(nasaId: string, size: "small" | "medium" | "large"): string {
   const baseUrl = "https://eol.jsc.nasa.gov/DatabaseImages";
 
   // Convert ID format from ISS056E126840 to ISS056/ISS056-E-126840.JPG
-  const match = photoId.match(/^(ISS\d+)([A-Z])(\d+)$/);
+  const match = nasaId.match(/^(ISS\d+)([A-Z])(\d+)$/);
 
   if (!match) {
-    console.warn(`Invalid photo ID format: ${photoId}`);
+    console.warn(`Invalid NASA ID format: ${nasaId}`);
     return "";
   }
 
@@ -38,19 +38,19 @@ export function inferEarthPhotoUrl(photoId: string, size: "small" | "medium" | "
 }
 
 /**
- * Generates all three URL sizes for a photo ID
+ * Generates all three URL sizes for a NASA ID
  *
- * @param photoId - The photo ID (e.g., "ISS056E126840")
+ * @param nasaId - The NASA ID (e.g., "ISS056E126840")
  * @returns Object containing smallUrl, medUrl, and largeUrl
  */
-export function generateEarthPhotoUrls(photoId: string): {
+export function generateEarthPhotoUrls(nasaId: string): {
   smallUrl: string;
   medUrl: string;
   largeUrl: string;
 } {
   return {
-    smallUrl: inferEarthPhotoUrl(photoId, "small"),
-    medUrl: inferEarthPhotoUrl(photoId, "medium"),
-    largeUrl: inferEarthPhotoUrl(photoId, "large"),
+    smallUrl: inferEarthPhotoUrl(nasaId, "small"),
+    medUrl: inferEarthPhotoUrl(nasaId, "medium"),
+    largeUrl: inferEarthPhotoUrl(nasaId, "large"),
   };
 }
