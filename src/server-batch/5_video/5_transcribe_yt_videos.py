@@ -429,27 +429,41 @@ def is_numeric(s):
 def parse_video_filename(filename):
     """
     Parse video filename to extract metadata.
-    Expected format: YYYY-MM-DDTHH-MM-SS_videoId(11chars)_height(3chars)_title.mp4
+    Supports two formats:
+    1. YYYY-MM-DDTHH-MM-SS_videoId(11chars)_height(3chars)_title.mp4
+    2. YYYY-MM-DDTHH-MM-SS_videoId(11chars)_title.mp4 (without height)
     Returns: (ytStartTime, video_id, title, height)
     """
     try:
         basename = os.path.splitext(filename)[0]
-        if len(basename) < 36:
+        if len(basename) < 32:  # Minimum length for format without height
             raise ValueError(f"Filename too short: {filename}")
+
+        # Parse date (first 19 characters)
         date_str = basename[:19]
         if basename[19] != "_":
-            raise ValueError(f"Invalid separator in filename: {filename}")
+            raise ValueError(f"Invalid separator after date in filename: {filename}")
+
+        # Parse video ID (11 characters starting at position 20)
         video_id = basename[20:31]
+        if len(video_id) != 11:
+            raise ValueError(f"Invalid video_id length in filename: {filename}")
         if basename[31] != "_":
             raise ValueError(
                 f"Invalid separator after video_id in filename: {filename}"
             )
-        height_str = basename[32:35]
-        if not is_numeric(height_str):
-            raise ValueError(f"Height is not numeric in filename: {filename}")
-        if basename[35] != "_":
-            raise ValueError(f"Invalid separator after height in filename: {filename}")
-        title = basename[36:]
+
+        # Check if next 3 characters are numeric (height field)
+        remaining = basename[32:]
+        if len(remaining) >= 4 and is_numeric(remaining[:3]) and remaining[3] == "_":
+            # Format with height field
+            height_str = remaining[:3]
+            title = remaining[4:]
+        else:
+            # Format without height field
+            height_str = None
+            title = remaining
+
         ytStartTime = datetime.strptime(date_str, "%Y-%m-%dT%H-%M-%S")
         return ytStartTime, video_id, title, height_str
     except Exception as e:
@@ -516,13 +530,21 @@ def process_video_file(model, video_path):
         logger.info(f"Skipping launch video: {video_path.name}")
         return True
 
+    # Check if transcript already exists by looking for any file matching date_videoId pattern
+    # This is more robust than exact filename matching since titles can change
+    date_str = ytStartTime.strftime("%Y-%m-%dT%H-%M-%S")
+    transcript_pattern = f"{date_str}_{video_id}_*_transcript.csv"
+    existing_transcripts = list(TEMP_OUTPUT_FOLDER.glob(transcript_pattern))
+
+    if existing_transcripts:
+        logger.info(
+            f"Video {video_id} already has transcript: {existing_transcripts[0].name}. Skipping."
+        )
+        return True
+
     # Create output filename based on input filename (without extension) + _transcript.csv
     input_basename = os.path.splitext(video_path.name)[0]
     output_csv_path = TEMP_OUTPUT_FOLDER / f"{input_basename}_transcript.csv"
-
-    if output_csv_path.exists():
-        logger.info(f"Video {video_id} already has transcript. Skipping.")
-        return True
 
     # Transcribe the video using VAD-based approach
     vad_segments = run_transcription_with_vad(
@@ -576,11 +598,13 @@ def check_existing_transcripts(video_files):
             skipped_launch += 1
             continue
 
-        # Create output filename based on input filename (without extension) + _transcript.csv
-        input_basename = os.path.splitext(video_path.name)[0]
-        output_csv_path = TEMP_OUTPUT_FOLDER / f"{input_basename}_transcript.csv"
+        # Check if transcript already exists by looking for any file matching date_videoId pattern
+        # This is more robust than exact filename matching since titles can change
+        date_str = ytStartTime.strftime("%Y-%m-%dT%H-%M-%S")
+        transcript_pattern = f"{date_str}_{video_id}_*_transcript.csv"
+        existing_transcripts = list(TEMP_OUTPUT_FOLDER.glob(transcript_pattern))
 
-        if output_csv_path.exists():
+        if existing_transcripts:
             already_processed += 1
         else:
             need_processing += 1

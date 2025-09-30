@@ -190,9 +190,9 @@ def copy_blog_article_for_date(date_str, wayback_articles_by_date=None):
 
         # Added check: skip if consolidated articles.json already exists
         merged_json_path = os.path.join(dest_dir, "articles.json")
-        # if os.path.exists(merged_json_path):
-        #     print(f"Consolidated json file already exists for {date_str}. Skipping.")
-        #     return
+        if os.path.exists(merged_json_path):
+            print(f"Consolidated json file already exists for {date_str}. Skipping.")
+            return
 
         # Copy all collected images
         for src_file, file_name in article_images:

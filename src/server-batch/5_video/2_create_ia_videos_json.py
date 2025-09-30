@@ -39,7 +39,14 @@ def get_video_info(video_path):
             str(video_path),
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=True,
+        )
         data = json.loads(result.stdout)
 
         video_info = {
@@ -105,47 +112,83 @@ def main():
         return 1
 
     console.print(f"[green]Found {len(mp4_files)} MP4 files[/green]")
+
+    # Load existing JSON data if it exists
+    existing_videos = {}
+    if json_output_path.exists():
+        try:
+            with open(json_output_path, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+                # Create a dict with filename as key for quick lookup
+                existing_videos = {entry["filename"]: entry for entry in existing_data}
+                console.print(
+                    f"[blue]Loaded {len(existing_videos)} existing entries from JSON[/blue]"
+                )
+        except (json.JSONDecodeError, IOError) as e:
+            console.print(
+                f"[yellow]Warning: Could not load existing JSON: {e}[/yellow]"
+            )
+            existing_videos = {}
+
+    # Filter out files that are already in the JSON
+    new_mp4_files = [f for f in mp4_files if f.name not in existing_videos]
+
+    if new_mp4_files:
+        console.print(f"[green]Processing {len(new_mp4_files)} new video files[/green]")
+    else:
+        console.print(
+            f"[green]No new videos to process. All files already in JSON.[/green]"
+        )
+
     console.print()
 
-    # Extract data with progress bar
-    videos_data = []
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-        TimeElapsedColumn(),
-        TimeRemainingColumn(),
-        console=console,
-        refresh_per_second=10,
-    ) as progress:
-        task = progress.add_task("Processing videos...", total=len(mp4_files))
+    # Start with existing data
+    videos_data = list(existing_videos.values())
 
-        for mp4_file in mp4_files:
-            # Update progress description
-            progress.update(task, description=f"Processing: {mp4_file.name}")
+    # Only process new files
+    if new_mp4_files:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            TimeRemainingColumn(),
+            console=console,
+            refresh_per_second=10,
+        ) as progress:
+            task = progress.add_task("Processing videos...", total=len(new_mp4_files))
 
-            filename = mp4_file.name
-            # Extract timestamp: part before first underscore
-            timestamp_str = filename.split("_")[0]
-            # Parse date and time
-            if "T" in timestamp_str:
-                date, time_part = timestamp_str.split("T")
-                time = time_part.replace("-", ":")
-            else:
-                # Fallback if no T
-                date = timestamp_str
-                time = ""
+            for mp4_file in new_mp4_files:
+                # Update progress description
+                progress.update(task, description=f"Processing: {mp4_file.name}")
 
-            # Get video info including duration
-            video_info = get_video_info(mp4_file)
-            duration = video_info["duration"] if video_info else None
+                filename = mp4_file.name
+                # Extract timestamp: part before first underscore
+                timestamp_str = filename.split("_")[0]
+                # Parse date and time
+                if "T" in timestamp_str:
+                    date, time_part = timestamp_str.split("T")
+                    time = time_part.replace("-", ":")
+                else:
+                    # Fallback if no T
+                    date = timestamp_str
+                    time = ""
 
-            videos_data.append(
-                {"date": date, "time": time, "filename": filename, "duration": duration}
-            )
+                # Get video info including duration
+                video_info = get_video_info(mp4_file)
+                duration = video_info["duration"] if video_info else None
 
-            progress.advance(task)
+                videos_data.append(
+                    {
+                        "date": date,
+                        "time": time,
+                        "filename": filename,
+                        "duration": duration,
+                    }
+                )
+
+                progress.advance(task)
 
     # Sort by date and time
     videos_data.sort(key=lambda x: (x["date"], x["time"]))
@@ -154,9 +197,14 @@ def main():
     with open(json_output_path, "w", encoding="utf-8") as f:
         json.dump(videos_data, f, indent=2, ensure_ascii=False)
 
-    console.print(
-        f"[green]✓[/green] Created {json_output_path} with {len(videos_data)} entries"
-    )
+    if new_mp4_files:
+        console.print(
+            f"[green]✓[/green] Updated {json_output_path} with {len(videos_data)} total entries ({len(new_mp4_files)} new)"
+        )
+    else:
+        console.print(
+            f"[green]✓[/green] {json_output_path} up to date with {len(videos_data)} entries"
+        )
     return 0
 
 

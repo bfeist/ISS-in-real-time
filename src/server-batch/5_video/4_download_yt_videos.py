@@ -56,12 +56,22 @@ for video in videos:
         f"{DOWNLOAD_FOLDER}\\{ytStartTime}{video_id}_%(height)s_{title}.mp4"
     )
 
-    # yt-dlp options
+    # yt-dlp options with fallback format selection
+    # Try multiple format options to handle SABR streaming issues
     ydl_opts = {
-        "format": "best",
+        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best",
         "outtmpl": output_template,
         "nooverwrites": True,
         "noplaylist": True,
+        "merge_output_format": "mp4",
+        "postprocessors": [
+            {
+                "key": "FFmpegVideoConvertor",
+                "preferedformat": "mp4",
+            }
+        ],
+        # Add options to handle nsig issues
+        "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
     }
 
     try:
@@ -76,36 +86,44 @@ for video in videos:
             continue
 
         # First, extract info to get available formats
-        with yt_dlp.YoutubeDL({"quiet": True}) as ydl:
+        info_opts = {
+            "quiet": True,
+            "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
+        }
+        with yt_dlp.YoutubeDL(info_opts) as ydl:
             info = ydl.extract_info(
                 f"https://www.youtube.com/watch?v={video_id}", download=False
             )
             formats = info.get("formats", [])
 
-            # Find the best format
-            best_format = None
-            for fmt in formats:
-                if fmt.get("format_id") == "best":
-                    best_format = fmt
-                    break
-            if not best_format:
-                # If no explicit 'best', find the one with highest quality
-                # Handle None values by using 0 as default
+            # Filter out formats without video (audio only) or without height info
+            video_formats = [
+                fmt
+                for fmt in formats
+                if fmt.get("height") and fmt.get("vcodec") != "none"
+            ]
+
+            if not video_formats:
+                print(
+                    f"Warning: No video formats found for {video_id}, skipping format analysis"
+                )
+            else:
+                # Find the best format
                 def get_quality_score(fmt):
                     height = fmt.get("height") or 0
                     fps = fmt.get("fps") or 0
                     tbr = fmt.get("tbr") or 0
                     return (height, fps, tbr)
 
-                best_format = max(formats, key=get_quality_score)
+                best_format = max(video_formats, key=get_quality_score)
 
-            print("---")
-            print(f"Video: {video_id}")
-            print(f"Available formats count: {len(formats)}")
-            print(
-                f"Selected 'best' format: {best_format.get('format_id', 'unknown')} - {best_format.get('height', 'unknown')}p @ {best_format.get('fps', 'unknown')}fps, {best_format.get('tbr', 'unknown')}kbps"
-            )
-            print(f"Format note: {best_format.get('format_note', 'N/A')}")
+                print("---")
+                print(f"Video: {video_id}")
+                print(f"Available video formats count: {len(video_formats)}")
+                print(
+                    f"Selected best format: {best_format.get('format_id', 'unknown')} - {best_format.get('height', 'unknown')}p @ {best_format.get('fps', 'unknown')}fps, {best_format.get('tbr', 'unknown')}kbps"
+                )
+                print(f"Format note: {best_format.get('format_note', 'N/A')}")
 
         # Now download with the best format
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

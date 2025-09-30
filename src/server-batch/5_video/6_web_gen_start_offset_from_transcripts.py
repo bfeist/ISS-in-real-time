@@ -235,8 +235,12 @@ def parse_youtube_filename(
 ) -> Tuple[Optional[datetime], Optional[str], Optional[str]]:
     """
     Parse YouTube transcript filename to extract metadata.
-    Format: YYYY-MM-DDTHH-MM-SS_videoId_height_title_transcript.csv
-    videoId is 11 characters (YouTube standard), may contain underscores.
+    Format: YYYY-MM-DDTHH-MM-SS_videoId_title_transcript.csv
+    videoId is 11 characters (YouTube standard).
+    
+    Note: Some older files may have had a height field (e.g., _1080_) between videoId and title,
+    but current files do not include this field.
+    
     Returns: (date, video_id, title)
     """
     try:
@@ -244,40 +248,31 @@ def parse_youtube_filename(
         if basename.endswith("_transcript"):
             basename = basename[:-11]  # Remove _transcript
 
-        if len(basename) < 20:  # Minimum length: date_time + _ + 11 char video_id
+        if len(basename) < 32:  # Minimum length: 19 (date) + 1 (_) + 11 (videoId) + 1 (_)
             print(f"Warning: Filename too short: {filename}")
             return None, None, None
 
         # Extract date_time (first 19 chars: YYYY-MM-DDTHH-MM-SS)
         date_time_str = basename[:19]
 
-        # Check if there's an underscore after date_time
+        # Validate date format
         if basename[19] != "_":
-            print(f"Warning: Unexpected format after date_time: {filename}")
+            print(f"Warning: Expected underscore at position 19 in filename: {filename}")
             return None, None, None
 
         # Extract video_id (next 11 chars after _)
-        rest = basename[20:]
-        if len(rest) < 11:
-            print(f"Warning: Filename too short for video_id: {filename}")
+        video_id = basename[20:31]
+        if len(video_id) != 11:
+            print(f"Warning: Invalid video_id length in filename: {filename}")
             return None, None, None
 
-        video_id = rest[:11]
-
-        # Remaining part after video_id
-        after_video_id = rest[11:]
-        if not after_video_id.startswith("_"):
-            print(f"Warning: Unexpected format after video_id: {filename}")
+        # Check for underscore after video_id
+        if len(basename) > 31 and basename[31] != "_":
+            print(f"Warning: Expected underscore at position 31 in filename: {filename}")
             return None, None, None
 
-        # Split the remaining part: _height_title
-        parts = after_video_id[1:].split("_", 1)
-        if len(parts) < 2:
-            print(f"Warning: Unexpected format for height and title: {filename}")
-            return None, None, None
-
-        height = parts[0]
-        title = parts[1]
+        # Everything after position 32 is the title
+        title = basename[32:] if len(basename) > 32 else ""
 
         # Parse the date
         date_part = date_time_str.split("T")[0]  # Get YYYY-MM-DD
@@ -287,6 +282,8 @@ def parse_youtube_filename(
 
     except Exception as e:
         print(f"Error parsing filename {filename}: {e}")
+        import traceback
+        traceback.print_exc()
         return None, None, None
 
 
@@ -535,20 +532,9 @@ def process_youtube_transcript(
     if existing_log:
         print(f"*** SKIPPING - Already processed video ID: {video_id} ***")
         print(f"Previous status: {existing_log.get('processingStatus', 'unknown')}")
-        log_entry = create_log_entry_from_script_result(
-            date,
-            video_id,
-            title,
-            datetime.now(),
-            {},
-            success=True,  # Not a failure, already processed
-            failure_reason="",  # No failure reason
-        )
-        log_entry["processingStatus"] = "already_processed"
-        log_entry["processingNotes"] = (
-            f"Video already processed previously (status: {existing_log.get('processingStatus', 'unknown')})"
-        )
-        return True, log_entry
+        print(f"Previous processing date: {existing_log.get('processingDate', 'unknown')}")
+        # Return True to indicate no error, but None for log_entry since we don't want to add a duplicate
+        return True, None
 
     # Find the recording entry for this video
     recording_entry = find_recording_by_video_id(recordings, video_id)
@@ -571,20 +557,8 @@ def process_youtube_transcript(
         print(
             f"*** SKIPPING - Recording already has derivedStartTime: {recording_entry['derivedStartTime']} ***"
         )
-        log_entry = create_log_entry_from_script_result(
-            date,
-            video_id,
-            title,
-            datetime.now(),
-            {},
-            success=True,  # Not a failure, already processed
-            failure_reason="",  # No failure reason
-        )
-        log_entry["processingStatus"] = "already_processed"
-        log_entry["processingNotes"] = (
-            f"Recording already has derivedStartTime: {recording_entry['derivedStartTime']}"
-        )
-        return True, log_entry
+        # Return True to indicate no error, but None for log_entry since we don't want to add a duplicate
+        return True, None
 
     # Load YouTube transcript
     print(f"\nLoading YouTube transcript...")
@@ -741,25 +715,25 @@ def main():
                 filepath, recordings, log_entries
             )
 
-            # Always save after processing, regardless of success/failure
-            if log_entry:
-                # Add the new log entry
-                log_entries.append(log_entry)
-                processed_count += 1
+            # If log_entry is None, it means the video was already processed, skip it
+            if log_entry is None:
+                print(f"ℹ️  Skipped already processed video: {filename}")
+                continue
 
-                if success:
-                    successful_count += 1
+            # Add the new log entry
+            log_entries.append(log_entry)
+            processed_count += 1
+
+            if success:
+                successful_count += 1
 
             # Save both files after each processing attempt
             recordings_saved = save_youtube_recordings(recordings)
             log_saved = save_processing_log(log_entries)
 
             if recordings_saved and log_saved:
-                if log_entry:
-                    status_msg = "✅ SUCCESS" if success else "❌ FAILED"
-                    print(f"{status_msg} - Saved updates for {log_entry['videoId']}")
-                else:
-                    print(f"ℹ️  Saved files after processing {filename}")
+                status_msg = "✅ SUCCESS" if success else "❌ FAILED"
+                print(f"{status_msg} - Saved updates for {log_entry['videoId']}")
             else:
                 print(f"❌ Failed to save files after processing {filename}")
 
