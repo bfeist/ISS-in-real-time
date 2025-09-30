@@ -3,13 +3,12 @@ import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import PhotosThumbs from "../components/panes/photosThumbs";
 
-const basePhoto: PhotoItem = {
+const basePhoto: PhotoItemEarth = {
   nasaId: "photo-1",
   dateTaken: "2025-01-01T00:01:40",
   smallUrl: "photos/photo-1-small.jpg",
   medUrl: "photos/photo-1-med.jpg",
   largeUrl: "photos/photo-1-large.jpg",
-  description: "Sample photo",
   type: "photos_earth",
 };
 
@@ -75,7 +74,7 @@ describe("PhotosThumbs", () => {
 
   it("renders photos lacking time metadata without crashing", async () => {
     const { props: baseProps } = createBaseProps();
-    const photoWithoutTime: PhotoItem = {
+    const photoWithoutTime: PhotoItemEarth = {
       ...basePhoto,
       nasaId: "photo-missing-time",
       dateTaken: "2025-01-02",

@@ -129,7 +129,7 @@ interface EarthPhotoRaw {
   dateTaken: string;
 }
 
-export async function fetchEarthPhotography(date: string): Promise<PhotoItem[]> {
+export async function fetchEarthPhotography(date: string): Promise<PhotoItemEarth[]> {
   const baseStaticUrl = getBaseStaticUrl();
   const [year, month] = date.split("-");
 
@@ -172,7 +172,7 @@ interface FlickrPhotoRaw {
   sourceUrl: string;
 }
 
-export async function fetchPhotosFlickr(date: string): Promise<PhotoItem[]> {
+export async function fetchPhotosFlickr(date: string): Promise<PhotoItemFlickr[]> {
   const baseStaticUrl = getBaseStaticUrl();
   const [year, month] = date.split("-");
 

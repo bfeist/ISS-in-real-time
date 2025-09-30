@@ -27,17 +27,47 @@ type CommFirstItem = {
   textOriginalLang?: string;
 };
 
-type PhotoItem = {
+// Base properties shared by all photo types
+type PhotoItemBase = {
   nasaId: string;
   dateTaken: string;
   smallUrl: string;
   medUrl: string;
   largeUrl: string;
-  description?: string;
   sourceUrl?: string;
-  type: "photos_earth" | "photos_flickr";
-  isTimelapse?: boolean;
 };
+
+// Earth photography with optional enhanced metadata
+type PhotoItemEarth = PhotoItemBase & {
+  type: "photos_earth";
+  isTimelapse?: boolean;
+  // Geographic coordinates (from MLCoord table, ~10% of photos)
+  lat?: number;
+  lon?: number;
+  corners?: {
+    ul: { lat: number; lon: number };
+    ur: { lat: number; lon: number };
+    ll: { lat: number; lon: number };
+    lr: { lat: number; lon: number };
+  };
+  // Feature descriptions
+  mlFeat?: string; // ML-detected features
+  feat?: string; // Human-cataloged features
+  caption?: string; // Human-written captions
+  publicFeatures?: string; // Image detective contributions
+  // Camera metadata
+  focalLength?: number; // Focal length in mm
+  camera?: string; // Camera identifier
+};
+
+// Flickr mission photos
+type PhotoItemFlickr = PhotoItemBase & {
+  type: "photos_flickr";
+  description: string; // Human-written description from Flickr
+};
+
+// Discriminated union - use this type in components
+type PhotoItem = PhotoItemEarth | PhotoItemFlickr;
 
 type EphemeraItem = {
   epoch: string;
@@ -285,8 +315,8 @@ type TimelineVideoItem = {
 
 interface TimelineDayData {
   commItems: CommItem[];
-  earthPhotos: PhotoItem[];
-  flickrPhotos: PhotoItem[];
+  earthPhotos: PhotoItemEarth[];
+  flickrPhotos: PhotoItemFlickr[];
   videoItems: TimelineVideoItem[];
   dayNight: DayNightObj[];
   selectedDate: string;

@@ -39,7 +39,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     // If only showEarthPhotos is on: show only non-timelapse earth photos
     // If only showTimelapsePhotos is on: show only timelapse earth photos
     // If both are off: show no earth photos
-    let earthPhotos: PhotoItem[] = [];
+    let earthPhotos: PhotoItemEarth[] = [];
 
     if (showEarthPhotos && showTimelapsePhotos) {
       // Both toggles on: show all earth photos
@@ -53,9 +53,9 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     }
     // If both are off: earthPhotos remains empty array
 
-    const missionPhotos = showMissionPhotos ? flickrPhotosItems : [];
+    const missionPhotos: PhotoItemFlickr[] = showMissionPhotos ? flickrPhotosItems : [];
 
-    const allPhotos = [...earthPhotos, ...missionPhotos];
+    const allPhotos: PhotoItem[] = [...earthPhotos, ...missionPhotos];
 
     return allPhotos.sort(
       (a, b) => new Date(a.dateTaken).getTime() - new Date(b.dateTaken).getTime()
@@ -221,7 +221,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
         {mostRecentImage && (
           <img src={getImageUrl(mostRecentImage, "medium")} alt={mostRecentImage.nasaId} />
         )}
-        {mostRecentImage && mostRecentImage.description && (
+        {mostRecentImage && mostRecentImage.type === "photos_flickr" && (
           <div className={styles.descriptionOverlay}>
             <div className={styles.descriptionContent}>
               {mostRecentImage.sourceUrl && (
