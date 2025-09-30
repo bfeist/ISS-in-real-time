@@ -244,6 +244,25 @@ const TimelineDayContainer = (): JSX.Element => {
       updateCursorRef.current = updateCursor;
       clearHoverCursorRef.current = clearHoverCursor;
 
+      // Restore the current clock cursor immediately after reinitialization
+      const startStopMillis = Date.parse(startStopTimestamp);
+      const hasValidTimestamp = !Number.isNaN(startStopMillis);
+
+      let currentSecondsInDay: number | null = null;
+
+      if (hasValidTimestamp) {
+        const secondsSinceStarted = (Date.now() - startStopMillis) / 1000;
+        const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);
+        currentSecondsInDay = ((newAppSeconds % 86400) + 86400) % 86400;
+      } else if (Number.isFinite(appSecondsAtStartStop)) {
+        currentSecondsInDay = ((Math.floor(appSecondsAtStartStop) % 86400) + 86400) % 86400;
+      }
+
+      if (updateCursorRef.current && currentSecondsInDay !== null) {
+        updateCursorRef.current(currentSecondsInDay);
+        lastSecondsRef.current = currentSecondsInDay;
+      }
+
       const handleResize = () => {
         if (drawFunctionRef.current) {
           drawFunctionRef.current();
@@ -317,6 +336,8 @@ const TimelineDayContainer = (): JSX.Element => {
     showEarthPhotos,
     showMissionPhotos,
     showTimelapsePhotos,
+    appSecondsAtStartStop,
+    startStopTimestamp,
   ]); // Put loading states back in dependencies
 
   // Separate effect to redraw when data changes (but not toggle changes)
