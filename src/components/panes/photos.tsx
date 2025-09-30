@@ -13,13 +13,8 @@ import PhotosThumbs from "./photosThumbs";
 
 const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "short" }) => {
   const { selectedDate, setClock } = useStateClock();
-  const {
-    showEarthPhotos,
-    showMissionPhotos,
-    showTimelapsePhotos,
-    setShowEarthPhotos,
-    setShowMissionPhotos,
-  } = useStateToggle();
+  const { showEarthPhotos, showTimelapsePhotos, showMissionPhotos } = useStateToggle();
+
   const { data: earthPhotographyItems = [], isLoading: earthPhotographyIsLoading } =
     useDateEarthPhotography(selectedDate || "");
   const { data: flickrPhotosItems = [], isLoading: flickrPhotosIsLoading } = useDatePhotosFlickr(
@@ -36,18 +31,28 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
 
   // Computed values
   const isLoading = earthPhotographyIsLoading || flickrPhotosIsLoading;
-  const hasEarthPhotos = earthPhotographyItems.length > 0;
-  const hasMissionPhotos = flickrPhotosItems.length > 0;
 
   // Combined and sorted photos
   const photoItemsCombined = useMemo(() => {
-    // Filter out timelapse photos from Earth photos if showTimelapsePhotos is false
-    // Note: Only Earth photos can be timelapse, Flickr photos are never timelapse
-    const earthPhotos = showEarthPhotos
-      ? showTimelapsePhotos
-        ? earthPhotographyItems
-        : earthPhotographyItems.filter((photo) => !photo.isTimelapse)
-      : [];
+    // Earth photos logic: show based on toggle combinations
+    // If both toggles are on: show all earth photos
+    // If only showEarthPhotos is on: show only non-timelapse earth photos
+    // If only showTimelapsePhotos is on: show only timelapse earth photos
+    // If both are off: show no earth photos
+    let earthPhotos: PhotoItem[] = [];
+
+    if (showEarthPhotos && showTimelapsePhotos) {
+      // Both toggles on: show all earth photos
+      earthPhotos = earthPhotographyItems;
+    } else if (showEarthPhotos && !showTimelapsePhotos) {
+      // Only earth photos on: show non-timelapse earth photos
+      earthPhotos = earthPhotographyItems.filter((photo) => !photo.isTimelapse);
+    } else if (!showEarthPhotos && showTimelapsePhotos) {
+      // Only timelapse on: show timelapse earth photos
+      earthPhotos = earthPhotographyItems.filter((photo) => photo.isTimelapse);
+    }
+    // If both are off: earthPhotos remains empty array
+
     const missionPhotos = showMissionPhotos ? flickrPhotosItems : [];
 
     const allPhotos = [...earthPhotos, ...missionPhotos];
@@ -95,35 +100,14 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     [flickrBaseUrl]
   );
 
-  // Smart toggle preservation: ensure at least one photo type is enabled if available
-  useEffect(() => {
-    if (isLoading || !selectedDate) return;
-
-    const wouldShowEarthPhotos = showEarthPhotos && hasEarthPhotos;
-    const wouldShowMissionPhotos = showMissionPhotos && hasMissionPhotos;
-    const wouldShowAnyPhotos = wouldShowEarthPhotos || wouldShowMissionPhotos;
-
-    if (!wouldShowAnyPhotos && (hasEarthPhotos || hasMissionPhotos)) {
-      if (hasEarthPhotos && !showEarthPhotos) {
-        setShowEarthPhotos(true);
-      } else if (hasMissionPhotos && !showMissionPhotos) {
-        setShowMissionPhotos(true);
-      }
-    }
-  }, [
-    selectedDate,
-    isLoading,
-    hasEarthPhotos,
-    hasMissionPhotos,
-    showEarthPhotos,
-    showMissionPhotos,
-    setShowEarthPhotos,
-    setShowMissionPhotos,
-  ]);
-
   // Update most recent image based on current time
   useEffect(() => {
-    if (!Number.isFinite(appSeconds) || photoItemsCombined.length === 0) {
+    if (!Number.isFinite(appSeconds)) {
+      return;
+    }
+
+    if (photoItemsCombined.length === 0) {
+      setMostRecentImage(null);
       return;
     }
 
@@ -217,7 +201,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       onMouseEnter={() => setIsHoveringContainer(true)}
       onMouseLeave={() => setIsHoveringContainer(false)}
     >
-      {hasEarthPhotos && hasMissionPhotos && <PhotoToggle isVisible={isHoveringContainer} />}
+      <PhotoToggle isVisible={isHoveringContainer} />
       <ClockInterval setAppSeconds={setAppSeconds} />
 
       <div

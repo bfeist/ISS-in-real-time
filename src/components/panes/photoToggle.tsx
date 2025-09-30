@@ -27,7 +27,7 @@ const PhotoToggle: FunctionComponent<{
             backgroundColor: showEarthPhotos ? "rgb(255 255 255 / 10%)" : "transparent",
           }}
           data-tooltip-id="source-button-tooltip"
-          data-tooltip-content={"Toggle Earth Photos"}
+          data-tooltip-content={showEarthPhotos ? "Show Earth Photos" : "Hide Earth Photos"}
           data-tooltip-place="left"
         />
       </div>
@@ -35,11 +35,9 @@ const PhotoToggle: FunctionComponent<{
         <IconButton
           icon={faClock}
           onClick={() => setShowTimelapsePhotos(!showTimelapsePhotos)}
-          disabled={!showEarthPhotos}
           style={{
-            opacity: showEarthPhotos && showTimelapsePhotos ? 1 : 0.5,
-            backgroundColor:
-              showEarthPhotos && showTimelapsePhotos ? "rgb(255 255 255 / 10%)" : "transparent",
+            opacity: showTimelapsePhotos ? 1 : 0.5,
+            backgroundColor: showTimelapsePhotos ? "rgb(255 255 255 / 10%)" : "transparent",
           }}
           data-tooltip-id="source-button-tooltip"
           data-tooltip-content={"Toggle Timelapse Earth Photos"}

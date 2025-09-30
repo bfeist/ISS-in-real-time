@@ -819,27 +819,44 @@ export const initializePaperCanvas = ({
 
             // Special handling for photos row - combine earthPhotos and flickrPhotos with source info
             if (rowConfig.key === "photos") {
-              let earthPhotos = showEarthPhotos
-                ? ((data.earthPhotos as unknown[]) || []).map((item) => ({
+              // Earth photos logic: show based on toggle combinations
+              // If both toggles are on: show all earth photos
+              // If only showEarthPhotos is on: show only non-timelapse earth photos
+              // If only showTimelapsePhotos is on: show only timelapse earth photos
+              // If both are off: show no earth photos
+              let earthPhotos: { item: unknown; source: string }[] = [];
+
+              if (showEarthPhotos && showTimelapsePhotos) {
+                // Both toggles on: show all earth photos
+                earthPhotos = ((data.earthPhotos as unknown[]) || []).map((item) => ({
+                  item,
+                  source: "earth",
+                }));
+              } else if (showEarthPhotos && !showTimelapsePhotos) {
+                // Only earth photos on: show non-timelapse earth photos
+                earthPhotos = ((data.earthPhotos as unknown[]) || [])
+                  .filter((item) => !(item as PhotoItem).isTimelapse)
+                  .map((item) => ({
                     item,
                     source: "earth",
-                  }))
-                : [];
+                  }));
+              } else if (!showEarthPhotos && showTimelapsePhotos) {
+                // Only timelapse on: show timelapse earth photos
+                earthPhotos = ((data.earthPhotos as unknown[]) || [])
+                  .filter((item) => (item as PhotoItem).isTimelapse)
+                  .map((item) => ({
+                    item,
+                    source: "earth",
+                  }));
+              }
+              // If both are off: earthPhotos remains empty array
+
               const flickrPhotos = showMissionPhotos
                 ? ((data.flickrPhotos as unknown[]) || []).map((item) => ({
                     item,
                     source: "flickr",
                   }))
                 : [];
-
-              // Filter out timelapse photos if showTimelapsePhotos is false
-              // Note: Only Earth photos can be timelapse, Flickr photos are never timelapse
-              if (!showTimelapsePhotos) {
-                earthPhotos = earthPhotos.filter((photoWrapper) => {
-                  const photoItem = photoWrapper.item as PhotoItem;
-                  return !photoItem.isTimelapse;
-                });
-              }
 
               items = [...earthPhotos, ...flickrPhotos] as unknown[];
             }
