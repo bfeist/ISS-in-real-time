@@ -452,7 +452,7 @@ def process_nasa_timelines(
 
     if not snapshots:
         print("❌ No snapshots found for the given URL pattern")
-        eturn
+        return
 
     # Find the best snapshot for each unique URL instead of processing all
     best_snapshots = find_best_snapshot(snapshots)
