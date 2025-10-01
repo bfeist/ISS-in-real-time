@@ -9,12 +9,37 @@
   overflow: hidden;
 }
 
-.dayContentWrapper {
+.contentContainer {
   position: absolute;
   top: 125px; /* Adjust this value based on header (50px) + timeline height */
   left: 0;
   right: 0;
   bottom: 0;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.leftColumn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rightColumn {
+  width: 600px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-left: 1px solid rgb(255 255 255 / 10%);
+}
+
+.dayContentWrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   min-height: 0;

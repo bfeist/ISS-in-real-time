@@ -18,6 +18,52 @@ if not RAW_FOLDER:
 
 print(f"📂 RAW_FOLDER configured as: {RAW_FOLDER}")
 
+
+def wayback_urljoin(base_wayback_url, relative_url):
+    """
+    Join a relative URL with a Wayback Machine base URL.
+    Handles special Wayback flags like mp_, id_, etc. that break standard urljoin.
+    
+    This is used as a fallback when standard urljoin produces incomplete URLs.
+    
+    Args:
+        base_wayback_url: Full Wayback URL (e.g., https://web.archive.org/web/20150906060142mp_/http://www.nasa.gov/page.html)
+        relative_url: Relative URL to join (e.g., /other/page.html)
+    
+    Returns:
+        Full Wayback URL
+    """
+    # Check if it's a Wayback URL
+    if "web.archive.org/web/" in base_wayback_url:
+        # Extract timestamp (with optional flags like mp_, id_, etc.) and original URL
+        # Pattern: /web/TIMESTAMPflags_/ORIGINAL_URL or /web/TIMESTAMP/ORIGINAL_URL
+        match = re.search(r'/web/(\d+)(?:[a-z_]+)?/(.+)', base_wayback_url)
+        if match:
+            timestamp = match.group(1)
+            original_url = match.group(2)
+            
+            # Parse the original URL to get its base
+            parsed_original = urlparse(original_url)
+            original_base = f"{parsed_original.scheme}://{parsed_original.netloc}"
+            
+            # If relative_url starts with /, join it with the original domain
+            if relative_url.startswith('/'):
+                full_original_url = original_base + relative_url
+            elif relative_url.startswith('http'):
+                # Already absolute
+                full_original_url = relative_url
+            else:
+                # Relative to current path
+                original_path = parsed_original.path
+                original_dir = '/'.join(original_path.split('/')[:-1])
+                full_original_url = original_base + original_dir + '/' + relative_url
+            
+            # Construct the Wayback URL (without flags for cleaner URLs)
+            return f"https://web.archive.org/web/{timestamp}/{full_original_url}"
+    
+    # If not a Wayback URL, use standard urljoin
+    return urljoin(base_wayback_url, relative_url)
+
 # CDX API endpoints
 BASE_CDX = "https://web.archive.org/cdx/search/cdx"
 WAYBACK_SNAPSHOT = "https://web.archive.org/web/{timestamp}/{url}"
@@ -41,8 +87,8 @@ FILE_EXTS = (".pdf", ".docx", ".doc")
 
 # Year page URLs (2005-2014)
 YEAR_PAGE_URLS = {
-    2005: "http://www.nasa.gov/mission_pages/station/timelines/2005_timelines_main.html",
-    2006: "http://www.nasa.gov/mission_pages/station/timelines/2006_timelines_main.html",
+    # 2005: "http://www.nasa.gov/mission_pages/station/timelines/2005_timelines_main.html",
+    # 2006: "http://www.nasa.gov/mission_pages/station/timelines/2006_timelines_main.html",
     2007: "http://www.nasa.gov/mission_pages/station/timelines/2007_timelines_main.html",
     2008: "http://www.nasa.gov/mission_pages/station/timelines/2008_timelines_main.html",
     2009: "http://www.nasa.gov/mission_pages/station/timelines/2009_timelines_main.html",
@@ -166,6 +212,7 @@ def extract_year_month_from_url(url):
     Examples:
       - 01_2006_tl.html -> (2006, '01')
       - 05_2005_tl.html -> (2005, '05')
+      - 9_2012_tl.html -> (2012, '09')
       - /international-space-station-timelines-november-2014/ -> (2014, '11')
     Returns (year, month_num) or (None, None) if not found
     """
@@ -185,10 +232,10 @@ def extract_year_month_from_url(url):
         "december": "12",
     }
     
-    # Pattern 1: MM_YYYY_tl.html
-    match = re.search(r"/(\d{2})_(\d{4})_tl\.html", url)
+    # Pattern 1: MM_YYYY_tl.html or M_YYYY_tl.html (handles both single and double digit months)
+    match = re.search(r"/(\d{1,2})_(\d{4})_tl\.html", url)
     if match:
-        month_num = match.group(1)
+        month_num = match.group(1).zfill(2)  # Pad single digit with zero
         year = int(match.group(2))
         return (year, month_num)
 
@@ -250,42 +297,97 @@ def generate_filename_and_path(wayback_url, original_filename, base_output_dir, 
     # Extract day from filename if possible
     day = None
     
-    # Pattern 1: MM_DD_YYYY format (e.g., "05_17_2005_tl.pdf")
-    day_match = re.search(r'_(\d{2})_(\d{2})_(\d{4})', clean_filename)
+    # Pattern 1: MMDDYYYY format (e.g., "12102007_tl.pdf" for December 10, 2007)
+    day_match = re.search(r'(\d{8})_', clean_filename)
     if day_match:
-        month_in_filename = day_match.group(1)
-        day_in_filename = day_match.group(2)
-        year_in_filename = day_match.group(3)
-        # Use the day from the filename
-        day = day_in_filename
-        print(f"  📅 Extracted date from MM_DD_YYYY pattern: {year_in_filename}-{month_in_filename}-{day}")
-    else:
-        # Pattern 2: MMDDYY format (e.g., "073105_tl.pdf" for July 31, 2005)
-        day_match = re.search(r'_(\d{2})(\d{2})(\d{2})_', clean_filename)
+        date_str = day_match.group(1)
+        month_in_filename = date_str[0:2]
+        day_in_filename = date_str[2:4]
+        year_in_filename = date_str[4:8]
+        
+        # Validate month and day ranges
+        month_num = int(month_in_filename)
+        day_num = int(day_in_filename)
+        
+        if 1 <= month_num <= 12 and 1 <= day_num <= 31:
+            day = day_in_filename
+            print(f"  📅 Extracted date from MMDDYYYY pattern: {year_in_filename}-{month_in_filename}-{day}")
+        else:
+            day_match = None
+    
+    if not day_match:
+        # Pattern 2: MM_DD_YYYY format (e.g., "05_17_2005_tl.pdf")
+        day_match = re.search(r'_(\d{2})_(\d{2})_(\d{4})', clean_filename)
+        if day_match:
+            month_in_filename = day_match.group(1)
+            day_in_filename = day_match.group(2)
+            year_in_filename = day_match.group(3)
+            # Use the day from the filename
+            day = day_in_filename
+            print(f"  📅 Extracted date from MM_DD_YYYY pattern: {year_in_filename}-{month_in_filename}-{day}")
+    
+    if not day_match:
+        # Pattern 3: MMDDYY format (e.g., "073105_tl.pdf" for July 31, 2005 or "010514_tl.pdf" for January 5, 2014)
+        # Find 6-digit sequences followed by underscore and validate them as dates
+        all_six_digit_matches = re.finditer(r'(\d{6})_', clean_filename)
+        day_match = None
+        
+        for match in all_six_digit_matches:
+            date_str = match.group(1)
+            month_in_filename = date_str[0:2]
+            day_in_filename = date_str[2:4]
+            year_suffix = date_str[4:6]
+            
+            # Validate month and day ranges
+            month_num = int(month_in_filename)
+            day_num = int(day_in_filename)
+            
+            if 1 <= month_num <= 12 and 1 <= day_num <= 31:
+                # Valid date found
+                year_in_filename = f"20{year_suffix}"
+                day = day_in_filename
+                print(f"  📅 Extracted date from MMDDYY pattern: {year_in_filename}-{month_in_filename}-{day}")
+                day_match = match
+                break  # Use the first valid date found
+    
+    if not day_match:
+        # Pattern 4: MM-DD-YY format with hyphens (e.g., "09-05-07.pdf" for September 5, 2007)
+        day_match = re.search(r'(\d{2})-(\d{2})-(\d{2})', clean_filename)
         if day_match:
             month_in_filename = day_match.group(1)
             day_in_filename = day_match.group(2)
             year_suffix = day_match.group(3)
-            # Convert YY to YYYY (assuming 20XX for years 00-99)
-            year_in_filename = f"20{year_suffix}"
-            day = day_in_filename
-            print(f"  📅 Extracted date from MMDDYY pattern: {year_in_filename}-{month_in_filename}-{day}")
-        else:
-            # Pattern 3: Try to find just MM_DD pattern (e.g., "05_03_tl.pdf")
-            day_match = re.search(r'_(\d{2})_(\d{2})_tl', clean_filename)
-            if day_match:
-                month_in_filename = day_match.group(1)
-                day_in_filename = day_match.group(2)
+            
+            # Validate month and day ranges
+            month_num = int(month_in_filename)
+            day_num = int(day_in_filename)
+            
+            if 1 <= month_num <= 12 and 1 <= day_num <= 31:
+                year_in_filename = f"20{year_suffix}"
                 day = day_in_filename
-                print(f"  📅 Extracted date from MM_DD pattern: {month_in_filename}-{day}")
+                print(f"  📅 Extracted date from MM-DD-YY pattern: {year_in_filename}-{month_in_filename}-{day}")
+            else:
+                day_match = None
+    
+    if not day_match:
+        # Pattern 5: Try to find just MM_DD pattern (e.g., "05_03_tl.pdf")
+        day_match = re.search(r'_(\d{2})_(\d{2})', clean_filename)
+        if day_match:
+            month_in_filename = day_match.group(1)
+            day_in_filename = day_match.group(2)
+            day = day_in_filename
+            print(f"  📅 Extracted date from MM_DD pattern: {month_in_filename}-{day}")
+    
+    # Ensure month_num is a string
+    month_str = str(month_num).zfill(2) if isinstance(month_num, int) else month_num.zfill(2)
     
     # Prepend date in YYYY-MM-DD format to filename
     if day:
-        date_prefix = f"{year}-{month_num.zfill(2)}-{day}"
+        date_prefix = f"{year}-{month_str}-{day}"
         prefixed_filename = f"{date_prefix}__{clean_filename}"
     else:
         # If we can't extract day, just use year and month
-        date_prefix = f"{year}-{month_num.zfill(2)}"
+        date_prefix = f"{year}-{month_str}"
         prefixed_filename = f"{date_prefix}__{clean_filename}"
         print(f"  ⚠️ Could not extract day from filename, using year-month only")
 
@@ -293,7 +395,7 @@ def generate_filename_and_path(wayback_url, original_filename, base_output_dir, 
     full_path = os.path.join(year_month_dir, prefixed_filename)
 
     # Relative path for logging
-    relative_path = os.path.join(str(year), month_num, prefixed_filename)
+    relative_path = os.path.join(str(year), month_str, prefixed_filename)
 
     return (full_path, relative_path)
 
@@ -444,6 +546,18 @@ def extract_month_page_urls(year_page_snapshot_url, year):
 
             soup = BeautifulSoup(r.content, "html.parser")
 
+            # Check if the page is empty or missing content (Wayback wrapper issue)
+            # If so, try the raw (id_) version
+            if len(r.content) < 15000 and "web.archive.org" in year_page_snapshot_url:
+                print(f"⚠️ Page seems incomplete ({len(r.content)} bytes), trying raw version...")
+                raw_url = convert_to_raw_url(year_page_snapshot_url)
+                if raw_url != year_page_snapshot_url:
+                    r_raw = session.get(raw_url, timeout=60)
+                    if r_raw.status_code == 200 and len(r_raw.content) > len(r.content):
+                        print(f"✓ Raw version has more content ({len(r_raw.content)} bytes), using it")
+                        r = r_raw
+                        soup = BeautifulSoup(r.content, "html.parser")
+
             month_urls = []
 
             # Strategy 1: Try div with id='feature-content' (2014 style)
@@ -453,28 +567,55 @@ def extract_month_page_urls(year_page_snapshot_url, year):
                 links = feature_content.find_all("a", href=True)
                 for link in links:
                     href = link["href"]
+                    
+                    # Skip javascript links
+                    if href.startswith('javascript:'):
+                        continue
+                    
                     full_url = urljoin(year_page_snapshot_url, href)
+                    
+                    # Fallback: If urljoin produced an incomplete URL, use wayback_urljoin
+                    if full_url.startswith("https://web.archive.org/") and "http" not in full_url[30:]:
+                        full_url = wayback_urljoin(year_page_snapshot_url, href)
+                    
                     # Filter for timeline links
                     if "timeline" in full_url.lower() or "_tl.html" in full_url.lower():
-                        month_urls.append(full_url)
-                        print(f"  📅 Found month link: {href}")
+                        # Skip index pages and anchor links
+                        if "index.html" not in full_url.lower() and "#" not in href:
+                            month_urls.append(full_url)
+                            print(f"  📅 Found month link: {href}")
 
             # Strategy 2: Try div with class='box_710_cap' (2005-2013 style)
             if not month_urls:
                 print(f"🔍 Trying box_710_cap div (2005-2013 style)")
                 box_divs = soup.find_all("div", class_="box_710_cap")
+                print(f"   Found {len(box_divs)} box_710_cap divs")
                 for box_div in box_divs:
                     links = box_div.find_all("a", href=True)
+                    print(f"   Found {len(links)} links in box_710_cap div")
                     for link in links:
                         href = link["href"]
+                        
+                        # Skip javascript links
+                        if href.startswith('javascript:'):
+                            continue
+                        
                         full_url = urljoin(year_page_snapshot_url, href)
+                        
+                        # Fallback: If urljoin produced an incomplete URL (missing original domain),
+                        # use wayback_urljoin to handle special Wayback flags like mp_
+                        if full_url.startswith("https://web.archive.org/") and "http" not in full_url[30:]:
+                            full_url = wayback_urljoin(year_page_snapshot_url, href)
+                        
                         # Filter for timeline links
                         if (
                             "timeline" in full_url.lower()
                             or "_tl.html" in full_url.lower()
                         ):
-                            month_urls.append(full_url)
-                            print(f"  📅 Found month link: {href}")
+                            # Skip index pages and anchor links
+                            if "index.html" not in full_url.lower() and "#" not in href:
+                                month_urls.append(full_url)
+                                print(f"  📅 Found month link: {href}")
 
             # Strategy 3: Fallback - find all links containing timeline keywords
             if not month_urls:
@@ -482,7 +623,17 @@ def extract_month_page_urls(year_page_snapshot_url, year):
                 all_links = soup.find_all("a", href=True)
                 for link in all_links:
                     href = link["href"]
+                    
+                    # Skip javascript links
+                    if href.startswith('javascript:'):
+                        continue
+                    
                     full_url = urljoin(year_page_snapshot_url, href)
+                    
+                    # Fallback: If urljoin produced an incomplete URL, use wayback_urljoin
+                    if full_url.startswith("https://web.archive.org/") and "http" not in full_url[30:]:
+                        full_url = wayback_urljoin(year_page_snapshot_url, href)
+                    
                     lower_url = full_url.lower()
                     # Look for timeline-related URLs
                     if (
@@ -490,10 +641,8 @@ def extract_month_page_urls(year_page_snapshot_url, year):
                         or "_tl.html" in lower_url
                         or f"/{year}/" in lower_url
                     ):
-                        # Avoid year index pages
-                        if "timelines_main" not in lower_url and full_url not in [
-                            year_page_snapshot_url
-                        ]:
+                        # Avoid year index pages and anchor links
+                        if "timelines_main" not in lower_url and "index.html" not in lower_url and "#" not in href:
                             month_urls.append(full_url)
                             print(f"  📅 Found month link (fallback): {href}")
 

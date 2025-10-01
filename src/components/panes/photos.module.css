@@ -19,6 +19,7 @@
   overflow: hidden;
   border-radius: var(--panel-radius);
   position: relative;
+  cursor: pointer;
 }
 
 .currentImage img {
