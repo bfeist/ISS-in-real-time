@@ -34,7 +34,6 @@ type PhotoItemBase = {
   smallUrl: string;
   medUrl: string;
   largeUrl: string;
-  sourceUrl?: string;
 };
 
 // Earth photography with optional enhanced metadata
@@ -63,6 +62,7 @@ type PhotoItemEarth = PhotoItemBase & {
 // Flickr mission photos
 type PhotoItemFlickr = PhotoItemBase & {
   type: "photos_flickr";
+  sourceUrl?: string;
   description: string; // Human-written description from Flickr
 };
 
