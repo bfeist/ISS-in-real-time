@@ -123,8 +123,11 @@ def convert_to_raw_url(wayback_url):
     return wayback_url
 
 
-def generate_filename(wayback_url, original_filename):
-    """Generate filename with year/month prefix (preserved from original script)"""
+def generate_filename_and_path(wayback_url, original_filename, base_output_dir):
+    """
+    Generate filename with YYYY-MM-DD__ prefix and full path with YYYY/MM folder structure.
+    Returns (full_path, relative_path) or (None, None) if year/month can't be extracted
+    """
     # Month name to number mapping
     month_mapping = {
         "january": "01",
@@ -141,8 +144,11 @@ def generate_filename(wayback_url, original_filename):
         "december": "12",
     }
 
+    year = None
+    month_num = None
+    day = None
+
     # Try to extract year/month from the original URL path
-    year_month_prefix = ""
     if "/web/" in wayback_url and "web.archive.org" in wayback_url:
         # Extract the original URL from Wayback Machine format
         parts = wayback_url.split("/")
@@ -154,17 +160,53 @@ def generate_filename(wayback_url, original_filename):
                 year = path_match.group(1)
                 month = path_match.group(2).lower()
                 month_num = month_mapping.get(month, month)
-                year_month_prefix = f"{year}_{month_num}__"
 
-    # Create the final filename
-    if year_month_prefix:
-        filename = year_month_prefix + original_filename
+    if not year or not month_num:
+        print(f"⚠️ Could not extract year/month from URL: {wayback_url}")
+        return (None, None)
+
+    # Try to extract day from the filename
+    # Pattern 1: MM_DD format (e.g., "11_22_tl_f23.pdf")
+    day_match = re.search(r"^(\d{2})_(\d{2})_", original_filename)
+    if day_match and month_num:
+        file_month = day_match.group(1)
+        file_day = day_match.group(2)
+        # Verify the month matches
+        if file_month == month_num:
+            day = file_day
+
+    # Pattern 2: MMDDYY format (e.g., "112200_tl.pdf")
+    if not day:
+        day_match = re.search(r"^(\d{2})(\d{2})(\d{2})_", original_filename)
+        if day_match and year and month_num:
+            file_month = day_match.group(1)
+            file_day = day_match.group(2)
+            year_suffix = day_match.group(3)
+            # Verify consistency
+            if file_month == month_num and year.endswith(year_suffix):
+                day = file_day
+
+    # Clean the original filename to be filesystem-safe
+    clean_filename = re.sub(r'[<>:"/\\|?*]', "_", original_filename)
+
+    # Create the final filename with proper YYYY-MM-DD__ prefix
+    if day:
+        prefixed_filename = f"{year}-{month_num}-{day}__{clean_filename}"
     else:
-        filename = original_filename
+        # If we can't extract day, use YYYY-MM__ format
+        prefixed_filename = f"{year}-{month_num}__{clean_filename}"
+        print(f"  ⚠️ Could not extract day from filename, using year-month only")
 
-    # Clean the filename to be filesystem-safe
-    filename = re.sub(r'[<>:"/\\|?*]', "_", filename)
-    return filename
+    # Create year/month folder structure
+    year_month_dir = os.path.join(base_output_dir, year, month_num)
+
+    # Full path
+    full_path = os.path.join(year_month_dir, prefixed_filename)
+
+    # Relative path for logging
+    relative_path = os.path.join(year, month_num, prefixed_filename)
+
+    return (full_path, relative_path)
 
 
 def fetch_with_backoff(url, out_path, max_attempts=6):
@@ -484,13 +526,20 @@ def process_nasa_timelines(
             file_url = file_info["url"]
             original_filename = file_info["filename"]
 
-            # Generate the expected filename with date prefix
-            expected_filename = generate_filename(file_url, original_filename)
-            file_path = os.path.join(output_dir, expected_filename)
+            # Generate the filename and path with YYYY/MM folder structure
+            file_path, relative_path = generate_filename_and_path(
+                file_url, original_filename, output_dir
+            )
+
+            if not file_path:
+                print(
+                    f"⚠️ Could not determine output path for {original_filename}, skipping"
+                )
+                continue
 
             # Skip if file already exists
             if os.path.exists(file_path):
-                print(f"⏭️ Already exists: {expected_filename}")
+                print(f"⏭️ Already exists: {relative_path}")
                 total_files_skipped += 1
                 continue
 
@@ -501,9 +550,10 @@ def process_nasa_timelines(
             # Download the file (validation is now done inside fetch_with_backoff)
             success = fetch_with_backoff(raw_file_url, file_path)
             if success:
+                print(f"    ✅ Saved to: {relative_path}")
                 total_files_downloaded += 1
             else:
-                print(f"❌ Failed to download or validate: {expected_filename}")
+                print(f"❌ Failed to download or validate: {relative_path}")
 
             # Respectful delay between file downloads
             time.sleep(per_request_delay + random.uniform(0, 0.5))
