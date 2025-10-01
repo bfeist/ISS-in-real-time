@@ -32,6 +32,19 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   // Computed values
   const isLoading = earthPhotographyIsLoading || flickrPhotosIsLoading;
 
+  // Calculate photo counts by type
+  const earthPhotosCount = useMemo(() => {
+    return earthPhotographyItems.filter((photo) => !photo.isTimelapse).length;
+  }, [earthPhotographyItems]);
+
+  const timelapsePhotosCount = useMemo(() => {
+    return earthPhotographyItems.filter((photo) => photo.isTimelapse).length;
+  }, [earthPhotographyItems]);
+
+  const missionPhotosCount = useMemo(() => {
+    return flickrPhotosItems.length;
+  }, [flickrPhotosItems]);
+
   // Combined and sorted photos
   const photoItemsCombined = useMemo(() => {
     // Earth photos logic: show based on toggle combinations
@@ -201,7 +214,12 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       onMouseEnter={() => setIsHoveringContainer(true)}
       onMouseLeave={() => setIsHoveringContainer(false)}
     >
-      <PhotoToggle isVisible={isHoveringContainer} />
+      <PhotoToggle
+        isVisible={isHoveringContainer}
+        earthPhotosCount={earthPhotosCount}
+        timelapsePhotosCount={timelapsePhotosCount}
+        missionPhotosCount={missionPhotosCount}
+      />
       <ClockInterval setAppSeconds={setAppSeconds} />
 
       <div
