@@ -306,7 +306,6 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
                   const illumination = getSunLightingAtTime(dayNight, appSeconds);
                   const sourceUrl = generateEarthPhotoSourceUrl({
                     nasaId: mostRecentImage.nasaId,
-                    hasCoordinates: true, // Always generate URL; NASA site will handle photos not in ExplorePhotos
                     illumination,
                   });
                   if (sourceUrl) {
@@ -314,6 +313,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
                   }
                 }}
                 variant="iconOnly"
+                tooltip="Open photo in NASA's Image and Video Library if available"
               >
                 <FontAwesomeIcon icon={faExternalLinkAlt} />
               </SourceButton>

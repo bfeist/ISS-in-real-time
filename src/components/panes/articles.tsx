@@ -7,7 +7,7 @@ import {
 } from "api/useDateSpecificData";
 import { useStateClock } from "store/hooks/useStateClock";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
+import { faExternalLinkAlt, faFilePdf } from "@fortawesome/free-solid-svg-icons";
 import SourceButton from "../common/sourceButton";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -152,35 +152,38 @@ const Blog: FunctionComponent = () => {
         {timelineUrl && (
           <div className={styles.timelineSection}>
             <div className={styles.sectionTitle}>
-              Station Timeline{" "}
+              Station Timeline <FontAwesomeIcon icon={faFilePdf} />
               <SourceButton
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(timelineUrl, "_blank");
                 }}
                 variant="iconOnly"
+                tooltip="Open station timeline PDF"
               >
                 <FontAwesomeIcon icon={faExternalLinkAlt} />
               </SourceButton>
             </div>
             <div className={styles.pdfContainer}>
-              <Document
-                file={timelineUrl}
-                onLoadSuccess={onDocumentLoadSuccess}
-                loading={<div className={styles.pdfLoading}>Loading station timeline PDF...</div>}
-                error={<div className={styles.pdfError}>Failed to load timeline PDF.</div>}
-              >
-                {Array.from(new Array(numPages), (_, index) => (
-                  <Page
-                    key={`page_${index + 1}`}
-                    pageNumber={index + 1}
-                    renderTextLayer={true}
-                    renderAnnotationLayer={true}
-                    className={styles.pdfPage}
-                    width={850}
-                  />
-                ))}
-              </Document>
+              <div className={styles.pdfDarkMode}>
+                <Document
+                  file={timelineUrl}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  loading={<div className={styles.pdfLoading}>Loading station timeline PDF...</div>}
+                  error={<div className={styles.pdfError}>Failed to load timeline PDF.</div>}
+                >
+                  {Array.from(new Array(numPages), (_, index) => (
+                    <Page
+                      key={`page_${index + 1}`}
+                      pageNumber={index + 1}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      className={styles.pdfPage}
+                      width={850}
+                    />
+                  ))}
+                </Document>
+              </div>
             </div>
           </div>
         )}

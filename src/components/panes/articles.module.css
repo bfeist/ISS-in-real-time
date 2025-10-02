@@ -149,6 +149,10 @@
   max-width: 100%;
 }
 
+.pdfDarkMode {
+  filter: invert(0.85) hue-rotate(180deg) contrast(0.9) brightness(1.25);
+}
+
 .pdfPage {
   box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
   margin-bottom: 10px;

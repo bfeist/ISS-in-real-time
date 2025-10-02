@@ -59,23 +59,18 @@ export function generateEarthPhotoUrls(nasaId: string): {
  */
 export interface EarthPhotoSourceUrlParams {
   nasaId: string;
-  hasCoordinates: boolean;
   illumination?: "day" | "night";
 }
 
 /**
  * Generates the NASA Earth Observations ExplorePhotos URL for a given photo
- * Only photos in the MLCoord table (those with lat/lon coordinates) will have valid links
+ * The NASA site will handle photos that aren't in the ExplorePhotos database
  *
- * @param params - Object containing nasaId, hasCoordinates, and optional illumination
- * @returns The ExplorePhotos URL, or empty string if photo doesn't have coordinates or invalid nasaId
+ * @param params - Object containing nasaId and optional illumination
+ * @returns The ExplorePhotos URL, or empty string if invalid nasaId
  */
 export function generateEarthPhotoSourceUrl(params: EarthPhotoSourceUrlParams): string {
-  const { nasaId, hasCoordinates, illumination = "day" } = params;
-
-  if (!hasCoordinates) {
-    return "";
-  }
+  const { nasaId, illumination = "day" } = params;
 
   // Parse the NASA ID format: ISS056E126840 -> mission: ISS056, roll: E, frame: 126840
   const match = nasaId.match(/^(ISS\d+)([A-Z])(\d+)$/);
