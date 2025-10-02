@@ -9,6 +9,7 @@ type DataAvailability = {
   photos?: boolean;
   earthPhotos: boolean;
   flickrPhotos: boolean;
+  timeline: boolean;
 };
 
 type CommItem = {

@@ -125,7 +125,7 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
             case "eva":
               return dayItem.eva;
             case "blog":
-              return dayItem.blog || dayItem.actSum;
+              return dayItem.blog || dayItem.actSum || dayItem.timeline;
             case "earthphotos":
               return dayItem.earthPhotos;
             case "flickrphotos":

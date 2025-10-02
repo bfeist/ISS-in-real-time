@@ -114,3 +114,20 @@ export function useDateBlogArticles(
     enabled: !!date && enabled && !!isBlogAvailable,
   });
 }
+
+/**
+ * Get the URL for a station timeline PDF if it exists for the given date
+ * Returns null if no timeline is available
+ */
+export function useDateTimelineUrl(date: string): string | null {
+  const dataAvailabilityQuery = useDateDataAvailability(date);
+  const isTimelineAvailable = dataAvailabilityQuery.data?.timeline;
+
+  if (!date || !isTimelineAvailable) {
+    return null;
+  }
+
+  const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
+  const [year, month, day] = date.split("-");
+  return `${baseStaticUrl}/station_timelines/${year}/${month}/${year}_${month}_${day}_station_timeline.pdf`;
+}

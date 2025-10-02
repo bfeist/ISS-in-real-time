@@ -329,7 +329,7 @@ export function processDataAvailabilities({
   // Skip header row
   const dataLines = lines.slice(1);
   const dataAvailabilities = dataLines.map((line) => {
-    const [date, comm, vvComm, video, eva, blog, actSum, earthPhotos, flickrPhotos] =
+    const [date, comm, vvComm, video, eva, blog, actSum, earthPhotos, flickrPhotos, timeline] =
       line.split("|");
     return {
       date,
@@ -341,6 +341,7 @@ export function processDataAvailabilities({
       actSum: actSum === "1",
       earthPhotos: earthPhotos === "1",
       flickrPhotos: flickrPhotos === "1",
+      timeline: timeline === "1",
     };
   });
   return dataAvailabilities;

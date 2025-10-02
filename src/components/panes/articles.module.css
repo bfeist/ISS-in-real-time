@@ -127,3 +127,41 @@
 .activityName {
   font-weight: 600;
 }
+
+/* Station Timeline PDF Styles */
+.timelineSection {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--grey3);
+}
+
+.pdfContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 10px;
+  background-color: var(--grey1);
+  border-radius: 4px;
+  margin-top: 10px;
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+}
+
+.pdfPage {
+  box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+  margin-bottom: 10px;
+}
+
+.pdfLoading,
+.pdfError {
+  padding: 20px;
+  text-align: center;
+  color: var(--grey5);
+  font-size: 0.9em;
+}
+
+.pdfError {
+  color: #ff6b6b;
+}

@@ -74,6 +74,19 @@ def check_activity_summary(date):
     return os.path.exists(path)
 
 
+def check_station_timeline(date):
+    """Check if there's a station timeline PDF available for the given date"""
+    year, month, day = date.split("-")
+    path = os.path.join(
+        WEB_ASSETS_FOLDER,
+        "station_timelines",
+        year,
+        month,
+        f"{year}_{month}_{day}_station_timeline.pdf",
+    )
+    return os.path.exists(path)
+
+
 def get_earth_photo_dates():
     """Scan for all earth photo dates using the same method as analyze_photos"""
     earth_dates = set()
@@ -151,6 +164,7 @@ if __name__ == "__main__":
         has_activity_summary = check_activity_summary(date)
         has_earth = date in earth_photo_dates
         has_flickr = date in flickr_photo_dates
+        has_timeline = check_station_timeline(date)
 
         # Only include dates that have at least one data type available
         if (
@@ -162,6 +176,7 @@ if __name__ == "__main__":
             or has_activity_summary
             or has_earth
             or has_flickr
+            or has_timeline
         ):
             date_record = {
                 "date": date,
@@ -173,6 +188,7 @@ if __name__ == "__main__":
                 "actSum": has_activity_summary,
                 "earthPhotos": has_earth,
                 "flickrPhotos": has_flickr,
+                "timeline": has_timeline,
             }
             date_records.append(date_record)
 
@@ -192,6 +208,7 @@ if __name__ == "__main__":
                 "actSum",
                 "earthPhotos",
                 "flickrPhotos",
+                "timeline",
             ]
         )
         # Write data rows with booleans converted to integers
@@ -207,6 +224,7 @@ if __name__ == "__main__":
                     int(record["actSum"]),
                     int(record["earthPhotos"]),
                     int(record["flickrPhotos"]),
+                    int(record["timeline"]),
                 ]
             )
     print(f"Available dates have been saved to {outputPath}")

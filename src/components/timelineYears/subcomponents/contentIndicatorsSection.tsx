@@ -24,7 +24,7 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
     const getAvailability = (key: string, availability: DataAvailability) => {
       switch (key) {
         case "blog":
-          return availability.blog || availability.actSum;
+          return availability.blog || availability.actSum || availability.timeline;
         case "comm":
           return compact ? availability.comm || availability.vvComm : availability.comm;
         default:

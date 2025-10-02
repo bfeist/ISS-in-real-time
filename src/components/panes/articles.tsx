@@ -1,10 +1,20 @@
-import { FunctionComponent } from "react";
+import { FunctionComponent, useState } from "react";
 import styles from "./articles.module.css";
-import { useDateActivitySummary, useDateBlogArticles } from "api/useDateSpecificData";
+import {
+  useDateActivitySummary,
+  useDateBlogArticles,
+  useDateTimelineUrl,
+} from "api/useDateSpecificData";
 import { useStateClock } from "store/hooks/useStateClock";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 import SourceButton from "../common/sourceButton";
+import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const Blog: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
@@ -12,9 +22,16 @@ const Blog: FunctionComponent = () => {
   const { data: blogArticles, isLoading: articlesIsLoading } = useDateBlogArticles(selectedDate);
   const { data: activitySummary, isLoading: summaryIsLoading } =
     useDateActivitySummary(selectedDate);
+  const timelineUrl = useDateTimelineUrl(selectedDate);
+
+  const [numPages, setNumPages] = useState<number | null>(null);
 
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
   const [year, month, day] = selectedDate.split("-");
+
+  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
+    setNumPages(numPages);
+  }
 
   if (articlesIsLoading || summaryIsLoading) {
     return (
@@ -129,6 +146,42 @@ const Blog: FunctionComponent = () => {
                 </ul>
               </div>
             )}
+          </div>
+        )}
+
+        {timelineUrl && (
+          <div className={styles.timelineSection}>
+            <div className={styles.sectionTitle}>
+              Station Timeline{" "}
+              <SourceButton
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(timelineUrl, "_blank");
+                }}
+                variant="iconOnly"
+              >
+                <FontAwesomeIcon icon={faExternalLinkAlt} />
+              </SourceButton>
+            </div>
+            <div className={styles.pdfContainer}>
+              <Document
+                file={timelineUrl}
+                onLoadSuccess={onDocumentLoadSuccess}
+                loading={<div className={styles.pdfLoading}>Loading station timeline PDF...</div>}
+                error={<div className={styles.pdfError}>Failed to load timeline PDF.</div>}
+              >
+                {Array.from(new Array(numPages), (_, index) => (
+                  <Page
+                    key={`page_${index + 1}`}
+                    pageNumber={index + 1}
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                    className={styles.pdfPage}
+                    width={850}
+                  />
+                ))}
+              </Document>
+            </div>
           </div>
         )}
       </div>
