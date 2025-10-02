@@ -1,17 +1,21 @@
 import { isSameDay } from "./dates";
 
 /**
- * Determines the crew members onboard the ISS on a specified date.
+ * Determines the crew members onboard the ISS at a specified date and time.
  *
  * @param dateStr - The query date in 'YYYY-MM-DD' format.
+ * @param appSeconds - The time of day in seconds since midnight (0-86399). Optional.
+ *                     If not provided, assumes arrival at midnight and departure at 23:59:59.
  * @param crewArrDep - Array of crew arrival/departure items.
- * @returns A promise that resolves to an array of crew members onboard on the given date.
+ * @returns An array of crew members onboard at the given date and time.
  */
 export const getCrewMembersOnboardByDate = ({
   dateStr,
+  appSeconds,
   crewArrDep,
 }: {
   dateStr: string;
+  appSeconds?: number;
   crewArrDep: CrewArrDepItem[];
 }): CrewArrDepItem[] => {
   // check that date is in 'YYYY-MM-DD' format
@@ -19,19 +23,41 @@ export const getCrewMembersOnboardByDate = ({
   if (!dateRegex.test(dateStr)) {
     throw new Error("Invalid date format. Please use 'YYYY-MM-DD'.");
   }
-  const queryDate = new Date(dateStr);
 
-  // filter crewArrDep for crew members onboard on the query date
-  const crewOnboard = crewArrDep.filter(
-    (crewMember) =>
-      new Date(crewMember.arrivalDate) <= queryDate &&
-      new Date(crewMember.departureDate) >= queryDate
-  );
+  // If appSeconds is provided, create a precise timestamp
+  // Otherwise, compare against the full day (00:00:00 to 23:59:59)
+  if (appSeconds !== undefined) {
+    const hours = Math.floor(appSeconds / 3600);
+    const minutes = Math.floor((appSeconds % 3600) / 60);
+    const seconds = Math.floor(appSeconds % 60);
+    const timeStr = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    const queryDateTime = new Date(`${dateStr}T${timeStr}Z`);
 
-  // sort crew members by nationality
-  crewOnboard.sort((a, b) => a.nationality.localeCompare(b.nationality));
+    const crewOnboard = crewArrDep.filter(
+      (crewMember) =>
+        new Date(crewMember.arrivalDate) <= queryDateTime &&
+        new Date(crewMember.departureDate) >= queryDateTime
+    );
 
-  return crewOnboard;
+    crewOnboard.sort((a, b) => a.nationality.localeCompare(b.nationality));
+    return crewOnboard;
+  } else {
+    // When appSeconds is not provided, assume arrival at midnight and departure at end of day
+    const startOfDay = new Date(`${dateStr}T00:00:00Z`);
+    const endOfDay = new Date(`${dateStr}T23:59:59Z`);
+
+    const crewOnboard = crewArrDep.filter((crewMember) => {
+      const arrivalDate = new Date(crewMember.arrivalDate);
+      const departureDate = new Date(crewMember.departureDate);
+
+      // Check if arrival date is on or before the end of the query day
+      // AND departure date is on or after the start of the query day
+      return arrivalDate <= endOfDay && departureDate >= startOfDay;
+    });
+
+    crewOnboard.sort((a, b) => a.nationality.localeCompare(b.nationality));
+    return crewOnboard;
+  }
 };
 
 /**

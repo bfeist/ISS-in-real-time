@@ -35,15 +35,14 @@ const ControlsHeader: FunctionComponent = () => {
 
   const incrementDate = (days: number) => {
     if (!selectedDate) return;
-    const currentDate = new Date(selectedDate);
-    currentDate.setUTCDate(currentDate.getUTCDate() + days);
-    const newDate = dayjs(currentDate);
-    const epochDate = dayjs("2000-11-02");
+    const newDate = dayjs(selectedDate).add(days, "day");
+    const epochDate = dayjs("2000-11-01");
     const today = dayjs().startOf("day");
-    if (newDate.isBefore(epochDate) || newDate.isAfter(today)) {
+    // Allow dates from epochDate (inclusive) to today (inclusive)
+    if (newDate.isBefore(epochDate, "day") || newDate.isAfter(today, "day")) {
       return;
     }
-    const newDateStr = currentDate.toISOString().split("T")[0];
+    const newDateStr = newDate.format("YYYY-MM-DD");
     setSelectedDate(newDateStr);
   };
 

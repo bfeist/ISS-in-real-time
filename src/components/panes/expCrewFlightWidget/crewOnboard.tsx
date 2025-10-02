@@ -1,4 +1,4 @@
-import { FunctionComponent, useEffect, useState } from "react";
+import { FunctionComponent, useState, useMemo } from "react";
 import styles from "./crewOnboard.module.css"; // ensure this CSS file exists or adjust accordingly
 import { ddhhmmssBetweenDateStrings, dateTimeStrFromDateAppSeconds } from "utils/time";
 import ClockInterval from "../clockInterval";
@@ -13,14 +13,22 @@ const CrewOnboard: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
   const { data: crewArrDep = [], isLoading } = useGeneralCrewArrDep();
 
-  const crewOnboard = getCrewMembersOnboardByDate({ crewArrDep, dateStr: selectedDate || "" });
-
-  const [currentTimeStr, setCurrentTimeStr] = useState("");
   const [appSeconds, setAppSeconds] = useState(0);
 
-  useEffect(() => {
-    setCurrentTimeStr(dateTimeStrFromDateAppSeconds({ dateStr: selectedDate || "", appSeconds }));
-  }, [selectedDate, appSeconds]);
+  const currentTimeStr = useMemo(
+    () => dateTimeStrFromDateAppSeconds({ dateStr: selectedDate || "", appSeconds }),
+    [selectedDate, appSeconds]
+  );
+
+  const crewOnboard = useMemo(() => {
+    // Update crew onboard based on current time
+    // Don't pass appSeconds if it's 0 (initial state) - use day-based comparison
+    return getCrewMembersOnboardByDate({
+      crewArrDep,
+      dateStr: selectedDate || "",
+      appSeconds: appSeconds > 0 ? appSeconds : undefined,
+    });
+  }, [selectedDate, appSeconds, crewArrDep]);
 
   if (isLoading) {
     return <div>Loading crew onboard...</div>;

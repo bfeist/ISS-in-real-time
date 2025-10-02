@@ -86,7 +86,7 @@ export const dateTimeStrFromDateAppSeconds = ({
   const seconds = Math.floor(appSeconds % 60);
   return `${dateStr}T${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds
     .toString()
-    .padStart(2, "0")}`;
+    .padStart(2, "0")}Z`;
 };
 
 export const ddhhmmssBetweenDateStrings = (date1: string, date2: string): string => {
