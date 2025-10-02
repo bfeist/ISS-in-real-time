@@ -1,12 +1,15 @@
-import { FunctionComponent, useEffect, useState } from "react";
+import { FunctionComponent, useEffect, useState, useMemo } from "react";
 import styles from "./dayLayout.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
-import { useDateDataAvailability } from "api/useDateSpecificData";
+import { useStateDayNight } from "store/hooks/useStateDayNight";
+import { useDateDataAvailability, useDateEphemera } from "api/useDateSpecificData";
 import { useDateCommTranscript } from "api/useDateSpecificData";
 import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
 import { useDateCacheManagement } from "api/useDateCacheManagement";
 import { useParams } from "react-router-dom";
 import { appSecondsFromTimeStr } from "utils/time";
+import { calcDayNight } from "utils/day-night";
+import { findClosestEphemeraItem } from "utils/map";
 import { resolveLayout } from "./configurations";
 import TimelineDayContainer from "components/timelineDay/timelineDayContainer";
 import Comm from "components/panes/comm";
@@ -150,13 +153,33 @@ const renderColumn = (components: ComponentConfig[], columnClass: string): JSX.E
 
 const DayLayout: FunctionComponent = () => {
   const { selectedDate, startClock, setClock } = useStateClock();
+  const { setDayNight } = useStateDayNight();
   const { dateTimeSlug } = useParams();
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
   const { data: commItems = [] } = useDateCommTranscript(selectedDate);
   const { data: videoYt = [] } = useGeneralVideoYt();
   const { data: videoIa = [] } = useGeneralVideoIa();
+  const { data: ephemeraItems = [] } = useDateEphemera(selectedDate || "");
   const { width } = useViewport();
   const isMobile = width < 768;
+
+  // Calculate dayNight and store in global state
+  const dayNight = useMemo(() => {
+    if (!ephemeraItems || ephemeraItems.length === 0 || !selectedDate) return [];
+    const ephemeris = findClosestEphemeraItem(new Date(`${selectedDate}T12:00:00Z`), ephemeraItems);
+    const tle = `${ephemeris.tle_line1}
+                 ${ephemeris.tle_line2}`;
+    const result = calcDayNight(tle, selectedDate);
+    return result;
+  }, [ephemeraItems, selectedDate]);
+
+  // Update global state when dayNight changes
+  useEffect(() => {
+    if (dayNight.length > 0) {
+      setDayNight(dayNight);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayNight]);
 
   // Find YouTube recording for this date
   const videoYtRecording = videoYt?.find((recording: VideoYtItem) =>

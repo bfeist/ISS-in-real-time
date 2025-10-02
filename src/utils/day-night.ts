@@ -61,3 +61,29 @@ function isSunlit(date: Date, lng: number, lat: number, heightMeters: number) {
   }
   return sunlight;
 }
+
+/**
+ * Gets the sun lighting state at a specific time in the day
+ * @param dayNight - Array of day/night transitions
+ * @param appSeconds - The time of day in seconds (0-86399)
+ * @returns The sun lighting state ('day' or 'night'), where sunrise and sunset are considered 'day'
+ */
+export function getSunLightingAtTime(dayNight: DayNightObj[], appSeconds: number): "day" | "night" {
+  if (!dayNight || dayNight.length === 0) {
+    return "day"; // Default to day if no data
+  }
+
+  // Find the latest transition that occurred before or at the current time
+  let currentLighting: SunLighting = "day";
+
+  for (let i = 0; i < dayNight.length; i++) {
+    if (dayNight[i].appSeconds <= appSeconds) {
+      currentLighting = dayNight[i].daylight;
+    } else {
+      break;
+    }
+  }
+
+  // Simplify to day or night (sunrise and sunset are considered day)
+  return currentLighting === "night" ? "night" : "day";
+}

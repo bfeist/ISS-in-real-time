@@ -4,8 +4,10 @@ import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photos.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
+import { useStateDayNight } from "store/hooks/useStateDayNight";
 import { appSecondsFromDateTime } from "utils/time";
 import { generateEarthPhotoSourceUrl } from "utils/earthPhotos";
+import { getSunLightingAtTime } from "utils/day-night";
 import ClockInterval from "./clockInterval";
 import PhotoToggle from "./photoToggle";
 import { useDateEarthPhotography, useDatePhotosFlickr } from "api/useDateSpecificData";
@@ -15,6 +17,7 @@ import PhotosThumbs from "./photosThumbs";
 const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "short" }) => {
   const { selectedDate, setClock } = useStateClock();
   const { showEarthPhotos, showTimelapsePhotos, showMissionPhotos } = useStateToggle();
+  const { dayNight } = useStateDayNight();
 
   const { data: earthPhotographyItems = [], isLoading: earthPhotographyIsLoading } =
     useDateEarthPhotography(selectedDate || "");
@@ -299,10 +302,13 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
               <SourceButton
                 onClick={(e) => {
                   e.stopPropagation();
-                  const sourceUrl = generateEarthPhotoSourceUrl(
-                    mostRecentImage.nasaId,
-                    true // Always generate URL; NASA site will handle photos not in ExplorePhotos
-                  );
+                  // Determine current illumination based on appSeconds and dayNight data
+                  const illumination = getSunLightingAtTime(dayNight, appSeconds);
+                  const sourceUrl = generateEarthPhotoSourceUrl({
+                    nasaId: mostRecentImage.nasaId,
+                    hasCoordinates: true, // Always generate URL; NASA site will handle photos not in ExplorePhotos
+                    illumination,
+                  });
                   if (sourceUrl) {
                     window.open(sourceUrl, "_blank");
                   }

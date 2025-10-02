@@ -55,14 +55,24 @@ export function generateEarthPhotoUrls(nasaId: string): {
 }
 
 /**
+ * Parameters for generating an Earth photo source URL
+ */
+export interface EarthPhotoSourceUrlParams {
+  nasaId: string;
+  hasCoordinates: boolean;
+  illumination?: "day" | "night";
+}
+
+/**
  * Generates the NASA Earth Observations ExplorePhotos URL for a given photo
  * Only photos in the MLCoord table (those with lat/lon coordinates) will have valid links
  *
- * @param nasaId - The NASA ID (e.g., "ISS056E126840")
- * @param hasCoordinates - Whether the photo has lat/lon coordinates (is in MLCoord table)
+ * @param params - Object containing nasaId, hasCoordinates, and optional illumination
  * @returns The ExplorePhotos URL, or empty string if photo doesn't have coordinates or invalid nasaId
  */
-export function generateEarthPhotoSourceUrl(nasaId: string, hasCoordinates: boolean): string {
+export function generateEarthPhotoSourceUrl(params: EarthPhotoSourceUrlParams): string {
+  const { nasaId, hasCoordinates, illumination = "day" } = params;
+
   if (!hasCoordinates) {
     return "";
   }
@@ -76,9 +86,8 @@ export function generateEarthPhotoSourceUrl(nasaId: string, hasCoordinates: bool
 
   const [, mission, roll, frame] = match;
 
-  // Build the URL with mission-roll-frame format and day illumination
-  // Using "day" for illumination as it provides better basemap visibility
-  return `https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=${mission}-${roll}-${frame}&illum=day`;
+  // Build the URL with mission-roll-frame format and the specified illumination
+  return `https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=${mission}-${roll}-${frame}&illum=${illumination}`;
 }
 
 /**

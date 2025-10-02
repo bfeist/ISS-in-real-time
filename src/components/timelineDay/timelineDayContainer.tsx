@@ -1,8 +1,7 @@
-import { useRef, useEffect, useState, useMemo, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import styles from "./timelineDayContainer.module.css";
 import { initializePaperCanvas } from "./timelineDayDraw";
 import {
-  useDateEphemera,
   useDateCommTranscript,
   useDateEarthPhotography,
   useDatePhotosFlickr,
@@ -11,8 +10,7 @@ import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateToggle } from "store/hooks/useStateToggle";
-import { calcDayNight } from "utils/day-night";
-import { findClosestEphemeraItem } from "utils/map";
+import { useStateDayNight } from "store/hooks/useStateDayNight";
 import paper from "paper";
 
 const TimelineDayContainer = (): JSX.Element => {
@@ -20,9 +18,7 @@ const TimelineDayContainer = (): JSX.Element => {
     useStateClock();
   const { setHoverSeconds } = useStateHover();
   const { showEarthPhotos, showMissionPhotos, showTimelapsePhotos } = useStateToggle();
-  const { data: ephemeraItems = [], isLoading: isLoadingEphemera } = useDateEphemera(
-    selectedDate || ""
-  );
+  const { dayNight } = useStateDayNight();
   const { data: commItems = [], isLoading: isLoadingComm } = useDateCommTranscript(
     selectedDate || ""
   );
@@ -39,21 +35,11 @@ const TimelineDayContainer = (): JSX.Element => {
 
   // Check if any critical data is still loading
   const isLoading =
-    isLoadingEphemera ||
     isLoadingComm ||
     isLoadingPhotography ||
     isLoadingPhotographyFlickr ||
     isLoadingYt ||
     isLoadingIa;
-
-  const dayNight = useMemo(() => {
-    if (!ephemeraItems || ephemeraItems.length === 0 || !selectedDate) return [];
-    const ephemeris = findClosestEphemeraItem(new Date(`${selectedDate}T12:00:00Z`), ephemeraItems);
-    const tle = `${ephemeris.tle_line1}
-                 ${ephemeris.tle_line2}`;
-    const result = calcDayNight(tle, selectedDate);
-    return result;
-  }, [ephemeraItems, selectedDate]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -162,14 +148,7 @@ const TimelineDayContainer = (): JSX.Element => {
       const canvas = canvasRef.current;
 
       // Check all conditions
-      if (
-        !canvas ||
-        !selectedDate ||
-        isLoadingEphemera ||
-        isLoadingComm ||
-        isLoadingPhotography ||
-        isLoadingYt
-      ) {
+      if (!canvas || !selectedDate || isLoadingComm || isLoadingPhotography || isLoadingYt) {
         return false;
       }
 
@@ -329,7 +308,6 @@ const TimelineDayContainer = (): JSX.Element => {
     selectedDate,
     setClock,
     setHoverSeconds,
-    isLoadingEphemera,
     isLoadingComm,
     isLoadingPhotography,
     isLoadingYt,
@@ -346,7 +324,6 @@ const TimelineDayContainer = (): JSX.Element => {
     // Note: Toggle changes are handled in the initialization effect above
     if (
       drawFunctionRef.current &&
-      !isLoadingEphemera &&
       !isLoadingComm &&
       !isLoadingPhotography &&
       !isLoadingYt &&
@@ -356,14 +333,12 @@ const TimelineDayContainer = (): JSX.Element => {
       drawFunctionRef.current();
     }
   }, [
-    ephemeraItems,
     commItems,
     earthPhotos,
     flickrPhotos,
     videoYt,
     videoIa,
     dayNight,
-    isLoadingEphemera,
     isLoadingComm,
     isLoadingPhotography,
     isLoadingYt,

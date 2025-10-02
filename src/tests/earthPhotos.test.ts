@@ -132,46 +132,65 @@ describe("Earth Photo URL utilities", () => {
 
   describe("generateEarthPhotoSourceUrl", () => {
     it("generates correct ExplorePhotos URL for photos with coordinates", () => {
-      expect(generateEarthPhotoSourceUrl("ISS056E126840", true)).toBe(
+      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS056E126840", hasCoordinates: true })).toBe(
         "https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=ISS056-E-126840&illum=day"
       );
 
-      expect(generateEarthPhotoSourceUrl("ISS002E5408", true)).toBe(
+      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS002E5408", hasCoordinates: true })).toBe(
         "https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=ISS002-E-5408&illum=day"
       );
 
-      expect(generateEarthPhotoSourceUrl("ISS070A999999", true)).toBe(
+      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS070A999999", hasCoordinates: true })).toBe(
         "https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=ISS070-A-999999&illum=day"
       );
     });
 
     it("returns empty string for photos without coordinates", () => {
-      expect(generateEarthPhotoSourceUrl("ISS056E126840", false)).toBe("");
-      expect(generateEarthPhotoSourceUrl("ISS002E5408", false)).toBe("");
+      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS056E126840", hasCoordinates: false })).toBe(
+        ""
+      );
+      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS002E5408", hasCoordinates: false })).toBe(
+        ""
+      );
     });
 
     it("returns empty string for invalid photo ID formats even with coordinates", () => {
-      expect(generateEarthPhotoSourceUrl("INVALID", true)).toBe("");
-      expect(generateEarthPhotoSourceUrl("ISS056", true)).toBe("");
-      expect(generateEarthPhotoSourceUrl("056E126840", true)).toBe("");
-      expect(generateEarthPhotoSourceUrl("ISS056E", true)).toBe("");
-      expect(generateEarthPhotoSourceUrl("", true)).toBe("");
+      expect(generateEarthPhotoSourceUrl({ nasaId: "INVALID", hasCoordinates: true })).toBe("");
+      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS056", hasCoordinates: true })).toBe("");
+      expect(generateEarthPhotoSourceUrl({ nasaId: "056E126840", hasCoordinates: true })).toBe("");
+      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS056E", hasCoordinates: true })).toBe("");
+      expect(generateEarthPhotoSourceUrl({ nasaId: "", hasCoordinates: true })).toBe("");
     });
 
     it("handles different roll letters correctly", () => {
-      expect(generateEarthPhotoSourceUrl("ISS056A126840", true)).toBe(
+      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS056A126840", hasCoordinates: true })).toBe(
         "https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=ISS056-A-126840&illum=day"
       );
 
-      expect(generateEarthPhotoSourceUrl("ISS056Z126840", true)).toBe(
+      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS056Z126840", hasCoordinates: true })).toBe(
         "https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=ISS056-Z-126840&illum=day"
       );
     });
 
-    it("always uses day illumination for better basemap visibility", () => {
-      const url = generateEarthPhotoSourceUrl("ISS056E126840", true);
+    it("uses day illumination by default", () => {
+      const url = generateEarthPhotoSourceUrl({ nasaId: "ISS056E126840", hasCoordinates: true });
       expect(url).toContain("&illum=day");
-      expect(url).not.toContain("&illum=night");
+    });
+
+    it("respects custom illumination parameter", () => {
+      const dayUrl = generateEarthPhotoSourceUrl({
+        nasaId: "ISS056E126840",
+        hasCoordinates: true,
+        illumination: "day",
+      });
+      expect(dayUrl).toContain("&illum=day");
+
+      const nightUrl = generateEarthPhotoSourceUrl({
+        nasaId: "ISS056E126840",
+        hasCoordinates: true,
+        illumination: "night",
+      });
+      expect(nightUrl).toContain("&illum=night");
     });
   });
 

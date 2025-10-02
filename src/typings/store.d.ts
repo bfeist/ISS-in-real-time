@@ -62,10 +62,18 @@ interface ContentHighlightsState {
   clearContentHighlights: () => void;
 }
 
+interface DayNightState {
+  dayNight: DayNightObj[];
+
+  // Actions
+  setDayNight: (dayNight: DayNightObj[]) => void;
+}
+
 // Combined store type
 interface AppState
   extends ClockState,
     HoverState,
     ToggleState,
     CrewSelectionState,
-    ContentHighlightsState {}
+    ContentHighlightsState,
+    DayNightState {}
