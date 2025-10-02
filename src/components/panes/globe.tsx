@@ -8,6 +8,7 @@ import {
   Color,
   SampledPositionProperty,
   ClockRange,
+  Rectangle,
 } from "cesium";
 import * as Cesium from "cesium";
 import { Clock, Scene, Camera, CesiumComponentRef } from "resium";
@@ -17,8 +18,14 @@ import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
+import { useStateToggle } from "store/hooks/useStateToggle";
 import { hhmmssFromAppSeconds } from "utils/time";
-import { useDateEphemera } from "api/useDateSpecificData";
+import { useDateEphemera, useDateEarthPhotography } from "api/useDateSpecificData";
+import {
+  getCurrentAndAdjacentPhotos,
+  calculateRectangleBounds,
+  isValidRectangle,
+} from "utils/photoRectangles";
 import GlobeMapToggle from "./globeMapToggle";
 
 // Set Cesium Ion access token
@@ -27,26 +34,27 @@ Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
 const Globe: FunctionComponent = () => {
   const { isRunning, startStopTimestamp, appSecondsAtStartStop, selectedDate } = useStateClock();
   const { hoverSeconds } = useStateHover();
+  const { showEarthPhotos, showTimelapsePhotos } = useStateToggle();
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
+  const { data: earthPhotographyItems = [] } = useDateEarthPhotography(selectedDate || "");
 
   const [isHovering, setIsHovering] = useState(false);
 
-  const { startTime, julianDate } = useMemo(() => {
+  const { startTime, julianDate, appSeconds } = useMemo(() => {
     // Use hover seconds if available, otherwise use the current clock time
-    let appSeconds: number;
+    let appSec: number;
 
     if (hoverSeconds !== null) {
-      appSeconds = hoverSeconds;
+      appSec = hoverSeconds;
     } else if (isRunning) {
-      appSeconds =
-        appSecondsAtStartStop + (Date.now() - new Date(startStopTimestamp).getTime()) / 1000;
+      appSec = appSecondsAtStartStop + (Date.now() - new Date(startStopTimestamp).getTime()) / 1000;
     } else {
-      appSeconds = appSecondsAtStartStop;
+      appSec = appSecondsAtStartStop;
     }
 
-    const st = new Date(`${selectedDate}T${hhmmssFromAppSeconds(appSeconds)}Z`);
+    const st = new Date(`${selectedDate}T${hhmmssFromAppSeconds(appSec)}Z`);
     const jd = JulianDate.fromDate(st);
-    return { startTime: st, julianDate: jd };
+    return { startTime: st, julianDate: jd, appSeconds: appSec };
   }, [isRunning, selectedDate, startStopTimestamp, appSecondsAtStartStop, hoverSeconds]);
 
   const [tle, setTle] = useState<string[]>();
@@ -154,6 +162,18 @@ const Globe: FunctionComponent = () => {
   }, [tle, startTime, selectedDate, isLoading, ephemeraItems]);
 
   const sampledPositionProperty = computeSampledPositions;
+
+  // Derive current photo and adjacent photos based on time
+  const { currentPhotoWithCorners, prevPhoto, nextPhoto } = useMemo(
+    () =>
+      getCurrentAndAdjacentPhotos(
+        appSeconds,
+        earthPhotographyItems,
+        showEarthPhotos,
+        showTimelapsePhotos
+      ),
+    [appSeconds, earthPhotographyItems, showEarthPhotos, showTimelapsePhotos]
+  );
 
   // Memoize terrain provider to prevent creating new promises on each render
   const terrainProvider = useMemo(() => createWorldTerrainAsync(), []);
@@ -300,6 +320,60 @@ const Globe: FunctionComponent = () => {
             resolution: 60,
           }}
         />
+        {/* Current photo with corners - yellow outline */}
+        {/* Previous and next photos - grey outlines */}
+        {[prevPhoto, nextPhoto]
+          .filter((photo): photo is PhotoItemEarth => {
+            if (!photo || !photo.corners) return false;
+            const bounds = calculateRectangleBounds(photo.corners);
+            return bounds !== null && isValidRectangle(bounds);
+          })
+          .map((photo) => {
+            const bounds = calculateRectangleBounds(photo.corners!)!;
+            return (
+              <Entity
+                key={photo.nasaId}
+                name={`Photo ${photo.nasaId}`}
+                rectangle={{
+                  coordinates: Rectangle.fromDegrees(
+                    bounds.west,
+                    bounds.south,
+                    bounds.east,
+                    bounds.north
+                  ),
+                  fill: false,
+                  outline: true,
+                  outlineColor: Color.GREY,
+                  outlineWidth: 1,
+                }}
+              />
+            );
+          })}
+        {/* Current photo with corners - yellow outline */}
+        {currentPhotoWithCorners &&
+          currentPhotoWithCorners.corners &&
+          (() => {
+            const bounds = calculateRectangleBounds(currentPhotoWithCorners.corners);
+            if (!bounds || !isValidRectangle(bounds)) return null;
+
+            return (
+              <Entity
+                name="Current Photo Footprint"
+                rectangle={{
+                  coordinates: Rectangle.fromDegrees(
+                    bounds.west,
+                    bounds.south,
+                    bounds.east,
+                    bounds.north
+                  ),
+                  fill: false,
+                  outline: true,
+                  outlineColor: Color.YELLOW,
+                  outlineWidth: 1,
+                }}
+              />
+            );
+          })()}
         <Clock
           startTime={startJd}
           currentTime={julianDate}

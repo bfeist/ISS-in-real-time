@@ -1,4 +1,4 @@
-import { FunctionComponent, useRef, useEffect, useState } from "react";
+import { FunctionComponent, useRef, useEffect, useState, useMemo } from "react";
 import { findClosestEphemeraItem, updateOrbitLine } from "utils/map";
 import { getLatLngObj } from "tle.js";
 import "ol/ol.css";
@@ -6,7 +6,7 @@ import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import Feature from "ol/Feature";
-import { Point, LineString } from "ol/geom";
+import { Point, LineString, Polygon } from "ol/geom";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { Style, Text, Fill, Stroke } from "ol/style";
@@ -19,23 +19,43 @@ import GeoJSON from "ol/format/GeoJSON";
 import Terminator from "utils/terminator";
 import { containsCoordinate } from "ol/extent";
 import { hhmmssFromAppSeconds } from "utils/time";
+import {
+  getCurrentAndAdjacentPhotos,
+  calculateRectangleBounds,
+  isValidRectangle,
+} from "utils/photoRectangles";
 import ClockInterval from "./clockInterval";
 import styles from "./map.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
-import { useDateEphemera } from "api/useDateSpecificData";
+import { useStateToggle } from "store/hooks/useStateToggle";
+import { useDateEphemera, useDateEarthPhotography } from "api/useDateSpecificData";
 import GlobeMapToggle from "./globeMapToggle";
 
 const MapComponent: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
   const { hoverSeconds } = useStateHover();
+  const { showEarthPhotos, showTimelapsePhotos } = useStateToggle();
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
+  const { data: earthPhotographyItems = [] } = useDateEarthPhotography(selectedDate || "");
 
   const [clockAppSeconds, setClockAppSeconds] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
 
   // Use hover seconds if available, otherwise use clock seconds
   const appSeconds = hoverSeconds !== null ? hoverSeconds : clockAppSeconds;
+
+  // Derive current photo and adjacent photos based on time
+  const { currentPhotoWithCorners, prevPhoto, nextPhoto } = useMemo(
+    () =>
+      getCurrentAndAdjacentPhotos(
+        appSeconds,
+        earthPhotographyItems,
+        showEarthPhotos,
+        showTimelapsePhotos
+      ),
+    [appSeconds, earthPhotographyItems, showEarthPhotos, showTimelapsePhotos]
+  );
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const olMapRef = useRef<Map | null>(null);
@@ -44,6 +64,7 @@ const MapComponent: FunctionComponent = () => {
   const markerLayerRef = useRef<VectorLayer | null>(null);
   const markerFeatureRef = useRef<Feature | null>(null);
   const orbitLayerRef = useRef<VectorLayer | null>(null);
+  const photoRectanglesLayerRef = useRef<VectorLayer | null>(null);
 
   useEffect(() => {
     const labelLayer = new TileLayer({
@@ -116,6 +137,12 @@ const MapComponent: FunctionComponent = () => {
     });
     olMapRef.current.addLayer(orbitLayerRef.current);
 
+    // Initialize photo rectangles layer
+    photoRectanglesLayerRef.current = new VectorLayer({
+      source: new VectorSource(),
+    });
+    olMapRef.current.addLayer(photoRectanglesLayerRef.current);
+
     return () => {
       olMapRef.current.setTarget(undefined);
       if (markerLayerRef.current && olMapRef.current) {
@@ -123,6 +150,9 @@ const MapComponent: FunctionComponent = () => {
       }
       if (orbitLayerRef.current && olMapRef.current) {
         olMapRef.current.removeLayer(orbitLayerRef.current);
+      }
+      if (photoRectanglesLayerRef.current && olMapRef.current) {
+        olMapRef.current.removeLayer(photoRectanglesLayerRef.current);
       }
     };
   }, []);
@@ -229,6 +259,90 @@ const MapComponent: FunctionComponent = () => {
       }
     }
   }, [selectedDate, ephemeraItems, appSeconds]);
+
+  /**
+   * Update photo rectangles on the map
+   */
+  useEffect(() => {
+    if (!olMapRef.current || !photoRectanglesLayerRef.current) return;
+
+    const source = photoRectanglesLayerRef.current.getSource();
+    if (!source) return;
+
+    // Clear existing rectangles
+    source.clear();
+
+    // Add previous and next photo rectangles (grey)
+    [prevPhoto, nextPhoto].forEach((photo) => {
+      if (!photo || !photo.corners) return;
+
+      const bounds = calculateRectangleBounds(photo.corners);
+      if (!bounds || !isValidRectangle(bounds)) return;
+
+      const { west, south, east, north } = bounds;
+
+      // Create polygon from corners
+      const coords = [
+        fromLonLat([west, south]),
+        fromLonLat([east, south]),
+        fromLonLat([east, north]),
+        fromLonLat([west, north]),
+        fromLonLat([west, south]), // Close the polygon
+      ];
+
+      const rectangleFeature = new Feature({
+        geometry: new Polygon([coords]),
+      });
+
+      rectangleFeature.setStyle(
+        new Style({
+          stroke: new Stroke({
+            color: "white",
+            width: 2,
+          }),
+          fill: new Fill({
+            color: "transparent",
+          }),
+        })
+      );
+
+      source.addFeature(rectangleFeature);
+    });
+
+    // Add current photo rectangle (yellow)
+    if (currentPhotoWithCorners && currentPhotoWithCorners.corners) {
+      const bounds = calculateRectangleBounds(currentPhotoWithCorners.corners);
+      if (bounds && isValidRectangle(bounds)) {
+        const { west, south, east, north } = bounds;
+
+        const coords = [
+          fromLonLat([west, south]),
+          fromLonLat([east, south]),
+          fromLonLat([east, north]),
+          fromLonLat([west, north]),
+          fromLonLat([west, south]),
+        ];
+
+        const rectangleFeature = new Feature({
+          geometry: new Polygon([coords]),
+        });
+
+        rectangleFeature.setStyle(
+          new Style({
+            stroke: new Stroke({
+              color: "yellow",
+              width: 2,
+            }),
+            fill: new Fill({
+              color: "transparent",
+            }),
+          })
+        );
+
+        source.addFeature(rectangleFeature);
+      }
+    }
+  }, [currentPhotoWithCorners, prevPhoto, nextPhoto]);
 
   if (isLoading) {
     return <div className={styles.mapContainer}>Loading map...</div>;
