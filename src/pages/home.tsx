@@ -11,7 +11,6 @@ import { parseDateTimeSlug } from "../utils/params";
 import { appSecondsFromTimeStr } from "../utils/time";
 import TimelineYears2Container from "components/timelineYears/timelineYearsContainer";
 import { isTouchDevice } from "../utils/device";
-import About from "../components/article/about";
 
 const HomePage: FunctionComponent = (): JSX.Element => {
   const { dateTimeSlug } = useParams();
@@ -59,28 +58,23 @@ const HomePage: FunctionComponent = (): JSX.Element => {
       <Header />
       <TimelineYears2Container />
       <div className={styles.contentContainer}>
-        <div className={styles.leftColumn}>
-          <div className={styles.dayContentWrapper}>
-            {selectedDate ? <DayLayout /> : <NoDateSelected />}
-            {showTimelineYears && (
-              <div
-                className={styles.overlay}
-                onClick={() => setShowTimelineYears(false)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setShowTimelineYears(false);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-                aria-label="Close timeline overlay"
-              />
-            )}
-          </div>
-        </div>
-        <div className={styles.rightColumn}>
-          <About />
+        <div className={styles.dayContentWrapper}>
+          {selectedDate ? <DayLayout /> : <NoDateSelected />}
+          {showTimelineYears && (
+            <div
+              className={styles.overlay}
+              onClick={() => setShowTimelineYears(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setShowTimelineYears(false);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Close timeline overlay"
+            />
+          )}
         </div>
       </div>
       <Tooltip

@@ -54,3 +54,25 @@ h2 {
   position: relative;
   z-index: 2;
 }
+
+.page {
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.leftColumn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rightColumn {
+  width: 600px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-left: 1px solid rgb(255 255 255 / 10%);
+}
