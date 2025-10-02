@@ -55,6 +55,33 @@ export function generateEarthPhotoUrls(nasaId: string): {
 }
 
 /**
+ * Generates the NASA Earth Observations ExplorePhotos URL for a given photo
+ * Only photos in the MLCoord table (those with lat/lon coordinates) will have valid links
+ *
+ * @param nasaId - The NASA ID (e.g., "ISS056E126840")
+ * @param hasCoordinates - Whether the photo has lat/lon coordinates (is in MLCoord table)
+ * @returns The ExplorePhotos URL, or empty string if photo doesn't have coordinates or invalid nasaId
+ */
+export function generateEarthPhotoSourceUrl(nasaId: string, hasCoordinates: boolean): string {
+  if (!hasCoordinates) {
+    return "";
+  }
+
+  // Parse the NASA ID format: ISS056E126840 -> mission: ISS056, roll: E, frame: 126840
+  const match = nasaId.match(/^(ISS\d+)([A-Z])(\d+)$/);
+
+  if (!match) {
+    return "";
+  }
+
+  const [, mission, roll, frame] = match;
+
+  // Build the URL with mission-roll-frame format and day illumination
+  // Using "day" for illumination as it provides better basemap visibility
+  return `https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=${mission}-${roll}-${frame}&illum=day`;
+}
+
+/**
  * Interface for photo items used in timelapse detection
  */
 interface PhotoForTimelapse {

@@ -5,6 +5,7 @@ import styles from "./photos.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromDateTime } from "utils/time";
+import { generateEarthPhotoSourceUrl } from "utils/earthPhotos";
 import ClockInterval from "./clockInterval";
 import PhotoToggle from "./photoToggle";
 import { useDateEarthPhotography, useDatePhotosFlickr } from "api/useDateSpecificData";
@@ -292,21 +293,35 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
             </div>
           </div>
         )}
-        {mostRecentImage &&
-          mostRecentImage.type === "photos_earth" &&
-          earthPhotoMetadata &&
-          (earthPhotoMetadata.camera || earthPhotoMetadata.description) && (
-            <div className={styles.descriptionOverlay}>
-              <div className={styles.descriptionContent}>
-                {earthPhotoMetadata.camera && (
-                  <div className={styles.metadataRow}>
-                    <strong>Camera:</strong> {earthPhotoMetadata.camera}
-                  </div>
-                )}
-                {earthPhotoMetadata.description && <p>{earthPhotoMetadata.description}</p>}
-              </div>
+        {mostRecentImage && mostRecentImage.type === "photos_earth" && (
+          <div className={styles.descriptionOverlay}>
+            <div className={styles.descriptionContent}>
+              <SourceButton
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const sourceUrl = generateEarthPhotoSourceUrl(
+                    mostRecentImage.nasaId,
+                    true // Always generate URL; NASA site will handle photos not in ExplorePhotos
+                  );
+                  if (sourceUrl) {
+                    window.open(sourceUrl, "_blank");
+                  }
+                }}
+                variant="iconOnly"
+              >
+                <FontAwesomeIcon icon={faExternalLinkAlt} />
+              </SourceButton>
+              {earthPhotoMetadata && earthPhotoMetadata.camera && (
+                <div className={styles.metadataRow}>
+                  <strong>Camera:</strong> {earthPhotoMetadata.camera}
+                </div>
+              )}
+              {earthPhotoMetadata && earthPhotoMetadata.description && (
+                <p>{earthPhotoMetadata.description}</p>
+              )}
             </div>
-          )}
+          </div>
+        )}
       </div>
 
       <PhotosThumbs
