@@ -127,6 +127,23 @@ export async function fetchEphemera(date: string): Promise<EphemeraItem[]> {
 interface EarthPhotoRaw {
   ID: string;
   dateTaken: string;
+  // Geographic coordinates (optional)
+  lat?: number;
+  lon?: number;
+  corners?: {
+    ul: { lat: number; lon: number };
+    ur: { lat: number; lon: number };
+    ll: { lat: number; lon: number };
+    lr: { lat: number; lon: number };
+  };
+  // Feature descriptions (optional)
+  mlFeat?: string;
+  feat?: string;
+  caption?: string;
+  publicFeatures?: string;
+  // Camera metadata (optional)
+  focalLength?: number;
+  camera?: string;
 }
 
 export async function fetchEarthPhotography(date: string): Promise<PhotoItemEarth[]> {
@@ -151,7 +168,7 @@ export async function fetchEarthPhotography(date: string): Promise<PhotoItemEart
     const { ID, ...itemWithoutId } = item;
     const urls = generateEarthPhotoUrls(ID);
     return {
-      ...itemWithoutId,
+      ...itemWithoutId, // This spreads all optional properties (lat, lon, corners, mlFeat, feat, caption, publicFeatures, focalLength, camera)
       ...urls,
       nasaId: ID,
       type: "photos_earth" as const,

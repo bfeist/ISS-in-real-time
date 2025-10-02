@@ -204,6 +204,41 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     setIsAutoScrollEnabled(false);
   }, []);
 
+  // Helper function to build Earth photo metadata
+  const getEarthPhotoMetadata = useCallback((photo: PhotoItemEarth) => {
+    const metadata: { camera?: string; description?: string } = {};
+
+    // Build camera string from optional properties
+    const cameraParts: string[] = [];
+    if (photo.camera) cameraParts.push(photo.camera);
+    if (photo.focalLength !== undefined) cameraParts.push(`${photo.focalLength}mm`);
+
+    if (cameraParts.length > 0) {
+      metadata.camera = cameraParts.join(" ");
+    }
+
+    // Build description from available optional fields
+    const descriptionParts: string[] = [];
+    if (photo.caption) descriptionParts.push(photo.caption);
+    if (photo.mlFeat) descriptionParts.push(photo.mlFeat);
+    if (photo.feat) descriptionParts.push(photo.feat);
+    if (photo.publicFeatures) descriptionParts.push(photo.publicFeatures);
+
+    if (descriptionParts.length > 0) {
+      metadata.description = descriptionParts.join(" • ");
+    }
+
+    return metadata;
+  }, []);
+
+  // Compute Earth photo metadata for current image
+  const earthPhotoMetadata = useMemo(() => {
+    if (mostRecentImage?.type === "photos_earth") {
+      return getEarthPhotoMetadata(mostRecentImage);
+    }
+    return null;
+  }, [mostRecentImage, getEarthPhotoMetadata]);
+
   if (isLoading) {
     return <div>Loading Photos...</div>;
   }
@@ -257,6 +292,21 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
             </div>
           </div>
         )}
+        {mostRecentImage &&
+          mostRecentImage.type === "photos_earth" &&
+          earthPhotoMetadata &&
+          (earthPhotoMetadata.camera || earthPhotoMetadata.description) && (
+            <div className={styles.descriptionOverlay}>
+              <div className={styles.descriptionContent}>
+                {earthPhotoMetadata.camera && (
+                  <div className={styles.metadataRow}>
+                    <strong>Camera:</strong> {earthPhotoMetadata.camera}
+                  </div>
+                )}
+                {earthPhotoMetadata.description && <p>{earthPhotoMetadata.description}</p>}
+              </div>
+            </div>
+          )}
       </div>
 
       <PhotosThumbs
