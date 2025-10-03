@@ -39,27 +39,6 @@
   font-weight: 600;
 }
 
-.closeButton {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: var(--grey4);
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 3px;
-  transition: all 0.2s ease;
-}
-
-.closeButton:hover {
-  background-color: var(--grey3);
-  color: var(--grey5);
-}
-
 .content {
   padding: 12px;
 }

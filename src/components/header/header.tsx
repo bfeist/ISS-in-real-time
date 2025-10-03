@@ -2,6 +2,7 @@ import { FunctionComponent, useState, useEffect } from "react";
 import styles from "./header.module.css";
 import { useStateToggle } from "../../store/hooks/useStateToggle";
 import ShareButton from "components/header/share";
+import AboutModal from "components/header/about";
 import { useStateClock } from "store/hooks/useStateClock";
 import ClockInterval from "components/panes/clockInterval";
 import IconButton from "components/common/iconButton";
@@ -12,6 +13,7 @@ const Header: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
 
   const [appSeconds, setAppSeconds] = useState(0);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [windowWidth, setWindowWidth] = useState(() => {
     if (typeof window === "undefined") {
       return 1024;
@@ -69,7 +71,7 @@ const Header: FunctionComponent = () => {
               label={showAboutLabel ? "About this project" : undefined}
               style={{ width: showAboutLabel ? "130px" : undefined, fontSize: "0.7rem" }}
               onClick={(e) => {
-                window.open("https://benfeist.com", "_blank");
+                setIsAboutModalOpen(true);
                 e.stopPropagation();
               }}
             />
@@ -81,6 +83,7 @@ const Header: FunctionComponent = () => {
           </div>
         </div>
       </div>
+      <AboutModal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} />
     </>
   );
 };

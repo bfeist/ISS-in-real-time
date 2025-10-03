@@ -2,6 +2,7 @@ import { FunctionComponent, JSX, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useGeneralStats } from "../../api/useGeneralData";
 import styles from "./statsModal.module.css";
+import CloseButton from "../common/closeButton";
 
 const StatsModal: FunctionComponent<{
   isOpen: boolean;
@@ -41,9 +42,7 @@ const StatsModal: FunctionComponent<{
       <div className={styles.modal} ref={modalRef}>
         <div className={styles.header}>
           <h3>ISS Data Overview</h3>
-          <button className={styles.closeButton} onClick={onClose}>
-            ×
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className={styles.content}>
           {isLoading && <div className={styles.loading}>Loading stats...</div>}
