@@ -48,7 +48,7 @@ const DayCounter: React.FC = () => {
 
   return (
     <div className={styles.dayCounterContainer}>
-      <div className={styles.title}>Time of continuous human presence onboard the ISS:</div>
+      <div className={styles.title}>Duration of continuous human presence onboard the ISS</div>
       <div className={styles.timeDisplay}>
         <span className={styles.timeUnit}>
           <span className={styles.timeValue}>{timeElapsed.years}</span>

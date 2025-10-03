@@ -12,7 +12,8 @@
 }
 
 .modal {
-  background: var(--grey2);
+  background: rgb(41 43 58 / 70%);
+  backdrop-filter: blur(15px);
   border: 1px solid var(--grey3);
   border-radius: var(--panel-radius);
   box-shadow: 0 4px 6px rgb(0 0 0 / 10%);

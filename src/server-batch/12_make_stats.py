@@ -541,6 +541,7 @@ def analyze_data_availability():
         "actSum",
         "earthPhotos",
         "flickrPhotos",
+        "timeline",
     ]
     counts = {dt: 0 for dt in data_types}
     total_days = 0

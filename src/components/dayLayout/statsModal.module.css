@@ -13,7 +13,8 @@
 }
 
 .modal {
-  background: var(--grey2);
+  background: rgb(41 43 58 / 70%);
+  backdrop-filter: blur(15px);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgb(0 0 0 / 30%);
   width: 95%;
@@ -87,7 +88,7 @@
 }
 
 .statsSection {
-  background: var(--grey2);
+  /* background: rgb(41 43 58 / 70%); */
   border: 1px solid var(--grey3);
   border-radius: 4px;
   padding: 8px;

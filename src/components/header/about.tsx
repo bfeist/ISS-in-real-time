@@ -56,7 +56,7 @@ const AboutModal: FunctionComponent<{
           </p>
           <p>
             All data here is original historical mission material sourced from across the internet.
-            It was already public, just not assembled in this way.
+            We have placed it into context so you can experience each day as it happened.
           </p>
 
           <h4>Who Made This?</h4>

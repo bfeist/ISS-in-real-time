@@ -22,7 +22,7 @@ h2 {
   justify-content: flex-start;
   background-image: url("/images/backgrounds/iss_rotated.png");
   background-size: cover;
-  background-position: center;
+  background-position: bottom right;
   background-repeat: no-repeat;
   position: relative;
   padding-top: 20px;
@@ -39,13 +39,6 @@ h2 {
   z-index: 1;
 }
 
-.statsButton {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 4;
-}
-
 .pageContent {
   margin: 20px;
   height: 100%;
@@ -53,4 +46,64 @@ h2 {
   text-shadow: 0 0 5px rgb(0 0 0 / 70%);
   position: relative;
   z-index: 2;
+}
+
+.pageContent p {
+  margin: 0 0 15px 0;
+  color: var(--grey5);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+
+.headerContent {
+  max-width: 800px;
+}
+
+.headerContent h2 {
+  color: white;
+  margin-bottom: 10px;
+}
+
+.exploreButton {
+  width: fit-content;
+  margin-top: 30px;
+  padding: 10px 45px;
+  background-color: var(--grey2);
+  border: 1px solid var(--headerbutton);
+  color: white;
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.exploreButton:hover {
+  background-color: var(--grey3);
+}
+
+.siteStats {
+  margin-top: 20px;
+  color: var(--grey5);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.siteStats h3 {
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.siteStats ul {
+  margin: 0 0 0 20px;
+  padding: 0;
+}
+
+.statsLink {
+  display: inline;
+  margin-left: 20px;
+  color: var(--grey5);
+  text-decoration: underline;
+  cursor: pointer;
 }
