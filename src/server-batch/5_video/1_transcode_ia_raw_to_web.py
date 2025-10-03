@@ -520,28 +520,46 @@ def check_nvidia_gpu_availability(console: Console = None):
         return False
 
 
-def process_videos(raw_folder, web_folder, console: Console):
+def process_videos(raw_folders, web_folder, console: Console):
     """
-    Process all MP4 files in the raw folder with rich progress tracking.
+    Process all MP4 files in the raw folders with rich progress tracking.
+    Args:
+        raw_folders: List of raw folder paths to process
+        web_folder: Destination folder for processed videos
+        console: Rich console for output
     """
-    raw_path = Path(raw_folder)
     web_path = Path(web_folder)
-
-    # Check if directories exist
-    if not raw_path.exists():
-        console.print(f"[red]Error: Raw folder does not exist: {raw_folder}[/red]")
-        return False
 
     # Create web folder if it doesn't exist
     web_path.mkdir(parents=True, exist_ok=True)
 
-    # Find all MP4 files
-    mp4_files = list(raw_path.glob("*.mp4"))
+    # Collect all MP4 files from all raw folders
+    mp4_files = []
+    for raw_folder in raw_folders:
+        raw_path = Path(raw_folder)
+
+        # Check if directory exists
+        if not raw_path.exists():
+            console.print(
+                f"[yellow]Warning: Raw folder does not exist: {raw_folder}[/yellow]"
+            )
+            continue
+
+        # Find MP4 files in this folder
+        folder_mp4_files = list(raw_path.glob("*.mp4"))
+        if folder_mp4_files:
+            console.print(
+                f"[blue]Found {len(folder_mp4_files)} MP4 files in {raw_folder}[/blue]"
+            )
+            mp4_files.extend(folder_mp4_files)
+        else:
+            console.print(f"[yellow]No MP4 files found in {raw_folder}[/yellow]")
+
     if not mp4_files:
-        console.print(f"[yellow]No MP4 files found in {raw_folder}[/yellow]")
+        console.print(f"[yellow]No MP4 files found in any raw folders[/yellow]")
         return True
 
-    console.print(f"[blue]Found {len(mp4_files)} MP4 files to process[/blue]")
+    console.print(f"[blue]Total: {len(mp4_files)} MP4 files to process[/blue]")
 
     processed = 0
     errors = 0
@@ -718,11 +736,16 @@ def main():
         )
         return 1
 
-    # Construct full paths
-    raw_folder = os.path.join(raw_base, "ia_video_files_raw")
+    # Construct full paths for both raw folders
+    raw_folders = [
+        os.path.join(raw_base, "ia_video_files_raw"),
+        os.path.join(raw_base, "ia_manual_video_files_raw"),
+    ]
     web_folder = os.path.join(web_base, "videoIa")
 
-    console.print(f"[blue]Raw folder: {raw_folder}[/blue]")
+    console.print(f"[blue]Raw folders:[/blue]")
+    for folder in raw_folders:
+        console.print(f"[blue]  - {folder}[/blue]")
     console.print(f"[blue]Web folder: {web_folder}[/blue]")
     console.print()
 
@@ -741,7 +764,7 @@ def main():
     console.print()
 
     # Process videos
-    success = process_videos(raw_folder, web_folder, console)
+    success = process_videos(raw_folders, web_folder, console)
 
     return 0 if success else 1
 

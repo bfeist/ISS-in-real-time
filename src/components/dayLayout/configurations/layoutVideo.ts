@@ -199,11 +199,11 @@ export const videoLayouts: Record<string, LayoutConfiguration> = {
   "video-article": {
     conditions: { video: true, comm: false, eva: false, article: true, photo: false },
     layout: {
-      left: [
-        { type: "video", styleClass: "componentExpandable" },
+      left: [{ type: "video", styleClass: "componentExpandable" }],
+      center: [
         { type: "article", styleClass: "componentExpandable" },
+        { type: "widget", styleClass: "componentExpandable" },
       ],
-      center: [{ type: "widget-tall", styleClass: "componentExpandable" }],
       right: [{ type: "globe", styleClass: "componentExpandable" }],
     },
   },
