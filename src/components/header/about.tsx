@@ -70,8 +70,8 @@ const AboutModal: FunctionComponent<{
             <a href="https://davidcharney.com" target="_blank" rel="noopener noreferrer">
               David Charney
             </a>{" "}
-            . We built ISS in real time over the past year, on evenings and weekends, just because
-            we like to put good things on the Internet.
+            . We are both contractors at NASA, but we built ISS in real time on evenings and
+            weekends, just because we like to put good things on the Internet.
           </p>
 
           <p>

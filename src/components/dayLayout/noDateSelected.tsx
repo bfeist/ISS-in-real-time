@@ -11,9 +11,13 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
 
   const [showStats, setShowStats] = useState(false);
 
-  const toLocaleString = (val: number | undefined): string => {
-    if (typeof val !== "number") return "N/A";
-    return val.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  const toLocaleString = (val: number | undefined): JSX.Element => {
+    if (typeof val !== "number") return <span style={{ color: "white" }}>N/A</span>;
+    return (
+      <span style={{ color: "white" }}>
+        {val.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+      </span>
+    );
   };
 
   const totalArticles = useMemo(() => {
