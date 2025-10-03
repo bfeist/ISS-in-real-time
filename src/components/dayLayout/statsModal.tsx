@@ -64,31 +64,33 @@ const StatsModal: FunctionComponent<{
                     <span>Avg Types/Day:</span>
                     <span>{stats.data_availability.avg_data_types_per_day.toFixed(1)}</span>
                   </div>
-                  {Object.entries(stats.data_availability.counts).map(([type, count]) => {
-                    const getDataTypeLabel = (type: string): string => {
-                      const labels: Record<string, string> = {
-                        comm: "S/G Comm",
-                        vvComm: "VV Comm",
-                        video: "Videos",
-                        eva: "EVAs",
-                        blog: "Articles",
-                        actSum: "Activity Summaries",
-                        earthPhotos: "Earth Photos",
-                        flickrPhotos: "Mission Photos",
-                      };
-                      return (
-                        labels[type] ||
-                        type.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())
-                      );
+                  {(() => {
+                    const labels: Record<string, string> = {
+                      eva: "EVAs",
+                      comm: "S/G Comm",
+                      vvComm: "VV Comm",
+                      video: "Videos",
+                      earthPhotos: "Earth Photos",
+                      flickrPhotos: "Mission Photos",
+                      blog: "Articles",
+                      actSum: "Activity Summaries",
+                      timeline: "Station Timelines",
                     };
-
-                    return (
-                      <div key={type} className={styles.statRow}>
-                        <span>{getDataTypeLabel(type)}:</span>
-                        <span>{count.toLocaleString()}</span>
-                      </div>
-                    );
-                  })}
+                    return Object.keys(labels)
+                      .filter((type) => type in stats.data_availability.counts)
+                      .map((type) => {
+                        const count = stats.data_availability.counts[type];
+                        const label =
+                          labels[type] ||
+                          type.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase());
+                        return (
+                          <div key={type} className={styles.statRow}>
+                            <span>{label}:</span>
+                            <span>{count.toLocaleString()}</span>
+                          </div>
+                        );
+                      });
+                  })()}
                 </div>
 
                 <div className={styles.statsSection}>
