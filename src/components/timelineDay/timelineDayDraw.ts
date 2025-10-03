@@ -63,6 +63,8 @@ export const initializePaperCanvas = ({
     commChannel3: "#df8d8d", // Channel 3 primary color
     commChannel4: "#b374e4", // Channel 4 primary color
     commChannel5: "#ce643b", // Channel 5 primary color
+    crewArrival: "#28B463", // Green for crew arrivals
+    crewDeparture: "#dc2626", // Red for crew departures
   } as const;
 
   // Timeline constants
@@ -362,6 +364,137 @@ export const initializePaperCanvas = ({
         group.addChild(hourText);
       }
     }
+
+    return group;
+  };
+
+  const drawCrewEventMarker = ({
+    group,
+    seconds,
+    isArrival,
+    pixelsPerSecond,
+    timelineBottom,
+    triangleSize,
+    labelOffset,
+  }: {
+    group: paper.Group;
+    seconds: number;
+    isArrival: boolean;
+    pixelsPerSecond: number;
+    timelineBottom: number;
+    triangleSize: number;
+    labelOffset: number;
+  }): void => {
+    const x = LEFT_MARGIN + seconds * pixelsPerSecond;
+    const topY = timelineBottom;
+    const color = isArrival ? COLORS.crewArrival : COLORS.crewDeparture;
+    const label = isArrival ? "Arrival" : "Departure";
+
+    // Draw vertical line from top to bottom of timeline
+    const verticalLine = new paperScope.Path.Line(
+      new paperScope.Point(x, TOP_MARGIN),
+      new paperScope.Point(x, timelineBottom)
+    );
+    verticalLine.strokeColor = new paperScope.Color(color);
+    verticalLine.strokeWidth = 2;
+    group.addChild(verticalLine);
+
+    // Draw triangle (upward for arrival, downward for departure)
+    const triangle = new paperScope.Path();
+    if (isArrival) {
+      // Upward pointing triangle
+      triangle.moveTo(new paperScope.Point(x, topY)); // Top point at bottom of dayNight
+      triangle.lineTo(new paperScope.Point(x - triangleSize / 2, topY + triangleSize)); // Bottom left
+      triangle.lineTo(new paperScope.Point(x + triangleSize / 2, topY + triangleSize)); // Bottom right
+    } else {
+      // Downward pointing triangle
+      triangle.moveTo(new paperScope.Point(x, topY + triangleSize)); // Bottom point
+      triangle.lineTo(new paperScope.Point(x - triangleSize / 2, topY)); // Top left at dayNight bottom
+      triangle.lineTo(new paperScope.Point(x + triangleSize / 2, topY)); // Top right at dayNight bottom
+    }
+    triangle.closePath();
+    triangle.fillColor = new paperScope.Color(color);
+    group.addChild(triangle);
+
+    // Draw label below the triangle
+    const labelText = new paperScope.PointText({
+      point: new paperScope.Point(x, topY + triangleSize + labelOffset - 2),
+      content: label,
+      fillColor: color,
+      fontSize: 10,
+      fontFamily: "Inter, Arial, sans-serif",
+      fontWeight: "600",
+      justification: "center",
+    });
+    group.addChild(labelText);
+  };
+
+  const drawCrewArrivalDeparture = (): paper.Group => {
+    const group = new paperScope.Group();
+    if (!data?.crewArrDep || !data?.selectedDate) {
+      return group;
+    }
+
+    const pixelsPerSecond = getPixelsPerSecond();
+    const timelineBottom = TOP_MARGIN + getTotalDataRowsHeight();
+    const triangleSize = 8; // Size of the triangle
+    const labelOffset = 15; // Distance below triangle for text
+
+    // Track unique arrival and departure times on the selected date
+    const arrivalTimes = new Set<number>();
+    const departureTimes = new Set<number>();
+
+    data.crewArrDep.forEach((crewMember) => {
+      // Check if arrival date matches selected date
+      if (crewMember.arrivalDate && crewMember.arrivalDate.startsWith(data.selectedDate)) {
+        // Extract time from arrivalDate (format: YYYY-MM-DDTHH:MM:SSZ)
+        const timeMatch = crewMember.arrivalDate.match(/T(\d{2}):(\d{2}):(\d{2})/);
+        if (timeMatch) {
+          const hours = parseInt(timeMatch[1], 10);
+          const minutes = parseInt(timeMatch[2], 10);
+          const seconds = hours * 3600 + minutes * 60;
+          arrivalTimes.add(seconds);
+        }
+      }
+
+      // Check if departure date matches selected date
+      if (crewMember.departureDate && crewMember.departureDate.startsWith(data.selectedDate)) {
+        // Extract time from departureDate
+        const timeMatch = crewMember.departureDate.match(/T(\d{2}):(\d{2}):(\d{2})/);
+        if (timeMatch) {
+          const hours = parseInt(timeMatch[1], 10);
+          const minutes = parseInt(timeMatch[2], 10);
+          const seconds = hours * 3600 + minutes * 60;
+          departureTimes.add(seconds);
+        }
+      }
+    });
+
+    // Draw arrival markers (green upward triangles)
+    arrivalTimes.forEach((seconds) => {
+      drawCrewEventMarker({
+        group,
+        seconds,
+        isArrival: true,
+        pixelsPerSecond,
+        timelineBottom,
+        triangleSize,
+        labelOffset,
+      });
+    });
+
+    // Draw departure markers (red downward triangles)
+    departureTimes.forEach((seconds) => {
+      drawCrewEventMarker({
+        group,
+        seconds,
+        isArrival: false,
+        pixelsPerSecond,
+        timelineBottom,
+        triangleSize,
+        labelOffset,
+      });
+    });
 
     return group;
   };
@@ -835,7 +968,7 @@ export const initializePaperCanvas = ({
               } else if (showEarthPhotos && !showTimelapsePhotos) {
                 // Only earth photos on: show non-timelapse earth photos
                 earthPhotos = ((data.earthPhotos as unknown[]) || [])
-                  .filter((item) => !(item as PhotoItem).isTimelapse)
+                  .filter((item) => !(item as PhotoItemEarth).isTimelapse)
                   .map((item) => ({
                     item,
                     source: "earth",
@@ -843,7 +976,7 @@ export const initializePaperCanvas = ({
               } else if (!showEarthPhotos && showTimelapsePhotos) {
                 // Only timelapse on: show timelapse earth photos
                 earthPhotos = ((data.earthPhotos as unknown[]) || [])
-                  .filter((item) => (item as PhotoItem).isTimelapse)
+                  .filter((item) => (item as PhotoItemEarth).isTimelapse)
                   .map((item) => ({
                     item,
                     source: "earth",
@@ -866,6 +999,9 @@ export const initializePaperCanvas = ({
 
           // Draw time ticks on top of data rows
           timelineGroup.addChild(drawTimeTicks());
+
+          // Draw crew arrival/departure markers
+          timelineGroup.addChild(drawCrewArrivalDeparture());
         } else {
           // Fallback when no data is provided
           const noDataText = new paperScope.PointText({

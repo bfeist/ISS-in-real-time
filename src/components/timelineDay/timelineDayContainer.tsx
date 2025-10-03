@@ -6,7 +6,7 @@ import {
   useDateEarthPhotography,
   useDatePhotosFlickr,
 } from "api/useDateSpecificData";
-import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
+import { useGeneralVideoIa, useGeneralVideoYt, useGeneralCrewArrDep } from "api/useGeneralData";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateToggle } from "store/hooks/useStateToggle";
@@ -32,6 +32,7 @@ const TimelineDayContainer = (): JSX.Element => {
 
   const { data: videoYt = [], isLoading: isLoadingYt } = useGeneralVideoYt();
   const { data: videoIa = [], isLoading: isLoadingIa } = useGeneralVideoIa();
+  const { data: crewArrDep = [], isLoading: isLoadingCrew } = useGeneralCrewArrDep();
 
   // Check if any critical data is still loading
   const isLoading =
@@ -39,7 +40,8 @@ const TimelineDayContainer = (): JSX.Element => {
     isLoadingPhotography ||
     isLoadingPhotographyFlickr ||
     isLoadingYt ||
-    isLoadingIa;
+    isLoadingIa ||
+    isLoadingCrew;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -148,7 +150,14 @@ const TimelineDayContainer = (): JSX.Element => {
       const canvas = canvasRef.current;
 
       // Check all conditions
-      if (!canvas || !selectedDate || isLoadingComm || isLoadingPhotography || isLoadingYt) {
+      if (
+        !canvas ||
+        !selectedDate ||
+        isLoadingComm ||
+        isLoadingPhotography ||
+        isLoadingYt ||
+        isLoadingCrew
+      ) {
         return false;
       }
 
@@ -202,6 +211,7 @@ const TimelineDayContainer = (): JSX.Element => {
         flickrPhotos,
         videoItems,
         dayNight,
+        crewArrDep,
         selectedDate: selectedDate || "",
       };
 
@@ -311,6 +321,7 @@ const TimelineDayContainer = (): JSX.Element => {
     isLoadingComm,
     isLoadingPhotography,
     isLoadingYt,
+    isLoadingCrew,
     showEarthPhotos,
     showMissionPhotos,
     showTimelapsePhotos,
@@ -328,6 +339,7 @@ const TimelineDayContainer = (): JSX.Element => {
       !isLoadingPhotography &&
       !isLoadingYt &&
       !isLoadingIa &&
+      !isLoadingCrew &&
       selectedDate
     ) {
       drawFunctionRef.current();
@@ -338,11 +350,13 @@ const TimelineDayContainer = (): JSX.Element => {
     flickrPhotos,
     videoYt,
     videoIa,
+    crewArrDep,
     dayNight,
     isLoadingComm,
     isLoadingPhotography,
     isLoadingYt,
     isLoadingIa,
+    isLoadingCrew,
     selectedDate,
     // Note: showEarthPhotos and showMissionPhotos are NOT included here
     // because toggle changes trigger re-initialization, not just redraw

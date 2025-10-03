@@ -320,6 +320,7 @@ interface TimelineDayData {
   flickrPhotos: PhotoItemFlickr[];
   videoItems: TimelineVideoItem[];
   dayNight: DayNightObj[];
+  crewArrDep: CrewArrDepItem[];
   selectedDate: string;
 }
 
