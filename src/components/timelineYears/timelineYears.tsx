@@ -716,7 +716,9 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             })}
           </div>
         </div>
-        {showTimelineYears && <HighlightData />}
+        {showTimelineYears && (
+          <HighlightData onCloseMegaOverlay={() => setMegaOverlayVisible(false)} />
+        )}
 
         {/* Mega Overlay */}
         {megaOverlayVisible && megaOverlayYear && (

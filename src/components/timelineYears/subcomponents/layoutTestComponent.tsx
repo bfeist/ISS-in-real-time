@@ -1,6 +1,8 @@
 import { FunctionComponent, useMemo } from "react";
 import { useStateClock } from "store/hooks/useStateClock";
+import { useStateToggle } from "store/hooks/useStateToggle";
 import { useGeneralDataAvailabilities } from "api/useGeneralData";
+import CloseButton from "components/common/closeButton";
 import styles from "./layoutTestComponent.module.css";
 
 // Define all 32 layout permutations
@@ -159,8 +161,13 @@ const LAYOUT_ORDER = [
   "none",
 ];
 
-const LayoutTestComponent: FunctionComponent = () => {
+interface LayoutTestComponentProps {
+  onClose?: () => void;
+}
+
+const LayoutTestComponent: FunctionComponent<LayoutTestComponentProps> = ({ onClose }) => {
   const { setSelectedDate } = useStateClock();
+  const { setShowTimelineYears } = useStateToggle();
   const { data: dataAvailabilityItems, isLoading } = useGeneralDataAvailabilities();
 
   // Calculate layout test data from actual data availability
@@ -219,10 +226,12 @@ const LayoutTestComponent: FunctionComponent = () => {
     };
   }, [layoutTestData]);
 
-  const handleLayoutSelect = (layoutKey: string) => {
+  const handleLayoutSelect = (layoutKey: string, event: React.MouseEvent) => {
+    event.stopPropagation();
     const date = layoutTestData[layoutKey];
     if (date) {
       setSelectedDate(date);
+      setShowTimelineYears(false);
     } else {
       console.warn(`No date available for layout: ${layoutKey}`);
     }
@@ -246,6 +255,16 @@ const LayoutTestComponent: FunctionComponent = () => {
 
   return (
     <div className={styles.layoutTestContainer}>
+      {onClose && (
+        <div className={styles.closeButtonContainer}>
+          <CloseButton
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+          />
+        </div>
+      )}
       <h3 className={styles.title}>Layout Tester</h3>
       <p className={styles.description}>
         Test all 32 layout permutations (V=Video, C=Comm, E=EVA, A=Article, P=Photo).
@@ -258,7 +277,7 @@ const LayoutTestComponent: FunctionComponent = () => {
           <button
             key={layoutKey}
             className={`${styles.layoutButton} ${getButtonClassName(layoutKey)}`}
-            onClick={() => handleLayoutSelect(layoutKey)}
+            onClick={(event) => handleLayoutSelect(layoutKey, event)}
             title={`${layoutKey} - ${layoutTestData[layoutKey] || "No date with this combination"}`}
             disabled={!layoutTestData[layoutKey]}
           >

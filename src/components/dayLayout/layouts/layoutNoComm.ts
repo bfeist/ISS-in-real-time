@@ -30,7 +30,7 @@ export const noCommLayouts: Record<string, LayoutConfiguration> = {
   "eva-photo": {
     conditions: { video: false, comm: false, eva: true, article: false, photo: true },
     layout: {
-      left: [{ type: "photo-tall", styleClass: "componentExpandable" }, ,],
+      left: [{ type: "photo-tall", styleClass: "componentExpandable" }],
       center: [
         { type: "eva-long", styleClass: "componentNaturalSize" },
         { type: "widget", styleClass: "componentExpandable" },

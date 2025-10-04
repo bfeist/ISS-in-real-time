@@ -8,7 +8,9 @@ import { useStateSearch } from "store/hooks/useStateSearch";
 import IconButton from "../../common/iconButton";
 import { faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 
-const HighlightData: FunctionComponent = () => {
+const HighlightData: FunctionComponent<{
+  onCloseMegaOverlay?: () => void;
+}> = ({ onCloseMegaOverlay }) => {
   const { contentHighlights, toggleContentHighlight } = useStateContentHighlights();
   const { selectedCrewMember, selectedExpedition, clearAllSearchHighlights } = useStateSearch();
   const [showSearchCrew, setShowSearchCrew] = useState(false);
@@ -47,60 +49,79 @@ const HighlightData: FunctionComponent = () => {
   };
 
   return (
-    <div className={styles.highlightContainer}>
+    <div
+      className={styles.highlightContainer}
+      onClick={() => onCloseMegaOverlay?.()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          onCloseMegaOverlay?.();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
       <div className={styles.highlightItems}>
-        <div className={styles.highlightWrapper}>
-          <div className={styles.highlightTitle}>Highlight dates with data types:</div>
-          <div className={styles.highlightTable}>
-            {contentTypeGroups.map((group, groupIndex) => (
-              <div key={groupIndex} className={styles.highlightCell}>
-                {group.map((contentType) => (
-                  <label key={contentType.key} className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={contentHighlights.includes(contentType.key)}
-                      onChange={() => toggleContentHighlight(contentType.key)}
-                    />
-                    {contentType.label}
-                  </label>
-                ))}
-              </div>
-            ))}
+        <div className={styles.highlightTableWrapper}>
+          <div className={styles.leftColumn}>
+            <div className={styles.highlightTitle}>Highlight dates with data types:</div>
+            <div className={styles.highlightTable}>
+              {contentTypeGroups.map((group, groupIndex) => (
+                <div key={groupIndex} className={styles.highlightCell}>
+                  {group.map((contentType) => (
+                    <label key={contentType.key} className={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={contentHighlights.includes(contentType.key)}
+                        onChange={() => toggleContentHighlight(contentType.key)}
+                      />
+                      {contentType.label}
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className={styles.doubleButtonWrapper}>
-          <div className={styles.buttonWrapper}>
-            <IconButton
-              icon={faMagnifyingGlass}
-              onClick={() => {
-                const newShow = !showSearchCrew;
-                setShowSearchCrew(newShow);
-                if (newShow) setShowSearchExpeditions(false);
-              }}
-              label="Crew"
-            />
-            {showSearchCrew && (
-              <div className={styles.overlayPanel}>
-                <SearchCrew onClose={() => setShowSearchCrew(false)} />
+          <div className={styles.rightColumn}>
+            <div className={styles.searchTitle}>Search</div>
+            <div className={styles.doubleButtonWrapper}>
+              <div className={styles.buttonWrapper}>
+                <IconButton
+                  icon={faMagnifyingGlass}
+                  onClick={() => {
+                    const newShow = !showSearchCrew;
+                    setShowSearchCrew(newShow);
+                    if (newShow) setShowSearchExpeditions(false);
+                  }}
+                  label="Crew"
+                  style={{ width: "100px" }}
+                  className={styles.toggleButton}
+                />
               </div>
-            )}
-          </div>
-          <div className={styles.buttonWrapper}>
-            <IconButton
-              icon={faMagnifyingGlass}
-              onClick={() => {
-                const newShow = !showSearchExpeditions;
-                setShowSearchExpeditions(newShow);
-                if (newShow) setShowSearchCrew(false);
-              }}
-              label="Expeditions"
-            />
-            {showSearchExpeditions && (
-              <div className={styles.overlayPanel}>
-                <SearchExpeditions onClose={() => setShowSearchExpeditions(false)} />
+              <div className={styles.buttonWrapper}>
+                <IconButton
+                  icon={faMagnifyingGlass}
+                  onClick={() => {
+                    const newShow = !showSearchExpeditions;
+                    setShowSearchExpeditions(newShow);
+                    if (newShow) setShowSearchCrew(false);
+                  }}
+                  label="Expeditions"
+                  style={{ width: "100px" }}
+                  className={styles.toggleButton}
+                />
               </div>
-            )}
+            </div>
           </div>
+          {showSearchCrew && (
+            <div className={styles.overlayPanelSearch}>
+              <SearchCrew onClose={() => setShowSearchCrew(false)} />
+            </div>
+          )}
+          {showSearchExpeditions && (
+            <div className={styles.overlayPanelSearch}>
+              <SearchExpeditions onClose={() => setShowSearchExpeditions(false)} />
+            </div>
+          )}
         </div>
         {hasActiveSearchHighlights && (
           <div className={styles.searchIndicator}>
@@ -121,7 +142,7 @@ const HighlightData: FunctionComponent = () => {
           </div>
         )}
 
-        <div className={styles.buttonWrapper}>
+        <div className={`${styles.buttonWrapper} ${styles.layoutTestWrapper}`}>
           <button
             className={styles.toggleButton}
             onClick={() => setShowLayoutTest(!showLayoutTest)}
@@ -129,8 +150,8 @@ const HighlightData: FunctionComponent = () => {
             Layout Test
           </button>
           {showLayoutTest && (
-            <div className={styles.overlayPanel}>
-              <LayoutTestComponent />
+            <div className={styles.overlayPanelLayoutTest}>
+              <LayoutTestComponent onClose={() => setShowLayoutTest(false)} />
             </div>
           )}
         </div>

@@ -2,10 +2,18 @@
   background: rgb(255 255 255 / 5%);
   border-radius: 8px;
   padding: 16px;
-  margin-bottom: 16px;
   border: 1px solid rgb(255 255 255 / 10%);
-  flex-shrink: 0;
-  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.closeButtonContainer {
+  position: absolute;
+  top: 8px;
+  right: 8px;
 }
 
 .title {
@@ -42,6 +50,7 @@
   text-align: center;
   transition: all 0.2s ease;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .layoutButton:disabled {
@@ -111,6 +120,7 @@
   align-items: center;
   display: flex;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .legendColor {
@@ -141,25 +151,55 @@
 }
 
 /* Responsive adjustments */
-@media (width <= 1200px) {
-  .layoutGrid {
-    grid-template-columns: repeat(6, 1fr);
-  }
-}
-
-@media (width <= 900px) {
+@media (width <= 600px) {
   .layoutGrid {
     grid-template-columns: repeat(4, 1fr);
   }
+
+  .layoutButton {
+    font-size: 9px;
+    padding: 4px 2px;
+  }
+
+  .title {
+    font-size: 14px;
+  }
+
+  .description {
+    font-size: 11px;
+    margin-bottom: 12px;
+  }
+
+  .legend {
+    gap: 10px;
+  }
+
+  .legendItem span {
+    font-size: 10px;
+  }
+
+  .layoutTestContainer {
+    padding: 12px;
+  }
 }
 
-@media (width <= 600px) {
+@media (width <= 450px) {
   .layoutGrid {
     grid-template-columns: repeat(3, 1fr);
   }
 
   .layoutButton {
-    font-size: 10px;
-    padding: 4px 2px;
+    font-size: 8px;
+    padding: 3px 1px;
+  }
+
+  .layoutTestContainer {
+    padding: 10px;
+  }
+}
+
+@media (width <= 350px) {
+  .layoutGrid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

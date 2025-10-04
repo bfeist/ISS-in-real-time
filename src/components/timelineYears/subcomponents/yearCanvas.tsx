@@ -90,6 +90,9 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
     canvas.height = rect.height * devicePixelRatio;
     ctx.scale(devicePixelRatio, devicePixelRatio);
 
+    // Skip drawing if canvas dimensions are invalid
+    if (rect.width <= 0 || rect.height <= 0) return;
+
     // Clear canvas
     ctx.clearRect(0, 0, rect.width, rect.height);
 

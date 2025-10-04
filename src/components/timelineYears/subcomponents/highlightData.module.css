@@ -4,6 +4,9 @@
   min-height: 85px;
   background-color: var(--grey2);
   font-size: 0.7em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .highlightItems {
@@ -19,18 +22,39 @@
 .highlightTitle {
   color: var(--grey5);
   text-align: left;
-  border-bottom: 1px solid var(--grey3);
+  border-bottom: 1px solid var(--headerbutton);
   padding: 0 0 5px 5px;
 }
 
-.highlightWrapper {
-  border: 1px solid var(--grey3);
-  border-radius: var(--radius);
+.searchTitle {
+  color: var(--grey5);
+  text-align: left;
+  border-bottom: 1px solid var(--headerbutton);
+  padding: 0 0 5px 5px;
+}
+
+.leftColumn {
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.highlightTableWrapper {
+  border: 1px solid var(--headerbutton);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 20px;
   padding: 5px;
   font-family: var(--font-mono);
+  position: relative;
 }
 
 .highlightTable {
@@ -90,29 +114,54 @@
 .buttonWrapper {
   position: relative;
   display: inline-block;
+  margin-left: auto;
+}
+
+.layoutTestWrapper {
+  position: absolute;
+  top: 10px;
+  right: 10px;
 }
 
 .doubleButtonWrapper {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 5px;
   height: 100%;
 }
 
-.overlayPanel {
-  position: absolute;
-  top: 100%;
-  left: 0;
+.overlayPanelLayoutTest {
+  position: fixed;
+  bottom: 0;
+  left: 10px;
   background-color: var(--grey2);
-  border: 1px solid #4a5568;
+  border: 1px solid var(--grey3);
   border-radius: 4px;
   padding: 10px;
-  z-index: 10;
+  z-index: 1000;
   width: auto;
   min-width: 300px;
   max-width: 600px;
-  min-height: 200px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
+}
+
+.overlayPanelSearch {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  background-color: var(--grey2);
+  border: 1px solid var(--grey3);
+  border-radius: 4px;
+  padding: 10px;
+  z-index: 1000;
+  width: auto;
+  min-width: 463px;
+  max-width: 600px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
 }
 
 .searchIndicator {
