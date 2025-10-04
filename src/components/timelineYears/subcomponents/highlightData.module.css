@@ -4,7 +4,7 @@
   flex-direction: column;
   align-items: flex-start;
   height: auto;
-  min-height: 35px;
+  min-height: 85px;
   background-color: var(--grey2);
   font-size: 0.7em;
 }
@@ -17,6 +17,39 @@
   gap: 12px;
   align-items: center;
   margin: 0 0 0 10px;
+}
+
+.highlightTitle {
+  color: var(--grey5);
+  text-align: left;
+  border-bottom: 1px solid var(--grey3);
+  padding: 0 0 5px 5px;
+}
+
+.highlightWrapper {
+  border: 1px solid var(--grey3);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 5px;
+  font-family: var(--font-mono);
+}
+
+.highlightTable {
+  margin: 0;
+  color: var(--grey5);
+  display: flex;
+  flex-direction: row;
+}
+
+.highlightCell {
+  padding: 0 15px 0 0;
+  border: none;
+}
+
+.highlightCell:last-child {
+  padding-right: 0;
 }
 
 .checkboxLabel {

@@ -13,15 +13,21 @@ const HighlightData: FunctionComponent = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showLayoutTest, setShowLayoutTest] = useState(false);
 
-  // Define the available content types for highlighting
-  const contentTypes = [
-    { key: "comm", label: "Comm" },
-    { key: "vvComm", label: "Comm (visiting vehicle)" },
-    { key: "video", label: "Video" },
-    { key: "eva", label: "EVA (spacewalk)" },
-    { key: "blog", label: "Articles" },
-    { key: "earthPhotos", label: "Earth Photos" },
-    { key: "flickrPhotos", label: "Mission Photos" },
+  // Define the available content types for highlighting, grouped by category
+  const contentTypeGroups = [
+    [
+      { key: "comm", label: "Comm" },
+      { key: "vvComm", label: "Comm (visiting vehicle)" },
+    ],
+    [
+      { key: "earthPhotos", label: "Earth Photos" },
+      { key: "flickrPhotos", label: "Mission Photos" },
+    ],
+    [
+      { key: "video", label: "Video" },
+      { key: "blog", label: "Articles" },
+    ],
+    [{ key: "eva", label: "EVA (spacewalk)" }],
   ];
 
   // Check if any search highlights are active
@@ -41,17 +47,25 @@ const HighlightData: FunctionComponent = () => {
   return (
     <div className={styles.searchContainer}>
       <div className={styles.searchItems}>
-        <div>Days with (all):</div>
-        {contentTypes.map((contentType) => (
-          <label key={contentType.key} className={styles.checkboxLabel}>
-            <input
-              type="checkbox"
-              checked={contentHighlights.includes(contentType.key)}
-              onChange={() => toggleContentHighlight(contentType.key)}
-            />
-            {contentType.label}
-          </label>
-        ))}
+        <div className={styles.highlightWrapper}>
+          <div className={styles.highlightTitle}>Highlight dates with data types:</div>
+          <div className={styles.highlightTable}>
+            {contentTypeGroups.map((group, groupIndex) => (
+              <div key={groupIndex} className={styles.highlightCell}>
+                {group.map((contentType) => (
+                  <label key={contentType.key} className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={contentHighlights.includes(contentType.key)}
+                      onChange={() => toggleContentHighlight(contentType.key)}
+                    />
+                    {contentType.label}
+                  </label>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
         <div className={styles.buttonWrapper}>
           <IconButton
             icon={faMagnifyingGlass}
