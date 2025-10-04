@@ -1,5 +1,3 @@
-/* Combined styles from searchCrew and searchExpedition with added tab functionality */
-
 .searchContainer {
   width: 100%;
 }
@@ -28,33 +26,6 @@
   display: flex;
   margin-bottom: 8px;
   border-bottom: 1px solid #4a5568;
-}
-
-.tab {
-  flex: 1;
-  padding: 8px 16px;
-  background: none;
-  border: none;
-  color: #888888;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  border-bottom: 2px solid transparent;
-}
-
-.tab:first-of-type {
-  border-right: 1px solid #4a5568;
-}
-
-.tab:hover {
-  color: white;
-  background-color: rgb(255 255 255 / 5%);
-}
-
-.activeTab {
-  color: white !important;
-  border-bottom-color: #007acc !important;
 }
 
 .clearAllButton {
@@ -157,12 +128,6 @@
 .listItem.selected {
   font-weight: 500;
   color: white;
-}
-
-/* Crew-specific styles */
-.crewItem.selected {
-  background-color: var(--crewhighlight);
-  color: black !important;
 }
 
 /* Expedition-specific styles */

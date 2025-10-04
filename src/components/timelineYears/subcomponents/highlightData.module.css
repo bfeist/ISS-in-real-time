@@ -1,22 +1,19 @@
-.searchContainer {
+.highlightContainer {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
   height: auto;
   min-height: 85px;
   background-color: var(--grey2);
   font-size: 0.7em;
 }
 
-.searchItems {
-  flex: 1;
+.highlightItems {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
   margin: 0 0 0 10px;
+  padding: 10px 0;
 }
 
 .highlightTitle {
@@ -44,7 +41,7 @@
 }
 
 .highlightCell {
-  padding: 0 15px 0 0;
+  padding: 0 10px 0 0;
   border: none;
 }
 
@@ -93,7 +90,13 @@
 .buttonWrapper {
   position: relative;
   display: inline-block;
-  margin-left: 10px;
+}
+
+.doubleButtonWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
 }
 
 .overlayPanel {
@@ -106,7 +109,7 @@
   padding: 10px;
   z-index: 10;
   width: auto;
-  min-width: 400px;
+  min-width: 300px;
   max-width: 600px;
   min-height: 200px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 15%);

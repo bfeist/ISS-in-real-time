@@ -1,5 +1,6 @@
 import { FunctionComponent, useState } from "react";
-import Search from "./search";
+import SearchCrew from "./searchCrew";
+import SearchExpeditions from "./searchExpeditions";
 import LayoutTestComponent from "./layoutTestComponent";
 import styles from "./highlightData.module.css";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
@@ -10,14 +11,15 @@ import { faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 const HighlightData: FunctionComponent = () => {
   const { contentHighlights, toggleContentHighlight } = useStateContentHighlights();
   const { selectedCrewMember, selectedExpedition, clearAllSearchHighlights } = useStateSearch();
-  const [showSearch, setShowSearch] = useState(false);
+  const [showSearchCrew, setShowSearchCrew] = useState(false);
+  const [showSearchExpeditions, setShowSearchExpeditions] = useState(false);
   const [showLayoutTest, setShowLayoutTest] = useState(false);
 
   // Define the available content types for highlighting, grouped by category
   const contentTypeGroups = [
     [
       { key: "comm", label: "Comm" },
-      { key: "vvComm", label: "Comm (visiting vehicle)" },
+      { key: "vvComm", label: "Spacecraft" },
     ],
     [
       { key: "earthPhotos", label: "Earth Photos" },
@@ -27,7 +29,7 @@ const HighlightData: FunctionComponent = () => {
       { key: "video", label: "Video" },
       { key: "blog", label: "Articles" },
     ],
-    [{ key: "eva", label: "EVA (spacewalk)" }],
+    [{ key: "eva", label: "EVA" }],
   ];
 
   // Check if any search highlights are active
@@ -45,8 +47,8 @@ const HighlightData: FunctionComponent = () => {
   };
 
   return (
-    <div className={styles.searchContainer}>
-      <div className={styles.searchItems}>
+    <div className={styles.highlightContainer}>
+      <div className={styles.highlightItems}>
         <div className={styles.highlightWrapper}>
           <div className={styles.highlightTitle}>Highlight dates with data types:</div>
           <div className={styles.highlightTable}>
@@ -66,17 +68,39 @@ const HighlightData: FunctionComponent = () => {
             ))}
           </div>
         </div>
-        <div className={styles.buttonWrapper}>
-          <IconButton
-            icon={faMagnifyingGlass}
-            onClick={() => setShowSearch(!showSearch)}
-            label="Crew"
-          />
-          {showSearch && (
-            <div className={styles.overlayPanel}>
-              <Search onClose={() => setShowSearch(false)} />
-            </div>
-          )}
+        <div className={styles.doubleButtonWrapper}>
+          <div className={styles.buttonWrapper}>
+            <IconButton
+              icon={faMagnifyingGlass}
+              onClick={() => {
+                const newShow = !showSearchCrew;
+                setShowSearchCrew(newShow);
+                if (newShow) setShowSearchExpeditions(false);
+              }}
+              label="Crew"
+            />
+            {showSearchCrew && (
+              <div className={styles.overlayPanel}>
+                <SearchCrew onClose={() => setShowSearchCrew(false)} />
+              </div>
+            )}
+          </div>
+          <div className={styles.buttonWrapper}>
+            <IconButton
+              icon={faMagnifyingGlass}
+              onClick={() => {
+                const newShow = !showSearchExpeditions;
+                setShowSearchExpeditions(newShow);
+                if (newShow) setShowSearchCrew(false);
+              }}
+              label="Expeditions"
+            />
+            {showSearchExpeditions && (
+              <div className={styles.overlayPanel}>
+                <SearchExpeditions onClose={() => setShowSearchExpeditions(false)} />
+              </div>
+            )}
+          </div>
         </div>
         {hasActiveSearchHighlights && (
           <div className={styles.searchIndicator}>
@@ -87,7 +111,8 @@ const HighlightData: FunctionComponent = () => {
               className={styles.clearSearchButton}
               onClick={() => {
                 clearAllSearchHighlights();
-                setShowSearch(false);
+                setShowSearchCrew(false);
+                setShowSearchExpeditions(false);
               }}
               title="Clear search highlights"
             >
