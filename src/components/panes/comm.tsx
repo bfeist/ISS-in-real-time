@@ -427,7 +427,7 @@ const Comm: FunctionComponent = () => {
               aria-label={`Toggle Space-to-ground ${channelNum} ${
                 !isChannelAvailable ? "(no data available)" : isChannelVisible ? "off" : "on"
               }`}
-              data-tooltip-id="source-button-tooltip"
+              data-tooltip-id="issirt-tooltip"
               data-tooltip-content={channelToggleTooltip}
               data-tooltip-place="bottom"
             >
@@ -542,7 +542,7 @@ const Comm: FunctionComponent = () => {
             scrollToCurrentCommItem();
           }}
           type="button"
-          data-tooltip-id="source-button-tooltip"
+          data-tooltip-id="issirt-tooltip"
           data-tooltip-content={"Re-enable automatic scrolling"}
           data-tooltip-place="left"
         >

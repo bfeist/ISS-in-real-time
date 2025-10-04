@@ -78,7 +78,7 @@ const HomePage: FunctionComponent = (): JSX.Element => {
         </div>
       </div>
       <Tooltip
-        id="source-button-tooltip"
+        id="issirt-tooltip"
         className="tooltip-style"
         delayShow={500}
         closeEvents={tooltipCloseEvents}

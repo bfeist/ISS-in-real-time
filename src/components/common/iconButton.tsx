@@ -50,7 +50,7 @@ const IconButton: FunctionComponent<IconButtonProps> = ({
       aria-label={label}
       disabled={!enabled}
       onClick={onClick}
-      data-tooltip-id={tooltipContent ? "source-button-tooltip" : undefined}
+      data-tooltip-id={tooltipContent ? "issirt-tooltip" : undefined}
       data-tooltip-content={tooltipContent}
       data-tooltip-place={tooltipPlace}
     >

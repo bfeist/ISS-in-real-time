@@ -639,7 +639,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
                     src={getImageUrl(item, "small")}
                     alt={item.nasaId}
                     loading="lazy"
-                    data-tooltip-id="source-button-tooltip"
+                    data-tooltip-id="issirt-tooltip"
                     data-tooltip-html={tooltipHtml}
                     data-tooltip-place="top"
                   />
@@ -657,7 +657,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
           className={styles.autoScrollButton}
           onClick={() => onAutoScrollToggle(true)}
           type="button"
-          data-tooltip-id="source-button-tooltip"
+          data-tooltip-id="issirt-tooltip"
           data-tooltip-content="Re-enable automatic scrolling"
           data-tooltip-place="left"
         >

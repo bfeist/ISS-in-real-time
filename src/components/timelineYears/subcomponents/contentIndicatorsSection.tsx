@@ -55,7 +55,7 @@ const ContentIndicatorsSection: FunctionComponent<ContentIndicatorsSectionProps>
   return (
     <div
       className={styles.contentIndicatorsList}
-      data-tooltip-id="source-button-tooltip"
+      data-tooltip-id="issirt-tooltip"
       data-tooltip-content={"This date's available content types"}
       data-tooltip-place="bottom"
     >
