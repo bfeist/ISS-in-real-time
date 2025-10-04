@@ -17,21 +17,15 @@ const HighlightData: FunctionComponent<{
   const [showSearchExpeditions, setShowSearchExpeditions] = useState(false);
   const [showLayoutTest, setShowLayoutTest] = useState(false);
 
-  // Define the available content types for highlighting, grouped by category
-  const contentTypeGroups = [
-    [
-      { key: "comm", label: "Comm" },
-      { key: "vvComm", label: "Spacecraft" },
-    ],
-    [
-      { key: "earthPhotos", label: "Earth Photos" },
-      { key: "flickrPhotos", label: "Mission Photos" },
-    ],
-    [
-      { key: "video", label: "Video" },
-      { key: "blog", label: "Articles" },
-    ],
-    [{ key: "eva", label: "EVA" }],
+  // Define the available content types for highlighting
+  const contentTypes = [
+    { key: "comm", label: "Comm" },
+    { key: "vvComm", label: "Spacecraft" },
+    { key: "earthPhotos", label: "Earth Photos" },
+    { key: "flickrPhotos", label: "Mission Photos" },
+    { key: "video", label: "Video" },
+    { key: "blog", label: "Articles" },
+    { key: "eva", label: "EVA" },
   ];
 
   // Check if any search highlights are active
@@ -62,28 +56,27 @@ const HighlightData: FunctionComponent<{
     >
       <div className={styles.highlightItems}>
         <div className={styles.highlightTableWrapper}>
-          <div className={styles.leftColumn}>
-            <div className={styles.highlightTitle}>Highlight dates with data types:</div>
-            <div className={styles.highlightTable}>
-              {contentTypeGroups.map((group, groupIndex) => (
-                <div key={groupIndex} className={styles.highlightCell}>
-                  {group.map((contentType) => (
-                    <label key={contentType.key} className={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={contentHighlights.includes(contentType.key)}
-                        onChange={() => toggleContentHighlight(contentType.key)}
-                      />
-                      {contentType.label}
-                    </label>
-                  ))}
-                </div>
+          {/* Column 1: Highlight Data */}
+          <div className={styles.column}>
+            <div className={styles.columnHeader}>Highlight Data</div>
+            <div className={styles.columnBody}>
+              {contentTypes.map((contentType) => (
+                <label key={contentType.key} className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={contentHighlights.includes(contentType.key)}
+                    onChange={() => toggleContentHighlight(contentType.key)}
+                  />
+                  {contentType.label}
+                </label>
               ))}
             </div>
           </div>
-          <div className={styles.rightColumn}>
-            <div className={styles.searchTitle}>Search</div>
-            <div className={styles.doubleButtonWrapper}>
+
+          {/* Column 2: Highlight Crew */}
+          <div className={styles.column}>
+            <div className={styles.columnHeader}>Highlight Crew</div>
+            <div className={styles.columnBody}>
               <div className={styles.buttonWrapper}>
                 <IconButton
                   icon={faMagnifyingGlass}
@@ -97,6 +90,18 @@ const HighlightData: FunctionComponent<{
                   className={styles.toggleButton}
                 />
               </div>
+              {showSearchCrew && (
+                <div className={styles.overlayPanelSearch}>
+                  <HighlightCrew onClose={() => setShowSearchCrew(false)} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Column 3: Highlight Expeditions */}
+          <div className={styles.column}>
+            <div className={styles.columnHeader}>Highlight Expeditions</div>
+            <div className={styles.columnBody}>
               <div className={styles.buttonWrapper}>
                 <IconButton
                   icon={faMagnifyingGlass}
@@ -110,19 +115,15 @@ const HighlightData: FunctionComponent<{
                   className={styles.toggleButton}
                 />
               </div>
+              {showSearchExpeditions && (
+                <div className={styles.overlayPanelSearch}>
+                  <HighlightExpeditions onClose={() => setShowSearchExpeditions(false)} />
+                </div>
+              )}
             </div>
           </div>
-          {showSearchCrew && (
-            <div className={styles.overlayPanelSearch}>
-              <HighlightCrew onClose={() => setShowSearchCrew(false)} />
-            </div>
-          )}
-          {showSearchExpeditions && (
-            <div className={styles.overlayPanelSearch}>
-              <HighlightExpeditions onClose={() => setShowSearchExpeditions(false)} />
-            </div>
-          )}
         </div>
+
         {hasActiveSearchHighlights && (
           <div className={styles.searchIndicator}>
             <span className={styles.searchIndicatorLabel}>

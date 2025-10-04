@@ -19,77 +19,61 @@
   padding: 10px 0;
 }
 
-.highlightTitle {
-  color: var(--grey5);
-  text-align: left;
-  border-bottom: 1px solid var(--headerbutton);
-  padding: 0 0 5px 5px;
-}
-
-.searchTitle {
-  color: var(--grey5);
-  text-align: left;
-  border-bottom: 1px solid var(--headerbutton);
-  padding: 0 0 5px 5px;
-}
-
-.leftColumn {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.rightColumn {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
 .highlightTableWrapper {
-  border: 1px solid var(--headerbutton);
-  border-radius: var(--radius);
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
-  gap: 20px;
-  padding: 5px;
-  font-family: var(--font-mono);
+  gap: 0;
   position: relative;
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+  overflow: hidden;
 }
 
-.highlightTable {
-  margin: 0;
-  color: var(--grey5);
+.column {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+  flex: 1;
+  min-width: 200px;
 }
 
-.highlightCell {
-  padding: 0 10px 0 0;
-  border: none;
+.column:not(:last-child) {
+  border-right: 1px solid var(--grey3);
 }
 
-.highlightCell:last-child {
-  padding-right: 0;
+.columnHeader {
+  color: var(--highlight);
+  text-align: left;
+  padding: 8px;
+  background-color: var(--grey2);
+  border-bottom: 1px solid var(--grey3);
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.columnBody {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .checkboxLabel {
   display: flex;
   align-items: center;
-  margin-bottom: 0;
   cursor: pointer;
   white-space: nowrap;
+  font-size: 0.9rem;
 }
 
 .checkboxLabel input[type="checkbox"] {
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border: 1px solid #4a5568;
   border-radius: 2px;
   background-color: transparent;
   cursor: pointer;
-  margin-right: 4px;
+  margin-right: 6px;
 }
 
 .checkboxLabel input[type="checkbox"]:checked {
@@ -114,20 +98,12 @@
 .buttonWrapper {
   position: relative;
   display: inline-block;
-  margin-left: auto;
 }
 
 .layoutTestWrapper {
   position: absolute;
   top: 10px;
   right: 10px;
-}
-
-.doubleButtonWrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  height: 100%;
 }
 
 .overlayPanelLayoutTest {
