@@ -50,13 +50,6 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
 
           <p>This multimedia project consists entirely of original historical mission material.</p>
         </div>
-        <DayCounter />
-        <StatsCallout
-          stats={stats}
-          isLoading={isLoading}
-          error={error}
-          onShowStats={() => setShowStats(true)}
-        />
         <div
           className={styles.exploreButton}
           onClick={() => {
@@ -72,6 +65,20 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
           }}
         >
           Explore
+        </div>
+        <DayCounter />
+        <StatsCallout
+          stats={stats}
+          isLoading={isLoading}
+          error={error}
+          onShowStats={() => setShowStats(true)}
+        />
+
+        <div className={styles.forumCallout}>
+          Visit the{" "}
+          <a href="https://groups.google.com/g/issirt" target="_blank" rel="noopener noreferrer">
+            ISSIRT Discussion Forum
+          </a>
         </div>
       </div>
       <StatsModal isOpen={showStats} onClose={() => setShowStats(false)} />

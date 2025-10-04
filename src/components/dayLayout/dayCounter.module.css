@@ -55,12 +55,16 @@
 
 @media (width <= 768px) {
   .container {
+    font-size: 0.8em;
+  }
+
+  .title {
     font-size: 0.9em;
   }
 
   .timeDisplay {
-    font-size: 1.2em;
-    gap: 15px;
+    font-size: 0.9em;
+    gap: 10px;
   }
 
   .timeValue {

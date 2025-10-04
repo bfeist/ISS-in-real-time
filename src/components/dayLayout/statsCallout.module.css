@@ -14,13 +14,6 @@
   backdrop-filter: blur(15px);
 }
 
-/* // media call to remove minimum width when < 600px */
-@media (width <= 520px) {
-  .siteStats {
-    min-width: auto;
-  }
-}
-
 .siteStats h3 {
   margin: 0 0 5px 0;
   font-size: 1.1rem;
@@ -40,4 +33,15 @@
   text-decoration: underline;
   cursor: pointer;
   user-select: none;
+}
+
+@media (width <= 520px) {
+  .siteStats {
+    min-width: auto;
+    font-size: 0.8em;
+  }
+
+  .siteStats h3 {
+    font-size: 0.9rem;
+  }
 }

@@ -101,3 +101,35 @@ h2 {
   transform: translateZ(0);
   backface-visibility: hidden;
 }
+
+.forumCallout {
+  color: var(--grey45);
+  margin-top: 20px;
+  padding: 15px;
+  background: rgb(0 0 0/ 70%);
+  border-radius: var(--panel-radius);
+}
+
+.forumCallout a {
+  color: var(--grey45);
+  text-decoration: underline;
+  cursor: pointer;
+  user-select: none;
+}
+
+@media (width <= 520px) {
+  .container {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  .pageContent {
+    height: auto;
+  }
+
+  .headerContent {
+    max-width: 100%;
+    font-size: 0.9em;
+  }
+}
