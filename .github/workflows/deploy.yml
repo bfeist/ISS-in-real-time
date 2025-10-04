@@ -56,10 +56,11 @@ jobs:
         env:
           SSH_AUTH_SOCK: /tmp/ssh-agent.sock
           DREAMHOST_PRIVATE_KEY: "${{ secrets.DREAMHOST_PRIVATE_KEY }}"
-          DREAMHOST_HOST: "${{ secrets.DREAMHOST_HOST }}"
+          DREAMHOST_HOST: "${{ vars.DREAMHOST_HOST }}"
+          DREAMHOST_PATH: "${{ vars.DREAMHOST_PATH }}"
+          DREAMHOST_PATH_DEV: "${{ vars.DREAMHOST_PATH_DEV }}"
           DREAMHOST_USER: "${{ secrets.DREAMHOST_USER }}"
-          DREAMHOST_PATH: "${{ secrets.DREAMHOST_PATH }}"
-          DREAMHOST_PATH_DEV: "${{ secrets.DREAMHOST_PATH_DEV }}"
+
         run: |
           mkdir -p ~/.ssh
           echo "$DREAMHOST_PRIVATE_KEY" > ~/.ssh/id_rsa
