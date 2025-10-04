@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  overflow-x: auto;
+  overflow-x: scroll;
   overflow-y: visible;
   margin-top: 4px;
   gap: 4px;

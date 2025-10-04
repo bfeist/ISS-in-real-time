@@ -1,4 +1,4 @@
-import { FunctionComponent, useState } from "react";
+import { FunctionComponent, useState, useRef } from "react";
 import styles from "./articles.module.css";
 import {
   useDateActivitySummary,
@@ -25,6 +25,7 @@ const Blog: FunctionComponent = () => {
   const timelineUrl = useDateTimelineUrl(selectedDate);
 
   const [numPages, setNumPages] = useState<number | null>(null);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
 
   const baseStaticUrl = import.meta.env.VITE_BASE_STATIC_URL;
   const [year, month, day] = selectedDate.split("-");
@@ -158,13 +159,14 @@ const Blog: FunctionComponent = () => {
                   e.stopPropagation();
                   window.open(timelineUrl, "_blank");
                 }}
-                variant="iconOnly"
+                variant="withText"
                 tooltip="Open station timeline PDF"
+                style={{ width: "85px" }}
               >
-                <FontAwesomeIcon icon={faExternalLinkAlt} />
+                {"Open PDF"} <FontAwesomeIcon icon={faExternalLinkAlt} />
               </SourceButton>
             </div>
-            <div className={styles.pdfContainer}>
+            <div className={styles.pdfContainer} ref={pdfContainerRef}>
               <div className={styles.pdfDarkMode}>
                 <Document
                   file={timelineUrl}
@@ -179,7 +181,7 @@ const Blog: FunctionComponent = () => {
                       renderTextLayer={true}
                       renderAnnotationLayer={true}
                       className={styles.pdfPage}
-                      width={850}
+                      width={Math.min(850, pdfContainerRef.current?.clientWidth || 850)}
                     />
                   ))}
                 </Document>

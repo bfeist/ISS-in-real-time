@@ -144,18 +144,24 @@
   background-color: var(--grey1);
   border-radius: 4px;
   margin-top: 10px;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: visible;
   max-width: 100%;
 }
 
 .pdfDarkMode {
   filter: invert(0.85) hue-rotate(180deg) contrast(0.9) brightness(1.25);
+  max-width: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .pdfPage {
   box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
   margin-bottom: 10px;
+  max-width: 100%;
 }
 
 .pdfLoading,

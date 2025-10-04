@@ -1,0 +1,42 @@
+.siteStats {
+  margin-top: 20px;
+  color: var(--grey5);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  font-family: var(--font-sans);
+  text-align: left;
+  padding: 15px;
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+  width: fit-content;
+  min-width: 440px;
+  background: rgb(41 43 58 / 70%);
+  backdrop-filter: blur(15px);
+}
+
+/* // media call to remove minimum width when < 600px */
+@media (width <= 520px) {
+  .siteStats {
+    min-width: auto;
+  }
+}
+
+.siteStats h3 {
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.siteStats ul {
+  margin: 0 0 0 20px;
+  padding: 0;
+  color: var(--grey45);
+}
+
+.statsLink {
+  display: inline;
+  margin-left: 20px;
+  color: var(--grey5);
+  text-decoration: underline;
+  cursor: pointer;
+}

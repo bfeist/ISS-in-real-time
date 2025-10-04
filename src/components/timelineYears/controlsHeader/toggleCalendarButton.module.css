@@ -1,6 +1,6 @@
 .toggleCalendarButton {
   position: absolute;
-  bottom: -19px;
+  bottom: -21px;
   left: 50%;
   transform: translateX(-50%);
   cursor: pointer;
@@ -15,9 +15,9 @@
   align-items: center;
   gap: 5px;
   z-index: 5;
-  transition: filter 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .toggleCalendarButton:hover {
-  filter: drop-shadow(0 1px 0 var(--grey3)) brightness(1.25);
+  background-color: var(--grey3);
 }

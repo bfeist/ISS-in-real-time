@@ -20,6 +20,7 @@
 /* Variant for buttons with text and icon */
 .withText {
   gap: 4px;
+  padding: 0;
   width: 70px;
   height: 20px;
 }

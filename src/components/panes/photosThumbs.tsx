@@ -227,6 +227,15 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       return;
     }
 
+    // Check if current windowedPhotos are still valid (all photos exist in current photoItemsCombined)
+    const windowIsValid = windowedPhotos.every((photo) =>
+      photoItemsCombined.some((p) => p.nasaId === photo.nasaId)
+    );
+
+    if (!windowIsValid) {
+      resetWindowState();
+    }
+
     const hasMostRecentInSet = mostRecentImage
       ? photoItemsCombined.some((photo) => photo.nasaId === mostRecentImage.nasaId)
       : false;
@@ -270,7 +279,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   }, [
     photoItemsCombined,
     mostRecentImage,
-    windowedPhotos.length,
+    windowedPhotos,
     windowStartIndex,
     windowEndIndex,
     calculateInitialWindow,

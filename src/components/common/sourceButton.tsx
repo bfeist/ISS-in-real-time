@@ -7,6 +7,7 @@ interface SourceButtonProps {
   variant?: "withText" | "iconOnly";
   children: React.ReactNode;
   tooltip?: string;
+  style?: React.CSSProperties;
 }
 
 const SourceButton: FunctionComponent<SourceButtonProps> = ({
@@ -15,6 +16,7 @@ const SourceButton: FunctionComponent<SourceButtonProps> = ({
   variant = "iconOnly",
   children,
   tooltip = "View source",
+  style,
 }) => {
   const className = `${styles.sourceButton} ${
     variant === "withText" ? styles.withText : styles.iconOnly
@@ -28,6 +30,7 @@ const SourceButton: FunctionComponent<SourceButtonProps> = ({
       data-tooltip-id={tooltip ? "source-button-tooltip" : undefined}
       data-tooltip-content={tooltip}
       data-tooltip-place="left"
+      style={style}
     >
       {children}
     </button>

@@ -7,7 +7,15 @@
   border: 1px solid var(--grey3);
   border-radius: var(--panel-radius);
   width: fit-content;
-  background-color: var(--grey2);
+  min-width: 440px;
+  background: rgb(41 43 58 / 70%);
+  backdrop-filter: blur(15px);
+}
+
+@media (width <= 520px) {
+  .dayCounterContainer {
+    min-width: auto;
+  }
 }
 
 .title {
