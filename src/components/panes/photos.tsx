@@ -6,7 +6,7 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { useStateDayNight } from "store/hooks/useStateDayNight";
 import { appSecondsFromDateTime } from "utils/time";
-import { generateEarthPhotoSourceUrl } from "utils/earthPhotos";
+import { generateEarthPhotoSourceUrl } from "utils/photosEarth";
 import { getSunLightingAtTime } from "utils/day-night";
 import ClockInterval from "./clockInterval";
 import PhotoToggle from "./photoToggle";

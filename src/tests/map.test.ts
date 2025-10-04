@@ -17,6 +17,4 @@ describe("findClosestEphemeraItem", () => {
     const result = findClosestEphemeraItem(dateTime, ephemeraItems);
     expect(result).toEqual({ epoch: "2023-01-01T11:00:00Z", tle_line1: "", tle_line2: "" });
   });
-
-  // ...additional test cases...
 });

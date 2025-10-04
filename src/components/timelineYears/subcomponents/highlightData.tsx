@@ -56,8 +56,7 @@ const HighlightData: FunctionComponent = () => {
           <IconButton
             icon={faMagnifyingGlass}
             onClick={() => setShowSearch(!showSearch)}
-            aria-label="Search"
-            title="Search"
+            label="Crew"
           />
           {showSearch && (
             <div className={styles.overlayPanel}>

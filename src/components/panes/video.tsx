@@ -103,7 +103,7 @@ const VideoComponent: FunctionComponent = () => {
     return (
       <>
         <ClockInterval setAppSeconds={setAppSeconds} />
-        <VideoNone />
+        <VideoNone appSeconds={appSeconds} />
       </>
     );
   }
@@ -111,7 +111,7 @@ const VideoComponent: FunctionComponent = () => {
   return (
     <>
       <ClockInterval setAppSeconds={setAppSeconds} />
-      <VideoNone />
+      <VideoNone appSeconds={appSeconds} />
     </>
   );
 };

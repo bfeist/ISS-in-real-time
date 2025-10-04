@@ -23,31 +23,6 @@
   font-weight: 400;
 }
 
-.closeButton {
-  background: transparent;
-  border: 1px solid var(--grey5);
-  font-size: 18px;
-  cursor: pointer;
-  color: var(--grey5);
-  padding: 4px;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius);
-  transition: all 0.2s ease;
-}
-
-.closeButton:hover {
-  background-color: var(--grey3);
-}
-
-.closeButton:focus-visible {
-  box-shadow: 0 0 0 2px var(--highlight);
-  outline: none;
-}
-
 /* Tab Navigation */
 .tabContainer {
   display: flex;

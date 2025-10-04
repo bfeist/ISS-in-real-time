@@ -2,8 +2,7 @@ import React, { useState, useEffect, FunctionComponent, useMemo } from "react";
 import styles from "./search.module.css";
 import { useStateSearch } from "store/hooks/useStateSearch";
 import { useGeneralExpeditionInfo, useGeneralCrewArrDep } from "api/useGeneralData";
-import IconButton from "../../common/iconButton";
-import { faTimes } from "@fortawesome/free-solid-svg-icons";
+import CloseButton from "components/common/closeButton";
 
 type TabType = "crew" | "expedition";
 
@@ -188,16 +187,12 @@ const Search: FunctionComponent<SearchProps> = ({ onClose }) => {
       {/* Header with Close Button */}
       {onClose && (
         <div className={styles.header}>
-          <h3>Search</h3>
-          <IconButton
-            icon={faTimes}
+          <h3>Highlight Crew / Expeditions</h3>
+          <CloseButton
             onClick={(e) => {
               e.stopPropagation();
               onClose();
             }}
-            className={styles.closeButton}
-            aria-label="Close search"
-            style={{ width: "30px", height: "30px" }}
           />
         </div>
       )}

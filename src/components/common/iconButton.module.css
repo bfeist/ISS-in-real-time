@@ -37,6 +37,17 @@
 .iconButton:disabled {
   cursor: not-allowed;
   transform: none;
+  opacity: 0.5;
+  color: var(--grey4);
+  border-color: var(--grey4);
+}
+
+.iconButton:disabled:hover {
+  background-color: transparent;
+}
+
+.selected {
+  background-color: rgb(255 255 255 / 10%);
 }
 
 .icon {

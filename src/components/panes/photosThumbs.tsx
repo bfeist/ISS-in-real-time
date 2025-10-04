@@ -60,6 +60,11 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   const userScrollIntentRef = useRef(false);
   const previousStartStopTimestampRef = useRef<string | null>(null);
 
+  // Window management function refs to avoid circular dependencies
+  const calculateInitialWindowRef = useRef<(centerPhoto: PhotoItem | null) => void>();
+  const expandWindowStartRef = useRef<() => void>();
+  const expandWindowEndRef = useRef<() => void>();
+
   // Auto-scroll management
   const disableAutoScroll = useCallback(() => {
     // Don't disable auto-scroll during programmatic scrolling
@@ -71,8 +76,9 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   }, [isAutoScrollEnabled, onDisableAutoScroll]);
 
   // === WINDOW MANAGEMENT ===
-  const calculateInitialWindow = useCallback(
-    (centerPhoto: PhotoItem | null) => {
+  // Initialize window management functions in useEffect to break circular dependencies
+  useEffect(() => {
+    calculateInitialWindowRef.current = (centerPhoto: PhotoItem | null) => {
       if (!centerPhoto || photoItemsCombined.length === 0) {
         resetWindowState();
         return;
@@ -103,123 +109,114 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
 
       setWindowStartIndex((prev) => (prev === start ? prev : start));
       setWindowEndIndex((prev) => (prev === end - 1 ? prev : end - 1));
-    },
-    [photoItemsCombined, resetWindowState]
-  );
+    };
 
-  const expandWindowStart = useCallback(() => {
-    if (windowStartIndex <= 0) return; // Already at beginning of full photo set
+    expandWindowStartRef.current = () => {
+      if (windowStartIndex <= 0) return;
 
-    const container = thumbnailsContainerRef.current;
-    if (!container) return;
+      const container = thumbnailsContainerRef.current;
+      if (!container) return;
 
-    const newStart = Math.max(0, windowStartIndex - 20);
-    const additionalPhotos = photoItemsCombined.slice(newStart, windowStartIndex);
-    if (additionalPhotos.length === 0) return;
+      const newStart = Math.max(0, windowStartIndex - 20);
+      const additionalPhotos = photoItemsCombined.slice(newStart, windowStartIndex);
+      if (additionalPhotos.length === 0) return;
 
-    // Mark as programmatic to prevent scroll events from disabling auto-scroll
-    isProgrammaticScrollingRef.current = true;
+      isProgrammaticScrollingRef.current = true;
 
-    // Save current scroll position before adding photos
-    const currentScrollLeft = container.scrollLeft;
-    const currentScrollWidth = container.scrollWidth;
+      const currentScrollLeft = container.scrollLeft;
+      const currentScrollWidth = container.scrollWidth;
 
-    let shouldResetWindow = false;
-    let resetAnchor: PhotoItem | null = null;
+      let shouldResetWindow = false;
+      let resetAnchor: PhotoItem | null = null;
 
-    setWindowedPhotos((prev) => {
-      const newWindowedPhotos = [...additionalPhotos, ...prev];
+      setWindowedPhotos((prev) => {
+        const newWindowedPhotos = [...additionalPhotos, ...prev];
 
-      // If the number of photos exceeds 200, reset the view around a stable anchor
-      if (newWindowedPhotos.length > 200) {
-        shouldResetWindow = true;
-        resetAnchor =
-          mostRecentImage ??
-          prev[Math.max(0, Math.floor(prev.length / 2))] ??
-          newWindowedPhotos[Math.max(0, Math.floor(newWindowedPhotos.length / 2))] ??
-          null;
-        return prev;
+        if (newWindowedPhotos.length > 200) {
+          shouldResetWindow = true;
+          resetAnchor =
+            mostRecentImage ??
+            prev[Math.max(0, Math.floor(prev.length / 2))] ??
+            newWindowedPhotos[Math.max(0, Math.floor(newWindowedPhotos.length / 2))] ??
+            null;
+          return prev;
+        }
+
+        return newWindowedPhotos;
+      });
+
+      if (shouldResetWindow) {
+        if (resetAnchor) {
+          requestAnimationFrame(() => {
+            calculateInitialWindowRef.current?.(resetAnchor);
+            isProgrammaticScrollingRef.current = false;
+          });
+        } else {
+          isProgrammaticScrollingRef.current = false;
+        }
+        return;
       }
 
-      return newWindowedPhotos;
-    });
+      setWindowStartIndex(newStart);
 
-    if (shouldResetWindow) {
-      if (resetAnchor) {
+      requestAnimationFrame(() => {
+        const newScrollWidth = container.scrollWidth;
+        const scrollDiff = newScrollWidth - currentScrollWidth;
+        container.scrollLeft = currentScrollLeft + scrollDiff;
+
         requestAnimationFrame(() => {
-          calculateInitialWindow(resetAnchor);
           isProgrammaticScrollingRef.current = false;
         });
-      } else {
-        isProgrammaticScrollingRef.current = false;
+      });
+    };
+
+    expandWindowEndRef.current = () => {
+      if (windowEndIndex >= photoItemsCombined.length - 1) return;
+
+      const newEnd = Math.min(photoItemsCombined.length, windowEndIndex + 21);
+      const additionalPhotos = photoItemsCombined.slice(windowEndIndex + 1, newEnd);
+      if (additionalPhotos.length === 0) return;
+
+      isProgrammaticScrollingRef.current = true;
+
+      let shouldResetWindow = false;
+      let resetAnchor: PhotoItem | null = null;
+
+      setWindowedPhotos((prev) => {
+        const newWindowedPhotos = [...prev, ...additionalPhotos];
+
+        if (newWindowedPhotos.length > 200) {
+          shouldResetWindow = true;
+          resetAnchor =
+            mostRecentImage ??
+            prev[Math.max(0, Math.floor(prev.length / 2))] ??
+            additionalPhotos[Math.max(0, Math.floor(additionalPhotos.length / 2))] ??
+            null;
+          return prev;
+        }
+
+        return newWindowedPhotos;
+      });
+
+      if (shouldResetWindow) {
+        if (resetAnchor) {
+          requestAnimationFrame(() => {
+            calculateInitialWindowRef.current?.(resetAnchor);
+            isProgrammaticScrollingRef.current = false;
+          });
+        } else {
+          isProgrammaticScrollingRef.current = false;
+        }
+        return;
       }
-      return;
-    }
 
-    setWindowStartIndex(newStart);
+      setWindowEndIndex(newEnd - 1);
 
-    // Adjust scroll position after DOM update to maintain visual position
-    requestAnimationFrame(() => {
-      const newScrollWidth = container.scrollWidth;
-      const scrollDiff = newScrollWidth - currentScrollWidth;
-      container.scrollLeft = currentScrollLeft + scrollDiff;
-
-      // Reset flag after position adjustment
       requestAnimationFrame(() => {
         isProgrammaticScrollingRef.current = false;
       });
-    });
-  }, [windowStartIndex, photoItemsCombined, mostRecentImage, calculateInitialWindow]);
-
-  const expandWindowEnd = useCallback(() => {
-    if (windowEndIndex >= photoItemsCombined.length - 1) return; // Already at end of full photo set
-
-    const newEnd = Math.min(photoItemsCombined.length, windowEndIndex + 21);
-    const additionalPhotos = photoItemsCombined.slice(windowEndIndex + 1, newEnd);
-    if (additionalPhotos.length === 0) return;
-
-    // Mark as programmatic to prevent scroll events from disabling auto-scroll
-    isProgrammaticScrollingRef.current = true;
-
-    let shouldResetWindow = false;
-    let resetAnchor: PhotoItem | null = null;
-
-    setWindowedPhotos((prev) => {
-      const newWindowedPhotos = [...prev, ...additionalPhotos];
-
-      // If the number of photos exceeds 200, reset the view around a stable anchor
-      if (newWindowedPhotos.length > 200) {
-        shouldResetWindow = true;
-        resetAnchor =
-          mostRecentImage ??
-          prev[Math.max(0, Math.floor(prev.length / 2))] ??
-          additionalPhotos[Math.max(0, Math.floor(additionalPhotos.length / 2))] ??
-          null;
-        return prev;
-      }
-
-      return newWindowedPhotos;
-    });
-
-    if (shouldResetWindow) {
-      if (resetAnchor) {
-        requestAnimationFrame(() => {
-          calculateInitialWindow(resetAnchor);
-          isProgrammaticScrollingRef.current = false;
-        });
-      } else {
-        isProgrammaticScrollingRef.current = false;
-      }
-      return;
-    }
-
-    setWindowEndIndex(newEnd - 1);
-
-    // Reset flag after DOM updates
-    requestAnimationFrame(() => {
-      isProgrammaticScrollingRef.current = false;
-    });
-  }, [windowEndIndex, photoItemsCombined, mostRecentImage, calculateInitialWindow]);
+    };
+  }, [photoItemsCombined, mostRecentImage, windowStartIndex, windowEndIndex, resetWindowState]);
 
   useEffect(() => {
     if (photoItemsCombined.length === 0) {
@@ -254,14 +251,14 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     const windowIsEmpty = windowedPhotos.length === 0;
 
     if (windowIsEmpty || targetIndex === -1) {
-      calculateInitialWindow(targetPhoto);
+      calculateInitialWindowRef.current?.(targetPhoto);
       return;
     }
 
     const outsideWindow = targetIndex < windowStartIndex || targetIndex > windowEndIndex;
 
     if (outsideWindow) {
-      calculateInitialWindow(targetPhoto);
+      calculateInitialWindowRef.current?.(targetPhoto);
       return;
     }
 
@@ -272,9 +269,9 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       windowEndIndex < photoItemsCombined.length - 1;
 
     if (nearStart) {
-      expandWindowStart();
+      expandWindowStartRef.current?.();
     } else if (nearEnd) {
-      expandWindowEnd();
+      expandWindowEndRef.current?.();
     }
   }, [
     photoItemsCombined,
@@ -282,10 +279,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     windowedPhotos,
     windowStartIndex,
     windowEndIndex,
-    calculateInitialWindow,
     resetWindowState,
-    expandWindowStart,
-    expandWindowEnd,
   ]);
 
   // Clock jump detection - Reset window when user manually changes time
@@ -300,12 +294,12 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       previousTimestamp === null || currentTimestamp !== previousTimestamp;
 
     if (hasTimestampChanged) {
-      calculateInitialWindow(mostRecentImage);
+      calculateInitialWindowRef.current?.(mostRecentImage);
     }
 
     // Update the ref for next comparison
     previousStartStopTimestampRef.current = currentTimestamp;
-  }, [startStopTimestamp, mostRecentImage, calculateInitialWindow]);
+  }, [startStopTimestamp, mostRecentImage]);
 
   // === LAZY LOADING ===
   // Intersection Observer for lazy loading images
@@ -357,13 +351,13 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
       // Check if scrolled near start (within 3 thumbnails worth of space)
       const nearStart = scrollLeft < 180; // Roughly 3 thumbnails × 60px each
       if (nearStart && windowStartIndex > 0) {
-        expandWindowStart();
+        expandWindowStartRef.current?.();
       }
 
       // Check if scrolled near end (within 3 thumbnails worth of space)
       const nearEnd = scrollLeft + clientWidth > scrollWidth - 180;
       if (nearEnd && windowEndIndex < photoItemsCombined.length - 1) {
-        expandWindowEnd();
+        expandWindowEndRef.current?.();
       }
     };
 
@@ -440,8 +434,6 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   }, [
     windowedPhotos,
     disableAutoScroll,
-    expandWindowStart,
-    expandWindowEnd,
     windowStartIndex,
     windowEndIndex,
     photoItemsCombined.length,
@@ -495,7 +487,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
         return diff < closestDiff ? entry : closest;
       }, combinedEntries[0]);
 
-      calculateInitialWindow(targetEntry.photo);
+      calculateInitialWindowRef.current?.(targetEntry.photo);
       return;
     }
 
@@ -545,7 +537,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
           return diff < closestDiff ? entry : closest;
         }, combinedEntries[0]);
 
-        calculateInitialWindow(targetEntry.photo);
+        calculateInitialWindowRef.current?.(targetEntry.photo);
         return;
       }
     }
@@ -592,7 +584,6 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     lastAppSeconds,
     setClickedPhotoFilename,
     setLastAppSeconds,
-    calculateInitialWindow,
     photoItemsCombined,
     resetWindowState,
   ]);

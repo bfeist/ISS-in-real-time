@@ -28,3 +28,9 @@
   color: var(--grey5);
   text-align: center;
 }
+
+.buttons {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}

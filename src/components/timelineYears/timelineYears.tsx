@@ -4,7 +4,7 @@ import utc from "dayjs/plugin/utc";
 import styles from "./timelineYears.module.css";
 import { useStateToggle } from "../../store/hooks/useStateToggle";
 import { useStateHover } from "../../store/hooks/useStateHover";
-import SearchComponent from "./subcomponents/highlightData";
+import HighlightData from "./subcomponents/highlightData";
 import YearCanvas, { COLORS } from "./subcomponents/yearCanvas";
 import MegaYearOverlay, { getMegaDateFromCoordinates } from "./subcomponents/megaYearOverlay";
 
@@ -716,7 +716,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             })}
           </div>
         </div>
-        {showTimelineYears && <SearchComponent />}
+        {showTimelineYears && <HighlightData />}
 
         {/* Mega Overlay */}
         {megaOverlayVisible && megaOverlayYear && (

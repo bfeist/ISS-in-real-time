@@ -1,6 +1,6 @@
 import { getBaseStaticUrl } from "../utils/api";
 import { processCommCsv } from "../utils/comm";
-import { generateEarthPhotoUrls, markTimelapsePhotos } from "../utils/earthPhotos";
+import { generateEarthPhotoUrls, markTimelapsePhotos } from "../utils/photosEarth";
 
 // Individual fetch functions for each data type
 export async function fetchDataAvailabilities(): Promise<DataAvailability[]> {

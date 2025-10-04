@@ -5,7 +5,7 @@ import {
   generateEarthPhotoSourceUrl,
   detectTimelapseSequences,
   markTimelapsePhotos,
-} from "../utils/earthPhotos";
+} from "../utils/photosEarth";
 
 describe("Earth Photo URL utilities", () => {
   describe("inferEarthPhotoUrl", () => {

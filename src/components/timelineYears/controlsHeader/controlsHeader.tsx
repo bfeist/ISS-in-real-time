@@ -119,18 +119,15 @@ const ControlsHeader: FunctionComponent = () => {
                   icon={isRunning ? faPause : faPlay}
                   flash={!isRunning}
                   onClick={() => (isRunning ? stopClock() : startClock())}
-                  data-tooltip-id="source-button-tooltip"
-                  data-tooltip-content={isRunning ? "Pause Time" : "Play Time"}
-                  data-tooltip-place="top"
+                  tooltipContent={isRunning ? "Pause Time" : "Play Time"}
+                  tooltipPlace="top"
                 />
                 <IconButton
                   icon={faClose}
                   className={styles.closeDayButton}
                   onClick={() => setSelectedDate(null)}
-                  data-tooltip-id="source-button-tooltip"
-                  data-tooltip-content={"Close Day"}
-                  data-tooltip-place="top"
-                  aria-label="Close day"
+                  tooltipContent="Close Day"
+                  tooltipPlace="top"
                 />
               </div>
             </>
