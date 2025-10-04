@@ -28,6 +28,7 @@ const HomePage: FunctionComponent = (): JSX.Element => {
         mouseleave: true,
         blur: true,
         click: true,
+        clickoutside: true,
         touchstart: true, // This helps dismiss tooltips on mobile when tapping elsewhere
         escape: true,
       };
@@ -38,6 +39,7 @@ const HomePage: FunctionComponent = (): JSX.Element => {
         mouseleave: true,
         blur: true,
         click: true,
+        clickoutside: true,
       };
     }
   }, []);
