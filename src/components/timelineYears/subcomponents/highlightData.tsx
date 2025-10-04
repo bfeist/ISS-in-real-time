@@ -1,6 +1,6 @@
 import { FunctionComponent, useState } from "react";
-import SearchCrew from "./searchCrew";
-import SearchExpeditions from "./searchExpeditions";
+import HighlightCrew from "./highlightCrew";
+import HighlightExpeditions from "./highlightExpeditions";
 import LayoutTestComponent from "./layoutTestComponent";
 import styles from "./highlightData.module.css";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
@@ -114,12 +114,12 @@ const HighlightData: FunctionComponent<{
           </div>
           {showSearchCrew && (
             <div className={styles.overlayPanelSearch}>
-              <SearchCrew onClose={() => setShowSearchCrew(false)} />
+              <HighlightCrew onClose={() => setShowSearchCrew(false)} />
             </div>
           )}
           {showSearchExpeditions && (
             <div className={styles.overlayPanelSearch}>
-              <SearchExpeditions onClose={() => setShowSearchExpeditions(false)} />
+              <HighlightExpeditions onClose={() => setShowSearchExpeditions(false)} />
             </div>
           )}
         </div>
@@ -146,6 +146,7 @@ const HighlightData: FunctionComponent<{
           <button
             className={styles.toggleButton}
             onClick={() => setShowLayoutTest(!showLayoutTest)}
+            style={{ display: "none" }}
           >
             Layout Test
           </button>

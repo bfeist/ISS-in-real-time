@@ -1,7 +1,7 @@
 .highlightContainer {
   position: relative;
   height: auto;
-  min-height: 85px;
+  min-height: 250px;
   background-color: var(--grey2);
   font-size: 0.7em;
   display: flex;

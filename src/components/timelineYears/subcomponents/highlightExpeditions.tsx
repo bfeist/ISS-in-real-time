@@ -1,14 +1,14 @@
 import React, { useState, FunctionComponent, useMemo } from "react";
-import styles from "./searchExpeditions.module.css";
+import styles from "./highlightExpeditions.module.css";
 import { useStateSearch } from "store/hooks/useStateSearch";
 import { useGeneralExpeditionInfo } from "api/useGeneralData";
 import CloseButton from "components/common/closeButton";
 
-interface SearchExpeditionsProps {
+interface HighlightExpeditionsProps {
   onClose?: () => void;
 }
 
-const SearchExpeditions: FunctionComponent<SearchExpeditionsProps> = ({ onClose }) => {
+const HighlightExpeditions: FunctionComponent<HighlightExpeditionsProps> = ({ onClose }) => {
   const { data: expeditionInfo } = useGeneralExpeditionInfo();
   const { selectedExpedition, setSelectedExpedition } = useStateSearch();
 
@@ -181,4 +181,4 @@ const SearchExpeditions: FunctionComponent<SearchExpeditionsProps> = ({ onClose 
   );
 };
 
-export default SearchExpeditions;
+export default HighlightExpeditions;

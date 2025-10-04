@@ -1,14 +1,14 @@
 import React, { useState, FunctionComponent, useMemo } from "react";
-import styles from "./searchCrew.module.css";
+import styles from "./highlightCrew.module.css";
 import { useStateSearch } from "store/hooks/useStateSearch";
 import { useGeneralCrewArrDep } from "api/useGeneralData";
 import CloseButton from "components/common/closeButton";
 
-interface SearchCrewProps {
+interface HighlightCrewProps {
   onClose?: () => void;
 }
 
-const SearchCrew: FunctionComponent<SearchCrewProps> = ({ onClose }) => {
+const HighlightCrew: FunctionComponent<HighlightCrewProps> = ({ onClose }) => {
   const { data: crewArrDep } = useGeneralCrewArrDep();
   const { selectedCrewMember, setSelectedCrewMember } = useStateSearch();
 
@@ -177,4 +177,4 @@ const SearchCrew: FunctionComponent<SearchCrewProps> = ({ onClose }) => {
   );
 };
 
-export default SearchCrew;
+export default HighlightCrew;
