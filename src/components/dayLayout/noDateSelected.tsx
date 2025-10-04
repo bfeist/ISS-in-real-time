@@ -76,8 +76,8 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
 
         <div className={styles.forumCallout}>
           Visit the{" "}
-          <a href="https://groups.google.com/g/issirt" target="_blank" rel="noopener noreferrer">
-            ISSIRT Discussion Forum
+          <a href="https://forum.apolloinrealtime.org" target="_blank" rel="noopener noreferrer">
+            Real Time Discussion Forum
           </a>
         </div>
       </div>
