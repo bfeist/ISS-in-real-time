@@ -15,7 +15,11 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
   const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
-    const images = ["/images/backgrounds/iss_moon_big.jpg", "/images/backgrounds/iss_rotated.png"];
+    const images = [
+      "/images/backgrounds/iss_moon_big.jpg",
+      "/images/backgrounds/iss_rotated.png",
+      "/images/backgrounds/S106E5331_big.jpg",
+    ];
     const randomImage = images[Math.floor(Math.random() * images.length)];
     setBackgroundImage(randomImage);
 

@@ -60,7 +60,6 @@ const StatsCallout: FunctionComponent<Props> = ({
           </>
         )}
       </ul>
-
       <div
         className={styles.statsLink}
         onClick={onShowStats}
@@ -73,7 +72,7 @@ const StatsCallout: FunctionComponent<Props> = ({
           }
         }}
       >
-        (more)
+        More stats...
       </div>
     </div>
   );
