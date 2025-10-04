@@ -1,4 +1,8 @@
-import { FunctionComponent, JSX, useState, useEffect } from "react";
+import { FunctionComponent, JSX, useState } from "react";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Autoplay, EffectFade } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/effect-fade";
 import StatsModal from "./statsModal";
 import DayCounter from "./dayCounter";
 import StatsCallout from "./statsCallout";
@@ -6,33 +10,40 @@ import styles from "./noDateSelected.module.css";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { useGeneralStats } from "api/useGeneralData";
 
+const images = [
+  "/images/backgrounds/iss_moon_big.jpg",
+  "/images/backgrounds/iss_rotated.png",
+  "/images/backgrounds/S106E5331_big.jpg",
+];
+
 const NoDateSelected: FunctionComponent = (): JSX.Element => {
   const { setShowTimelineYears } = useStateToggle();
   const { data: stats, isLoading, error } = useGeneralStats();
 
   const [showStats, setShowStats] = useState(false);
-  const [backgroundImage, setBackgroundImage] = useState("");
-  const [imageLoaded, setImageLoaded] = useState(false);
-
-  useEffect(() => {
-    const images = [
-      "/images/backgrounds/iss_moon_big.jpg",
-      "/images/backgrounds/iss_rotated.png",
-      "/images/backgrounds/S106E5331_big.jpg",
-    ];
-    const randomImage = images[Math.floor(Math.random() * images.length)];
-    setBackgroundImage(randomImage);
-
-    const img = new Image();
-    img.src = randomImage;
-    img.onload = () => setImageLoaded(true);
-  }, []);
 
   return (
-    <div
-      className={styles.container}
-      style={{ backgroundImage: `url(${backgroundImage})`, opacity: imageLoaded ? 1 : 0 }}
-    >
+    <div className={styles.container}>
+      <Swiper
+        modules={[Autoplay, EffectFade]}
+        effect="fade"
+        fadeEffect={{
+          crossFade: false,
+        }}
+        speed={1000}
+        autoplay={{
+          delay: 5000,
+          disableOnInteraction: false,
+        }}
+        loop={true}
+        className={styles.backgroundCarousel}
+      >
+        {images.map((imageSrc) => (
+          <SwiperSlide key={imageSrc}>
+            <img src={imageSrc} alt="" className={styles.backgroundImage} />
+          </SwiperSlide>
+        ))}
+      </Swiper>
       <div className={styles.pageContent}>
         <div className={styles.headerContent}>
           <h2>Re-live Every Day Onboard the International Space Station</h2>

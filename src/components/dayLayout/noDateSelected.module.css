@@ -20,12 +20,8 @@ h2 {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  background-size: cover;
-  background-position: bottom right;
-  background-repeat: no-repeat;
   position: relative;
   padding-top: 20px;
-  transition: opacity 0.5s ease;
 }
 
 .container::before {
@@ -81,4 +77,27 @@ h2 {
 
 .exploreButton:hover {
   background-color: var(--grey3);
+}
+
+.backgroundCarousel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.backgroundImage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  will-change: transform;
+  image-rendering: -webkit-optimize-contrast;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
