@@ -10,7 +10,7 @@ import { useParams } from "react-router-dom";
 import { appSecondsFromTimeStr } from "utils/time";
 import { calcDayNight } from "utils/day-night";
 import { findClosestEphemeraItem } from "utils/map";
-import { resolveLayout } from "./configurations";
+import { resolveLayout } from "./layouts";
 import TimelineDayContainer from "components/timelineDay/timelineDayContainer";
 import Comm from "components/panes/comm";
 import Articles from "components/panes/articles";

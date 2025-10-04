@@ -5,11 +5,12 @@ export const videoLayouts: Record<string, LayoutConfiguration> = {
     layout: {
       left: [
         { type: "video", styleClass: "componentExpandable" },
-        { type: "eva", styleClass: "componentNaturalSize" },
+
         { type: "article", styleClass: "componentExpandable" },
       ],
       center: [
         { type: "photo", styleClass: "componentNaturalSize" },
+        { type: "eva", styleClass: "componentNaturalSize" },
         { type: "widget", styleClass: "componentExpandable" },
       ],
       right: [
@@ -24,11 +25,11 @@ export const videoLayouts: Record<string, LayoutConfiguration> = {
     layout: {
       left: [
         { type: "video", styleClass: "componentExpandable" },
-        { type: "eva", styleClass: "componentNaturalSize" },
         { type: "article", styleClass: "componentExpandable" },
       ],
       center: [
         { type: "globe", styleClass: "componentExpandable" },
+        { type: "eva", styleClass: "componentNaturalSize" },
         { type: "widget", styleClass: "componentExpandable" },
       ],
       right: [{ type: "comm", styleClass: "componentExpandable" }],
@@ -130,11 +131,11 @@ export const videoLayouts: Record<string, LayoutConfiguration> = {
     layout: {
       left: [
         { type: "video", styleClass: "componentExpandable" },
-        { type: "eva", styleClass: "componentNaturalSize" },
         { type: "article", styleClass: "componentExpandable" },
       ],
       center: [
         { type: "photo", styleClass: "componentNaturalSize" },
+        { type: "eva", styleClass: "componentNaturalSize" },
         { type: "widget", styleClass: "componentExpandable" },
       ],
       right: [{ type: "globe", styleClass: "componentExpandable" }],
@@ -146,10 +147,12 @@ export const videoLayouts: Record<string, LayoutConfiguration> = {
     layout: {
       left: [
         { type: "video", styleClass: "componentExpandable" },
-        { type: "eva", styleClass: "componentExpandable" },
         { type: "article", styleClass: "componentExpandable" },
       ],
-      center: [{ type: "widget-tall", styleClass: "componentExpandable" }],
+      center: [
+        { type: "eva", styleClass: "componentExpandable" },
+        { type: "widget-tall", styleClass: "componentExpandable" },
+      ],
       right: [{ type: "globe", styleClass: "componentExpandable" }],
     },
   },
