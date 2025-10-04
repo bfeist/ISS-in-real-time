@@ -58,11 +58,39 @@ const AboutModal: FunctionComponent<{
             All data here is original historical mission material sourced from across the internet.
             We have placed it into context so you can experience each day as it happened.
           </p>
+          <p>
+            Sourcing and processing the data was a challenge. We found it in many different places
+            and formats. Some of it even had to be retrieved from the Wayback Machine at
+            archive.org.
+          </p>
+          <p>
+            Comm transcription and image classification were achieved using IA processing on a
+            massive scale. There may be some errors in the data, but we did our best to ensure
+            accuracy.
+          </p>
+          <IconButton
+            icon={faBook}
+            label="Read More About the Making of This Project"
+            className={styles.readMore}
+            onClick={() => {
+              window.open(
+                "https://benfeist.com/posts/iss-in-real-time/",
+                "_blank",
+                "noopener,noreferrer"
+              );
+            }}
+          />
 
           <h4>Who Made This?</h4>
-
+          <a href="/images/daveandben.jpg" target="_blank" rel="noopener noreferrer">
+            <img
+              src="/images/daveandben.jpg"
+              alt="Dave and Ben"
+              style={{ float: "right", width: "180px", marginLeft: "10px" }}
+            />
+          </a>
           <p>
-            This website was built by{" "}
+            ISS in Real Time was built by{" "}
             <a href="https://benfeist.com" target="_blank" rel="noopener noreferrer">
               Ben Feist
             </a>{" "}
@@ -70,36 +98,24 @@ const AboutModal: FunctionComponent<{
             <a href="https://davidcharney.com" target="_blank" rel="noopener noreferrer">
               David Charney
             </a>{" "}
-            . We are both contractors at NASA, but we built ISS in real time on evenings and
-            weekends, just because we like to put good things on the Internet.
+            . We are both contractors at NASA, but we did this on evenings and weekends, just
+            because we like to put good things on the Internet.
           </p>
 
           <p>
-            Nov 2, 2000 marked the beginning of continuous human presence in space. We thought it
-            would be cool to show the world each and every day onboard.
+            Nov 2, 2025 marks the 25th anniversary of continuous human presence in space. We thought
+            it would be cool to show the world each and every day onboard.
           </p>
 
           <p>
-            We also made{" "}
+            A few years ago, we also made{" "}
             <a href="https://apolloinrealtime.org" target="_blank" rel="noopener noreferrer">
               Apollo in Real Time
             </a>
-            , which is a similar concept. Don&apos;t worry, we haven&apos;t forgotten about the
-            remaining Apollo missions. Stay tuned.
+            . We consider ISS in Real Time a continuation of that work. Don&apos;t worry, we
+            haven&apos;t forgotten about the remaining Apollo missions. Stay tuned.
           </p>
         </div>
-        <IconButton
-          icon={faBook}
-          label="Read More About the Making of This Project"
-          className={styles.readMore}
-          onClick={() => {
-            window.open(
-              "https://benfeist.com/posts/iss-in-real-time/",
-              "_blank",
-              "noopener,noreferrer"
-            );
-          }}
-        />
       </div>
     </div>,
     document.body
