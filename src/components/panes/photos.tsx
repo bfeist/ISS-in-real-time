@@ -4,10 +4,8 @@ import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photos.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
-import { useStateDayNight } from "store/hooks/useStateDayNight";
 import { appSecondsFromDateTime } from "utils/time";
 import { generateEarthPhotoSourceUrl } from "utils/photosEarth";
-import { getSunLightingAtTime } from "utils/day-night";
 import ClockInterval from "./clockInterval";
 import PhotoToggle from "./photoToggle";
 import { useDateEarthPhotography, useDatePhotosFlickr } from "api/useDateSpecificData";
@@ -17,7 +15,6 @@ import PhotosThumbs from "./photosThumbs";
 const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "short" }) => {
   const { selectedDate, setClock } = useStateClock();
   const { showEarthPhotos, showTimelapsePhotos, showMissionPhotos } = useStateToggle();
-  const { dayNight } = useStateDayNight();
 
   const { data: earthPhotographyItems = [], isLoading: earthPhotographyIsLoading } =
     useDateEarthPhotography(selectedDate || "");
@@ -302,18 +299,13 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
               <SourceButton
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Determine current illumination based on appSeconds and dayNight data
-                  const illumination = getSunLightingAtTime(dayNight, appSeconds);
-                  const sourceUrl = generateEarthPhotoSourceUrl({
-                    nasaId: mostRecentImage.nasaId,
-                    illumination,
-                  });
+                  const sourceUrl = generateEarthPhotoSourceUrl(mostRecentImage.nasaId);
                   if (sourceUrl) {
                     window.open(sourceUrl, "_blank");
                   }
                 }}
                 variant="iconOnly"
-                tooltip="Open photo in NASA's Image and Video Library if available"
+                tooltip="View photo details on NASA's Earth Observations"
               >
                 <FontAwesomeIcon icon={faExternalLinkAlt} />
               </SourceButton>

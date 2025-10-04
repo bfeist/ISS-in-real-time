@@ -55,24 +55,13 @@ export function generateEarthPhotoUrls(nasaId: string): {
 }
 
 /**
- * Parameters for generating an Earth photo source URL
- */
-export interface EarthPhotoSourceUrlParams {
-  nasaId: string;
-  illumination?: "day" | "night";
-}
-
-/**
- * Generates the NASA Earth Observations ExplorePhotos URL for a given photo
- * The NASA site will handle photos that aren't in the ExplorePhotos database
+ * Generates the NASA Earth Observations SearchPhotos URL for a given photo
  *
- * @param params - Object containing nasaId and optional illumination
- * @returns The ExplorePhotos URL, or empty string if invalid nasaId
+ * @param nasaId - The NASA ID (e.g., "ISS035E040190")
+ * @returns The SearchPhotos URL, or empty string if invalid nasaId
  */
-export function generateEarthPhotoSourceUrl(params: EarthPhotoSourceUrlParams): string {
-  const { nasaId, illumination = "day" } = params;
-
-  // Parse the NASA ID format: ISS056E126840 -> mission: ISS056, roll: E, frame: 126840
+export function generateEarthPhotoSourceUrl(nasaId: string): string {
+  // Parse the NASA ID format: ISS035E040190 -> mission: ISS035, roll: E, frame: 040190
   const match = nasaId.match(/^(ISS\d+)([A-Z])(\d+)$/);
 
   if (!match) {
@@ -81,8 +70,8 @@ export function generateEarthPhotoSourceUrl(params: EarthPhotoSourceUrlParams): 
 
   const [, mission, roll, frame] = match;
 
-  // Build the URL with mission-roll-frame format and the specified illumination
-  return `https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=${mission}-${roll}-${frame}&illum=${illumination}`;
+  // Build the URL with mission, roll, and frame as separate parameters
+  return `https://eol.jsc.nasa.gov/SearchPhotos/photo.pl?mission=${mission}&roll=${roll}&frame=${frame}`;
 }
 
 /**

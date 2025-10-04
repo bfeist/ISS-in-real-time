@@ -131,55 +131,40 @@ describe("Earth Photo URL utilities", () => {
   });
 
   describe("generateEarthPhotoSourceUrl", () => {
-    it("generates correct ExplorePhotos URL", () => {
-      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS056E126840" })).toBe(
-        "https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=ISS056-E-126840&illum=day"
+    it("generates correct SearchPhotos URL", () => {
+      expect(generateEarthPhotoSourceUrl("ISS035E040190")).toBe(
+        "https://eol.jsc.nasa.gov/SearchPhotos/photo.pl?mission=ISS035&roll=E&frame=040190"
       );
 
-      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS002E5408" })).toBe(
-        "https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=ISS002-E-5408&illum=day"
+      expect(generateEarthPhotoSourceUrl("ISS056E126840")).toBe(
+        "https://eol.jsc.nasa.gov/SearchPhotos/photo.pl?mission=ISS056&roll=E&frame=126840"
       );
 
-      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS070A999999" })).toBe(
-        "https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=ISS070-A-999999&illum=day"
+      expect(generateEarthPhotoSourceUrl("ISS002E5408")).toBe(
+        "https://eol.jsc.nasa.gov/SearchPhotos/photo.pl?mission=ISS002&roll=E&frame=5408"
+      );
+
+      expect(generateEarthPhotoSourceUrl("ISS070A999999")).toBe(
+        "https://eol.jsc.nasa.gov/SearchPhotos/photo.pl?mission=ISS070&roll=A&frame=999999"
       );
     });
 
     it("returns empty string for invalid photo ID formats", () => {
-      expect(generateEarthPhotoSourceUrl({ nasaId: "INVALID" })).toBe("");
-      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS056" })).toBe("");
-      expect(generateEarthPhotoSourceUrl({ nasaId: "056E126840" })).toBe("");
-      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS056E" })).toBe("");
-      expect(generateEarthPhotoSourceUrl({ nasaId: "" })).toBe("");
+      expect(generateEarthPhotoSourceUrl("INVALID")).toBe("");
+      expect(generateEarthPhotoSourceUrl("ISS056")).toBe("");
+      expect(generateEarthPhotoSourceUrl("056E126840")).toBe("");
+      expect(generateEarthPhotoSourceUrl("ISS056E")).toBe("");
+      expect(generateEarthPhotoSourceUrl("")).toBe("");
     });
 
     it("handles different roll letters correctly", () => {
-      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS056A126840" })).toBe(
-        "https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=ISS056-A-126840&illum=day"
+      expect(generateEarthPhotoSourceUrl("ISS056A126840")).toBe(
+        "https://eol.jsc.nasa.gov/SearchPhotos/photo.pl?mission=ISS056&roll=A&frame=126840"
       );
 
-      expect(generateEarthPhotoSourceUrl({ nasaId: "ISS056Z126840" })).toBe(
-        "https://eol.jsc.nasa.gov/ExplorePhotos/?mrf=ISS056-Z-126840&illum=day"
+      expect(generateEarthPhotoSourceUrl("ISS056Z126840")).toBe(
+        "https://eol.jsc.nasa.gov/SearchPhotos/photo.pl?mission=ISS056&roll=Z&frame=126840"
       );
-    });
-
-    it("uses day illumination by default", () => {
-      const url = generateEarthPhotoSourceUrl({ nasaId: "ISS056E126840" });
-      expect(url).toContain("&illum=day");
-    });
-
-    it("respects custom illumination parameter", () => {
-      const dayUrl = generateEarthPhotoSourceUrl({
-        nasaId: "ISS056E126840",
-        illumination: "day",
-      });
-      expect(dayUrl).toContain("&illum=day");
-
-      const nightUrl = generateEarthPhotoSourceUrl({
-        nasaId: "ISS056E126840",
-        illumination: "night",
-      });
-      expect(nightUrl).toContain("&illum=night");
     });
   });
 
