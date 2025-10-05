@@ -267,19 +267,32 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const handleTimelineMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (event.button !== 0) return;
+
+      // Only mark as interacted if the event originated from yearsScrollContainer
+      const isFromScrollContainer = yearsScrollContainerRef.current?.contains(event.target as Node);
+
       pointerDownRef.current = true;
       pointerPositionRef.current = { x: event.clientX, y: event.clientY };
       updateAutoScrollFromPointer(event.clientX);
-      markUserInteracted();
+
+      if (isFromScrollContainer) {
+        markUserInteracted();
+      }
     },
     [updateAutoScrollFromPointer, markUserInteracted]
   );
 
   const handleTimelineMouseMove = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
+      // Only mark as interacted if the event originated from yearsScrollContainer
+      const isFromScrollContainer = yearsScrollContainerRef.current?.contains(event.target as Node);
+
       pointerPositionRef.current = { x: event.clientX, y: event.clientY };
       updateAutoScrollFromPointer(event.clientX);
-      markUserInteracted();
+
+      if (isFromScrollContainer) {
+        markUserInteracted();
+      }
     },
     [updateAutoScrollFromPointer, markUserInteracted]
   );
@@ -659,15 +672,24 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const handleTimelineTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     if (event.touches.length === 0) return;
 
+    // Only mark as interacted if the event originated from yearsScrollContainer
+    const isFromScrollContainer = yearsScrollContainerRef.current?.contains(event.target as Node);
+
     touchDragActiveRef.current = true;
     const touch = event.touches[0];
     touchStartPositionRef.current = { x: touch.clientX, y: touch.clientY };
     updateHoverFromTouch(touch);
-    markUserInteracted();
+
+    if (isFromScrollContainer) {
+      markUserInteracted();
+    }
   };
 
   const handleTimelineTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
     if (!touchDragActiveRef.current || event.touches.length === 0) return;
+
+    // Only mark as interacted if the event originated from yearsScrollContainer
+    const isFromScrollContainer = yearsScrollContainerRef.current?.contains(event.target as Node);
 
     const touch = event.touches[0];
     const startPosition = touchStartPositionRef.current;
@@ -680,7 +702,10 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     }
 
     updateHoverFromTouch(touch);
-    markUserInteracted();
+
+    if (isFromScrollContainer) {
+      markUserInteracted();
+    }
   };
 
   const handleTimelineTouchEnd = () => {
