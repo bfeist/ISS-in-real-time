@@ -9,7 +9,7 @@ import {
 
 describe("Earth Photo URL utilities", () => {
   describe("inferEarthPhotoUrl", () => {
-    it("generates correct large image URLs", () => {
+    it("generates correct large image URLs for ISS photos", () => {
       expect(inferEarthPhotoUrl("ISS056E126840", "large")).toBe(
         "https://eol.jsc.nasa.gov/DatabaseImages/ESC/large/ISS056/ISS056-E-126840.JPG"
       );
@@ -19,7 +19,17 @@ describe("Earth Photo URL utilities", () => {
       );
     });
 
-    it("generates correct medium image URLs", () => {
+    it("generates correct large image URLs for STS photos", () => {
+      expect(inferEarthPhotoUrl("STS131E11135", "large")).toBe(
+        "https://eol.jsc.nasa.gov/DatabaseImages/ESC/large/STS131/STS131-E-11135.JPG"
+      );
+
+      expect(inferEarthPhotoUrl("STS001E5001", "large")).toBe(
+        "https://eol.jsc.nasa.gov/DatabaseImages/ESC/large/STS001/STS001-E-5001.JPG"
+      );
+    });
+
+    it("generates correct medium image URLs for ISS photos", () => {
       expect(inferEarthPhotoUrl("ISS056E126840", "medium")).toBe(
         "https://eol.jsc.nasa.gov/DatabaseImages/ESC/small/ISS056/ISS056-E-126840.JPG"
       );
@@ -29,13 +39,25 @@ describe("Earth Photo URL utilities", () => {
       );
     });
 
-    it("generates correct small (thumbnail) image URLs", () => {
+    it("generates correct medium image URLs for STS photos", () => {
+      expect(inferEarthPhotoUrl("STS131E11135", "medium")).toBe(
+        "https://eol.jsc.nasa.gov/DatabaseImages/ESC/small/STS131/STS131-E-11135.JPG"
+      );
+    });
+
+    it("generates correct small (thumbnail) image URLs for ISS photos", () => {
       expect(inferEarthPhotoUrl("ISS056E126840", "small")).toBe(
         "https://eol.jsc.nasa.gov/DatabaseImages/thumb/ISS056/ISS056-E-126840.JPG"
       );
 
       expect(inferEarthPhotoUrl("ISS002E5408", "small")).toBe(
         "https://eol.jsc.nasa.gov/DatabaseImages/thumb/ISS002/ISS002-E-5408.JPG"
+      );
+    });
+
+    it("generates correct small (thumbnail) image URLs for STS photos", () => {
+      expect(inferEarthPhotoUrl("STS131E11135", "small")).toBe(
+        "https://eol.jsc.nasa.gov/DatabaseImages/thumb/STS131/STS131-E-11135.JPG"
       );
     });
 
@@ -69,13 +91,23 @@ describe("Earth Photo URL utilities", () => {
   });
 
   describe("generateEarthPhotoUrls", () => {
-    it("generates all three URL sizes correctly", () => {
+    it("generates all three URL sizes correctly for ISS photos", () => {
       const result = generateEarthPhotoUrls("ISS056E126840");
 
       expect(result).toEqual({
         smallUrl: "https://eol.jsc.nasa.gov/DatabaseImages/thumb/ISS056/ISS056-E-126840.JPG",
         medUrl: "https://eol.jsc.nasa.gov/DatabaseImages/ESC/small/ISS056/ISS056-E-126840.JPG",
         largeUrl: "https://eol.jsc.nasa.gov/DatabaseImages/ESC/large/ISS056/ISS056-E-126840.JPG",
+      });
+    });
+
+    it("generates all three URL sizes correctly for STS photos", () => {
+      const result = generateEarthPhotoUrls("STS131E11135");
+
+      expect(result).toEqual({
+        smallUrl: "https://eol.jsc.nasa.gov/DatabaseImages/thumb/STS131/STS131-E-11135.JPG",
+        medUrl: "https://eol.jsc.nasa.gov/DatabaseImages/ESC/small/STS131/STS131-E-11135.JPG",
+        largeUrl: "https://eol.jsc.nasa.gov/DatabaseImages/ESC/large/STS131/STS131-E-11135.JPG",
       });
     });
 
@@ -131,7 +163,7 @@ describe("Earth Photo URL utilities", () => {
   });
 
   describe("generateEarthPhotoSourceUrl", () => {
-    it("generates correct SearchPhotos URL", () => {
+    it("generates correct SearchPhotos URL for ISS photos", () => {
       expect(generateEarthPhotoSourceUrl("ISS035E040190")).toBe(
         "https://eol.jsc.nasa.gov/SearchPhotos/photo.pl?mission=ISS035&roll=E&frame=040190"
       );
@@ -146,6 +178,16 @@ describe("Earth Photo URL utilities", () => {
 
       expect(generateEarthPhotoSourceUrl("ISS070A999999")).toBe(
         "https://eol.jsc.nasa.gov/SearchPhotos/photo.pl?mission=ISS070&roll=A&frame=999999"
+      );
+    });
+
+    it("generates correct SearchPhotos URL for STS photos", () => {
+      expect(generateEarthPhotoSourceUrl("STS131E11135")).toBe(
+        "https://eol.jsc.nasa.gov/SearchPhotos/photo.pl?mission=STS131&roll=E&frame=11135"
+      );
+
+      expect(generateEarthPhotoSourceUrl("STS001E5001")).toBe(
+        "https://eol.jsc.nasa.gov/SearchPhotos/photo.pl?mission=STS001&roll=E&frame=5001"
       );
     });
 

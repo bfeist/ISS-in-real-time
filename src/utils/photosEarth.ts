@@ -1,15 +1,15 @@
 /**
  * Infers Earth photography URLs from NASA EOL photo IDs
  *
- * @param nasaId - The photo ID (e.g., "ISS056E126840")
+ * @param nasaId - The photo ID (e.g., "ISS056E126840" or "STS131E11135")
  * @param size - The image size: "small", "medium", or "large"
  * @returns The complete URL for the specified image size
  */
 export function inferEarthPhotoUrl(nasaId: string, size: "small" | "medium" | "large"): string {
   const baseUrl = "https://eol.jsc.nasa.gov/DatabaseImages";
 
-  // Convert ID format from ISS056E126840 to ISS056/ISS056-E-126840.JPG
-  const match = nasaId.match(/^(ISS\d+)([A-Z])(\d+)$/);
+  // Convert ID format from ISS056E126840 or STS131E11135 to ISS056/ISS056-E-126840.JPG or STS131/STS131-E-11135.JPG
+  const match = nasaId.match(/^((?:ISS|STS)\d+)([A-Z])(\d+)$/);
 
   if (!match) {
     return "";
@@ -39,7 +39,7 @@ export function inferEarthPhotoUrl(nasaId: string, size: "small" | "medium" | "l
 /**
  * Generates all three URL sizes for a NASA ID
  *
- * @param nasaId - The NASA ID (e.g., "ISS056E126840")
+ * @param nasaId - The NASA ID (e.g., "ISS056E126840" or "STS131E11135")
  * @returns Object containing smallUrl, medUrl, and largeUrl
  */
 export function generateEarthPhotoUrls(nasaId: string): {
@@ -57,12 +57,12 @@ export function generateEarthPhotoUrls(nasaId: string): {
 /**
  * Generates the NASA Earth Observations SearchPhotos URL for a given photo
  *
- * @param nasaId - The NASA ID (e.g., "ISS035E040190")
+ * @param nasaId - The NASA ID (e.g., "ISS035E040190" or "STS131E11135")
  * @returns The SearchPhotos URL, or empty string if invalid nasaId
  */
 export function generateEarthPhotoSourceUrl(nasaId: string): string {
-  // Parse the NASA ID format: ISS035E040190 -> mission: ISS035, roll: E, frame: 040190
-  const match = nasaId.match(/^(ISS\d+)([A-Z])(\d+)$/);
+  // Parse the NASA ID format: ISS035E040190 or STS131E11135 -> mission: ISS035/STS131, roll: E, frame: 040190/11135
+  const match = nasaId.match(/^((?:ISS|STS)\d+)([A-Z])(\d+)$/);
 
   if (!match) {
     return "";
@@ -85,11 +85,11 @@ interface PhotoForTimelapse {
 
 /**
  * Extracts mission identifier from NASA ID
- * @param nasaId - NASA ID like "ISS056E126840"
- * @returns Mission key like "ISS056" or the full nasaId if parsing fails
+ * @param nasaId - NASA ID like "ISS056E126840" or "STS131E11135"
+ * @returns Mission key like "ISS056" or "STS131" or the full nasaId if parsing fails
  */
 function getMissionKey(nasaId: string): string {
-  const match = nasaId.match(/^(ISS\d+)([A-Z])(\d+)$/);
+  const match = nasaId.match(/^((?:ISS|STS)\d+)([A-Z])(\d+)$/);
   if (!match) {
     // If we can't parse it, treat each photo as its own mission to be safe
     return nasaId;
@@ -100,11 +100,11 @@ function getMissionKey(nasaId: string): string {
 
 /**
  * Extracts frame number from NASA ID for sorting
- * @param nasaId - NASA ID like "ISS056E126840"
+ * @param nasaId - NASA ID like "ISS056E126840" or "STS131E11135"
  * @returns Frame number as integer or 0 if parsing fails
  */
 function getFrameNumber(nasaId: string): number {
-  const match = nasaId.match(/^(ISS\d+)([A-Z])(\d+)$/);
+  const match = nasaId.match(/^((?:ISS|STS)\d+)([A-Z])(\d+)$/);
   if (!match) {
     return 0;
   }
@@ -206,7 +206,7 @@ export function detectTimelapseSequences(
 
   const allTimelapseIndices = new Set<number>();
 
-  // Group photos by mission (ISS056, ISS057, etc.)
+  // Group photos by mission (ISS056, ISS057, STS131, etc.)
   const photosByMission = new Map<string, PhotoForTimelapse[]>();
 
   for (const photo of photos) {
