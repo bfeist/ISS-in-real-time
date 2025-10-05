@@ -18,7 +18,7 @@
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s ease;
-  z-index: 1000;
+  z-index: 1;
 }
 
 .clearAllButton:hover {
