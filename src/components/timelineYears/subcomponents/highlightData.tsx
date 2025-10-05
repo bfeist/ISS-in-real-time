@@ -10,6 +10,7 @@ const HighlightData: FunctionComponent<{
 }> = ({ onCloseMegaOverlay }) => {
   const { contentHighlights, toggleContentHighlight } = useStateContentHighlights();
   const [showLayoutTest, setShowLayoutTest] = useState(false);
+  const [activeTab, setActiveTab] = useState<"data" | "crew" | "expeditions">("data");
 
   // Define the available content types for highlighting
   const contentTypes = [
@@ -35,9 +36,40 @@ const HighlightData: FunctionComponent<{
       tabIndex={0}
     >
       <div className={styles.highlightItems}>
+        {/* Tab Navigation - visible on mobile */}
+        <div className={styles.tabNavigation}>
+          <button
+            className={`${styles.tabButton} ${activeTab === "data" ? styles.tabButtonActive : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab("data");
+            }}
+          >
+            Highlight Data
+          </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === "crew" ? styles.tabButtonActive : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab("crew");
+            }}
+          >
+            Highlight Crew
+          </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === "expeditions" ? styles.tabButtonActive : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab("expeditions");
+            }}
+          >
+            Highlight Expeditions
+          </button>
+        </div>
+
         <div className={styles.highlightTableWrapper}>
           {/* Column 1: Highlight Data */}
-          <div className={styles.column}>
+          <div className={`${styles.column} ${activeTab === "data" ? styles.columnActive : ""}`}>
             <div className={styles.columnHeader}>Highlight Data</div>
             <div className={styles.columnBody}>
               <span className={styles.headerText}>Days with (all):</span>
@@ -55,7 +87,7 @@ const HighlightData: FunctionComponent<{
           </div>
 
           {/* Column 2: Highlight Crew */}
-          <div className={styles.column}>
+          <div className={`${styles.column} ${activeTab === "crew" ? styles.columnActive : ""}`}>
             <div className={styles.columnHeader}>Highlight Crew</div>
             <div className={styles.columnBody}>
               <HighlightCrew />
@@ -63,7 +95,9 @@ const HighlightData: FunctionComponent<{
           </div>
 
           {/* Column 3: Highlight Expeditions */}
-          <div className={styles.column}>
+          <div
+            className={`${styles.column} ${activeTab === "expeditions" ? styles.columnActive : ""}`}
+          >
             <div className={styles.columnHeader}>Highlight Expeditions</div>
             <div className={styles.columnBody}>
               <HighlightExpeditions />

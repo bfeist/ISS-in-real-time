@@ -15,7 +15,7 @@
   flex-wrap: wrap;
   gap: 12px;
   align-items: flex-start;
-  margin: 0 0 0 10px;
+  margin: 0 0 0 0;
   padding: 10px 0;
 }
 
@@ -44,7 +44,7 @@
   padding: 7px 10px;
   background-color: var(--grey2);
   border-bottom: 1px solid var(--grey3);
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 500;
 }
 
@@ -124,4 +124,78 @@
 .headerText {
   font-size: 0.8rem;
   margin-bottom: 8px;
+}
+
+/* Tab Navigation Styles */
+.tabNavigation {
+  display: none;
+  width: 100%;
+  gap: 0;
+  border: 1px solid var(--grey3);
+  overflow: hidden;
+  background-color: var(--grey2);
+}
+
+.tabButton {
+  flex: 1;
+  padding: 10px 8px;
+  background-color: var(--grey2);
+  border: none;
+  border-right: 1px solid var(--grey3);
+  color: #999999;
+  cursor: pointer;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  transition: all 0.2s;
+  font-weight: 400;
+}
+
+.tabButton:last-child {
+  border-right: none;
+}
+
+.tabButton:hover {
+  background-color: var(--grey3);
+  color: white;
+}
+
+.tabButtonActive {
+  background-color: var(--grey3);
+  color: var(--highlight);
+  font-weight: 500;
+  border-bottom: 2px solid var(--highlight);
+}
+
+/* Responsive Styles */
+@media (width < 825px) {
+  .highlightItems {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 0;
+  }
+
+  .tabNavigation {
+    display: flex;
+    flex-direction: row;
+    border-left: none;
+  }
+
+  .highlightTableWrapper {
+    grid-template-columns: 1fr;
+    border: none;
+  }
+
+  .column {
+    display: none;
+    min-width: 100%;
+  }
+
+  .column .columnHeader {
+    display: none;
+  }
+
+  .columnActive {
+    display: flex;
+  }
 }
