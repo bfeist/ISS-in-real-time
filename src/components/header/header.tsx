@@ -10,7 +10,7 @@ import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 
 const Header: FunctionComponent = () => {
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
-  const { selectedDate } = useStateClock();
+  const { selectedDate, setSelectedDate } = useStateClock();
 
   const [appSeconds, setAppSeconds] = useState(0);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
@@ -58,7 +58,23 @@ const Header: FunctionComponent = () => {
         <div className={styles.left}>
           <div className={styles.titleContainer}>
             <img src="/images/header/ISS_logo.png" alt="ISS Logo" className={styles.logo} />
-            <div className={styles.title}>ISS in Real Time</div>
+            <div
+              className={styles.title}
+              onClick={(e) => {
+                setSelectedDate(null);
+                e.stopPropagation();
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  setSelectedDate(null);
+                  e.preventDefault();
+                }
+              }}
+            >
+              ISS in Real Time
+            </div>
             <div className={styles.blurb}>
               Explore 25 years onboard the International Space Station
             </div>

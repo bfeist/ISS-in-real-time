@@ -37,6 +37,7 @@
   text-transform: uppercase;
   color: var(--highlight);
   align-self: center;
+  cursor: pointer;
 }
 
 .titleContainer .blurb {
