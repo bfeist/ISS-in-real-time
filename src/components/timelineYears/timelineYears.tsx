@@ -317,7 +317,6 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   // Overlay state
-  const [hoveredYearIndex, setHoveredYearIndex] = useState<number | null>(null);
   const [megaOverlayVisible, setMegaOverlayVisible] = useState(false);
   const [megaOverlayYear, setMegaOverlayYear] = useState<number | null>(null);
   const [megaOverlayPosition, setMegaOverlayPosition] = useState({ left: 0, top: 0, width: 0 });
@@ -512,6 +511,9 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const years = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, i) => START_YEAR + i);
   const selectedYearEl = selectedDate ? new Date(selectedDate).getFullYear() : null;
 
+  // Derive the hovered year index from hoveredDate
+  const hoveredYearIndex = hoveredDate ? new Date(hoveredDate).getFullYear() - START_YEAR : null;
+
   // Calculate start and end months for partial year rendering
   const getYearMonthRange = (year: number) => {
     if (year === START_YEAR) {
@@ -571,11 +573,18 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         setHideOverlayTimeout(null);
       }
 
-      setHoveredYearIndex(yearIndex);
+      // Set hoveredDate to the first day of the year to indicate which year is hovered
+      const year = years[yearIndex];
+      const { startMonth } = getYearMonthRange(year);
+      const firstDate = dayjs
+        .utc(`${year}-${String(startMonth + 1).padStart(2, "0")}-01`)
+        .format("YYYY-MM-DD");
+      setHoveredDate(firstDate);
+
       showMegaOverlay(yearIndex);
       markUserInteracted();
     },
-    [hideOverlayTimeout, showMegaOverlay, markUserInteracted]
+    [hideOverlayTimeout, showMegaOverlay, markUserInteracted, years, setHoveredDate]
   );
 
   const handleYearLeave = () => {
@@ -583,7 +592,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     // Use a longer delay to allow for smooth horizontal sliding between year headers
     const timeout = setTimeout(() => {
       if (!isOverMegaOverlayRef.current) {
-        setHoveredYearIndex(null);
+        setHoveredDate(null);
         setMegaOverlayVisible(false);
         setMegaOverlayYear(null);
       }
@@ -610,7 +619,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       // Only hide if we're truly not over any year header or overlay
       if (!isOverMegaOverlayRef.current) {
         setMegaOverlayVisible(false);
-        setHoveredYearIndex(null);
+        setHoveredDate(null);
         setMegaOverlayYear(null);
       }
     }, 100); // Slightly shorter delay since we're checking less conditions
@@ -625,6 +634,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     const yearIndex = getYearIndexFromPoint(pointer.x, pointer.y);
     if (yearIndex === null) return;
 
+    // Only update if the year changed (avoid redundant updates)
     if (hoveredYearIndex !== yearIndex) {
       handleYearHover(yearIndex);
     }
@@ -768,7 +778,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
                     clearTimeout(hideOverlayTimeout);
                     setHideOverlayTimeout(null);
                   }
-                  setHoveredYearIndex(null);
+                  setHoveredDate(null);
                   setMegaOverlayVisible(false);
                   setMegaOverlayYear(null);
                 }
@@ -807,7 +817,12 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
           )}
         </div>
         {showTimelineYears && (
-          <HighlightData onCloseMegaOverlay={() => setMegaOverlayVisible(false)} />
+          <HighlightData
+            onCloseMegaOverlay={() => {
+              setMegaOverlayVisible(false);
+              setHoveredDate(null);
+            }}
+          />
         )}
 
         {/* Mega Overlay */}

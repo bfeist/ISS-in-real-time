@@ -4,11 +4,13 @@ import HighlightExpeditions from "./highlightExpeditions";
 import LayoutTestComponent from "./layoutTestComponent";
 import styles from "./highlightData.module.css";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
+import { useStateHover } from "store/hooks/useStateHover";
 
 const HighlightData: FunctionComponent<{
   onCloseMegaOverlay?: () => void;
 }> = ({ onCloseMegaOverlay }) => {
   const { contentHighlights, toggleContentHighlight } = useStateContentHighlights();
+  const { setHoveredDate } = useStateHover();
   const [showLayoutTest, setShowLayoutTest] = useState(false);
   const [activeTab, setActiveTab] = useState<"data" | "crew" | "expeditions">("data");
 
@@ -26,10 +28,14 @@ const HighlightData: FunctionComponent<{
   return (
     <div
       className={styles.highlightContainer}
-      onClick={() => onCloseMegaOverlay?.()}
+      onClick={() => {
+        onCloseMegaOverlay?.();
+        setHoveredDate(null);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           onCloseMegaOverlay?.();
+          setHoveredDate(null);
         }
       }}
       onMouseDown={(e) => e.stopPropagation()}
