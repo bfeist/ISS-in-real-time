@@ -152,7 +152,7 @@ const renderColumn = (components: ComponentConfig[], columnClass: string): JSX.E
 };
 
 const DayLayout: FunctionComponent = () => {
-  const { selectedDate, startClock, setClock } = useStateClock();
+  const { selectedDate, startClock, setClock, appSecondsAtStartStop } = useStateClock();
   const { setDayNight } = useStateDayNight();
   const { dateTimeSlug } = useParams();
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
@@ -220,6 +220,41 @@ const DayLayout: FunctionComponent = () => {
     startClock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, dateTimeSlug, videoYtRecording, dataAvailability]);
+
+  // Handle left/right arrow keys to adjust clock by 10 seconds
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle arrow keys if not focused on an interactive element
+      const target = e.target as HTMLElement;
+      const isInteractive =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.isContentEditable ||
+        target.closest('[role="button"]') ||
+        target.closest('[role="slider"]') ||
+        target.closest("button") ||
+        target.closest("a");
+
+      // Don't interfere with accessibility navigation
+      if (isInteractive) {
+        return;
+      }
+
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setClock(Math.max(0, appSecondsAtStartStop - 10));
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setClock(Math.min(86399, appSecondsAtStartStop + 10)); // Max 23:59:59
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [appSecondsAtStartStop, setClock]);
 
   // Resolve the layout based on data availability
   const layout = resolveLayout(dataAvailability);
