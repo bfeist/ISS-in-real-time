@@ -71,7 +71,7 @@ const AboutModal: FunctionComponent<{
             , youtube, and flickr.
           </p>
           <p>
-            Comm transcription and image classification were achieved using IA processing on a
+            Comm transcription and image classification were achieved using AI processing on a
             massive scale. There may be some errors in the data, but we did our best to ensure
             accuracy.
           </p>

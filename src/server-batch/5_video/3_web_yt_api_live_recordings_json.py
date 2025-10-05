@@ -5,8 +5,8 @@ import json
 API_KEY = os.getenv("YOUTUBE_API_KEY")
 CHANNEL_ID = "UCLA_DiR1FfKNvjuUpBHmylQ"  # NASA's official YouTube Channel ID
 YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3"
-WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
+WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 RAW_FOLDER = os.getenv("RAW_FOLDER")
 
 
@@ -89,6 +89,27 @@ def main():
     # these are most likey to be timeable in context
     live_videos, raw_search = get_live_videos(CHANNEL_ID, API_KEY)
 
+    # Read manual videos from CSV
+    manual_videos = []
+    manual_csv_path = os.path.join(RAW_FOLDER, "youtube_manual.csv")
+    if os.path.exists(manual_csv_path):
+        with open(manual_csv_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    parts = line.split("|")
+                    if len(parts) == 2:
+                        date_str, video_id = parts
+                        manual_videos.append(
+                            {
+                                "publishedAt": f"{date_str}T00:00:00Z",
+                                "videoId": video_id,
+                                "duration": "Unknown",
+                                "title": "",
+                                "startTime": None,
+                            }
+                        )
+
     existing_videos = []
     videoYt_path = f"{WEB_ASSETS_FOLDER}/videoYt.json"
     if os.path.exists(videoYt_path):
@@ -100,17 +121,20 @@ def main():
 
     existing_video_ids = {v.get("videoId") for v in existing_videos if v.get("videoId")}
 
-    live_videos = [v for v in live_videos if v["videoId"] not in existing_video_ids]
+    all_new_videos = live_videos + manual_videos
+    all_new_videos = [
+        v for v in all_new_videos if v["videoId"] not in existing_video_ids
+    ]
 
     # sort the videos by publishedAt
-    live_videos = sorted(live_videos, key=lambda x: x["publishedAt"])
+    all_new_videos = sorted(all_new_videos, key=lambda x: x["publishedAt"])
 
     # get the duration of each video from the youtube api and update the duration field
     raw_video_responses = []
-    for video in live_videos:
+    for video in all_new_videos:
         video_details_url = f"{YOUTUBE_API_URL}/videos"
         params = {
-            "part": "contentDetails,liveStreamingDetails",
+            "part": "contentDetails,liveStreamingDetails,snippet",
             "id": video["videoId"],
             "key": API_KEY,
         }
@@ -133,10 +157,11 @@ def main():
             .get("liveStreamingDetails", {})
             .get("actualStartTime", None)
         )
+        video["title"] = response_data["items"][0]["snippet"]["title"]
 
     # filter out videos that are returned by this function that aren't relevant (bunch of string matches)
     filtered_videos = []
-    for video in live_videos:
+    for video in all_new_videos:
         title_lower = video["title"].lower()
         if (
             (
