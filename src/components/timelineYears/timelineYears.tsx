@@ -79,8 +79,11 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const mouseHintTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasUserInteractedWithTimelineRef = useRef(false);
 
-  // Detect if device supports touch
-  const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  // Detect if device supports touch (using ref to avoid recalculating on every render)
+  const isTouchDeviceRef = useRef(
+    typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)
+  );
+  const isTouchDevice = isTouchDeviceRef.current;
 
   const stopAutoScroll = useCallback(() => {
     const state = autoScrollStateRef.current;
@@ -298,9 +301,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   );
 
   const handleTimelineMouseUp = useCallback(() => {
-    if (pointerDownRef.current) {
-      pointerDownRef.current = false;
-    }
+    pointerDownRef.current = false;
     pointerPositionRef.current = null;
     stopAutoScroll();
   }, [stopAutoScroll]);
@@ -321,7 +322,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const [megaOverlayYear, setMegaOverlayYear] = useState<number | null>(null);
   const [megaOverlayPosition, setMegaOverlayPosition] = useState({ left: 0, top: 0, width: 0 });
   const isOverMegaOverlayRef = useRef(false);
-  const [hideOverlayTimeout, setHideOverlayTimeout] = useState<NodeJS.Timeout | null>(null);
+  const hideOverlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const touchDragActiveRef = useRef(false);
   const touchStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const lastTouchYearIndexRef = useRef<number | null>(null);
@@ -568,9 +569,9 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const handleYearHover = useCallback(
     (yearIndex: number) => {
       // Clear any pending hide timeout when hovering over a new year
-      if (hideOverlayTimeout) {
-        clearTimeout(hideOverlayTimeout);
-        setHideOverlayTimeout(null);
+      if (hideOverlayTimeoutRef.current) {
+        clearTimeout(hideOverlayTimeoutRef.current);
+        hideOverlayTimeoutRef.current = null;
       }
 
       // Set hoveredDate to the first day of the year to indicate which year is hovered
@@ -584,28 +585,26 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       showMegaOverlay(yearIndex);
       markUserInteracted();
     },
-    [hideOverlayTimeout, showMegaOverlay, markUserInteracted, years, setHoveredDate]
+    [showMegaOverlay, markUserInteracted, years, setHoveredDate]
   );
 
   const handleYearLeave = () => {
     // Only hide overlay if we're not over it
     // Use a longer delay to allow for smooth horizontal sliding between year headers
-    const timeout = setTimeout(() => {
+    hideOverlayTimeoutRef.current = setTimeout(() => {
       if (!isOverMegaOverlayRef.current) {
         setHoveredDate(null);
         setMegaOverlayVisible(false);
         setMegaOverlayYear(null);
       }
     }, 150); // Increased delay for smoother transitions
-
-    setHideOverlayTimeout(timeout);
   };
 
   const handleMegaOverlayMouseEnter = () => {
     // Clear any pending hide timeout when entering overlay
-    if (hideOverlayTimeout) {
-      clearTimeout(hideOverlayTimeout);
-      setHideOverlayTimeout(null);
+    if (hideOverlayTimeoutRef.current) {
+      clearTimeout(hideOverlayTimeoutRef.current);
+      hideOverlayTimeoutRef.current = null;
     }
     isOverMegaOverlayRef.current = true;
     markUserInteracted();
@@ -615,7 +614,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     isOverMegaOverlayRef.current = false;
 
     // Use a delay to allow transition from overlay back to year headers
-    const timeout = setTimeout(() => {
+    hideOverlayTimeoutRef.current = setTimeout(() => {
       // Only hide if we're truly not over any year header or overlay
       if (!isOverMegaOverlayRef.current) {
         setMegaOverlayVisible(false);
@@ -623,8 +622,6 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         setMegaOverlayYear(null);
       }
     }, 100); // Slightly shorter delay since we're checking less conditions
-
-    setHideOverlayTimeout(timeout);
   };
 
   const updateHoverForPointerPosition = useCallback(() => {
@@ -771,20 +768,18 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             onMouseLeave={() => {
               // Only clear hovered year state if we're not moving to the mega overlay
               // Use a timeout to allow the overlay mouse events to fire first
-              const timeout = setTimeout(() => {
+              hideOverlayTimeoutRef.current = setTimeout(() => {
                 // If we're not over the mega overlay, clear the hover state
                 if (!isOverMegaOverlayRef.current) {
-                  if (hideOverlayTimeout) {
-                    clearTimeout(hideOverlayTimeout);
-                    setHideOverlayTimeout(null);
+                  if (hideOverlayTimeoutRef.current) {
+                    clearTimeout(hideOverlayTimeoutRef.current);
+                    hideOverlayTimeoutRef.current = null;
                   }
                   setHoveredDate(null);
                   setMegaOverlayVisible(false);
                   setMegaOverlayYear(null);
                 }
               }, 50); // Small delay to allow overlay events to register
-
-              setHideOverlayTimeout(timeout);
             }}
           >
             {years.map((year, index) => {
