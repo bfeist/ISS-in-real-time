@@ -2,13 +2,10 @@ import React, { useState, FunctionComponent, useMemo } from "react";
 import styles from "./highlightExpeditions.module.css";
 import { useStateSearch } from "store/hooks/useStateSearch";
 import { useGeneralExpeditionInfo } from "api/useGeneralData";
-import CloseButton from "components/common/closeButton";
 
-interface HighlightExpeditionsProps {
-  onClose?: () => void;
-}
+interface HighlightExpeditionsProps {}
 
-const HighlightExpeditions: FunctionComponent<HighlightExpeditionsProps> = ({ onClose }) => {
+const HighlightExpeditions: FunctionComponent<HighlightExpeditionsProps> = () => {
   const { data: expeditionInfo } = useGeneralExpeditionInfo();
   const { selectedExpedition, setSelectedExpedition } = useStateSearch();
 
@@ -45,7 +42,6 @@ const HighlightExpeditions: FunctionComponent<HighlightExpeditionsProps> = ({ on
   const handleClearAll = () => {
     setSearchTerm("");
     setSelectedExpedition(null);
-    onClose?.();
   };
 
   const hasActiveHighlights = selectedExpedition;
@@ -107,30 +103,15 @@ const HighlightExpeditions: FunctionComponent<HighlightExpeditionsProps> = ({ on
 
   return (
     <div className={styles.searchContainer}>
-      {/* Header with Close Button */}
-      {onClose && (
-        <div className={styles.header}>
-          <h3>Highlight Expeditions</h3>
-          <CloseButton
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-          />
-        </div>
-      )}
-
       {/* Clear All Button */}
       {hasActiveHighlights && (
-        <div className={styles.tabContainer}>
-          <button
-            className={styles.clearAllButton}
-            onClick={handleClearAll}
-            title="Clear expedition highlights"
-          >
-            Clear
-          </button>
-        </div>
+        <button
+          className={styles.clearAllButton}
+          onClick={handleClearAll}
+          title="Clear expedition highlights"
+        >
+          Clear
+        </button>
       )}
 
       {/* Search Input */}

@@ -2,13 +2,10 @@ import React, { useState, FunctionComponent, useMemo } from "react";
 import styles from "./highlightCrew.module.css";
 import { useStateSearch } from "store/hooks/useStateSearch";
 import { useGeneralCrewArrDep } from "api/useGeneralData";
-import CloseButton from "components/common/closeButton";
 
-interface HighlightCrewProps {
-  onClose?: () => void;
-}
+interface HighlightCrewProps {}
 
-const HighlightCrew: FunctionComponent<HighlightCrewProps> = ({ onClose }) => {
+const HighlightCrew: FunctionComponent<HighlightCrewProps> = () => {
   const { data: crewArrDep } = useGeneralCrewArrDep();
   const { selectedCrewMember, setSelectedCrewMember } = useStateSearch();
 
@@ -59,7 +56,6 @@ const HighlightCrew: FunctionComponent<HighlightCrewProps> = ({ onClose }) => {
   const handleClearAll = () => {
     setSearchTerm("");
     setSelectedCrewMember(null);
-    onClose?.();
   };
 
   const hasActiveHighlights = selectedCrewMember;
@@ -103,42 +99,20 @@ const HighlightCrew: FunctionComponent<HighlightCrewProps> = ({ onClose }) => {
 
   return (
     <div className={styles.searchContainer}>
-      {/* Header with Close Button */}
-      {onClose && (
-        <div className={styles.header}>
-          <h3>Highlight Crew</h3>
-          <CloseButton
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-          />
-        </div>
-      )}
-
       {/* Clear All Button */}
       {hasActiveHighlights && (
-        <div className={styles.tabContainer}>
-          <button
-            className={styles.clearAllButton}
-            onClick={handleClearAll}
-            title="Clear crew highlights"
-          >
-            Clear
-          </button>
-        </div>
+        <button
+          className={styles.clearAllButton}
+          onClick={handleClearAll}
+          title="Clear crew highlights"
+        >
+          Clear
+        </button>
       )}
 
       {/* Search Input */}
       <div className={styles.searchBox}>
         <div className={styles.searchInputWrapper}>
-          <input
-            type="text"
-            placeholder={getPlaceholderText()}
-            value={searchTerm}
-            onChange={handleSearchChange}
-            className={styles.searchInput}
-          />
           {searchTerm && (
             <button
               className={styles.clearButton}
@@ -148,6 +122,13 @@ const HighlightCrew: FunctionComponent<HighlightCrewProps> = ({ onClose }) => {
               ×
             </button>
           )}
+          <input
+            type="text"
+            placeholder={getPlaceholderText()}
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className={styles.searchInput}
+          />
         </div>
       </div>
 

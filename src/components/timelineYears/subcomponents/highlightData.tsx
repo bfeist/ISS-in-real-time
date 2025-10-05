@@ -4,43 +4,23 @@ import HighlightExpeditions from "./highlightExpeditions";
 import LayoutTestComponent from "./layoutTestComponent";
 import styles from "./highlightData.module.css";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
-import { useStateSearch } from "store/hooks/useStateSearch";
-import IconButton from "../../common/iconButton";
-import { faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 
 const HighlightData: FunctionComponent<{
   onCloseMegaOverlay?: () => void;
 }> = ({ onCloseMegaOverlay }) => {
   const { contentHighlights, toggleContentHighlight } = useStateContentHighlights();
-  const { selectedCrewMember, selectedExpedition, clearAllSearchHighlights } = useStateSearch();
-  const [showSearchCrew, setShowSearchCrew] = useState(false);
-  const [showSearchExpeditions, setShowSearchExpeditions] = useState(false);
   const [showLayoutTest, setShowLayoutTest] = useState(false);
 
   // Define the available content types for highlighting
   const contentTypes = [
     { key: "comm", label: "Comm" },
-    { key: "vvComm", label: "Spacecraft" },
+    { key: "vvComm", label: "Spacecraft Comm" },
     { key: "earthPhotos", label: "Earth Photos" },
     { key: "flickrPhotos", label: "Mission Photos" },
     { key: "video", label: "Video" },
     { key: "blog", label: "Articles" },
-    { key: "eva", label: "EVA" },
+    { key: "eva", label: "EVA (spacewalks)" },
   ];
-
-  // Check if any search highlights are active
-  const hasActiveSearchHighlights = selectedCrewMember || selectedExpedition;
-
-  const getSearchHighlightLabel = () => {
-    if (selectedCrewMember && selectedExpedition) {
-      return `${selectedCrewMember.name} & Expedition ${selectedExpedition.expedition}`;
-    } else if (selectedCrewMember) {
-      return selectedCrewMember.name;
-    } else if (selectedExpedition) {
-      return `Expedition ${selectedExpedition.expedition}`;
-    }
-    return "";
-  };
 
   return (
     <div
@@ -60,6 +40,7 @@ const HighlightData: FunctionComponent<{
           <div className={styles.column}>
             <div className={styles.columnHeader}>Highlight Data</div>
             <div className={styles.columnBody}>
+              <span className={styles.headerText}>Days with (all):</span>
               {contentTypes.map((contentType) => (
                 <label key={contentType.key} className={styles.checkboxLabel}>
                   <input
@@ -77,24 +58,7 @@ const HighlightData: FunctionComponent<{
           <div className={styles.column}>
             <div className={styles.columnHeader}>Highlight Crew</div>
             <div className={styles.columnBody}>
-              <div className={styles.buttonWrapper}>
-                <IconButton
-                  icon={faMagnifyingGlass}
-                  onClick={() => {
-                    const newShow = !showSearchCrew;
-                    setShowSearchCrew(newShow);
-                    if (newShow) setShowSearchExpeditions(false);
-                  }}
-                  label="Crew"
-                  style={{ width: "100px" }}
-                  className={styles.toggleButton}
-                />
-              </div>
-              {showSearchCrew && (
-                <div className={styles.overlayPanelSearch}>
-                  <HighlightCrew onClose={() => setShowSearchCrew(false)} />
-                </div>
-              )}
+              <HighlightCrew />
             </div>
           </div>
 
@@ -102,46 +66,10 @@ const HighlightData: FunctionComponent<{
           <div className={styles.column}>
             <div className={styles.columnHeader}>Highlight Expeditions</div>
             <div className={styles.columnBody}>
-              <div className={styles.buttonWrapper}>
-                <IconButton
-                  icon={faMagnifyingGlass}
-                  onClick={() => {
-                    const newShow = !showSearchExpeditions;
-                    setShowSearchExpeditions(newShow);
-                    if (newShow) setShowSearchCrew(false);
-                  }}
-                  label="Expeditions"
-                  style={{ width: "100px" }}
-                  className={styles.toggleButton}
-                />
-              </div>
-              {showSearchExpeditions && (
-                <div className={styles.overlayPanelSearch}>
-                  <HighlightExpeditions onClose={() => setShowSearchExpeditions(false)} />
-                </div>
-              )}
+              <HighlightExpeditions />
             </div>
           </div>
         </div>
-
-        {hasActiveSearchHighlights && (
-          <div className={styles.searchIndicator}>
-            <span className={styles.searchIndicatorLabel}>
-              Highlight: {getSearchHighlightLabel()}
-            </span>
-            <button
-              className={styles.clearSearchButton}
-              onClick={() => {
-                clearAllSearchHighlights();
-                setShowSearchCrew(false);
-                setShowSearchExpeditions(false);
-              }}
-              title="Clear search highlights"
-            >
-              ×
-            </button>
-          </div>
-        )}
 
         <div className={`${styles.buttonWrapper} ${styles.layoutTestWrapper}`}>
           <button

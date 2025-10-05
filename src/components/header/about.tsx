@@ -60,8 +60,15 @@ const AboutModal: FunctionComponent<{
           </p>
           <p>
             Sourcing and processing the data was a challenge. We found it in many different places
-            and formats. Some of it even had to be retrieved from the Wayback Machine at
-            archive.org.
+            and formats including public sources such as{" "}
+            <a href="https://nasa.gov" target="_blank" rel="noopener noreferrer">
+              nasa.gov
+            </a>
+            ,{" "}
+            <a href="https://archive.org" target="_blank" rel="noopener noreferrer">
+              archive.org
+            </a>
+            , youtube, and flickr.
           </p>
           <p>
             Comm transcription and image classification were achieved using IA processing on a
@@ -97,7 +104,7 @@ const AboutModal: FunctionComponent<{
             and{" "}
             <a href="https://davidcharney.com" target="_blank" rel="noopener noreferrer">
               David Charney
-            </a>{" "}
+            </a>
             . We are both contractors at NASA, but we did this on evenings and weekends, just
             because we like to put good things on the Internet.
           </p>

@@ -20,9 +20,8 @@
 }
 
 .highlightTableWrapper {
-  display: flex;
-  flex-direction: row;
-  gap: 0;
+  display: grid;
+  grid-template-columns: 0.5fr 1fr 1fr;
   position: relative;
   border: 1px solid var(--grey3);
   border-radius: var(--panel-radius);
@@ -32,7 +31,6 @@
 .column {
   display: flex;
   flex-direction: column;
-  flex: 1;
   min-width: 200px;
 }
 
@@ -43,7 +41,7 @@
 .columnHeader {
   color: var(--highlight);
   text-align: left;
-  padding: 8px;
+  padding: 7px 10px;
   background-color: var(--grey2);
   border-bottom: 1px solid var(--grey3);
   font-size: 1.1rem;
@@ -62,7 +60,7 @@
   align-items: center;
   cursor: pointer;
   white-space: nowrap;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .checkboxLabel input[type="checkbox"] {
@@ -123,51 +121,7 @@
   box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
 }
 
-.overlayPanelSearch {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  background-color: var(--grey2);
-  border: 1px solid var(--grey3);
-  border-radius: 4px;
-  padding: 10px;
-  z-index: 1000;
-  width: auto;
-  min-width: 463px;
-  max-width: 600px;
-  max-height: calc(100vh - 140px);
-  overflow-y: auto;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
-}
-
-.searchIndicator {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.searchIndicatorLabel {
-  color: #87ceeb;
-  font-weight: 500;
-  white-space: nowrap;
-  font-size: 0.85em;
-}
-
-.clearSearchButton {
-  background: none;
-  border: none;
-  color: #ff6b6b;
-  font-size: 16px;
-  cursor: pointer;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s ease;
-}
-
-.clearSearchButton:hover {
-  background-color: rgb(255 107 107 / 20%);
+.headerText {
+  font-size: 0.8rem;
+  margin-bottom: 8px;
 }
