@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import styles from "./timelineYears.module.css";
+import mouseHintStyles from "./mouseHint.module.css";
 import { useStateToggle } from "../../store/hooks/useStateToggle";
 import { useStateHover } from "../../store/hooks/useStateHover";
 import HighlightData from "./subcomponents/highlightData";
@@ -73,6 +74,14 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     lastTimestamp: 0,
   });
 
+  // Mouse hint state - shows after 4 seconds of no interaction
+  const [showMouseHint, setShowMouseHint] = useState(false);
+  const mouseHintTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasUserInteractedWithTimelineRef = useRef(false);
+
+  // Detect if device supports touch
+  const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
   const stopAutoScroll = useCallback(() => {
     const state = autoScrollStateRef.current;
     if (state.frameId) {
@@ -83,6 +92,20 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     state.direction = 0;
     state.speed = 0;
     state.lastTimestamp = 0;
+  }, []);
+
+  // Function to mark that user has interacted and permanently disable the hint
+  const markUserInteracted = useCallback(() => {
+    hasUserInteractedWithTimelineRef.current = true;
+
+    // Clear any pending timer
+    if (mouseHintTimerRef.current) {
+      clearTimeout(mouseHintTimerRef.current);
+      mouseHintTimerRef.current = null;
+    }
+
+    // Hide the hint immediately
+    setShowMouseHint(false);
   }, []);
 
   const autoScrollStep = useCallback(
@@ -247,16 +270,18 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       pointerDownRef.current = true;
       pointerPositionRef.current = { x: event.clientX, y: event.clientY };
       updateAutoScrollFromPointer(event.clientX);
+      markUserInteracted();
     },
-    [updateAutoScrollFromPointer]
+    [updateAutoScrollFromPointer, markUserInteracted]
   );
 
   const handleTimelineMouseMove = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       pointerPositionRef.current = { x: event.clientX, y: event.clientY };
       updateAutoScrollFromPointer(event.clientX);
+      markUserInteracted();
     },
-    [updateAutoScrollFromPointer]
+    [updateAutoScrollFromPointer, markUserInteracted]
   );
 
   const handleTimelineMouseUp = useCallback(() => {
@@ -368,6 +393,33 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     if (showTimelineYears) {
       setForceRedrawCounter((prev) => prev + 1);
     }
+  }, [showTimelineYears]);
+
+  // Initialize mouse hint timer when timeline becomes visible
+  useEffect(() => {
+    // Clear any existing timer
+    if (mouseHintTimerRef.current) {
+      clearTimeout(mouseHintTimerRef.current);
+      mouseHintTimerRef.current = null;
+    }
+
+    if (showTimelineYears && !hasUserInteractedWithTimelineRef.current) {
+      // Start a new timer to show the hint after 4 seconds
+      mouseHintTimerRef.current = setTimeout(() => {
+        setShowMouseHint(true);
+      }, 4000);
+    } else {
+      // Hide hint when timeline is hidden
+      setShowMouseHint(false);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (mouseHintTimerRef.current) {
+        clearTimeout(mouseHintTimerRef.current);
+        mouseHintTimerRef.current = null;
+      }
+    };
   }, [showTimelineYears]);
 
   // Stop audio when a day is selected
@@ -508,8 +560,9 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
       setHoveredYearIndex(yearIndex);
       showMegaOverlay(yearIndex);
+      markUserInteracted();
     },
-    [hideOverlayTimeout, showMegaOverlay]
+    [hideOverlayTimeout, showMegaOverlay, markUserInteracted]
   );
 
   const handleYearLeave = () => {
@@ -533,6 +586,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       setHideOverlayTimeout(null);
     }
     isOverMegaOverlayRef.current = true;
+    markUserInteracted();
   };
 
   const handleMegaOverlayMouseLeave = () => {
@@ -565,7 +619,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
   const handleYearsScroll = useCallback(() => {
     updateHoverForPointerPosition();
-  }, [updateHoverForPointerPosition]);
+    markUserInteracted();
+  }, [updateHoverForPointerPosition, markUserInteracted]);
 
   const updateHoverFromTouch = (touch: Touch | React.Touch) => {
     const yearIndex = getYearIndexFromPoint(touch.clientX, touch.clientY);
@@ -608,6 +663,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     const touch = event.touches[0];
     touchStartPositionRef.current = { x: touch.clientX, y: touch.clientY };
     updateHoverFromTouch(touch);
+    markUserInteracted();
   };
 
   const handleTimelineTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -624,6 +680,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     }
 
     updateHoverFromTouch(touch);
+    markUserInteracted();
   };
 
   const handleTimelineTouchEnd = () => {
@@ -715,6 +772,14 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
               );
             })}
           </div>
+          {/* Mouse hint overlay - appears after 4 seconds of no interaction */}
+          {showMouseHint && (
+            <div className={`${mouseHintStyles.mouseHintOverlay} ${mouseHintStyles.visible}`}>
+              <div
+                className={`${mouseHintStyles.mouseHintSvg} ${isTouchDevice ? mouseHintStyles.touch : ""}`}
+              />
+            </div>
+          )}
         </div>
         {showTimelineYears && (
           <HighlightData onCloseMegaOverlay={() => setMegaOverlayVisible(false)} />
