@@ -272,6 +272,7 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
           className={styles.yt} // Reuse the same CSS class for consistent styling
           controls={false}
           muted={isMuted}
+          playsInline
           style={{ width: "100%", height: "100%" }}
           onError={() => setVideoError(`Failed to load video: ${currentVideo.filename}`)}
           onCanPlay={() => setIsReady(true)}
