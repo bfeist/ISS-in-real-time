@@ -9,14 +9,24 @@ import EvaInfo from "components/panes/evaInfo";
 import { GlobeOrMap } from "./globeOrMap";
 import styles from "./mobileLayout.module.css";
 
-export type TabName = "video" | "photos" | "globe" | "comm" | "articles" | "onboard" | "eva";
+export type TabName = "video" | "photos" | "orbit" | "comm" | "articles" | "onboard" | "eva";
 
 interface MobileLayoutProps {
   tabs: TabName[];
 }
 
 const MobileLayout: FunctionComponent<MobileLayoutProps> = ({ tabs }) => {
-  const [activeTab, setActiveTab] = useState<TabName>(() => tabs[0] ?? "globe");
+  const getDefaultTab = (availableTabs: TabName[]): TabName => {
+    const priorities: TabName[] = ["comm", "photos", "articles", "orbit"];
+    for (const priority of priorities) {
+      if (availableTabs.includes(priority)) {
+        return priority;
+      }
+    }
+    return availableTabs[0] ?? "comm";
+  };
+
+  const [activeTab, setActiveTab] = useState<TabName>(() => getDefaultTab(tabs));
   const tabsRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
@@ -54,7 +64,7 @@ const MobileLayout: FunctionComponent<MobileLayoutProps> = ({ tabs }) => {
         return <Video />;
       case "photos":
         return <Photos />;
-      case "globe":
+      case "orbit":
         return <GlobeOrMap />;
       case "comm":
         return <Comm />;

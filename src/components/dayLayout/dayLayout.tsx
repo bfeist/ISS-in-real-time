@@ -284,7 +284,7 @@ const DayLayout: FunctionComponent = () => {
     [
       { name: "video", visible: hasType("video") },
       { name: "photos", visible: hasType("photo", "photo-tall") },
-      { name: "globe", visible: hasType("globe") },
+      { name: "orbit", visible: hasType("globe") },
       { name: "comm", visible: hasType("comm") },
       { name: "articles", visible: hasType("article") },
       {
