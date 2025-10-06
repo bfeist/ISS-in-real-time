@@ -10,18 +10,11 @@ import FirstCommSection from "./firstCommSection";
 const DateTooltip: FunctionComponent<{
   hoveredDate: string | null;
   cursorPosition: { x: number; y: number } | null;
-  isTouchInteraction: boolean;
+  isTouchDevice: boolean;
   onTouchGo: (date: string | null) => void;
   onTouchCancel: () => void;
   containerRef: React.RefObject<HTMLDivElement>;
-}> = ({
-  hoveredDate,
-  cursorPosition,
-  isTouchInteraction,
-  onTouchGo,
-  onTouchCancel,
-  containerRef,
-}) => {
+}> = ({ hoveredDate, cursorPosition, isTouchDevice, onTouchGo, onTouchCancel, containerRef }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const goButtonTouchActiveRef = useRef(false);
   const cancelButtonTouchActiveRef = useRef(false);
@@ -122,9 +115,9 @@ const DateTooltip: FunctionComponent<{
       left: `${x}px`,
       top: `${containerRect.top}px`,
       visibility: "visible",
-      pointerEvents: isTouchInteraction ? "auto" : "none", // Enable pointer events for touch interactions
+      pointerEvents: isTouchDevice ? "auto" : "none", // Enable pointer events for touch interactions
     };
-  }, [cursorPosition, hoveredDate, isTouchInteraction, containerRef, isLargeScreen]);
+  }, [cursorPosition, hoveredDate, isTouchDevice, containerRef, isLargeScreen]);
 
   const stopEventPropagation = (event: React.SyntheticEvent) => {
     event.stopPropagation();
@@ -216,7 +209,7 @@ const DateTooltip: FunctionComponent<{
               {!isExtraSmallScreen && orbitsDaily && orbitsDaily[hoveredDate] && (
                 <div className={styles.tooltipOrbits}>Orbits: {orbitsDaily[hoveredDate]}</div>
               )}
-              {isTouchInteraction && (
+              {isTouchDevice && (
                 <div className={styles.tooltipButtons}>
                   <button
                     className={styles.tooltipGoButton}

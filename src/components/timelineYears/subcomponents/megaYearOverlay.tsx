@@ -43,11 +43,11 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const calendarContentRef = useRef<HTMLDivElement>(null); // Ref for just the calendar content (for tooltip positioning)
   const touchYOffsetRef = useRef(0);
   const isDragging = useRef(false);
   const ignoreMouseEventsRef = useRef(false);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
-  const [isTouchInteraction, setIsTouchInteraction] = useState(false);
   const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
   const [hideTimeout, setHideTimeout] = useState<NodeJS.Timeout | null>(null);
   const lastInitialTouchSequenceRef = useRef<number | null>(null);
@@ -188,7 +188,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   );
 
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (ignoreMouseEventsRef.current || isTouchInteraction) {
+    if (ignoreMouseEventsRef.current || isTouchDevice) {
       ignoreMouseEventsRef.current = false;
       return;
     }
@@ -229,14 +229,11 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     if (nativeEvent.sourceCapabilities?.firesTouchEvents) {
       return;
     }
-
-    setIsTouchInteraction(false);
   };
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     event.stopPropagation();
     isDragging.current = false;
-    setIsTouchInteraction(true);
     ignoreMouseEventsRef.current = true;
 
     const container = containerRef.current;
@@ -351,10 +348,6 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     if (!pendingTouchDate && hoveredDate) {
       setPendingTouchDate(hoveredDate);
     }
-    // Maintain touch interaction state when we have a pending touch
-    if (hoveredDate) {
-      setIsTouchInteraction(true);
-    }
 
     ignoreMouseEventsRef.current = true;
   };
@@ -396,7 +389,6 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
 
       handleDateClick(dateToSelect);
       setPendingTouchDate(null);
-      setIsTouchInteraction(false);
       setHoveredDate(null);
       setCursorPosition(null);
       setShowTimelineYears(false);
@@ -408,7 +400,6 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
 
   const handleTouchCancel = useCallback(() => {
     setPendingTouchDate(null);
-    setIsTouchInteraction(false);
     setCursorPosition(null);
     touchYOffsetRef.current = 0;
     ignoreMouseEventsRef.current = false;
@@ -482,13 +473,11 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
           x: externalCursorPosition.x,
           y: externalCursorPosition.y - touchYOffsetRef.current,
         });
-        setIsTouchInteraction(true);
       }
       return;
     }
 
-    if (!pendingTouchDate && isTouchInteraction) {
-      setIsTouchInteraction(false);
+    if (!pendingTouchDate && isTouchDevice) {
       setCursorPosition(null);
     }
   }, [
@@ -502,7 +491,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     hoveredDate,
     setHoveredDate,
     horizontalExtensionWidth,
-    isTouchInteraction,
+    isTouchDevice,
   ]);
 
   useEffect(() => {
@@ -548,7 +537,6 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       x: initialTouch.clientX,
       y: initialTouch.clientY - touchYOffsetRef.current,
     });
-    setIsTouchInteraction(true);
     ignoreMouseEventsRef.current = true;
   }, [
     initialTouch,
@@ -611,7 +599,12 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
           aria-hidden="true"
         />
 
-        <div className={styles.yearOverlay} style={{ height: totalHeight }}>
+        {/* Calendar content wrapper - used for tooltip positioning */}
+        <div
+          ref={calendarContentRef}
+          className={styles.yearOverlay}
+          style={{ height: totalHeight }}
+        >
           <canvas
             ref={canvasRef}
             style={{
@@ -634,14 +627,14 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
           style={{ height: touchExtensionHeight }}
           aria-hidden="true"
         />
-        {/* Date Tooltip for this overlay */}
+        {/* Date Tooltip for this overlay - uses calendarContentRef for positioning */}
         <DateTooltip
           hoveredDate={hoveredDate}
           cursorPosition={cursorPosition}
-          isTouchInteraction={isTouchInteraction}
+          isTouchDevice={isTouchDevice}
           onTouchGo={handleTouchGo}
           onTouchCancel={handleTouchCancel}
-          containerRef={containerRef}
+          containerRef={calendarContentRef}
         />
       </div>
     );
@@ -668,7 +661,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       tabIndex={0}
       aria-label={`Calendar for ${year}`}
     >
-      <div className={styles.yearOverlay} style={{ height: totalHeight }}>
+      <div ref={calendarContentRef} className={styles.yearOverlay} style={{ height: totalHeight }}>
         <canvas
           ref={canvasRef}
           style={{
@@ -678,14 +671,14 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
           }}
         />
       </div>
-      {/* Date Tooltip for this overlay */}
+      {/* Date Tooltip for this overlay - uses calendarContentRef for positioning */}
       <DateTooltip
         hoveredDate={hoveredDate}
         cursorPosition={cursorPosition}
-        isTouchInteraction={isTouchInteraction}
+        isTouchDevice={isTouchDevice}
         onTouchGo={handleTouchGo}
         onTouchCancel={handleTouchCancel}
-        containerRef={containerRef}
+        containerRef={calendarContentRef}
       />
     </div>
   );
