@@ -9,29 +9,37 @@ import { COLORS } from "./yearCanvas";
 
 interface MegaYearOverlayProps {
   year: number;
+  yearIndex: number;
   position: { left: number; top: number; width: number };
   highlights: Map<string, { fill: string; stroke?: string; expedition?: boolean }>;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  onSwitchToAdjacentYear?: (yearIndex: number) => void;
   forceRedraw?: number;
   startMonth?: number; // 0-based month index (0 = January)
   endMonth?: number; // 0-based month index (11 = December)
   selectedDate?: string | null;
   externalCursorPosition?: { x: number; y: number } | null;
+  initialTouch?: { clientX: number; clientY: number; identifier?: number; sequence: number } | null;
+  isTouchDevice?: boolean;
 }
 
 // Mega Overlay Component for zoomed year view
 const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   year,
+  yearIndex,
   position,
   highlights,
   onMouseEnter,
   onMouseLeave,
+  onSwitchToAdjacentYear,
   forceRedraw,
   startMonth = 0, // Default to January
   endMonth = 11, // Default to December
   selectedDate,
   externalCursorPosition,
+  initialTouch,
+  isTouchDevice = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,6 +50,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   const [isTouchInteraction, setIsTouchInteraction] = useState(false);
   const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
   const [hideTimeout, setHideTimeout] = useState<NodeJS.Timeout | null>(null);
+  const lastInitialTouchSequenceRef = useRef<number | null>(null);
 
   // Global state hooks
   const { hoveredDate, setHoveredDate } = useStateHover();
@@ -66,6 +75,9 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   const touchVerticalOffset = Math.min(Math.max(cellSize * 2, 72), 140);
   const touchExtensionHeight = touchVerticalOffset + cellSize * 1.5;
   const interactiveHeight = totalHeight + touchExtensionHeight;
+
+  // Horizontal extension zones for year switching (25% of width on each side)
+  const horizontalExtensionWidth = position.width * 0.25;
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -153,6 +165,28 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     endMonth,
   ]);
 
+  // Check if position is in horizontal extension zones and handle year switching
+  const checkHorizontalExtension = useCallback(
+    (x: number) => {
+      if (!onSwitchToAdjacentYear) return false;
+
+      // Left extension zone (negative x values from 0 to -horizontalExtensionWidth)
+      if (x < 0 && x >= -horizontalExtensionWidth) {
+        onSwitchToAdjacentYear(yearIndex - 1);
+        return true;
+      }
+
+      // Right extension zone (x values beyond width up to width + horizontalExtensionWidth)
+      if (x >= position.width && x < position.width + horizontalExtensionWidth) {
+        onSwitchToAdjacentYear(yearIndex + 1);
+        return true;
+      }
+
+      return false;
+    },
+    [onSwitchToAdjacentYear, horizontalExtensionWidth, position.width, yearIndex]
+  );
+
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (ignoreMouseEventsRef.current || isTouchInteraction) {
       ignoreMouseEventsRef.current = false;
@@ -164,8 +198,24 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    const dateStr = getMegaDateFromCoordinates(x, y, year, position.width, startMonth, endMonth);
-    if (hoveredDate !== dateStr) {
+    // Only adjust x coordinate for touch devices that have horizontal extensions
+    const adjustedX = isTouchDevice ? x - horizontalExtensionWidth : x;
+
+    // Check if we're in a horizontal extension zone (only for touch devices)
+    if (isTouchDevice && checkHorizontalExtension(adjustedX)) {
+      return;
+    }
+
+    const dateStr = getMegaDateFromCoordinates(
+      adjustedX,
+      y,
+      year,
+      position.width,
+      startMonth,
+      endMonth
+    );
+    // Only update hoveredDate if we get a valid date (not null from gaps)
+    if (dateStr && hoveredDate !== dateStr) {
       setHoveredDate(dateStr);
     }
 
@@ -199,18 +249,29 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     const rawX = touch.clientX - rect.left;
     const rawY = touch.clientY - rect.top;
 
+    // Adjust x coordinate to account for left horizontal extension
+    const adjustedX = rawX - horizontalExtensionWidth;
+
+    // Check if we're in a horizontal extension zone
+    if (checkHorizontalExtension(adjustedX)) {
+      return;
+    }
+
     touchYOffsetRef.current = Math.min(rawY, touchVerticalOffset);
 
     const adjustedY = Math.min(Math.max(rawY - touchYOffsetRef.current, 0), totalHeight - 1);
     const dateStr = getMegaDateFromCoordinates(
-      rawX,
+      adjustedX,
       adjustedY,
       year,
       position.width,
       startMonth,
       endMonth
     );
-    setHoveredDate(dateStr);
+    // Only update hoveredDate if we get a valid date
+    if (dateStr) {
+      setHoveredDate(dateStr);
+    }
 
     // Position tooltip and highlight above the user's finger
     setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
@@ -228,17 +289,29 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     const touch = event.touches[0];
     const x = touch.clientX - rect.left;
     const rawY = touch.clientY - rect.top;
+
+    // Adjust x coordinate to account for left horizontal extension
+    const adjustedX = x - horizontalExtensionWidth;
+
+    // Check if we're in a horizontal extension zone
+    if (checkHorizontalExtension(adjustedX)) {
+      return;
+    }
+
     const adjustedY = Math.min(Math.max(rawY - touchYOffsetRef.current, 0), totalHeight - 1);
 
     const dateStr = getMegaDateFromCoordinates(
-      x,
+      adjustedX,
       adjustedY,
       year,
       position.width,
       startMonth,
       endMonth
     );
-    setHoveredDate(dateStr);
+    // Only update hoveredDate if we get a valid date
+    if (dateStr) {
+      setHoveredDate(dateStr);
+    }
 
     // Update cursor position for tooltip to stay above the finger
     setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
@@ -255,16 +328,21 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
         const touch = event.changedTouches[0];
         const rawY = touch.clientY - rect.top;
         const x = touch.clientX - rect.left;
+        // Adjust x coordinate to account for left horizontal extension
+        const adjustedX = x - horizontalExtensionWidth;
         const adjustedY = Math.min(Math.max(rawY - touchYOffsetRef.current, 0), totalHeight - 1);
         const dateStr = getMegaDateFromCoordinates(
-          x,
+          adjustedX,
           adjustedY,
           year,
           position.width,
           startMonth,
           endMonth
         );
-        setHoveredDate(dateStr);
+        // Only update hoveredDate if we get a valid date
+        if (dateStr) {
+          setHoveredDate(dateStr);
+        }
         setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
       }
     }
@@ -291,7 +369,17 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    const dateStr = getMegaDateFromCoordinates(x, y, year, position.width, startMonth, endMonth);
+    // Only adjust x coordinate for touch devices that have horizontal extensions
+    const adjustedX = isTouchDevice ? x - horizontalExtensionWidth : x;
+
+    const dateStr = getMegaDateFromCoordinates(
+      adjustedX,
+      y,
+      year,
+      position.width,
+      startMonth,
+      endMonth
+    );
     if (dateStr) handleDateClick(dateStr);
 
     // close the years dropdown
@@ -368,43 +456,212 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
 
   useEffect(() => {
     if (externalCursorPosition) {
-      setCursorPosition(externalCursorPosition);
-      setIsTouchInteraction(true);
-    } else {
-      // When external cursor position is cleared, maintain touch interaction if we have a pending touch
-      if (!pendingTouchDate) {
-        setIsTouchInteraction(false);
+      const container = containerRef.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const rawX = externalCursorPosition.x - rect.left;
+        const rawY = externalCursorPosition.y - rect.top;
+        // Adjust x coordinate to account for left horizontal extension
+        const adjustedX = rawX - horizontalExtensionWidth;
+        const adjustedY = Math.min(Math.max(rawY - touchYOffsetRef.current, 0), totalHeight - 1);
+
+        const dateStr = getMegaDateFromCoordinates(
+          adjustedX,
+          adjustedY,
+          year,
+          position.width,
+          startMonth,
+          endMonth
+        );
+
+        if (dateStr && hoveredDate !== dateStr) {
+          setHoveredDate(dateStr);
+        }
+
+        setCursorPosition({
+          x: externalCursorPosition.x,
+          y: externalCursorPosition.y - touchYOffsetRef.current,
+        });
+        setIsTouchInteraction(true);
       }
-      // Don't clear cursor position if we have pending touch - keep tooltip visible
-      if (!pendingTouchDate) {
-        setCursorPosition(null);
-      }
+      return;
     }
-  }, [externalCursorPosition, pendingTouchDate]);
+
+    if (!pendingTouchDate && isTouchInteraction) {
+      setIsTouchInteraction(false);
+      setCursorPosition(null);
+    }
+  }, [
+    externalCursorPosition,
+    pendingTouchDate,
+    totalHeight,
+    year,
+    position.width,
+    startMonth,
+    endMonth,
+    hoveredDate,
+    setHoveredDate,
+    horizontalExtensionWidth,
+    isTouchInteraction,
+  ]);
+
+  useEffect(() => {
+    if (!initialTouch || !showTimelineYears) {
+      return;
+    }
+
+    if (lastInitialTouchSequenceRef.current === initialTouch.sequence) {
+      return;
+    }
+
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    lastInitialTouchSequenceRef.current = initialTouch.sequence;
+
+    const rect = container.getBoundingClientRect();
+    const rawX = initialTouch.clientX - rect.left;
+    const rawY = initialTouch.clientY - rect.top;
+
+    // Adjust x coordinate to account for left horizontal extension
+    const adjustedX = rawX - horizontalExtensionWidth;
+
+    touchYOffsetRef.current = Math.min(rawY, touchVerticalOffset);
+
+    const adjustedY = Math.min(Math.max(rawY - touchYOffsetRef.current, 0), totalHeight - 1);
+    const dateStr = getMegaDateFromCoordinates(
+      adjustedX,
+      adjustedY,
+      year,
+      position.width,
+      startMonth,
+      endMonth
+    );
+
+    if (dateStr) {
+      setHoveredDate(dateStr);
+    }
+
+    setCursorPosition({
+      x: initialTouch.clientX,
+      y: initialTouch.clientY - touchYOffsetRef.current,
+    });
+    setIsTouchInteraction(true);
+    ignoreMouseEventsRef.current = true;
+  }, [
+    initialTouch,
+    showTimelineYears,
+    touchVerticalOffset,
+    totalHeight,
+    year,
+    position.width,
+    startMonth,
+    endMonth,
+    setHoveredDate,
+    horizontalExtensionWidth,
+  ]);
 
   if (!showTimelineYears) return null;
 
+  // For touch devices, render with full touchZone including extensions
+  if (isTouchDevice) {
+    return (
+      <div
+        ref={containerRef}
+        className={styles.touchZone}
+        style={{
+          left: position.left - horizontalExtensionWidth,
+          top: position.top,
+          width: position.width + horizontalExtensionWidth * 2,
+          height: interactiveHeight,
+          zIndex: 10,
+        }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onMouseEnter={handleMouseEnter}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={(event) => {
+          event.stopPropagation();
+          handleTouchCancel();
+        }}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        role="grid"
+        tabIndex={0}
+        aria-label={`Calendar for ${year}`}
+      >
+        {/* Backdrop to block mouse events from passing through */}
+        <div
+          className={styles.backdrop}
+          style={{
+            width: position.width + horizontalExtensionWidth * 2,
+            height: totalHeight,
+          }}
+          aria-hidden="true"
+        />
+
+        {/* Left horizontal extension zone - transparent */}
+        <div
+          className={styles.horizontalExtension}
+          style={{ width: horizontalExtensionWidth, height: totalHeight }}
+          aria-hidden="true"
+        />
+
+        <div className={styles.yearOverlay} style={{ height: totalHeight }}>
+          <canvas
+            ref={canvasRef}
+            style={{
+              width: `${position.width}px`,
+              height: `${totalHeight}px`,
+              pointerEvents: "none",
+            }}
+          />
+        </div>
+
+        {/* Right horizontal extension zone - transparent */}
+        <div
+          className={styles.horizontalExtension}
+          style={{ width: horizontalExtensionWidth, height: totalHeight }}
+          aria-hidden="true"
+        />
+
+        <div
+          className={styles.touchExtension}
+          style={{ height: touchExtensionHeight }}
+          aria-hidden="true"
+        />
+        {/* Date Tooltip for this overlay */}
+        <DateTooltip
+          hoveredDate={hoveredDate}
+          cursorPosition={cursorPosition}
+          isTouchInteraction={isTouchInteraction}
+          onTouchGo={handleTouchGo}
+          onTouchCancel={handleTouchCancel}
+          containerRef={containerRef}
+        />
+      </div>
+    );
+  }
+
+  // For mouse devices, render simplified version without touch extensions
   return (
     <div
       ref={containerRef}
-      className={styles.touchZone}
       style={{
+        position: "absolute",
         left: position.left,
         top: position.top,
         width: position.width,
-        height: interactiveHeight,
+        height: totalHeight,
         zIndex: 10,
       }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onMouseEnter={handleMouseEnter}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={(event) => {
-        event.stopPropagation();
-        handleTouchCancel();
-      }}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role="grid"
@@ -414,14 +671,13 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       <div className={styles.yearOverlay} style={{ height: totalHeight }}>
         <canvas
           ref={canvasRef}
-          style={{ width: "100%", height: `${totalHeight}px`, pointerEvents: "none" }}
+          style={{
+            width: `${position.width}px`,
+            height: `${totalHeight}px`,
+            pointerEvents: "none",
+          }}
         />
       </div>
-      <div
-        className={styles.touchExtension}
-        style={{ height: touchExtensionHeight }}
-        aria-hidden="true"
-      />
       {/* Date Tooltip for this overlay */}
       <DateTooltip
         hoveredDate={hoveredDate}
@@ -448,16 +704,64 @@ export const getMegaDateFromCoordinates = (
   // Use 12-month layout for coordinate calculation
   const cellWidth = (width - (12 - 1) * cellGap) / 12;
   const cellSize = cellWidth;
+  const cellSpanX = cellWidth + cellGap;
+  const cellSpanY = cellSize + cellGap;
+  const maxDaysInMonth = 31;
+  const totalHeight = maxDaysInMonth * cellSpanY;
+
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return null;
+  }
+
+  if (y < 0 || y >= totalHeight) {
+    return null;
+  }
+
+  const normalizedX = Math.min(Math.max(x, 0), width - Number.EPSILON);
+  const normalizedY = Math.min(Math.max(y, 0), totalHeight - Number.EPSILON);
+
+  let month = Math.floor(normalizedX / cellSpanX);
+  const monthOffsetWithinCell = normalizedX - month * cellSpanX;
+
+  if (monthOffsetWithinCell > cellWidth) {
+    const distanceIntoGap = monthOffsetWithinCell - cellWidth;
+    if (distanceIntoGap > cellGap / 2) {
+      month += 1;
+    }
+  }
+
+  if (month < startMonth) {
+    month = startMonth;
+  } else if (month > endMonth) {
+    month = endMonth;
+  }
+
+  let dayIndex = Math.floor(normalizedY / cellSpanY);
+  const dayOffsetWithinCell = normalizedY - dayIndex * cellSpanY;
+
+  if (dayOffsetWithinCell > cellSize) {
+    const distanceIntoGap = dayOffsetWithinCell - cellSize;
+    if (distanceIntoGap > cellGap / 2) {
+      dayIndex += 1;
+    }
+  }
+
+  if (dayIndex < 0) {
+    dayIndex = 0;
+  }
+  if (dayIndex >= maxDaysInMonth) {
+    dayIndex = maxDaysInMonth - 1;
+  }
+
+  let day = dayIndex + 1;
 
   // Determine month based on 12-month grid
-  const month = Math.floor(x / (cellWidth + cellGap));
-  if (month < startMonth || month > endMonth) return null;
-
-  // Determine day
-  const day = Math.floor(y / (cellSize + cellGap)) + 1;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  if (day > daysInMonth) {
+    day = daysInMonth;
+  }
 
   // Validate day exists in this month
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
   if (day < 1 || day > daysInMonth) return null;
 
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;

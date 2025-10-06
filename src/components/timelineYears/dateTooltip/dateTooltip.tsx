@@ -84,14 +84,14 @@ const DateTooltip: FunctionComponent<{
 
   // Calculate tooltip position
   const getTooltipStyle = useCallback((): React.CSSProperties => {
-    if (!cursorPosition || !hoveredDate) {
+    if (!cursorPosition || !hoveredDate || !tooltipRef.current) {
       return { pointerEvents: "none", visibility: "hidden" };
     }
 
     const offset = isLargeScreen ? 30 : 5;
     const tooltipElement = tooltipRef.current;
 
-    const tooltipWidth = tooltipElement ? tooltipElement.offsetWidth || 600 : 600;
+    const tooltipWidth = tooltipElement.offsetWidth;
 
     // Get container position for side positioning
     const container = containerRef.current;

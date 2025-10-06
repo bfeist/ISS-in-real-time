@@ -329,6 +329,16 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const [touchCursorPosition, setTouchCursorPosition] = useState<{ x: number; y: number } | null>(
     null
   );
+  const lastTouchInfoRef = useRef<{ clientX: number; clientY: number; identifier?: number } | null>(
+    null
+  );
+  const [initialOverlayTouch, setInitialOverlayTouch] = useState<{
+    clientX: number;
+    clientY: number;
+    identifier?: number;
+    sequence: number;
+  } | null>(null);
+  const overlayVisibilityRef = useRef(false);
 
   useEffect(() => {
     const handleWindowMouseUp = () => {
@@ -338,6 +348,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       }
       pointerPositionRef.current = null;
       touchStartPositionRef.current = null;
+      lastTouchInfoRef.current = null;
+      setInitialOverlayTouch(null);
     };
 
     const handleWindowBlur = () => {
@@ -355,6 +367,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       setTouchCursorPosition(null);
       pointerPositionRef.current = null;
       touchStartPositionRef.current = null;
+      lastTouchInfoRef.current = null;
+      setInitialOverlayTouch(null);
     };
 
     window.addEventListener("mouseup", handleWindowMouseUp);
@@ -512,8 +526,14 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const years = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, i) => START_YEAR + i);
   const selectedYearEl = selectedDate ? new Date(selectedDate).getFullYear() : null;
 
-  // Derive the hovered year index from hoveredDate
-  const hoveredYearIndex = hoveredDate ? new Date(hoveredDate).getFullYear() - START_YEAR : null;
+  // Track which year overlay is currently open (independent of hoveredDate)
+  const [activeOverlayYearIndex, setActiveOverlayYearIndex] = useState<number | null>(null);
+
+  // Derive the hovered year index from hoveredDate or active overlay
+  const hoveredYearIndexFromDate = hoveredDate
+    ? new Date(hoveredDate).getFullYear() - START_YEAR
+    : null;
+  const hoveredYearIndex = activeOverlayYearIndex ?? hoveredYearIndexFromDate;
 
   // Calculate start and end months for partial year rendering
   const getYearMonthRange = (year: number) => {
@@ -562,6 +582,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       setMegaOverlayYear(year);
       setMegaOverlayPosition({ left, top, width: overlayWidth });
       setMegaOverlayVisible(true);
+      setActiveOverlayYearIndex(yearIndex);
     },
     [years]
   );
@@ -574,18 +595,11 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         hideOverlayTimeoutRef.current = null;
       }
 
-      // Set hoveredDate to the first day of the year to indicate which year is hovered
-      const year = years[yearIndex];
-      const { startMonth } = getYearMonthRange(year);
-      const firstDate = dayjs
-        .utc(`${year}-${String(startMonth + 1).padStart(2, "0")}-01`)
-        .format("YYYY-MM-DD");
-      setHoveredDate(firstDate);
-
+      // Just open the overlay - let overlay handle hoveredDate
       showMegaOverlay(yearIndex);
       markUserInteracted();
     },
-    [showMegaOverlay, markUserInteracted, years, setHoveredDate]
+    [showMegaOverlay, markUserInteracted]
   );
 
   const handleYearLeave = () => {
@@ -596,6 +610,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         setHoveredDate(null);
         setMegaOverlayVisible(false);
         setMegaOverlayYear(null);
+        setActiveOverlayYearIndex(null);
       }
     }, 150); // Increased delay for smoother transitions
   };
@@ -620,6 +635,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         setMegaOverlayVisible(false);
         setHoveredDate(null);
         setMegaOverlayYear(null);
+        setActiveOverlayYearIndex(null);
       }
     }, 100); // Slightly shorter delay since we're checking less conditions
   };
@@ -645,35 +661,22 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const updateHoverFromTouch = (touch: Touch | React.Touch) => {
     const yearIndex = getYearIndexFromPoint(touch.clientX, touch.clientY);
     if (yearIndex !== null) {
-      if (lastTouchYearIndexRef.current !== yearIndex) {
+      // Check if we need to open a different year's overlay
+      if (lastTouchYearIndexRef.current !== yearIndex && activeOverlayYearIndex !== yearIndex) {
         lastTouchYearIndexRef.current = yearIndex;
         handleYearHover(yearIndex);
       }
     }
 
-    if (megaOverlayVisible && megaOverlayYear !== null && containerRef.current) {
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const overlayAbsoluteLeft = containerRect.left + megaOverlayPosition.left;
-      const overlayAbsoluteTop = containerRect.top + megaOverlayPosition.top;
-      const localX = touch.clientX - overlayAbsoluteLeft;
-      const localY = touch.clientY - overlayAbsoluteTop;
-      const { startMonth, endMonth } = getYearMonthRange(megaOverlayYear);
-      const dateStr = getMegaDateFromCoordinates(
-        localX,
-        localY,
-        megaOverlayYear,
-        megaOverlayPosition.width,
-        startMonth,
-        endMonth
-      );
-      if (dateStr) {
-        setHoveredDate(dateStr);
-      }
-    }
-
+    // Let overlay handle all hover date updates via externalCursorPosition
     setTouchCursorPosition({ x: touch.clientX, y: touch.clientY });
     pointerPositionRef.current = { x: touch.clientX, y: touch.clientY };
     updateAutoScrollFromPointer(touch.clientX);
+    lastTouchInfoRef.current = {
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      identifier: "identifier" in touch ? touch.identifier : undefined,
+    };
   };
 
   const handleTimelineTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -719,15 +722,11 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const handleTimelineTouchEnd = () => {
     touchDragActiveRef.current = false;
 
-    // Don't reset to year hover if the mega overlay is visible
-    // This prevents overwriting the date that was being touched in the overlay
-    if (lastTouchYearIndexRef.current !== null && !megaOverlayVisible) {
-      handleYearHover(lastTouchYearIndexRef.current);
-    }
-
     setTouchCursorPosition(null);
     pointerPositionRef.current = null;
     touchStartPositionRef.current = null;
+    lastTouchInfoRef.current = null;
+    setInitialOverlayTouch(null);
     stopAutoScroll();
   };
 
@@ -736,8 +735,29 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     setTouchCursorPosition(null);
     pointerPositionRef.current = null;
     touchStartPositionRef.current = null;
+    lastTouchInfoRef.current = null;
+    setInitialOverlayTouch(null);
     stopAutoScroll();
   };
+
+  useEffect(() => {
+    const wasVisible = overlayVisibilityRef.current;
+    if (megaOverlayVisible && !wasVisible) {
+      if (touchDragActiveRef.current && lastTouchInfoRef.current) {
+        setInitialOverlayTouch({
+          clientX: lastTouchInfoRef.current.clientX,
+          clientY: lastTouchInfoRef.current.clientY,
+          identifier: lastTouchInfoRef.current.identifier,
+          sequence: Date.now(),
+        });
+      } else {
+        setInitialOverlayTouch(null);
+      }
+    } else if (!megaOverlayVisible && wasVisible) {
+      setInitialOverlayTouch(null);
+    }
+    overlayVisibilityRef.current = megaOverlayVisible;
+  }, [megaOverlayVisible]);
 
   return (
     <>
@@ -781,6 +801,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
                   setHoveredDate(null);
                   setMegaOverlayVisible(false);
                   setMegaOverlayYear(null);
+                  setActiveOverlayYearIndex(null);
                 }
               }, 50); // Small delay to allow overlay events to register
             }}
@@ -819,23 +840,28 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             onCloseMegaOverlay={() => {
               setMegaOverlayVisible(false);
               setHoveredDate(null);
+              setActiveOverlayYearIndex(null);
             }}
           />
         )}
 
         {/* Mega Overlay */}
-        {megaOverlayVisible && megaOverlayYear && (
+        {megaOverlayVisible && megaOverlayYear && activeOverlayYearIndex !== null && (
           <MegaYearOverlay
             year={megaOverlayYear}
+            yearIndex={activeOverlayYearIndex}
             position={megaOverlayPosition}
             highlights={highlights}
             onMouseEnter={handleMegaOverlayMouseEnter}
             onMouseLeave={handleMegaOverlayMouseLeave}
+            onSwitchToAdjacentYear={handleYearHover}
             forceRedraw={forceRedrawCounter}
             startMonth={getYearMonthRange(megaOverlayYear).startMonth}
             endMonth={getYearMonthRange(megaOverlayYear).endMonth}
             selectedDate={selectedDate}
             externalCursorPosition={touchCursorPosition}
+            initialTouch={initialOverlayTouch}
+            isTouchDevice={isTouchDevice}
           />
         )}
       </div>
