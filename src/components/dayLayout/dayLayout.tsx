@@ -2,6 +2,7 @@ import { FunctionComponent, useEffect, useState, useMemo } from "react";
 import styles from "./dayLayout.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateDayNight } from "store/hooks/useStateDayNight";
+import { useStateSearch } from "store/hooks/useStateSearch";
 import { useDateDataAvailability, useDateEphemera } from "api/useDateSpecificData";
 import { useDateCommTranscript } from "api/useDateSpecificData";
 import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
@@ -154,6 +155,7 @@ const renderColumn = (components: ComponentConfig[], columnClass: string): JSX.E
 const DayLayout: FunctionComponent = () => {
   const { selectedDate, startClock, setClock, appSecondsAtStartStop } = useStateClock();
   const { setDayNight } = useStateDayNight();
+  const { selectedNotableMoment } = useStateSearch();
   const { dateTimeSlug } = useParams();
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
   const { data: commItems = [] } = useDateCommTranscript(selectedDate);
@@ -204,6 +206,14 @@ const DayLayout: FunctionComponent = () => {
       return;
     }
 
+    // If the date is a selected notable moment, set clock to that time
+    if (selectedNotableMoment && selectedNotableMoment.datetime.startsWith(selectedDate || "")) {
+      const timeStr = selectedNotableMoment.datetime.split("T")[1];
+      setClock(appSecondsFromTimeStr(timeStr));
+      startClock();
+      return;
+    }
+
     // Only set automatic clock position if no dateTimeSlug parameter was provided
     // YouTube takes priority over comm data
     if (videoYtRecording || videoIaRecording) {
@@ -219,7 +229,7 @@ const DayLayout: FunctionComponent = () => {
     // Start the clock after setting position (only for non-dateTimeSlug cases)
     startClock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, dateTimeSlug, videoYtRecording, dataAvailability]);
+  }, [selectedDate, dateTimeSlug, videoYtRecording, dataAvailability, selectedNotableMoment]);
 
   // Handle left/right arrow keys to adjust clock by 10 seconds
   useEffect(() => {
