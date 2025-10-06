@@ -18,6 +18,7 @@ export const initGA = (): void => {
   try {
     ReactGA.initialize(MEASUREMENT_ID, {
       gtagOptions: {
+        cookie_domain: ".issinrealtime.org",
         // Respect Do Not Track browser setting
         anonymize_ip: true,
         // Additional privacy settings
