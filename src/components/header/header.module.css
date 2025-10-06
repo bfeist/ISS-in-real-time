@@ -38,6 +38,7 @@
   color: var(--highlight);
   align-self: center;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .titleContainer .blurb {
@@ -45,6 +46,7 @@
   font-family: Inter, sans-serif;
   font-weight: 400;
   align-self: center;
+  white-space: nowrap;
 }
 
 @media (width <= 729px) {

@@ -7,7 +7,7 @@ import { useStateToggle } from "../../store/hooks/useStateToggle";
 import { useStateHover } from "../../store/hooks/useStateHover";
 import HighlightData from "./subcomponents/highlightData";
 import YearCanvas, { COLORS } from "./subcomponents/yearCanvas";
-import MegaYearOverlay, { getMegaDateFromCoordinates } from "./subcomponents/megaYearOverlay";
+import MegaYearOverlay from "./subcomponents/megaYearOverlay";
 
 // Configure dayjs to use UTC plugin
 dayjs.extend(utc);
