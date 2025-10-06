@@ -38,7 +38,7 @@
   left: 0;
   right: 0;
   /* background: var(--grey2); */
-  background: rgb(0 0 0 / 60%);
+  background: rgb(0 0 0 / 70%);
   color: white;
   padding: 12px;
   font-size: 0.8em;
@@ -51,8 +51,10 @@
   overflow-y: auto;
 }
 
-.currentImage:hover .descriptionOverlay {
-  opacity: 1;
+.descriptionButtons {
+  display: flex;
+  flex-direction: column;
+  float: right;
 }
 
 .descriptionContent {

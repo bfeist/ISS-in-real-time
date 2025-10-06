@@ -1,6 +1,6 @@
 import { FunctionComponent, useCallback, useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
+import { faExternalLinkAlt, faExpand } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photos.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
@@ -29,6 +29,10 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [clickedPhotoFilename, setClickedPhotoFilename] = useState<string | null>(null);
   const [lastAppSeconds, setLastAppSeconds] = useState<number | null>(null);
+  const [showCaption, setShowCaption] = useState(false);
+
+  // Detect touch device
+  const isTouchDevice = useMemo(() => "ontouchstart" in window, []);
 
   // Computed values
   const isLoading = earthPhotographyIsLoading || flickrPhotosIsLoading;
@@ -247,11 +251,17 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   return (
     <div
       className={styles.imageComponentContainer}
-      onMouseEnter={() => setIsHoveringContainer(true)}
-      onMouseLeave={() => setIsHoveringContainer(false)}
+      onMouseEnter={() => {
+        setIsHoveringContainer(true);
+        if (!isTouchDevice) setShowCaption(true);
+      }}
+      onMouseLeave={() => {
+        setIsHoveringContainer(false);
+        if (!isTouchDevice) setShowCaption(false);
+      }}
     >
       <PhotoToggle
-        isVisible={isHoveringContainer}
+        isVisible={isHoveringContainer || isTouchDevice}
         earthPhotosCount={earthPhotosCount}
         timelapsePhotosCount={timelapsePhotosCount}
         missionPhotosCount={missionPhotosCount}
@@ -263,9 +273,13 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
         style={height === "short" ? { maxHeight: "35vh" } : undefined}
         role="button"
         tabIndex={0}
-        onClick={() =>
-          mostRecentImage && window.open(getImageUrl(mostRecentImage, "large"), "_blank")
-        }
+        onClick={() => {
+          if (isTouchDevice) {
+            setShowCaption(!showCaption);
+          } else if (mostRecentImage) {
+            window.open(getImageUrl(mostRecentImage, "large"), "_blank");
+          }
+        }}
         onKeyUp={(e) => {
           if ((e.key === "Enter" || e.key === " ") && mostRecentImage) {
             window.open(getImageUrl(mostRecentImage, "large"), "_blank");
@@ -276,25 +290,39 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
           <img src={getImageUrl(mostRecentImage, "medium")} alt={mostRecentImage.nasaId} />
         )}
         {mostRecentImage && mostRecentImage.type === "photos_flickr" && (
-          <div className={styles.descriptionOverlay}>
+          <div className={styles.descriptionOverlay} style={{ opacity: showCaption ? 1 : 0 }}>
             <div className={styles.descriptionContent}>
-              {mostRecentImage.sourceUrl && (
-                <SourceButton
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(mostRecentImage.sourceUrl, "_blank");
-                  }}
-                  variant="iconOnly"
-                >
-                  <FontAwesomeIcon icon={faExternalLinkAlt} />
-                </SourceButton>
-              )}
+              <div className={styles.descriptionButtons}>
+                {mostRecentImage.sourceUrl && (
+                  <SourceButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(mostRecentImage.sourceUrl, "_blank");
+                    }}
+                    variant="iconOnly"
+                  >
+                    <FontAwesomeIcon icon={faExternalLinkAlt} />
+                  </SourceButton>
+                )}
+                {isTouchDevice && (
+                  <SourceButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(getImageUrl(mostRecentImage, "large"), "_blank");
+                    }}
+                    variant="iconOnly"
+                    tooltip="View large image"
+                  >
+                    <FontAwesomeIcon icon={faExpand} />
+                  </SourceButton>
+                )}
+              </div>
               <p dangerouslySetInnerHTML={{ __html: mostRecentImage.description }} />
             </div>
           </div>
         )}
         {mostRecentImage && mostRecentImage.type === "photos_earth" && (
-          <div className={styles.descriptionOverlay}>
+          <div className={styles.descriptionOverlay} style={{ opacity: showCaption ? 1 : 0 }}>
             <div className={styles.descriptionContent}>
               <SourceButton
                 onClick={(e) => {
@@ -309,6 +337,18 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
               >
                 <FontAwesomeIcon icon={faExternalLinkAlt} />
               </SourceButton>
+              {isTouchDevice && (
+                <SourceButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(getImageUrl(mostRecentImage, "large"), "_blank");
+                  }}
+                  variant="iconOnly"
+                  tooltip="View large image"
+                >
+                  <FontAwesomeIcon icon={faExpand} />
+                </SourceButton>
+              )}
               {earthPhotoMetadata && earthPhotoMetadata.camera && (
                 <div className={styles.metadataRow}>
                   <strong>Camera:</strong> {earthPhotoMetadata.camera}

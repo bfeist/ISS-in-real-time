@@ -1,4 +1,4 @@
-import { FunctionComponent } from "react";
+import { FunctionComponent, useMemo } from "react";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { faGlobe, faMap } from "@fortawesome/free-solid-svg-icons";
 import IconButton from "../common/iconButton";
@@ -11,7 +11,10 @@ interface GlobeMapToggleProps {
 const GlobeMapToggle: FunctionComponent<GlobeMapToggleProps> = ({ isVisible }) => {
   const { showGlobe, setShowGlobe } = useStateToggle();
 
-  if (!isVisible) return null;
+  // Detect touch device
+  const isTouchDevice = useMemo(() => "ontouchstart" in window, []);
+
+  if (!isVisible && !isTouchDevice) return null;
 
   return (
     <div className={styles.toggleButton}>
