@@ -4,7 +4,7 @@ body {
   font-family: var(--font-sans);
   height: 100vh;
   overflow: hidden;
-  overscroll-behavior: none;
+  overscroll-behavior: contain;
 }
 
 p {
@@ -88,10 +88,12 @@ pre,
 html {
   overflow-x: hidden;
   max-width: 100vw;
+  overscroll-behavior-y: none;
 }
 
 body,
 #root {
   max-width: 100vw;
   overflow-x: hidden;
+  overscroll-behavior-y: none;
 }

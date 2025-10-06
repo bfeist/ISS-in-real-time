@@ -55,6 +55,63 @@ const HomePage: FunctionComponent = (): JSX.Element => {
     }
   }, [dateTimeSlug, setSelectedDate, setClock]);
 
+  // Prevent pull-to-refresh on touch devices
+  useEffect(() => {
+    let lastTouchY = 0;
+
+    const preventPullToRefresh = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      const currentY = touch.clientY;
+
+      // Calculate if user is pulling down
+      const isPullingDown = currentY > lastTouchY;
+
+      // Get the element being touched
+      const target = e.target as HTMLElement;
+
+      // Find if the target or any parent is scrollable
+      let scrollableParent: HTMLElement | null = target;
+      let foundScrollable = false;
+
+      while (scrollableParent && scrollableParent !== document.body) {
+        const computedStyle = window.getComputedStyle(scrollableParent);
+        const overflowY = computedStyle.overflowY;
+
+        if (overflowY === "auto" || overflowY === "scroll") {
+          // Check if this element is actually scrollable (has overflow)
+          if (scrollableParent.scrollHeight > scrollableParent.clientHeight) {
+            foundScrollable = true;
+
+            // If pulling down and at the top of the scrollable element, prevent
+            if (isPullingDown && scrollableParent.scrollTop === 0) {
+              e.preventDefault();
+            }
+            break;
+          }
+        }
+        scrollableParent = scrollableParent.parentElement;
+      }
+
+      // If no scrollable parent found and pulling down at top of page, prevent
+      if (!foundScrollable && isPullingDown && window.scrollY === 0) {
+        e.preventDefault();
+      }
+    };
+
+    const touchStart = (e: TouchEvent) => {
+      lastTouchY = e.touches[0].clientY;
+    };
+
+    // Add passive: false to allow preventDefault to work
+    document.addEventListener("touchstart", touchStart, { passive: true });
+    document.addEventListener("touchmove", preventPullToRefresh, { passive: false });
+
+    return () => {
+      document.removeEventListener("touchstart", touchStart);
+      document.removeEventListener("touchmove", preventPullToRefresh);
+    };
+  }, []);
+
   return (
     <div className={styles.page}>
       <Header />
