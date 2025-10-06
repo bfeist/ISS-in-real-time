@@ -88,12 +88,18 @@
 }
 
 .timeOnboard {
-  font-family: var(--font-mono);
-  font-size: 0.6em;
+  font-family: "Ubuntu Mono", monospace;
+  font-weight: 600;
+  font-size: 0.7em;
   color: var(--grey4);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 5px;
+  margin-top: 3px;
+}
+
+.arriveDepartTime {
+  flex: 1;
 }
 
 .arrowIcon {
@@ -102,8 +108,4 @@
     0 0 1px white,
     0 0 2px white;
   filter: drop-shadow(0 0 1px white);
-}
-
-.currentlyOnboard {
-  font-weight: 600;
 }

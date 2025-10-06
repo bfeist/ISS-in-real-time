@@ -76,21 +76,23 @@ const CrewOnboard: FunctionComponent = () => {
                 </div>
               </div>
               <div className={styles.timeOnboard}>
-                <div>
+                <div className={styles.arriveDepartTime}>
                   <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowUp} />
                   {ddhhmmssBetweenDateStrings(crewItem.arrivalDate, currentTimeStr)}
                 </div>
-                <div>
+                <div className={styles.arriveDepartTime}>
                   {currentlyInSpace ? (
                     <>
                       <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowDown} />
-                      <span className={styles.currentlyOnboard}>Landing date TBD</span>
+                      <span> Landing date TBD</span>
                     </>
                   ) : (
                     crewItem.departureDate !== null && (
                       <>
                         <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowDown} />
-                        {ddhhmmssBetweenDateStrings(currentTimeStr, crewItem.departureDate)}
+                        <span>
+                          {ddhhmmssBetweenDateStrings(currentTimeStr, crewItem.departureDate)}
+                        </span>
                       </>
                     )
                   )}

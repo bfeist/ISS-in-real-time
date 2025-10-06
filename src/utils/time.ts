@@ -95,5 +95,5 @@ export const ddhhmmssBetweenDateStrings = (date1: string, date2: string): string
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
-  return `${days}d ${hours % 24}h ${minutes % 60}m ${seconds % 60}s`;
+  return `${days.toString().padStart(2, "0")}d ${(hours % 24).toString().padStart(2, "0")}h ${(minutes % 60).toString().padStart(2, "0")}m ${(seconds % 60).toString().padStart(2, "0")}s`;
 };
