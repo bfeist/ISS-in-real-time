@@ -718,7 +718,9 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const handleTimelineTouchEnd = () => {
     touchDragActiveRef.current = false;
 
-    if (lastTouchYearIndexRef.current !== null) {
+    // Don't reset to year hover if the mega overlay is visible
+    // This prevents overwriting the date that was being touched in the overlay
+    if (lastTouchYearIndexRef.current !== null && !megaOverlayVisible) {
       handleYearHover(lastTouchYearIndexRef.current);
     }
 

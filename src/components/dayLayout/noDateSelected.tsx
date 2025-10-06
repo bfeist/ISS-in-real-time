@@ -23,7 +23,7 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
-    }, 5000);
+    }, 7000);
 
     return () => clearInterval(interval);
   }, []);
