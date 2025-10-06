@@ -6,6 +6,7 @@ import { flagUrlByCountryName } from "utils/countries";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useGeneralCrewArrDep } from "api/useGeneralData";
 import { getCrewMembersOnboardByDate } from "utils/onboard";
+import { getCrewFullName, getCrewStayKey } from "utils/crew";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowDown, faArrowUp } from "@fortawesome/free-solid-svg-icons";
 
@@ -30,6 +31,13 @@ const CrewOnboard: FunctionComponent = () => {
     });
   }, [selectedDate, appSeconds, crewArrDep]);
 
+  // Helper function to check if a crew member is currently in space
+  const isCurrentlyInSpace = (crewItem: CrewArrDepItem): boolean => {
+    return (
+      crewItem.departureFlight === "TBD" || new Date(crewItem.departureDate).getFullYear() >= 2099
+    );
+  };
+
   if (isLoading) {
     return <div>Loading crew onboard...</div>;
   }
@@ -42,11 +50,12 @@ const CrewOnboard: FunctionComponent = () => {
       <div className={styles.crewOnboard}>
         <ClockInterval setAppSeconds={setAppSeconds} />
         {crewOnboard.map((crewItem) => {
-          const crewFullName = `${crewItem.name_first} ${crewItem.name_last}`.trim();
+          const crewFullName = getCrewFullName(crewItem);
           const wikipediaSearchUrl = `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(crewFullName)}`;
+          const currentlyInSpace = isCurrentlyInSpace(crewItem);
 
           return (
-            <div key={`${crewItem.arrivalDate}_${crewItem.name_first}_${crewItem.name_last}`}>
+            <div key={getCrewStayKey(crewItem)}>
               <div className={styles.crewItem}>
                 <div className={styles.flagContainer}>
                   <img
@@ -72,11 +81,18 @@ const CrewOnboard: FunctionComponent = () => {
                   {ddhhmmssBetweenDateStrings(crewItem.arrivalDate, currentTimeStr)}
                 </div>
                 <div>
-                  {crewItem.departureDate !== null && (
+                  {currentlyInSpace ? (
                     <>
                       <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowDown} />
-                      {ddhhmmssBetweenDateStrings(currentTimeStr, crewItem.departureDate)}
+                      <span className={styles.currentlyOnboard}>Landing date TBD</span>
                     </>
+                  ) : (
+                    crewItem.departureDate !== null && (
+                      <>
+                        <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowDown} />
+                        {ddhhmmssBetweenDateStrings(currentTimeStr, crewItem.departureDate)}
+                      </>
+                    )
                   )}
                 </div>
               </div>

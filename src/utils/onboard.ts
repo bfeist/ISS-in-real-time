@@ -3,6 +3,11 @@ import { isSameDay } from "./dates";
 /**
  * Determines the crew members onboard the ISS at a specified date and time.
  *
+ * IMPORTANT: This function does NOT need to perform any name matching or normalization.
+ * Each CrewArrDepItem represents a complete, matched arrival-to-departure stay.
+ * The Python script (6_web_crew_arrive_dep_from_flights.py) already handled all
+ * fuzzy name matching when it created these records.
+ *
  * @param dateStr - The query date in 'YYYY-MM-DD' format.
  * @param appSeconds - The time of day in seconds since midnight (0-86399). Optional.
  *                     If not provided, assumes arrival at midnight and departure at 23:59:59.

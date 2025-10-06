@@ -103,3 +103,7 @@
     0 0 2px white;
   filter: drop-shadow(0 0 1px white);
 }
+
+.currentlyOnboard {
+  font-weight: 600;
+}

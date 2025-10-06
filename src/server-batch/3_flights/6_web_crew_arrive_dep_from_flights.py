@@ -1,14 +1,38 @@
 #!/usr/bin/env python3
+"""
+Process flight data to create crew arrival and departure records.
+
+This script reads the cleaned flights.json file (produced by 5a_web_flights.py)
+and matches crew arrivals with their corresponding departures to create a complete
+record of each crew member's stay on the ISS.
+
+Key features:
+- Uses fuzzy name matching to handle inconsistent name formats across missions
+  (e.g., middle initials present/absent, nicknames, transliteration variations)
+- Chronologically processes all arrival and departure events
+- Handles edge cases like crew exchanges, extended missions, and rescue flights
+- Calculates duration of each crew member's stay
+- Handles currently onboard crew (no departure yet) by using a far-future departure date
+
+Output format:
+- Each record represents one crew member's stay on the ISS
+- For completed stays: includes actual arrival and departure dates
+- For crew currently onboard: uses departure date of 2099-12-31T23:59:59Z with "TBD" values
+
+Dependencies:
+- Requires flights.json from 5a_web_flights.py (contains validated, cleaned crew names)
+- Names are already validated and cleaned by 5a, so no additional validation needed
+- Fuzzy matching is still required because Wikipedia may have name variations between missions
+"""
 import json
 import os
 import re
 from datetime import datetime
-from math import floor
 from difflib import SequenceMatcher
 
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path="../../.env")
+load_dotenv(dotenv_path="../../../.env")
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
 
@@ -18,22 +42,6 @@ def iso_to_datetime(iso_str):
         return datetime.strptime(iso_str, "%Y-%m-%dT%H:%M:%SZ")
     except Exception:
         return None
-
-
-def find_nationality(flight, crew_name):
-    """
-    Given a flight record and a crew member name, find the nationality
-    from either crew_launching or crew_landing lists.
-    """
-    for member in flight.get("crew_launching", []):
-        if member.get("name") == crew_name:
-            return member.get("nationality", "")
-
-    for member in flight.get("crew_landing", []):
-        if member.get("name") == crew_name:
-            return member.get("nationality", "")
-
-    return ""
 
 
 def parse_crew_name(name):
@@ -107,6 +115,11 @@ def normalize_crew_name(name):
     Normalize crew names by removing middle initials and suffixes.
     Returns just "First Last" for comparison purposes.
 
+    This is still needed because Wikipedia may format the same person's name
+    differently on different mission pages:
+    - "John A. Doe" on one mission vs "John Doe" on another
+    - "Frank L. Culbertson Jr." vs "Frank Culbertson"
+
     Examples:
     - "John A. Doe" -> "John Doe"
     - "Frank L. Culbertson Jr." -> "Frank Culbertson"
@@ -118,9 +131,18 @@ def normalize_crew_name(name):
     return f"{name_first} {name_last}".strip()
 
 
-def names_match(name1, name2, threshold=0.80):
+def names_match(name1, name2, threshold=0.85):
     """
     Check if two names match using fuzzy string matching.
+
+    This fuzzy matching is REQUIRED because Wikipedia has inconsistent name formats:
+    - Different mission pages may use different name variants
+    - Middle initials may be present on one mission, absent on another
+    - Nicknames vs full names (Doug vs Douglas, Randy vs Randolph, Jim vs James)
+    - Russian transliteration variations (Sergey vs Sergei, Valeri vs Valery)
+    - Even though 5a_web_flights.py validates names, it cannot normalize them across
+      all missions because each mission page is scraped independently
+
     Handles variations like:
     - Middle initials present or absent
     - Nicknames vs full names (Doug vs Douglas, Randy vs Randolph, Jim vs James)
@@ -129,7 +151,7 @@ def names_match(name1, name2, threshold=0.80):
     Args:
         name1: First normalized name (first + last)
         name2: Second normalized name (first + last)
-        threshold: Similarity threshold (0.0-1.0), default 0.80
+        threshold: Similarity threshold (0.0-1.0), default 0.85
 
     Returns:
         bool: True if names are similar enough to be considered a match
@@ -148,6 +170,9 @@ def names_match(name1, name2, threshold=0.80):
         "yury": "yuri",
         "mikhail": "michael",
         "michael": "mikhail",
+        "dmitri": "dmitry",
+        "dmitry": "dmitri",
+        "oleg": "oleg",  # Keep consistent
         # English nicknames
         "bob": "robert",
         "robert": "bob",
@@ -157,11 +182,15 @@ def names_match(name1, name2, threshold=0.80):
         "james": "jim",
         "randy": "randolph",
         "randolph": "randy",
+        "barry": "barry",  # Keep consistent
         "tony": "anthony",
         "anthony": "tony",
         "dominic": "tony",  # Special case: Dominic "Tony" Antonelli
         "thomas": "tom",
         "tom": "thomas",
+        "francisco": "frank",
+        "frank": "francisco",
+        "sandra": "sandra",  # Keep consistent
     }
 
     # Exact match
@@ -250,6 +279,7 @@ def main():
 
             for member in flight["crew_launching"]:
                 crew_name = member.get("name")
+                # Names are already validated by 5a_web_flights.py
                 if crew_name and dt_arrival:
                     name_first, name_middle, name_last, name_suffix = parse_crew_name(
                         crew_name
@@ -282,6 +312,7 @@ def main():
 
             for member in flight["crew_landing"]:
                 crew_name = member.get("name")
+                # Names are already validated by 5a_web_flights.py
                 if crew_name and dt_departure:
                     name_first, name_middle, name_last, name_suffix = parse_crew_name(
                         crew_name
@@ -328,13 +359,21 @@ def main():
         if is_arrival:
             # Find if there's an existing matching entry using fuzzy matching
             matched_key = None
+            best_match_score = 0
+
             for existing_key in status_tracker.keys():
                 if names_match(normalized_name, existing_key):
-                    matched_key = existing_key
-                    break
+                    # Calculate match score for tie-breaking
+                    score = SequenceMatcher(
+                        None, normalized_name.lower(), existing_key.lower()
+                    ).ratio()
+                    if score > best_match_score:
+                        best_match_score = score
+                        matched_key = existing_key
 
             # Record this arrival
             if matched_key is None:
+                # Use the normalized name as key for consistency
                 status_tracker[normalized_name] = {"arrival": event, "in_space": True}
             else:
                 # If already in space, close the previous stay with current arrival as departure
@@ -362,15 +401,22 @@ def main():
                             }
                         )
 
-                # Update with the new arrival
-                status_tracker[normalized_name] = {"arrival": event, "in_space": True}
+                # Update with the new arrival (keep using the matched key for consistency)
+                status_tracker[matched_key] = {"arrival": event, "in_space": True}
         else:
             # This is a departure event - use fuzzy matching to find arrival
             matched_key = None
+            best_match_score = 0
+
             for existing_key in status_tracker.keys():
                 if names_match(normalized_name, existing_key):
-                    matched_key = existing_key
-                    break
+                    # Calculate match score for tie-breaking
+                    score = SequenceMatcher(
+                        None, normalized_name.lower(), existing_key.lower()
+                    ).ratio()
+                    if score > best_match_score:
+                        best_match_score = score
+                        matched_key = existing_key
 
             if matched_key and status_tracker[matched_key].get("in_space", False):
                 # Found a matching arrival - create stay record
@@ -401,8 +447,38 @@ def main():
             else:
                 # No matching arrival found - this is a departure without arrival
                 print(
-                    f"WARNING: No arrival found for {crew_name} departure on {event['date']}"
+                    f"WARNING: No arrival found for {crew_name} (normalized: {normalized_name}) departure on {event['date']} - Flight: {event['flightName']}"
                 )
+
+    # Handle crew members still in space (no departure yet)
+    # Add them to crew_records with a far-future departure date
+    still_in_space = [
+        (name, data)
+        for name, data in status_tracker.items()
+        if data.get("in_space", False)
+    ]
+
+    if still_in_space:
+        # Use a far-future date (2099-12-31) for crew members still onboard
+        # This allows the UI to correctly identify them as currently onboard
+        far_future_date = "2099-12-31T23:59:59Z"
+
+        for name, data in still_in_space:
+            arrival_event = data["arrival"]
+            crew_records.append(
+                {
+                    "name_first": arrival_event["name_first"],
+                    "name_middle": arrival_event["name_middle"],
+                    "name_last": arrival_event["name_last"],
+                    "name_suffix": arrival_event["name_suffix"],
+                    "nationality": arrival_event["nationality"],
+                    "arrivalDate": arrival_event["date"],
+                    "arrivalFlight": arrival_event["flightName"],
+                    "departureDate": far_future_date,
+                    "departureFlight": "TBD",
+                    "durationDays": "TBD",
+                }
+            )
 
     # Sort the records by arrival date in ascending order.
     crew_records.sort(
@@ -414,9 +490,35 @@ def main():
         json.dump(crew_records, outf, indent=4)
 
     print(
-        f"{output_path} has been created with crew arrival and departure details, sorted by arrival date."
+        f"\n{output_path} has been created with crew arrival and departure details, sorted by arrival date."
     )
     print(f"Total crew stays recorded: {len(crew_records)}")
+    print(f"Total arrival events: {len(arrival_events)}")
+    print(f"Total departure events: {len(departure_events)}")
+
+    # Debug info: Show any crew members still marked as "in space" at the end
+    if still_in_space:
+        print(
+            f"\n[INFO] {len(still_in_space)} crew member(s) currently onboard (added with TBD departure):"
+        )
+        for name, data in still_in_space[:10]:  # Limit to first 10
+            arrival = data["arrival"]
+            print(
+                f"  - {arrival['name']} (arrived {arrival['date']} on {arrival['flightName']})"
+            )
+
+    # Calculate matching efficiency
+    matched_departures = len(crew_records)
+    unmatched_departures = len([e for e in departure_events]) - matched_departures
+    if len(departure_events) > 0:
+        match_rate = (matched_departures / len(departure_events)) * 100
+        print(
+            f"\n[SUCCESS] Matching efficiency: {match_rate:.1f}% ({matched_departures}/{len(departure_events)} departures matched)"
+        )
+
+    print(
+        f"[SUCCESS] Script completed - check WARNING messages above for data quality issues"
+    )
 
 
 if __name__ == "__main__":

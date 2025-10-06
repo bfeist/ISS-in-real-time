@@ -2,6 +2,7 @@ import React, { FunctionComponent, useMemo } from "react";
 import { useGeneralCrewArrDep } from "api/useGeneralData";
 import { getCrewMembersOnboardByDate } from "utils/onboard";
 import { flagUrlByCountryName } from "utils/countries";
+import { getCrewFullName, getCrewStayKey } from "utils/crew";
 import styles from "./crewOnboardSection.module.css";
 
 interface CrewOnboardSectionProps {
@@ -23,18 +24,13 @@ const CrewOnboardSection: FunctionComponent<CrewOnboardSectionProps> = ({ hovere
     <div className={styles.sectionBody}>
       {crewOnboardList.length > 0 ? (
         crewOnboardList.map((crewMember) => (
-          <div
-            key={`${crewMember.arrivalDate}_${crewMember.name_first}_${crewMember.name_last}`}
-            className={styles.crewItem}
-          >
+          <div key={getCrewStayKey(crewMember)} className={styles.crewItem}>
             <img
               className={styles.flag}
               src={flagUrlByCountryName[crewMember.nationality]}
               alt={crewMember.nationality}
             />
-            <span className={styles.crewName}>
-              {crewMember.name_first} {crewMember.name_last}
-            </span>
+            <span className={styles.crewName}>{getCrewFullName(crewMember)}</span>
           </div>
         ))
       ) : (

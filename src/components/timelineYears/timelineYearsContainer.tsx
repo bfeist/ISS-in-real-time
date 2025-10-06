@@ -9,6 +9,7 @@ import {
 import { useStateClock } from "../../store/hooks/useStateClock";
 import { useStateContentHighlights } from "../../store/hooks/useStateContentHighlights";
 import { useStateSearch } from "../../store/hooks/useStateSearch";
+import { getCrewNormalizedName } from "utils/crew";
 import ControlsHeader from "./controlsHeader/controlsHeader";
 
 // Constants for year range and colors (from testtimeline.tsx)
@@ -30,10 +31,11 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
   const isLoadingCombined = isLoading || isLoadingCrewArrDep;
 
   // Compute selected crew stays
+  // Use normalized names to match crew members across different name format variations
   const selectedCrewStays = useMemo(() => {
     if (!crewArrDep || crewArrDep.length === 0 || !selectedCrewMember) return [];
     return crewArrDep.filter(
-      (item: CrewArrDepItem) => `${item.name_first} ${item.name_last}` === selectedCrewMember.name
+      (item: CrewArrDepItem) => getCrewNormalizedName(item) === selectedCrewMember.name
     );
   }, [crewArrDep, selectedCrewMember]);
 

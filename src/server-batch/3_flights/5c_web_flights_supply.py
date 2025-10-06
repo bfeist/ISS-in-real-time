@@ -8,8 +8,12 @@ import json
 import time
 from dateutil import parser
 
-load_dotenv(dotenv_path="../../.env")
+load_dotenv(dotenv_path="../../../.env")
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+}
 
 
 # Helper function for date extraction
@@ -17,14 +21,24 @@ def extract_date(date_str):
     try:
         # Remove citation references and extra spaces
         date_str = re.sub(r"\s*\[\s*\d+\s*\]\s*", " ", date_str).strip()
+
+        # Check for empty strings or common placeholder characters
+        if not date_str or date_str in ["—", "–", "-", "N/A", "TBD", "TBA"]:
+            return ""
+
         # look for the string "with" and if found, use the part before it for the date
         if "with" in date_str:
             date_str = date_str.split("with")[0].strip()
+            if not date_str or date_str in ["—", "–", "-"]:
+                return ""
+
         extracted_date_iso = parser.parse(date_str).isoformat()
         extracted_date_iso = extracted_date_iso.replace("+00:00", "Z")
         return extracted_date_iso
     except Exception as e:
-        print(f"Date parsing error: {e} for string: {date_str}")
+        print(
+            f"Date parsing error: {e} for string: '{date_str}' (repr: {repr(date_str)})"
+        )
         return ""
 
 
@@ -61,12 +75,18 @@ def clean_text(text):
     # Remove citations and non-breaking spaces
     text = re.sub(r"\s*\[\s*\d+\s*\]\s*", " ", text)
     text = text.replace("\xa0", " ").replace("\u00a0", " ")
+    # Replace non-breaking hyphen (U+2011: ‑) with regular hyphen
+    text = text.replace("\u2011", "-")
+    # Replace em dash (U+2014: —) with regular hyphen
+    text = text.replace("\u2014", "-")
+    # Replace en dash (U+2013: –) with regular hyphen
+    text = text.replace("\u2013", "-")
     return text.strip()
 
 
 # Scrape the uncrewed spaceflights list from Wikipedia
 url = "https://en.wikipedia.org/wiki/Uncrewed_spaceflights_to_the_International_Space_Station"
-response = requests.get(url)
+response = requests.get(url, headers=headers)
 html = response.text
 
 soup = BeautifulSoup(html, "html.parser")
@@ -219,6 +239,12 @@ def clean_data(x):
         cleaned = x.replace("\xa0", " ")
         cleaned = cleaned.replace("\u00a0", " ")
         cleaned = re.sub(r"\s*\[\s*\d+\s*\]\s*", " ", cleaned).strip()
+        # Replace non-breaking hyphen (U+2011: ‑) with regular hyphen
+        cleaned = cleaned.replace("\u2011", "-")
+        # Replace em dash (U+2014: —) with regular hyphen
+        cleaned = cleaned.replace("\u2014", "-")
+        # Replace en dash (U+2013: –) with regular hyphen
+        cleaned = cleaned.replace("\u2013", "-")
         return cleaned
     elif isinstance(x, dict):
         return {k: clean_data(v) for k, v in x.items()}
@@ -240,7 +266,7 @@ for entry in data:
             spacecraft_link = "https://en.wikipedia.org" + spacecraft_link
 
         try:
-            resp = requests.get(spacecraft_link)
+            resp = requests.get(spacecraft_link, headers=headers)
             if resp.status_code != 200:
                 continue
 
