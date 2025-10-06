@@ -76,7 +76,7 @@ const Header: FunctionComponent = () => {
               ISS in Real Time
             </div>
             <div className={styles.blurb}>
-              Explore 25 years onboard the International Space Station
+              A real-time journey onboard the International Space Station
             </div>
           </div>
         </div>

@@ -44,10 +44,14 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
       <div className={styles.pageContent}>
         <div className={styles.headerContent}>
           <h2>
-            Every Day on the <span className={styles.breakSpan}>International Space Station</span>
+            Explore 25 years onboard the{" "}
+            <span className={styles.breakSpan}>International Space Station</span>
           </h2>
 
-          <p>This multimedia project consists entirely of historical mission material.</p>
+          <p>
+            This multimedia project replays every day of the past 25 years onboard and consists
+            entirely of historical mission material.
+          </p>
         </div>
         <div
           className={styles.exploreButton}
