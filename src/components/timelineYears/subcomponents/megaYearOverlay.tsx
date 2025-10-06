@@ -502,7 +502,8 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       return;
     }
 
-    if (!pendingTouchDate && isTouchDevice) {
+    // Only clear cursor position if there's no pending touch date AND no hovered date
+    if (!pendingTouchDate && !hoveredDate && isTouchDevice) {
       setCursorPosition(null);
     }
   }, [
