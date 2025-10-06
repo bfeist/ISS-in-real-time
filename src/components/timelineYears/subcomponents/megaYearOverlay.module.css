@@ -1,15 +1,32 @@
-.yearOverlay {
+.touchZone {
   position: absolute;
   z-index: 50;
   pointer-events: auto;
-  background: var(--grey1);
   cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background: transparent;
+  overflow: visible;
+  touch-action: none;
+}
+
+.yearOverlay {
+  background: var(--grey1);
   overflow: visible;
   box-shadow: 0 12px 32px 8px rgb(0 0 0 / 60%);
+  pointer-events: none;
 }
 
 .yearOverlay canvas {
   width: 100%;
   height: auto;
   display: block;
+}
+
+.touchExtension {
+  flex-shrink: 0;
+  width: 100%;
+  background: transparent;
+  pointer-events: none;
 }

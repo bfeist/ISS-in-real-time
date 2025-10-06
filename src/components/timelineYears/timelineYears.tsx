@@ -700,11 +700,12 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
     const touch = event.touches[0];
     const startPosition = touchStartPositionRef.current;
-    if (startPosition && event.cancelable) {
+    if (startPosition) {
       const deltaX = Math.abs(touch.clientX - startPosition.x);
       const deltaY = Math.abs(touch.clientY - startPosition.y);
-      if (deltaX > deltaY) {
-        event.preventDefault();
+      const nativeEvent = event.nativeEvent;
+      if (deltaX > deltaY && nativeEvent.cancelable && !nativeEvent.defaultPrevented) {
+        nativeEvent.preventDefault();
       }
     }
 

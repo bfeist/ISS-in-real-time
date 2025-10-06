@@ -34,7 +34,8 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   externalCursorPosition,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const touchYOffsetRef = useRef(0);
   const isDragging = useRef(false);
   const ignoreMouseEventsRef = useRef(false);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
@@ -62,6 +63,9 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   const cellWidth = (position.width - (12 - 1) * cellGap) / 12; // Always divide by 12
   const cellSize = cellWidth;
   const totalHeight = maxDaysInMonth * (cellSize + cellGap);
+  const touchVerticalOffset = Math.min(Math.max(cellSize * 2, 72), 140);
+  const touchExtensionHeight = touchVerticalOffset + cellSize * 1.5;
+  const interactiveHeight = totalHeight + touchExtensionHeight;
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -150,6 +154,11 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   ]);
 
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (ignoreMouseEventsRef.current || isTouchInteraction) {
+      ignoreMouseEventsRef.current = false;
+      return;
+    }
+
     const overlay = event.currentTarget;
     const rect = overlay.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -167,46 +176,99 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       sourceCapabilities?: { firesTouchEvents?: boolean };
     };
 
-    if (ignoreMouseEventsRef.current) {
-      ignoreMouseEventsRef.current = false;
-      return;
-    }
-
     if (nativeEvent.sourceCapabilities?.firesTouchEvents) {
       return;
     }
 
-    if (isTouchInteraction) {
-      setIsTouchInteraction(false);
-    }
+    setIsTouchInteraction(false);
   };
 
-  const handleTouchStart = (_event: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    event.stopPropagation();
     isDragging.current = false;
     setIsTouchInteraction(true);
     ignoreMouseEventsRef.current = true;
+
+    const container = containerRef.current;
+    if (!container || event.touches.length === 0) {
+      return;
+    }
+
+    const rect = container.getBoundingClientRect();
+    const touch = event.touches[0];
+    const rawX = touch.clientX - rect.left;
+    const rawY = touch.clientY - rect.top;
+
+    touchYOffsetRef.current = Math.min(rawY, touchVerticalOffset);
+
+    const adjustedY = Math.min(Math.max(rawY - touchYOffsetRef.current, 0), totalHeight - 1);
+    const dateStr = getMegaDateFromCoordinates(
+      rawX,
+      adjustedY,
+      year,
+      position.width,
+      startMonth,
+      endMonth
+    );
+    setHoveredDate(dateStr);
+
+    // Position tooltip and highlight above the user's finger
+    setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
   };
 
   const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    event.stopPropagation();
     isDragging.current = true;
     if (event.touches.length === 0) return;
 
-    const overlay = event.currentTarget;
-    const rect = overlay.getBoundingClientRect();
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
     const touch = event.touches[0];
     const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
+    const rawY = touch.clientY - rect.top;
+    const adjustedY = Math.min(Math.max(rawY - touchYOffsetRef.current, 0), totalHeight - 1);
 
-    const dateStr = getMegaDateFromCoordinates(x, y, year, position.width, startMonth, endMonth);
+    const dateStr = getMegaDateFromCoordinates(
+      x,
+      adjustedY,
+      year,
+      position.width,
+      startMonth,
+      endMonth
+    );
     setHoveredDate(dateStr);
 
-    // Update cursor position for tooltip
-    setCursorPosition({ x: touch.clientX, y: touch.clientY });
+    // Update cursor position for tooltip to stay above the finger
+    setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
 
     ignoreMouseEventsRef.current = true;
   };
 
-  const handleTouchEnd = (_event: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    if (event.changedTouches.length > 0) {
+      const container = containerRef.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const touch = event.changedTouches[0];
+        const rawY = touch.clientY - rect.top;
+        const x = touch.clientX - rect.left;
+        const adjustedY = Math.min(Math.max(rawY - touchYOffsetRef.current, 0), totalHeight - 1);
+        const dateStr = getMegaDateFromCoordinates(
+          x,
+          adjustedY,
+          year,
+          position.width,
+          startMonth,
+          endMonth
+        );
+        setHoveredDate(dateStr);
+        setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
+      }
+    }
+
     // Keep tooltip visible for touch interactions until explicitly cancelled
     if (!pendingTouchDate && hoveredDate) {
       setPendingTouchDate(hoveredDate);
@@ -250,6 +312,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       setHoveredDate(null);
       setCursorPosition(null);
       setShowTimelineYears(false);
+      touchYOffsetRef.current = 0;
       ignoreMouseEventsRef.current = false;
     },
     [pendingTouchDate, hoveredDate, handleDateClick, setShowTimelineYears, setHoveredDate]
@@ -259,6 +322,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     setPendingTouchDate(null);
     setIsTouchInteraction(false);
     setCursorPosition(null);
+    touchYOffsetRef.current = 0;
     ignoreMouseEventsRef.current = false;
   }, []);
 
@@ -267,7 +331,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     const timeout = setTimeout(() => {
       setHoveredDate(null);
       setCursorPosition(null);
-      onMouseLeave();
+      onMouseLeave?.();
     }, 50); // Reduced delay to 50ms to match year header timing
     setHideTimeout(timeout);
   };
@@ -322,15 +386,13 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
 
   return (
     <div
-      ref={overlayRef}
-      className={styles.yearOverlay}
+      ref={containerRef}
+      className={styles.touchZone}
       style={{
         left: position.left,
         top: position.top,
         width: position.width,
-        height: totalHeight,
-        display: "block",
-        pointerEvents: "auto",
+        height: interactiveHeight,
         zIndex: 10,
       }}
       onMouseMove={handleMouseMove}
@@ -339,15 +401,26 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={(event) => {
+        event.stopPropagation();
+        handleTouchCancel();
+      }}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role="grid"
       tabIndex={0}
       aria-label={`Calendar for ${year}`}
     >
-      <canvas
-        ref={canvasRef}
-        style={{ width: "100%", height: `${totalHeight}px`, pointerEvents: "none" }}
+      <div className={styles.yearOverlay} style={{ height: totalHeight }}>
+        <canvas
+          ref={canvasRef}
+          style={{ width: "100%", height: `${totalHeight}px`, pointerEvents: "none" }}
+        />
+      </div>
+      <div
+        className={styles.touchExtension}
+        style={{ height: touchExtensionHeight }}
+        aria-hidden="true"
       />
       {/* Date Tooltip for this overlay */}
       <DateTooltip
@@ -356,7 +429,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
         isTouchInteraction={isTouchInteraction}
         onTouchGo={handleTouchGo}
         onTouchCancel={handleTouchCancel}
-        containerRef={overlayRef}
+        containerRef={containerRef}
       />
     </div>
   );
