@@ -34,6 +34,12 @@
   overflow-x: auto;
   overflow-y: hidden;
   background-color: var(--grey3);
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.tabs::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .tabsOverflow {
