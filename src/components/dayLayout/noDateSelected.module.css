@@ -21,6 +21,7 @@ h2 {
   flex-direction: column;
   justify-content: flex-start;
   position: relative;
+  touch-action: pan-y pinch-zoom;
 }
 
 .container::before {
