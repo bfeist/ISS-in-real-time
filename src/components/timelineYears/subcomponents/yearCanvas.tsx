@@ -25,7 +25,10 @@ interface YearCanvasProps {
   index: number;
   isActive?: boolean;
   isSelected?: boolean;
-  highlights: Map<string, { fill: string; stroke?: string; expedition?: boolean }>;
+  highlights: Map<
+    string,
+    { fill: string; stroke?: string; expedition?: boolean; notableDatetime?: string }
+  >;
   onYearHover?: (yearIndex: number) => void;
   onYearLeave?: () => void;
   forceRedraw?: number;
@@ -114,7 +117,10 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
     year: number,
     width: number,
     height: number,
-    highlights: Map<string, { fill: string; stroke?: string; expedition?: boolean }>,
+    highlights: Map<
+      string,
+      { fill: string; stroke?: string; expedition?: boolean; notableDatetime?: string }
+    >,
     startMonth: number = 0,
     endMonth: number = 11,
     selectedDate: string | null = null

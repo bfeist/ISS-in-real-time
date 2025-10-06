@@ -1,4 +1,5 @@
 import React, { FunctionComponent, useMemo } from "react";
+import styles from "./highlightCrew.module.css";
 import { useStateSearch } from "store/hooks/useStateSearch";
 import { useGeneralCrewArrDep } from "api/useGeneralData";
 import { getCrewNormalizedName } from "utils/crew";
@@ -50,12 +51,20 @@ const HighlightCrew: FunctionComponent<HighlightCrewProps> = () => {
     clearAllTitle: "Clear crew highlights",
     itemClassName: "crewItem",
     getItemKey: (item) => item.name,
-    renderItem: (item) => `${item.name} - ${item.nationality}`,
+    renderItem: (item) => (
+      <div className={styles.crewName}>
+        {item.name} - <span className={styles.crewNationality}>{item.nationality}</span>
+      </div>
+    ),
     filterItem: (item, searchTerm) => item.name?.toLowerCase().includes(searchTerm?.toLowerCase()),
     isItemEqual: (item1, item2) => item1?.name === item2.name,
   };
 
   return <HighlightType config={config} />;
 };
+
+// Dummy references to satisfy CSS modules linter for classes used dynamically by HighlightType
+const _unusedCrewItem = styles.crewItem;
+const _unusedSelected = styles.selected;
 
 export default HighlightCrew;

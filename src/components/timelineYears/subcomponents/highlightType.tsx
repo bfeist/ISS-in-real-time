@@ -142,5 +142,6 @@ function HighlightType<T>({ config }: HighlightTypeProps<T>): React.ReactElement
 // Dummy references to satisfy CSS modules linter for variant classes used dynamically via itemClassName
 const _unusedCrewItem = styles.crewItem;
 const _unusedExpeditionItem = styles.expeditionItem;
+const _unusedNotableItem = styles.notableItem;
 
 export default HighlightType;

@@ -20,7 +20,7 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
   // Global state hooks
   const { selectedDate } = useStateClock();
   const { contentHighlights } = useStateContentHighlights();
-  const { selectedCrewMember, selectedExpedition } = useStateSearch();
+  const { selectedCrewMember, selectedExpedition, selectedNotableMoment } = useStateSearch();
 
   // Fetch data availability
   const { data: dataAvailabilityItems, isLoading, error } = useGeneralDataAvailabilities();
@@ -55,11 +55,14 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
   // Create data availability highlights from the actual data
   const dataAvailabilityHighlights = useMemo(() => {
     if (!dataAvailabilityItems)
-      return new Map<string, { fill: string; stroke?: string; expedition?: boolean }>();
+      return new Map<
+        string,
+        { fill: string; stroke?: string; expedition?: boolean; notableDatetime?: string }
+      >();
 
     const dataHighlights = new Map<
       string,
-      { fill: string; stroke?: string; expedition?: boolean }
+      { fill: string; stroke?: string; expedition?: boolean; notableDatetime?: string }
     >();
 
     // Generate highlights for all dates in the range
@@ -157,8 +160,29 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
       });
     }
 
+    // If a Notable Moment item is selected, highlight its date with yellow fill
+    if (selectedNotableMoment) {
+      // Extract just the date portion (YYYY-MM-DD) from the datetime string
+      const notableDate = selectedNotableMoment.datetime.split("T")[0];
+      const existing = combined.get(notableDate);
+      if (existing) {
+        combined.set(notableDate, {
+          ...existing,
+          fill: COLORS.selected, // Use yellow color for Notable Moment items
+          notableDatetime: selectedNotableMoment.datetime, // Store the full datetime for clock setting
+        });
+      } else {
+        // If date doesn't exist in highlights yet, create it
+        combined.set(notableDate, {
+          fill: COLORS.selected,
+          expedition: false,
+          notableDatetime: selectedNotableMoment.datetime, // Store the full datetime for clock setting
+        });
+      }
+    }
+
     return combined;
-  }, [dataAvailabilityHighlights, contentHighlights, dataAvailabilityItems]);
+  }, [dataAvailabilityHighlights, contentHighlights, dataAvailabilityItems, selectedNotableMoment]);
 
   // Handle loading state
   if (isLoadingCombined) {

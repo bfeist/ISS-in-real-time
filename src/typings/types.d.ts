@@ -240,6 +240,11 @@ type Telemetry = {
   lng: number;
 };
 
+type NotableMomentItem = {
+  datetime: string;
+  description: string;
+};
+
 type Stats = {
   comm: {
     total_days_with_transcripts: number;

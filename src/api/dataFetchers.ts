@@ -317,6 +317,31 @@ export async function fetchStats(): Promise<Stats> {
   return response.json();
 }
 
+export async function fetchNotableMoments(): Promise<NotableMomentItem[]> {
+  const baseStaticUrl = getBaseStaticUrl();
+  const response = await fetch(`${baseStaticUrl}/notable_moments.csv`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch Notable Moments");
+  }
+
+  const text = await response.text();
+  const lines = text
+    .split("\n")
+    .map((line) => line.replace(/\r/g, ""))
+    .filter((line) => line.trim() !== "");
+
+  return lines
+    .map((line) => {
+      const [datetime, description] = line.split("|");
+      return {
+        datetime: datetime.trim(),
+        description: description.trim(),
+      };
+    })
+    .sort((a, b) => a.datetime.localeCompare(b.datetime));
+}
+
 export function processDataAvailabilities({
   dataAvailabilitiesRaw,
 }: {

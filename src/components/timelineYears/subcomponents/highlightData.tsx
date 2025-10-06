@@ -1,6 +1,7 @@
 import { FunctionComponent, useState } from "react";
 import HighlightCrew from "./highlightCrew";
 import HighlightExpeditions from "./highlightExpeditions";
+import HighlightNotableMoments from "./highlightNotableMoments";
 import LayoutTestComponent from "./layoutTestComponent";
 import styles from "./highlightData.module.css";
 import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
@@ -12,7 +13,7 @@ const HighlightData: FunctionComponent<{
   const { contentHighlights, toggleContentHighlight } = useStateContentHighlights();
   const { setHoveredDate } = useStateHover();
   const [showLayoutTest, setShowLayoutTest] = useState(false);
-  const [activeTab, setActiveTab] = useState<"data" | "crew" | "expeditions">("data");
+  const [activeTab, setActiveTab] = useState<"data" | "crew" | "expeditions" | "notable">("data");
 
   // Define the available content types for highlighting
   const contentTypes = [
@@ -57,7 +58,7 @@ const HighlightData: FunctionComponent<{
               setActiveTab("data");
             }}
           >
-            Highlight Data
+            Content Types
           </button>
           <button
             className={`${styles.tabButton} ${activeTab === "crew" ? styles.tabButtonActive : ""}`}
@@ -66,7 +67,7 @@ const HighlightData: FunctionComponent<{
               setActiveTab("crew");
             }}
           >
-            Highlight Crew
+            Find Crew
           </button>
           <button
             className={`${styles.tabButton} ${activeTab === "expeditions" ? styles.tabButtonActive : ""}`}
@@ -75,14 +76,25 @@ const HighlightData: FunctionComponent<{
               setActiveTab("expeditions");
             }}
           >
-            Highlight Expeditions
+            Find Expeditions
+          </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === "notable" ? styles.tabButtonActive : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab("notable");
+            }}
+          >
+            Notable
           </button>
         </div>
 
         <div className={styles.highlightTableWrapper}>
           {/* Column 1: Highlight Data */}
-          <div className={`${styles.column} ${activeTab === "data" ? styles.columnActive : ""}`}>
-            <div className={styles.columnHeader}>Highlight Data</div>
+          <div
+            className={`${styles.column} ${styles.columnData} ${activeTab === "data" ? styles.columnActive : ""}`}
+          >
+            <div className={styles.columnHeader}>Content Types</div>
             <div className={styles.columnBody}>
               <span className={styles.headerText}>Days with (all):</span>
               {contentTypes.map((contentType) => (
@@ -99,8 +111,10 @@ const HighlightData: FunctionComponent<{
           </div>
 
           {/* Column 2: Highlight Crew */}
-          <div className={`${styles.column} ${activeTab === "crew" ? styles.columnActive : ""}`}>
-            <div className={styles.columnHeader}>Highlight Crew</div>
+          <div
+            className={`${styles.column} ${styles.columnCrew} ${activeTab === "crew" ? styles.columnActive : ""}`}
+          >
+            <div className={styles.columnHeader}>Find Crew</div>
             <div className={styles.columnBody}>
               <HighlightCrew />
             </div>
@@ -108,11 +122,21 @@ const HighlightData: FunctionComponent<{
 
           {/* Column 3: Highlight Expeditions */}
           <div
-            className={`${styles.column} ${activeTab === "expeditions" ? styles.columnActive : ""}`}
+            className={`${styles.column} ${styles.columnExpeditions} ${activeTab === "expeditions" ? styles.columnActive : ""}`}
           >
-            <div className={styles.columnHeader}>Highlight Expeditions</div>
+            <div className={styles.columnHeader}>Find Expeditions</div>
             <div className={styles.columnBody}>
               <HighlightExpeditions />
+            </div>
+          </div>
+
+          {/* Column 4: Notable Moments */}
+          <div
+            className={`${styles.column} ${styles.columnNotable} ${activeTab === "notable" ? styles.columnActive : ""}`}
+          >
+            <div className={styles.columnHeader}>Notable Moments</div>
+            <div className={styles.columnBody}>
+              <HighlightNotableMoments />
             </div>
           </div>
         </div>

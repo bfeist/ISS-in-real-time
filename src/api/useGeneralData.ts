@@ -11,6 +11,7 @@ import {
   fetchCommFirstData,
   fetchOrbitsDaily,
   fetchStats,
+  fetchNotableMoments,
 } from "./dataFetchers";
 
 // Individual hooks for each data type
@@ -107,6 +108,15 @@ export function useGeneralStats(): UseQueryResult<Stats, Error> {
   return useQuery({
     queryKey: ["stats"],
     queryFn: fetchStats,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+export function useGeneralNotableMoments(): UseQueryResult<NotableMomentItem[], Error> {
+  return useQuery({
+    queryKey: ["notableMoments"],
+    queryFn: fetchNotableMoments,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });

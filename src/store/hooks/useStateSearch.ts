@@ -6,6 +6,8 @@ export const useStateSearch = (): {
   setSelectedCrewMember: (crewMember: CrewMember | null) => void;
   selectedExpedition: ExpeditionInfo | null;
   setSelectedExpedition: (expedition: ExpeditionInfo | null) => void;
+  selectedNotableMoment: NotableMomentItem | null;
+  setSelectedNotableMoment: (notableMoment: NotableMomentItem | null) => void;
   clearAllSearchHighlights: () => void;
 } =>
   useAppStore(
@@ -14,6 +16,8 @@ export const useStateSearch = (): {
       setSelectedCrewMember: state.setSelectedCrewMember,
       selectedExpedition: state.selectedExpedition,
       setSelectedExpedition: state.setSelectedExpedition,
+      selectedNotableMoment: state.selectedNotableMoment,
+      setSelectedNotableMoment: state.setSelectedNotableMoment,
       clearAllSearchHighlights: state.clearAllSearchHighlights,
     }))
   );

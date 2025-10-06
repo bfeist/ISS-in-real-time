@@ -43,7 +43,10 @@ type AutoScrollState = {
 
 // Props interface for the TimelineYears2 component
 interface TimelineYears2Props {
-  highlights: Map<string, { fill: string; stroke?: string }>;
+  highlights: Map<
+    string,
+    { fill: string; stroke?: string; expedition?: boolean; notableDatetime?: string }
+  >;
   selectedDate: string | null;
   commFirstData?: Record<string, CommFirstItem>;
 }

@@ -4,6 +4,7 @@ import { useStateToggle } from "../../../store/hooks/useStateToggle";
 import { useStateClock } from "../../../store/hooks/useStateClock";
 import { useStateHover } from "../../../store/hooks/useStateHover";
 import DateTooltip from "../dateTooltip/dateTooltip";
+import { appSecondsFromDateTime } from "../../../utils/time";
 
 import { COLORS } from "./yearCanvas";
 
@@ -11,7 +12,10 @@ interface MegaYearOverlayProps {
   year: number;
   yearIndex: number;
   position: { left: number; top: number; width: number };
-  highlights: Map<string, { fill: string; stroke?: string; expedition?: boolean }>;
+  highlights: Map<
+    string,
+    { fill: string; stroke?: string; expedition?: boolean; notableDatetime?: string }
+  >;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   onSwitchToAdjacentYear?: (yearIndex: number) => void;
@@ -54,15 +58,25 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
 
   // Global state hooks
   const { hoveredDate, setHoveredDate } = useStateHover();
-  const { setSelectedDate } = useStateClock();
+  const { setSelectedDate, setClock } = useStateClock();
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
   // Handle date click using global state with touch device logic
   const handleDateClick = useCallback(
     (dateStr: string) => {
       setSelectedDate(dateStr);
+
+      // Check if this date has a Notable Moment item with a specific time
+      const highlightInfo = highlights.get(dateStr);
+      if (highlightInfo?.notableDatetime) {
+        // Extract the time from the Notable Moment datetime and set the clock
+        const appSeconds = appSecondsFromDateTime(highlightInfo.notableDatetime);
+        if (appSeconds !== null) {
+          setClock(appSeconds);
+        }
+      }
     },
-    [setSelectedDate]
+    [setSelectedDate, setClock, highlights]
   );
 
   // Constants for mega overlay layout - make squares square
