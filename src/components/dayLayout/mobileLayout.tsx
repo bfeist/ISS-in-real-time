@@ -17,28 +17,36 @@ interface MobileLayoutProps {
 
 const MobileLayout: FunctionComponent<MobileLayoutProps> = ({ tabs }) => {
   const getDefaultTab = (availableTabs: TabName[]): TabName => {
-    const priorities: TabName[] = ["comm", "photos", "articles", "orbit"];
+    const priorities: TabName[] = ["video", "comm", "photos", "articles", "orbit"];
     for (const priority of priorities) {
       if (availableTabs.includes(priority)) {
         return priority;
       }
     }
-    return availableTabs[0] ?? "comm";
+    return "orbit"; // Fallback if no preferred tabs are available
   };
 
   const [activeTab, setActiveTab] = useState<TabName>(() => getDefaultTab(tabs));
   const tabsRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
+  const [userSelectedTab, setUserSelectedTab] = useState(false);
 
   useEffect(() => {
     if (tabs.length === 0) {
       return;
     }
-
-    if (!tabs.includes(activeTab)) {
-      setActiveTab(tabs[0]);
+    // Always update to the highest priority tab when tabs change, unless user has manually selected a tab
+    if (!userSelectedTab) {
+      const defaultTab = getDefaultTab(tabs);
+      if (defaultTab !== activeTab) {
+        setActiveTab(defaultTab);
+      }
+    } else if (!tabs.includes(activeTab)) {
+      // If user selected a tab but it's no longer available, reset to default
+      setActiveTab(getDefaultTab(tabs));
+      setUserSelectedTab(false);
     }
-  }, [tabs, activeTab]);
+  }, [tabs, activeTab, userSelectedTab]);
 
   useEffect(() => {
     if (tabsRef.current) {
@@ -79,7 +87,7 @@ const MobileLayout: FunctionComponent<MobileLayoutProps> = ({ tabs }) => {
     }
   };
 
-  const currentTab = tabs.length === 0 ? null : tabs.includes(activeTab) ? activeTab : tabs[0];
+  const currentTab = tabs.length === 0 ? null : activeTab;
 
   return (
     <div className={styles.mobileLayout}>
@@ -98,11 +106,15 @@ const MobileLayout: FunctionComponent<MobileLayoutProps> = ({ tabs }) => {
                 role="button"
                 tabIndex={0}
                 className={`${styles.tab} ${currentTab === tab ? styles.activeTab : ""}`}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setUserSelectedTab(true);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     setActiveTab(tab);
+                    setUserSelectedTab(true);
                   }
                 }}
                 aria-pressed={currentTab === tab}

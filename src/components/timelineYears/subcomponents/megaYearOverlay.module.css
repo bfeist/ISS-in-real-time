@@ -10,7 +10,17 @@
   background: transparent;
   overflow: visible;
   touch-action: none;
+
+  /* Prevent text selection on all platforms, especially iOS */
   user-select: none;
+  /* stylelint-disable-next-line property-no-vendor-prefix */
+  -webkit-user-select: none;
+  /* stylelint-disable-next-line property-no-vendor-prefix */
+  -moz-user-select: none;
+  /* stylelint-disable-next-line property-no-vendor-prefix */
+  -ms-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .backdrop {

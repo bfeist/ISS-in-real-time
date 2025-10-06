@@ -247,6 +247,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     event.stopPropagation();
+    event.preventDefault(); // Prevent text selection and context menu on long press
     isDragging.current = false;
     ignoreMouseEventsRef.current = true;
 
@@ -290,6 +291,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
 
   const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
     event.stopPropagation();
+    event.preventDefault(); // Prevent text selection during drag
     isDragging.current = true;
     if (event.touches.length === 0) return;
 
@@ -367,6 +369,9 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   };
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    // Ignore mouse events on touch devices to prevent interference with touch interactions
+    if (isTouchDevice) return;
+
     if (isDragging.current) {
       isDragging.current = false; // Reset for the next touch
       return;
@@ -420,6 +425,9 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   }, []);
 
   const handleMouseLeave = () => {
+    // Ignore mouse events on touch devices to prevent interference with touch interactions
+    if (isTouchDevice) return;
+
     if (hideTimeout) clearTimeout(hideTimeout);
     const timeout = setTimeout(() => {
       setHoveredDate(null);
@@ -430,6 +438,9 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   };
 
   const handleMouseEnter = () => {
+    // Ignore mouse events on touch devices to prevent interference with touch interactions
+    if (isTouchDevice) return;
+
     if (hideTimeout) {
       clearTimeout(hideTimeout);
       setHideTimeout(null);
@@ -589,6 +600,10 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
         onTouchCancel={(event) => {
           event.stopPropagation();
           handleTouchCancel();
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
         }}
         onClick={handleClick}
         onKeyDown={handleKeyDown}

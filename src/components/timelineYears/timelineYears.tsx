@@ -272,6 +272,9 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
   const handleTimelineMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
+      // Ignore mouse events on touch devices to prevent interference with touch interactions
+      if (isTouchDevice) return;
+
       if (event.button !== 0) return;
 
       // Only mark as interacted if the event originated from yearsScrollContainer
@@ -285,11 +288,14 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         markUserInteracted();
       }
     },
-    [updateAutoScrollFromPointer, markUserInteracted]
+    [updateAutoScrollFromPointer, markUserInteracted, isTouchDevice]
   );
 
   const handleTimelineMouseMove = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
+      // Ignore mouse events on touch devices to prevent interference with touch interactions
+      if (isTouchDevice) return;
+
       // Only mark as interacted if the event originated from yearsScrollContainer
       const isFromScrollContainer = yearsScrollContainerRef.current?.contains(event.target as Node);
 
@@ -300,14 +306,17 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         markUserInteracted();
       }
     },
-    [updateAutoScrollFromPointer, markUserInteracted]
+    [updateAutoScrollFromPointer, markUserInteracted, isTouchDevice]
   );
 
   const handleTimelineMouseUp = useCallback(() => {
+    // Ignore mouse events on touch devices to prevent interference with touch interactions
+    if (isTouchDevice) return;
+
     pointerDownRef.current = false;
     pointerPositionRef.current = null;
     stopAutoScroll();
-  }, [stopAutoScroll]);
+  }, [stopAutoScroll, isTouchDevice]);
 
   const handleTimelineMouseLeave = useCallback(() => {
     if (!pointerDownRef.current) {
@@ -345,6 +354,9 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
   useEffect(() => {
     const handleWindowMouseUp = () => {
+      // Ignore mouse events on touch devices to prevent interference with touch interactions
+      if (isTouchDevice) return;
+
       if (pointerDownRef.current) {
         pointerDownRef.current = false;
         stopAutoScroll();
@@ -374,18 +386,23 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       setInitialOverlayTouch(null);
     };
 
-    window.addEventListener("mouseup", handleWindowMouseUp);
+    // Only add mouseup listener on non-touch devices
+    if (!isTouchDevice) {
+      window.addEventListener("mouseup", handleWindowMouseUp);
+    }
     window.addEventListener("blur", handleWindowBlur);
     window.addEventListener("touchend", handleWindowTouchEnd);
     window.addEventListener("touchcancel", handleWindowTouchEnd);
 
     return () => {
-      window.removeEventListener("mouseup", handleWindowMouseUp);
+      if (!isTouchDevice) {
+        window.removeEventListener("mouseup", handleWindowMouseUp);
+      }
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("touchend", handleWindowTouchEnd);
       window.removeEventListener("touchcancel", handleWindowTouchEnd);
     };
-  }, [setTouchCursorPosition, stopAutoScroll]);
+  }, [setTouchCursorPosition, stopAutoScroll, isTouchDevice]);
 
   useEffect(() => {
     return () => {
