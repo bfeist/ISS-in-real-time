@@ -1,8 +1,4 @@
-import { FunctionComponent, JSX, useState } from "react";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Autoplay, EffectFade } from "swiper/modules";
-import "swiper/css";
-import "swiper/css/effect-fade";
+import { FunctionComponent, JSX, useState, useEffect } from "react";
 import StatsModal from "./statsModal";
 import DayCounter from "./dayCounter";
 import StatsCallout from "./statsCallout";
@@ -22,34 +18,36 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
   const { data: stats, isLoading, error } = useGeneralStats();
 
   const [showStats, setShowStats] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className={styles.container}>
-      <Swiper
-        modules={[Autoplay, EffectFade]}
-        effect="fade"
-        fadeEffect={{
-          crossFade: false,
-        }}
-        speed={1000}
-        autoplay={{
-          delay: 5000,
-          disableOnInteraction: false,
-        }}
-        loop={true}
-        className={styles.backgroundCarousel}
-      >
-        {images.map((imageSrc) => (
-          <SwiperSlide key={imageSrc}>
-            <img src={imageSrc} alt="" className={styles.backgroundImage} />
-          </SwiperSlide>
+      <div className={styles.backgroundCarousel}>
+        {images.map((imageSrc, index) => (
+          <div
+            key={imageSrc}
+            className={`${styles.backgroundImage} ${
+              index === currentImageIndex ? styles.active : ""
+            }`}
+            style={{ backgroundImage: `url(${imageSrc})` }}
+          />
         ))}
-      </Swiper>
+      </div>
       <div className={styles.pageContent}>
         <div className={styles.headerContent}>
-          <h2>Re-live Every Day Onboard the International Space Station</h2>
+          <h2>
+            Every Day on the <span className={styles.breakSpan}>International Space Station</span>
+          </h2>
 
-          <p>This multimedia project consists entirely of original historical mission material.</p>
+          <p>This multimedia project consists entirely of historical mission material.</p>
         </div>
         <div
           className={styles.exploreButton}

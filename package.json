@@ -47,7 +47,6 @@
     "react-youtube": "^10.1.0",
     "resium": "^1.18.3",
     "satellite.js": "^6.0.1",
-    "swiper": "^12.0.2",
     "tle.js": "^5.0.1",
     "zustand": "^5.0.8"
   },

@@ -34,7 +34,7 @@ const StatsCallout: FunctionComponent<Props> = ({
 
   return (
     <div className={styles.siteStats}>
-      <h3>Site Statistics:</h3>
+      <h3>This Website Contains:</h3>
       <ul>
         {isLoading && <li>Loading statistics...</li>}
         {error && <li>Error loading statistics</li>}
