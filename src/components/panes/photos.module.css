@@ -47,6 +47,8 @@
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
+  max-height: 65%;
+  overflow-y: auto;
 }
 
 .currentImage:hover .descriptionOverlay {

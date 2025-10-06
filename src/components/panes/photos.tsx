@@ -289,7 +289,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
                   <FontAwesomeIcon icon={faExternalLinkAlt} />
                 </SourceButton>
               )}
-              <p>{mostRecentImage.description}</p>
+              <p dangerouslySetInnerHTML={{ __html: mostRecentImage.description }} />
             </div>
           </div>
         )}
@@ -315,7 +315,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
                 </div>
               )}
               {earthPhotoMetadata && earthPhotoMetadata.description && (
-                <p>{earthPhotoMetadata.description}</p>
+                <p dangerouslySetInnerHTML={{ __html: earthPhotoMetadata.description }} />
               )}
             </div>
           </div>
