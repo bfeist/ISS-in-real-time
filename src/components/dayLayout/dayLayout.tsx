@@ -224,6 +224,9 @@ const DayLayout: FunctionComponent = () => {
       // If we have comm data and no YouTube, start 10 seconds before first comm
       const firstComm = commItems[0];
       setClock(appSecondsFromTimeStr(firstComm.utteranceTime) - 10);
+    } else {
+      // Default to 12:00:00 (noon)
+      setClock(43200);
     }
 
     // Start the clock after setting position (only for non-dateTimeSlug cases)
