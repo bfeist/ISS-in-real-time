@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { RefObject } from "react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import styles from "./timelineYears.module.css";
@@ -8,11 +9,540 @@ import { useStateHover } from "../../store/hooks/useStateHover";
 import HighlightData from "./subcomponents/highlightData";
 import YearCanvas, { COLORS } from "./subcomponents/yearCanvas";
 import MegaYearOverlay from "./subcomponents/megaYearOverlay";
-import { useMouseHint } from "./hooks/useMouseHint";
 import { useAutoEdgeScroll } from "./hooks/useAutoEdgeScroll";
-import { useMegaOverlayState } from "./hooks/useMegaOverlayState";
-import { useTimelineTouch } from "./hooks/useTimelineTouch";
-import { useTimelinePointer } from "./hooks/useTimelinePointer";
+
+// ---------------------------------------------------------------------------
+// Local mouse hint controller
+// ---------------------------------------------------------------------------
+
+const HINT_DELAY_MS = 4000;
+
+type MouseHintController = {
+  showHint: boolean;
+  markInteracted: () => void;
+  hasInteracted: boolean;
+};
+
+const clearHintTimer = (timerRef: React.MutableRefObject<NodeJS.Timeout | null>) => {
+  if (timerRef.current) {
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }
+};
+
+const useMouseHint = (isTimelineVisible: boolean): MouseHintController => {
+  const [showHint, setShowHint] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasInteractedRef = useRef(false);
+
+  const markInteracted = useCallback(() => {
+    hasInteractedRef.current = true;
+    clearHintTimer(timerRef);
+    setShowHint(false);
+  }, []);
+
+  useEffect(() => {
+    clearHintTimer(timerRef);
+
+    if (!isTimelineVisible) {
+      setShowHint(false);
+      return () => {
+        clearHintTimer(timerRef);
+      };
+    }
+
+    if (hasInteractedRef.current) {
+      setShowHint(false);
+      return () => {
+        clearHintTimer(timerRef);
+      };
+    }
+
+    timerRef.current = setTimeout(() => {
+      setShowHint(true);
+    }, HINT_DELAY_MS);
+
+    return () => {
+      clearHintTimer(timerRef);
+    };
+  }, [isTimelineVisible]);
+
+  return {
+    showHint,
+    markInteracted,
+    hasInteracted: hasInteractedRef.current,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Local mega overlay state controller
+// ---------------------------------------------------------------------------
+
+type OverlayPosition = {
+  left: number;
+  top: number;
+  width: number;
+};
+
+type MegaOverlayController = {
+  visible: boolean;
+  year: number | null;
+  position: OverlayPosition;
+  activeYearIndex: number | null;
+  open: (yearIndex: number) => void;
+  close: () => void;
+  scheduleHide: (delayMs: number) => void;
+  cancelHide: () => void;
+  pointerEnteredOverlay: () => void;
+  pointerLeftOverlay: (delayMs: number) => void;
+};
+
+const DEFAULT_POSITION: OverlayPosition = { left: 0, top: 0, width: 0 };
+
+type UseMegaOverlayStateOptions = {
+  containerRef: RefObject<HTMLDivElement>;
+  years: number[];
+  onClose?: () => void;
+  overlayWidthMultiplier?: number;
+  yearHeaderHeight?: number;
+  overlayOffset?: number;
+};
+
+const useMegaOverlayState = ({
+  containerRef,
+  years,
+  onClose,
+  overlayWidthMultiplier = 2,
+  yearHeaderHeight = 25,
+  overlayOffset = 2,
+}: UseMegaOverlayStateOptions): MegaOverlayController => {
+  const [visible, setVisible] = useState(false);
+  const [year, setYear] = useState<number | null>(null);
+  const [position, setPosition] = useState<OverlayPosition>(DEFAULT_POSITION);
+  const [activeYearIndex, setActiveYearIndex] = useState<number | null>(null);
+
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pointerInsideOverlayRef = useRef(false);
+
+  const clearHideTimeout = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const close = useCallback(() => {
+    clearHideTimeout();
+    pointerInsideOverlayRef.current = false;
+    setVisible(false);
+    setYear(null);
+    setPosition(DEFAULT_POSITION);
+    setActiveYearIndex(null);
+    onClose?.();
+  }, [clearHideTimeout, onClose]);
+
+  const open = useCallback(
+    (yearIndex: number) => {
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+
+      const yearElements = container.querySelectorAll<HTMLElement>("[data-year-index]");
+      const yearElement = yearElements[yearIndex];
+      if (!yearElement) {
+        return;
+      }
+
+      const containerRect = container.getBoundingClientRect();
+      const yearRect = yearElement.getBoundingClientRect();
+      const overlayWidth = yearRect.width * overlayWidthMultiplier;
+
+      let left: number;
+      if (yearIndex === 0) {
+        left = 0;
+      } else if (yearIndex === years.length - 1) {
+        left = containerRect.width - overlayWidth;
+      } else {
+        left = yearRect.left - containerRect.left + yearRect.width / 2 - overlayWidth / 2;
+      }
+
+      const top = yearRect.top - containerRect.top + yearHeaderHeight + overlayOffset;
+
+      clearHideTimeout();
+      pointerInsideOverlayRef.current = false;
+      setVisible(true);
+      setYear(years[yearIndex]);
+      setPosition({ left, top, width: overlayWidth });
+      setActiveYearIndex(yearIndex);
+    },
+    [clearHideTimeout, containerRef, overlayOffset, overlayWidthMultiplier, yearHeaderHeight, years]
+  );
+
+  const scheduleHide = useCallback(
+    (delayMs: number) => {
+      clearHideTimeout();
+      hideTimeoutRef.current = setTimeout(() => {
+        if (!pointerInsideOverlayRef.current) {
+          close();
+        }
+      }, delayMs);
+    },
+    [clearHideTimeout, close]
+  );
+
+  const cancelHide = useCallback(() => {
+    clearHideTimeout();
+  }, [clearHideTimeout]);
+
+  const pointerEnteredOverlay = useCallback(() => {
+    pointerInsideOverlayRef.current = true;
+    clearHideTimeout();
+  }, [clearHideTimeout]);
+
+  const pointerLeftOverlay = useCallback(
+    (delayMs: number) => {
+      pointerInsideOverlayRef.current = false;
+      scheduleHide(delayMs);
+    },
+    [scheduleHide]
+  );
+
+  useEffect(() => {
+    return () => {
+      clearHideTimeout();
+    };
+  }, [clearHideTimeout]);
+
+  return {
+    visible,
+    year,
+    position,
+    activeYearIndex,
+    open,
+    close,
+    scheduleHide,
+    cancelHide,
+    pointerEnteredOverlay,
+    pointerLeftOverlay,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Local pointer handling
+// ---------------------------------------------------------------------------
+
+type Point = { x: number; y: number };
+
+type UseTimelinePointerOptions = {
+  yearsScrollContainerRef: RefObject<HTMLDivElement>;
+  touchDragActiveRef: MutableRefObject<boolean>;
+  isTouchDevice: boolean;
+  markUserInteracted: () => void;
+  stopAutoScroll: () => void;
+  updateEdgeScrollFromPointer: (clientX: number, hasActivePointer: boolean) => void;
+};
+
+type UseTimelinePointerResult = {
+  pointerPositionRef: MutableRefObject<Point | null>;
+  updateAutoScrollFromPointer: (clientX: number) => void;
+  handleMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void;
+  handleMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
+  handleMouseUp: () => void;
+  handleMouseLeave: () => void;
+};
+
+const useTimelinePointer = ({
+  yearsScrollContainerRef,
+  touchDragActiveRef,
+  isTouchDevice,
+  markUserInteracted,
+  stopAutoScroll,
+  updateEdgeScrollFromPointer,
+}: UseTimelinePointerOptions): UseTimelinePointerResult => {
+  const pointerDownRef = useRef(false);
+  const pointerPositionRef = useRef<Point | null>(null);
+
+  const updateAutoScrollFromPointer = useCallback(
+    (clientX: number) => {
+      const hasActivePointer =
+        touchDragActiveRef.current || pointerDownRef.current || pointerPositionRef.current !== null;
+
+      updateEdgeScrollFromPointer(clientX, hasActivePointer);
+    },
+    [touchDragActiveRef, updateEdgeScrollFromPointer]
+  );
+
+  const isFromScrollContainer = useCallback(
+    (eventTarget: EventTarget | null) => {
+      const container = yearsScrollContainerRef.current;
+      if (!container || !(eventTarget instanceof Node)) {
+        return false;
+      }
+      return container.contains(eventTarget);
+    },
+    [yearsScrollContainerRef]
+  );
+
+  const handleMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (isTouchDevice) return;
+      if (event.button !== 0) return;
+
+      const fromScrollContainer = isFromScrollContainer(event.target);
+
+      pointerDownRef.current = true;
+      pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+      updateAutoScrollFromPointer(event.clientX);
+
+      if (fromScrollContainer) {
+        markUserInteracted();
+      }
+    },
+    [isTouchDevice, isFromScrollContainer, markUserInteracted, updateAutoScrollFromPointer]
+  );
+
+  const handleMouseMove = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (isTouchDevice) return;
+
+      const fromScrollContainer = isFromScrollContainer(event.target);
+
+      pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+      updateAutoScrollFromPointer(event.clientX);
+
+      if (fromScrollContainer) {
+        markUserInteracted();
+      }
+    },
+    [isTouchDevice, isFromScrollContainer, markUserInteracted, updateAutoScrollFromPointer]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    if (isTouchDevice) return;
+
+    pointerDownRef.current = false;
+    pointerPositionRef.current = null;
+    stopAutoScroll();
+  }, [isTouchDevice, stopAutoScroll]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!pointerDownRef.current) {
+      stopAutoScroll();
+    }
+    pointerPositionRef.current = null;
+  }, [stopAutoScroll]);
+
+  return useMemo(
+    () => ({
+      pointerPositionRef,
+      updateAutoScrollFromPointer,
+      handleMouseDown,
+      handleMouseMove,
+      handleMouseUp,
+      handleMouseLeave,
+    }),
+    [
+      handleMouseDown,
+      handleMouseLeave,
+      handleMouseMove,
+      handleMouseUp,
+      pointerPositionRef,
+      updateAutoScrollFromPointer,
+    ]
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Local touch handling
+// ---------------------------------------------------------------------------
+
+type TouchInfo = {
+  clientX: number;
+  clientY: number;
+  identifier?: number;
+};
+
+type InitialOverlayTouch = TouchInfo & { sequence: number };
+
+type TouchEventLike = React.Touch | Touch;
+
+type GetYearIndexFromPoint = (clientX: number, clientY: number) => number | null;
+
+type UseTimelineTouchOptions = {
+  yearsScrollContainerRef: RefObject<HTMLDivElement>;
+  pointerPositionRef: MutableRefObject<Point | null>;
+  touchDragActiveRef: MutableRefObject<boolean>;
+  updateAutoScrollFromPointer: (clientX: number) => void;
+  getYearIndexFromPoint: GetYearIndexFromPoint;
+  handleYearHover: (yearIndex: number) => void;
+  markUserInteracted: () => void;
+  stopAutoScroll: () => void;
+  megaOverlayVisible: boolean;
+};
+
+type UseTimelineTouchResult = {
+  touchCursorPosition: Point | null;
+  initialOverlayTouch: InitialOverlayTouch | null;
+  handleTouchStart: (event: React.TouchEvent<HTMLDivElement>) => void;
+  handleTouchMove: (event: React.TouchEvent<HTMLDivElement>) => void;
+  handleTouchEnd: () => void;
+  handleTouchCancel: () => void;
+};
+
+const useTimelineTouch = ({
+  yearsScrollContainerRef,
+  pointerPositionRef,
+  touchDragActiveRef,
+  updateAutoScrollFromPointer,
+  getYearIndexFromPoint,
+  handleYearHover,
+  markUserInteracted,
+  stopAutoScroll,
+  megaOverlayVisible,
+}: UseTimelineTouchOptions): UseTimelineTouchResult => {
+  const touchStartPositionRef = useRef<Point | null>(null);
+  const lastTouchYearIndexRef = useRef<number | null>(null);
+  const lastTouchInfoRef = useRef<TouchInfo | null>(null);
+  const overlayVisibilityRef = useRef(false);
+  const [touchCursorPosition, setTouchCursorPosition] = useState<Point | null>(null);
+  const [initialOverlayTouch, setInitialOverlayTouch] = useState<InitialOverlayTouch | null>(null);
+
+  const updateHoverFromTouch = useCallback(
+    (touch: TouchEventLike) => {
+      const yearIndex = getYearIndexFromPoint(touch.clientX, touch.clientY);
+      if (yearIndex !== null) {
+        if (lastTouchYearIndexRef.current !== yearIndex) {
+          lastTouchYearIndexRef.current = yearIndex;
+          handleYearHover(yearIndex);
+        }
+      }
+
+      setTouchCursorPosition({ x: touch.clientX, y: touch.clientY });
+      pointerPositionRef.current = { x: touch.clientX, y: touch.clientY };
+      updateAutoScrollFromPointer(touch.clientX);
+      lastTouchInfoRef.current = {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        identifier: "identifier" in touch ? touch.identifier : undefined,
+      };
+    },
+    [getYearIndexFromPoint, handleYearHover, pointerPositionRef, updateAutoScrollFromPointer]
+  );
+
+  const isEventFromScrollContainer = useCallback(
+    (eventTarget: EventTarget | null) => {
+      const container = yearsScrollContainerRef.current;
+      if (!container || !(eventTarget instanceof Node)) {
+        return false;
+      }
+      return container.contains(eventTarget);
+    },
+    [yearsScrollContainerRef]
+  );
+
+  const handleTouchStart = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (event.touches.length === 0) return;
+
+      const isFromScrollContainer = isEventFromScrollContainer(event.target);
+
+      touchDragActiveRef.current = true;
+      const touch = event.touches[0];
+      touchStartPositionRef.current = { x: touch.clientX, y: touch.clientY };
+      updateHoverFromTouch(touch);
+
+      if (isFromScrollContainer) {
+        markUserInteracted();
+      }
+    },
+    [isEventFromScrollContainer, markUserInteracted, touchDragActiveRef, updateHoverFromTouch]
+  );
+
+  const handleTouchMove = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!touchDragActiveRef.current || event.touches.length === 0) return;
+
+      const isFromScrollContainer = isEventFromScrollContainer(event.target);
+
+      const touch = event.touches[0];
+      const startPosition = touchStartPositionRef.current;
+      if (startPosition) {
+        const deltaX = Math.abs(touch.clientX - startPosition.x);
+        const deltaY = Math.abs(touch.clientY - startPosition.y);
+        const nativeEvent = event.nativeEvent;
+        if (deltaX > deltaY && nativeEvent.cancelable && !nativeEvent.defaultPrevented) {
+          nativeEvent.preventDefault();
+        }
+      }
+
+      updateHoverFromTouch(touch);
+
+      if (isFromScrollContainer) {
+        markUserInteracted();
+      }
+    },
+    [isEventFromScrollContainer, markUserInteracted, touchDragActiveRef, updateHoverFromTouch]
+  );
+
+  const resetTouchState = useCallback(() => {
+    touchDragActiveRef.current = false;
+    setTouchCursorPosition(null);
+    pointerPositionRef.current = null;
+    touchStartPositionRef.current = null;
+    lastTouchInfoRef.current = null;
+    lastTouchYearIndexRef.current = null;
+    setInitialOverlayTouch(null);
+  }, [pointerPositionRef, touchDragActiveRef]);
+
+  const handleTouchEnd = useCallback(() => {
+    resetTouchState();
+    stopAutoScroll();
+  }, [resetTouchState, stopAutoScroll]);
+
+  const handleTouchCancel = useCallback(() => {
+    resetTouchState();
+    stopAutoScroll();
+  }, [resetTouchState, stopAutoScroll]);
+
+  useEffect(() => {
+    const wasVisible = overlayVisibilityRef.current;
+    if (megaOverlayVisible && !wasVisible) {
+      if (touchDragActiveRef.current && lastTouchInfoRef.current) {
+        setInitialOverlayTouch({
+          clientX: lastTouchInfoRef.current.clientX,
+          clientY: lastTouchInfoRef.current.clientY,
+          identifier: lastTouchInfoRef.current.identifier,
+          sequence: Date.now(),
+        });
+      } else {
+        setInitialOverlayTouch(null);
+      }
+    } else if (!megaOverlayVisible && wasVisible) {
+      setInitialOverlayTouch(null);
+    }
+    overlayVisibilityRef.current = megaOverlayVisible;
+  }, [megaOverlayVisible, touchDragActiveRef]);
+
+  return useMemo(
+    () => ({
+      touchCursorPosition,
+      initialOverlayTouch,
+      handleTouchStart,
+      handleTouchMove,
+      handleTouchEnd,
+      handleTouchCancel,
+    }),
+    [
+      handleTouchCancel,
+      handleTouchEnd,
+      handleTouchMove,
+      handleTouchStart,
+      initialOverlayTouch,
+      touchCursorPosition,
+    ]
+  );
+};
 
 // Configure dayjs to use UTC plugin
 dayjs.extend(utc);
