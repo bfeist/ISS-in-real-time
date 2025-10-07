@@ -665,6 +665,10 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       return;
     }
 
+    // Stop any currently playing audio immediately when hoveredDate changes
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+
     // Create a debounce timer
     const timer = setTimeout(() => {
       const audioData = commFirstData[hoveredDate];
