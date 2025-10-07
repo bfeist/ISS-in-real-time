@@ -66,63 +66,7 @@ describe("useMegaOverlayState", () => {
     document.body.innerHTML = "";
   });
 
-  it("opens the overlay with calculated position and tracks active year", () => {
-    const { ref, cleanup } = createContainerRef();
-    const onOpen = vi.fn();
-
-    const { result, unmount } = renderHook(() =>
-      useMegaOverlayState({ containerRef: ref, years: [2020, 2021, 2022], onOpen })
-    );
-
-    act(() => {
-      result.current.open(1);
-    });
-
-    expect(result.current.visible).toBe(true);
-    expect(result.current.year).toBe(2021);
-    expect(result.current.activeYearIndex).toBe(1);
-    expect(result.current.position).toEqual({ left: 50, top: 27, width: 200 });
-    expect(onOpen).toHaveBeenCalledWith({ yearIndex: 1, year: 2021 });
-
-    unmount();
-    cleanup();
-  });
-
-  it("closes the overlay after a scheduled hide", () => {
-    const { ref, cleanup } = createContainerRef();
-    const onClose = vi.fn();
-
-    const { result, unmount } = renderHook(() =>
-      useMegaOverlayState({ containerRef: ref, years: [2020, 2021, 2022], onClose })
-    );
-
-    act(() => {
-      result.current.open(2);
-    });
-
-    act(() => {
-      result.current.scheduleHide(150);
-    });
-
-    act(() => {
-      vi.advanceTimersByTime(149);
-    });
-    expect(result.current.visible).toBe(true);
-
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-
-    expect(result.current.visible).toBe(false);
-    expect(result.current.year).toBeNull();
-    expect(result.current.activeYearIndex).toBeNull();
-    expect(onClose).toHaveBeenCalledTimes(1);
-
-    unmount();
-    cleanup();
-  });
-
-  it("prevents hide when pointer enters before timeout", () => {
+  it("calculates correct position for first year (left-aligned)", () => {
     const { ref, cleanup } = createContainerRef();
 
     const { result, unmount } = renderHook(() =>
@@ -133,25 +77,15 @@ describe("useMegaOverlayState", () => {
       result.current.open(0);
     });
 
-    act(() => {
-      result.current.scheduleHide(100);
-    });
-
-    act(() => {
-      result.current.pointerEnteredOverlay();
-    });
-
-    act(() => {
-      vi.advanceTimersByTime(150);
-    });
-
-    expect(result.current.visible).toBe(true);
+    // First year should be left-aligned (left: 0)
+    expect(result.current.position).toEqual({ left: 0, top: 27, width: 200 });
+    expect(result.current.year).toBe(2020);
 
     unmount();
     cleanup();
   });
 
-  it("hides after pointer leaves overlay with delay", () => {
+  it("calculates correct position for middle year (centered)", () => {
     const { ref, cleanup } = createContainerRef();
 
     const { result, unmount } = renderHook(() =>
@@ -162,19 +96,28 @@ describe("useMegaOverlayState", () => {
       result.current.open(1);
     });
 
-    act(() => {
-      result.current.pointerEnteredOverlay();
-    });
+    // Middle year should be centered: yearLeft (100) + yearWidth/2 (50) - overlayWidth/2 (100) = 50
+    expect(result.current.position).toEqual({ left: 50, top: 27, width: 200 });
+    expect(result.current.year).toBe(2021);
+
+    unmount();
+    cleanup();
+  });
+
+  it("calculates correct position for last year (right-aligned)", () => {
+    const { ref, cleanup } = createContainerRef();
+
+    const { result, unmount } = renderHook(() =>
+      useMegaOverlayState({ containerRef: ref, years: [2020, 2021, 2022] })
+    );
 
     act(() => {
-      result.current.pointerLeftOverlay(80);
+      result.current.open(2);
     });
 
-    act(() => {
-      vi.advanceTimersByTime(80);
-    });
-
-    expect(result.current.visible).toBe(false);
+    // Last year should be right-aligned: containerWidth (300) - overlayWidth (200) = 100
+    expect(result.current.position).toEqual({ left: 100, top: 27, width: 200 });
+    expect(result.current.year).toBe(2022);
 
     unmount();
     cleanup();

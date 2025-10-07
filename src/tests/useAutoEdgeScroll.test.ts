@@ -3,6 +3,15 @@ import type { RefObject } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAutoEdgeScroll } from "../components/timelineYears/hooks/useAutoEdgeScroll";
 
+/**
+ * Tests for useAutoEdgeScroll
+ *
+ * These tests focus on complex animation frame behavior that's hard to verify manually.
+ *
+ * Note: Consider adding integration tests that verify the actual timeline scrolling behavior
+ * in a real browser environment, as these unit tests mock most of the DOM interactions.
+ */
+
 const createContainer = () => {
   const element = {
     getBoundingClientRect: () =>
