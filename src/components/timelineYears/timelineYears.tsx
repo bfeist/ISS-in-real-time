@@ -10,6 +10,7 @@ import HighlightData from "./subcomponents/highlightData";
 import YearCanvas, { COLORS } from "./subcomponents/yearCanvas";
 import MegaYearOverlay from "./subcomponents/megaYearOverlay";
 import { useAutoEdgeScroll } from "./hooks/useAutoEdgeScroll";
+import { isTouchLikeInteraction, type InteractionMode } from "./types";
 
 // ---------------------------------------------------------------------------
 // Local mouse hint controller
@@ -272,18 +273,51 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const { showHint: showMouseHint, markInteracted: markUserInteracted } =
     useMouseHint(showTimelineYears);
 
-  // Detect if device supports touch (using ref to avoid recalculating on every render)
-  const isTouchDeviceRef = useRef(
-    typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)
-  );
-  const isTouchDevice = isTouchDeviceRef.current;
-
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>("mouse");
+  const ignoreMouseEventsUntilRef = useRef<number>(0);
   const pointerDownRef = useRef(false);
   const pointerPositionRef = useRef<{ x: number; y: number } | null>(null);
 
+  const getNow = useCallback(() => {
+    if (typeof performance !== "undefined" && typeof performance.now === "function") {
+      return performance.now();
+    }
+
+    return Date.now();
+  }, []);
+
+  const shouldIgnoreMouseEvents = useCallback(() => {
+    if (ignoreMouseEventsUntilRef.current === 0) {
+      return false;
+    }
+
+    return getNow() < ignoreMouseEventsUntilRef.current;
+  }, [getNow]);
+
+  const registerInteractionMode = useCallback(
+    (mode: InteractionMode) => {
+      setInteractionMode((prev) => (prev === mode ? prev : mode));
+
+      if (mode === "touch" || mode === "pen") {
+        ignoreMouseEventsUntilRef.current = getNow() + 800;
+      } else {
+        ignoreMouseEventsUntilRef.current = 0;
+      }
+    },
+    [getNow]
+  );
+
   const handleMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (isTouchDevice || event.button !== 0) return;
+      if (event.button !== 0) {
+        return;
+      }
+
+      if (shouldIgnoreMouseEvents()) {
+        return;
+      }
+
+      registerInteractionMode("mouse");
 
       pointerDownRef.current = true;
       pointerPositionRef.current = { x: event.clientX, y: event.clientY };
@@ -292,12 +326,21 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       updateEdgeScrollFromPointer(event.clientX, hasActivePointer);
       markUserInteracted();
     },
-    [isTouchDevice, markUserInteracted, updateEdgeScrollFromPointer]
+    [
+      markUserInteracted,
+      registerInteractionMode,
+      shouldIgnoreMouseEvents,
+      updateEdgeScrollFromPointer,
+    ]
   );
 
   const handleMouseMove = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (isTouchDevice) return;
+      if (shouldIgnoreMouseEvents()) {
+        return;
+      }
+
+      registerInteractionMode("mouse");
 
       pointerPositionRef.current = { x: event.clientX, y: event.clientY };
 
@@ -305,16 +348,23 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       updateEdgeScrollFromPointer(event.clientX, hasActivePointer);
       markUserInteracted();
     },
-    [isTouchDevice, markUserInteracted, updateEdgeScrollFromPointer]
+    [
+      markUserInteracted,
+      registerInteractionMode,
+      shouldIgnoreMouseEvents,
+      updateEdgeScrollFromPointer,
+    ]
   );
 
   const handleMouseUp = useCallback(() => {
-    if (isTouchDevice) return;
+    if (shouldIgnoreMouseEvents()) {
+      return;
+    }
 
     pointerDownRef.current = false;
     pointerPositionRef.current = null;
     stopAutoScroll();
-  }, [isTouchDevice, stopAutoScroll]);
+  }, [shouldIgnoreMouseEvents, stopAutoScroll]);
 
   const handleMouseLeave = useCallback(() => {
     if (!pointerDownRef.current) {
@@ -476,6 +526,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     : null;
   const hoveredYearIndex = activeYearIndex ?? hoveredYearIndexFromDate;
 
+  const isTouchLike = isTouchLikeInteraction(interactionMode);
+
   // Calculate start and end months for partial year rendering
   const getYearMonthRange = (year: number) => {
     if (year === START_YEAR) {
@@ -516,6 +568,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     (event: React.TouchEvent<HTMLDivElement>) => {
       if (event.touches.length === 0) return;
 
+      registerInteractionMode("touch");
+
       const touch = event.touches[0];
       const yearIndex = getYearIndexFromPoint(touch.clientX, touch.clientY);
 
@@ -528,10 +582,11 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         markUserInteracted();
       }
     },
-    [getYearIndexFromPoint, markUserInteracted, openMegaOverlay]
+    [getYearIndexFromPoint, markUserInteracted, openMegaOverlay, registerInteractionMode]
   );
 
   const handleMegaOverlayMouseEnter = () => {
+    registerInteractionMode("mouse");
     pointerEnteredOverlay();
     markUserInteracted();
   };
@@ -546,7 +601,11 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
   useEffect(() => {
     const handleWindowMouseUp = () => {
-      if (isTouchDevice) return;
+      if (shouldIgnoreMouseEvents()) {
+        return;
+      }
+
+      registerInteractionMode("mouse");
       handleMouseUp();
     };
 
@@ -554,18 +613,14 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       handleMouseUp();
     };
 
-    if (!isTouchDevice) {
-      window.addEventListener("mouseup", handleWindowMouseUp);
-    }
+    window.addEventListener("mouseup", handleWindowMouseUp);
     window.addEventListener("blur", handleWindowBlur);
 
     return () => {
-      if (!isTouchDevice) {
-        window.removeEventListener("mouseup", handleWindowMouseUp);
-      }
+      window.removeEventListener("mouseup", handleWindowMouseUp);
       window.removeEventListener("blur", handleWindowBlur);
     };
-  }, [handleMouseUp, isTouchDevice]);
+  }, [handleMouseUp, registerInteractionMode, shouldIgnoreMouseEvents]);
 
   return (
     <>
@@ -621,7 +676,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
           {showMouseHint && (
             <div className={`${mouseHintStyles.mouseHintOverlay} ${mouseHintStyles.visible}`}>
               <div
-                className={`${mouseHintStyles.mouseHintSvg} ${isTouchDevice ? mouseHintStyles.touch : ""}`}
+                className={`${mouseHintStyles.mouseHintSvg} ${isTouchLike ? mouseHintStyles.touch : ""}`}
               />
             </div>
           )}
@@ -650,7 +705,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             startMonth={getYearMonthRange(megaOverlayYear).startMonth}
             endMonth={getYearMonthRange(megaOverlayYear).endMonth}
             selectedDate={selectedDate}
-            isTouchDevice={isTouchDevice}
+            interactionMode={interactionMode}
+            onInteractionModeChange={registerInteractionMode}
             parentContainerRef={containerRef}
           />
         )}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { act } from "react";
 import { render, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MegaYearOverlay from "../components/timelineYears/subcomponents/megaYearOverlay";
@@ -92,6 +92,7 @@ describe("MegaYearOverlay", () => {
 
   afterEach(() => {
     getContextSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   it("renders nothing when timeline years hidden", () => {
@@ -103,6 +104,8 @@ describe("MegaYearOverlay", () => {
         yearIndex={0}
         position={{ left: 0, top: 0, width: 300 }}
         highlights={new Map()}
+        interactionMode="mouse"
+        onInteractionModeChange={vi.fn()}
       />
     );
 
@@ -118,6 +121,8 @@ describe("MegaYearOverlay", () => {
         yearIndex={0}
         position={{ left: 0, top: 0, width: 300 }}
         highlights={highlights}
+        interactionMode="mouse"
+        onInteractionModeChange={vi.fn()}
       />
     );
 
@@ -126,5 +131,84 @@ describe("MegaYearOverlay", () => {
     expect(toggleState.setShowTimelineYears).toHaveBeenCalledWith(false);
     expect(clockState.setSelectedDate).toHaveBeenCalled();
     expect(clockState.setClock).not.toHaveBeenCalled();
+  });
+
+  it("keeps scrolling while in the extension and stops under the pointer", () => {
+    vi.useFakeTimers();
+
+    const onSwitchToAdjacentYear = vi.fn();
+    const onInteractionModeChange = vi.fn();
+
+    const { getByRole, rerender, unmount } = render(
+      <MegaYearOverlay
+        year={2024}
+        yearIndex={5}
+        position={{ left: 0, top: 0, width: 300 }}
+        highlights={new Map()}
+        interactionMode="touch"
+        onInteractionModeChange={onInteractionModeChange}
+        onSwitchToAdjacentYear={onSwitchToAdjacentYear}
+      />
+    );
+
+    const grid = getByRole("grid");
+    let rectLeft = 100;
+    const rectWidth = 300;
+    const rectSpy = vi.spyOn(grid, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          left: rectLeft,
+          top: 0,
+          right: rectLeft + rectWidth,
+          bottom: 400,
+          width: rectWidth,
+          height: 400,
+        }) as DOMRect
+    );
+
+    fireEvent.touchStart(grid, {
+      touches: [
+        {
+          identifier: 1,
+          clientX: rectLeft + 10,
+          clientY: 50,
+        },
+      ],
+    });
+
+    expect(onSwitchToAdjacentYear).toHaveBeenCalledWith(4);
+
+    rerender(
+      <MegaYearOverlay
+        year={2024}
+        yearIndex={4}
+        position={{ left: 0, top: 0, width: 300 }}
+        highlights={new Map()}
+        interactionMode="touch"
+        onInteractionModeChange={onInteractionModeChange}
+        onSwitchToAdjacentYear={onSwitchToAdjacentYear}
+      />
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    const callsBeforeCenter = onSwitchToAdjacentYear.mock.calls.length;
+    expect(callsBeforeCenter).toBeGreaterThan(1);
+
+    rectLeft = 30;
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(onSwitchToAdjacentYear.mock.calls.length).toBe(callsBeforeCenter);
+
+    rectSpy.mockRestore();
+
+    act(() => {
+      unmount();
+    });
   });
 });
