@@ -60,7 +60,6 @@ h2 {
   font-size: 2em;
   margin-bottom: 10px;
   margin-top: 20px;
-  white-space: nowrap;
 }
 
 .headerContent p {
@@ -141,7 +140,13 @@ h2 {
   user-select: none;
 }
 
-@media (width <= 520px) {
+@media (width <= 840px) {
+  .breakSpan {
+    display: block;
+  }
+}
+
+@media (width < 500px) {
   .container {
     height: auto;
     min-height: 100%;
@@ -154,15 +159,6 @@ h2 {
   .headerContent {
     max-width: 100%;
     font-size: 0.9em;
-  }
-
-  .headerContent h2 {
-    white-space: normal;
-    font-size: 1.7em;
-  }
-
-  .breakSpan {
-    display: block;
   }
 
   .forumCallout {

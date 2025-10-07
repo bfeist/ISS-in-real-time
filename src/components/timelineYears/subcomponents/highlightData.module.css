@@ -38,19 +38,19 @@
 }
 
 .columnData {
-  flex: 0 0 170px;
+  flex: 0 0 160px;
 }
 
 .columnCrew {
-  flex: 0 0 250px;
+  flex: 0 0 230px;
 }
 
 .columnExpeditions {
-  flex: 0 0 290px;
+  flex: 0 0 275px;
 }
 
 .columnNotable {
-  flex: 0 0 290px;
+  flex: 0 0 260px;
 }
 
 .columnHeader {
@@ -182,7 +182,7 @@
 }
 
 /* Responsive Styles */
-@media (width < 970px) {
+@media (width < 930px) {
   .highlightItems {
     flex-direction: column;
     align-items: stretch;

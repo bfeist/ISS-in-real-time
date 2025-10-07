@@ -6,21 +6,14 @@
   padding: 15px;
   border: 1px solid var(--grey3);
   border-radius: var(--panel-radius);
-  width: fit-content;
-  min-width: 440px;
+  width: 440px;
   background: rgb(41 43 58 / 70%);
   backdrop-filter: blur(15px);
 }
 
-@media (width <= 520px) {
-  .dayCounterContainer {
-    min-width: auto;
-  }
-}
-
 .title {
   margin-bottom: 15px;
-  color: white;
+  color: var(--grey5);
   font-size: 1em;
   font-weight: normal;
   text-shadow: 0 0 5px rgb(0 0 0 / 70%);
@@ -53,17 +46,17 @@
   text-shadow: 0 0 5px rgb(0 0 0 / 70%);
 }
 
-@media (width <= 768px) {
-  .container {
-    font-size: 0.8em;
+@media (width < 500px) {
+  .dayCounterContainer {
+    width: 357px;
   }
 
   .title {
-    font-size: 0.9em;
+    font-size: 1em;
   }
 
   .timeDisplay {
-    font-size: 0.9em;
+    font-size: 1.1em;
     gap: 10px;
   }
 
