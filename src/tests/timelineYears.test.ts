@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getMegaDateFromCoordinates } from "../components/timelineYears/subcomponents/megaYearOverlay";
+import { getMegaDateFromCoordinates } from "../components/timelineYears/subcomponents/megaYearOverlay.utils";
 
 const buildCoordinate = (params: { monthIndex: number; day: number; width: number }) => {
   const { monthIndex, day, width } = params;
