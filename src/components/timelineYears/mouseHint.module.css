@@ -20,14 +20,14 @@
 .mouseHintSvg {
   width: 100px;
   height: 100px;
-  background: url("../../public/images/movemouse.svg") no-repeat center;
+  background: url("../../public/images/icons/movemouse.svg") no-repeat center;
   background-size: 100px 100px;
   margin: auto;
   animation: wiggle 2.5s infinite;
 }
 
 .mouseHintSvg.touch {
-  background-image: url("../../public/images/movefinger.svg");
+  background-image: url("../../public/images/icons/movefinger.svg");
   filter: brightness(0) invert(1);
 }
 
