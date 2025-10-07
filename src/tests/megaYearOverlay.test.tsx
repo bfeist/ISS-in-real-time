@@ -1,4 +1,4 @@
-import React, { act } from "react";
+import React from "react";
 import { render, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MegaYearOverlay from "../components/timelineYears/subcomponents/megaYearOverlay";
@@ -133,82 +133,97 @@ describe("MegaYearOverlay", () => {
     expect(clockState.setClock).not.toHaveBeenCalled();
   });
 
-  it("keeps scrolling while in the extension and stops under the pointer", () => {
-    vi.useFakeTimers();
-
+  it("jumps directly to the year that aligns with the extension pointer", () => {
     const onSwitchToAdjacentYear = vi.fn();
     const onInteractionModeChange = vi.fn();
 
-    const { getByRole, rerender, unmount } = render(
-      <MegaYearOverlay
-        year={2024}
-        yearIndex={5}
-        position={{ left: 0, top: 0, width: 300 }}
-        highlights={new Map()}
-        interactionMode="touch"
-        onInteractionModeChange={onInteractionModeChange}
-        onSwitchToAdjacentYear={onSwitchToAdjacentYear}
-      />
-    );
+    const Wrapper = () => {
+      const parentRef = React.useRef<HTMLDivElement>(null);
+
+      return (
+        <div ref={parentRef} data-testid="parent" style={{ position: "relative" }}>
+          {Array.from({ length: 10 }).map((_, index) => (
+            <div
+              key={index}
+              data-year-index={index}
+              style={{
+                position: "absolute",
+                left: `${index * 100}px`,
+                top: 0,
+                width: "100px",
+                height: "200px",
+              }}
+            />
+          ))}
+          <MegaYearOverlay
+            year={2024}
+            yearIndex={5}
+            position={{ left: 450, top: 0, width: 200 }}
+            highlights={new Map()}
+            interactionMode="touch"
+            onInteractionModeChange={onInteractionModeChange}
+            onSwitchToAdjacentYear={onSwitchToAdjacentYear}
+            parentContainerRef={parentRef}
+          />
+        </div>
+      );
+    };
+
+    const { getByRole, container } = render(<Wrapper />);
+
+    const parent = container.querySelector("[data-testid='parent']") as HTMLDivElement;
+    Object.defineProperty(parent, "getBoundingClientRect", {
+      value: () => ({
+        left: 0,
+        right: 1000,
+        top: 0,
+        bottom: 200,
+        width: 1000,
+        height: 200,
+      }),
+      configurable: true,
+    });
+
+    parent.querySelectorAll("[data-year-index]").forEach((node, index) => {
+      const element = node as HTMLElement;
+      Object.defineProperty(element, "getBoundingClientRect", {
+        value: () => ({
+          left: index * 100,
+          right: index * 100 + 100,
+          top: 0,
+          bottom: 200,
+          width: 100,
+          height: 200,
+        }),
+        configurable: true,
+      });
+    });
 
     const grid = getByRole("grid");
-    let rectLeft = 100;
-    const rectWidth = 300;
-    const rectSpy = vi.spyOn(grid, "getBoundingClientRect").mockImplementation(
-      () =>
-        ({
-          left: rectLeft,
-          top: 0,
-          right: rectLeft + rectWidth,
-          bottom: 400,
-          width: rectWidth,
-          height: 400,
-        }) as DOMRect
-    );
+    Object.defineProperty(grid, "getBoundingClientRect", {
+      value: () => ({
+        left: 400,
+        right: 700,
+        top: 0,
+        bottom: 400,
+        width: 300,
+        height: 400,
+      }),
+      configurable: true,
+    });
 
     fireEvent.touchStart(grid, {
       touches: [
         {
           identifier: 1,
-          clientX: rectLeft + 10,
+          clientX: 420,
           clientY: 50,
         },
       ],
     });
 
+    expect(onSwitchToAdjacentYear).toHaveBeenCalledTimes(1);
     expect(onSwitchToAdjacentYear).toHaveBeenCalledWith(4);
-
-    rerender(
-      <MegaYearOverlay
-        year={2024}
-        yearIndex={4}
-        position={{ left: 0, top: 0, width: 300 }}
-        highlights={new Map()}
-        interactionMode="touch"
-        onInteractionModeChange={onInteractionModeChange}
-        onSwitchToAdjacentYear={onSwitchToAdjacentYear}
-      />
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-
-    const callsBeforeCenter = onSwitchToAdjacentYear.mock.calls.length;
-    expect(callsBeforeCenter).toBeGreaterThan(1);
-
-    rectLeft = 30;
-
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-
-    expect(onSwitchToAdjacentYear.mock.calls.length).toBe(callsBeforeCenter);
-
-    rectSpy.mockRestore();
-
-    act(() => {
-      unmount();
-    });
+    expect(onInteractionModeChange).toHaveBeenCalledWith("touch");
   });
 });

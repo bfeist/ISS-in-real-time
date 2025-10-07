@@ -24,9 +24,6 @@ import {
 } from "./megaYearOverlay.utils";
 import { isTouchLikeInteraction, type InteractionMode } from "../types";
 
-const AUTO_SCROLL_FRAME_STEP_MS = 32;
-
-type HorizontalScrollDirection = -1 | 0 | 1;
 
 interface HighlightInfo {
   fill: string;
@@ -240,6 +237,7 @@ interface UseMegaOverlayInteractionOptions {
   setHoveredDate: (date: string | null) => void;
   hoveredDate: string | null;
   setShowTimelineYears: (value: boolean) => void;
+  parentContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
 interface UseMegaOverlayInteractionResult {
@@ -281,6 +279,7 @@ const useMegaOverlayInteraction = (
     setHoveredDate,
     hoveredDate,
     setShowTimelineYears,
+    parentContainerRef,
   } = options;
 
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
@@ -291,171 +290,74 @@ const useMegaOverlayInteraction = (
   const isDraggingRef = useRef(false);
   const ignoreMouseEventsRef = useRef(false);
   const hoverClearTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastPointerClientXRef = useRef<number | null>(null);
-  const autoScrollFrameRef = useRef<number | null>(null);
-  const lastAutoScrollTimestampRef = useRef<number | null>(null);
-  const autoScrollDirectionRef = useRef<HorizontalScrollDirection>(0);
-  const lastImmediateDirectionRef = useRef<HorizontalScrollDirection>(0);
   const latestYearIndexRef = useRef(yearIndex);
 
   useEffect(() => {
     latestYearIndexRef.current = yearIndex;
   }, [yearIndex]);
 
-  const stopAutoScroll = useCallback(() => {
-    autoScrollDirectionRef.current = 0;
-    lastImmediateDirectionRef.current = 0;
-    lastAutoScrollTimestampRef.current = null;
-    lastPointerClientXRef.current = null;
-
-    if (autoScrollFrameRef.current !== null) {
-      window.cancelAnimationFrame(autoScrollFrameRef.current);
-      autoScrollFrameRef.current = null;
-    }
-  }, []);
-
-  const getAdjustedXFromClientX = useCallback(
-    (clientX: number | null) => {
-      if (clientX === null) {
+  const findTargetYearIndex = useCallback(
+    (clientX: number) => {
+      const parent = parentContainerRef?.current;
+      if (!parent) {
         return null;
       }
 
-      const container = containerRef.current;
-      if (!container) {
-        return null;
+      const yearElements = parent.querySelectorAll<HTMLElement>("[data-year-index]");
+      let closestIndex: number | null = null;
+      let smallestDistance = Number.POSITIVE_INFINITY;
+
+      for (const element of Array.from(yearElements)) {
+        const rect = element.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const distance = Math.abs(clientX - centerX);
+
+        if (distance < smallestDistance) {
+          const indexAttr = element.getAttribute("data-year-index");
+          if (indexAttr !== null) {
+            const parsed = Number(indexAttr);
+            if (!Number.isNaN(parsed)) {
+              smallestDistance = distance;
+              closestIndex = parsed;
+            }
+          }
+        }
       }
 
-      const rect = container.getBoundingClientRect();
-      return clientX - rect.left - layout.horizontalExtensionWidth;
+      return closestIndex;
     },
-    [containerRef, layout.horizontalExtensionWidth]
+    [parentContainerRef]
   );
 
-  const getHorizontalScrollDirection = useCallback(
-    (x: number): HorizontalScrollDirection => {
+  const handleExtensionPointer = useCallback(
+    (adjustedX: number, clientX: number) => {
       if (!onSwitchToAdjacentYear) {
-        return 0;
-      }
-
-      if (x < 0 && x >= -layout.horizontalExtensionWidth) {
-        return -1;
-      }
-
-      if (x >= position.width && x < position.width + layout.horizontalExtensionWidth) {
-        return 1;
-      }
-
-      return 0;
-    },
-    [layout.horizontalExtensionWidth, onSwitchToAdjacentYear, position.width]
-  );
-
-  const updateAutoScrollDirection = useCallback(() => {
-    const adjustedX = getAdjustedXFromClientX(lastPointerClientXRef.current);
-    if (adjustedX === null) {
-      return autoScrollDirectionRef.current;
-    }
-
-    const newDirection = getHorizontalScrollDirection(adjustedX);
-    if (newDirection !== autoScrollDirectionRef.current) {
-      if (newDirection === 0) {
-        stopAutoScroll();
-        return 0;
-      }
-
-      autoScrollDirectionRef.current = newDirection;
-      lastAutoScrollTimestampRef.current = null;
-    }
-
-    return autoScrollDirectionRef.current;
-  }, [getAdjustedXFromClientX, getHorizontalScrollDirection, stopAutoScroll]);
-
-  const autoScrollStep = useCallback(
-    function step(timestamp: number) {
-      autoScrollFrameRef.current = null;
-
-      if (!onSwitchToAdjacentYear) {
-        return;
-      }
-
-      const direction = updateAutoScrollDirection();
-      if (direction === 0) {
-        return;
-      }
-
-      let lastTimestamp = lastAutoScrollTimestampRef.current;
-      if (lastTimestamp === null) {
-        lastAutoScrollTimestampRef.current = timestamp;
-        lastTimestamp = timestamp;
-      }
-
-      if (timestamp - lastTimestamp >= AUTO_SCROLL_FRAME_STEP_MS) {
-        const nextIndex =
-          direction > 0 ? latestYearIndexRef.current + 1 : latestYearIndexRef.current - 1;
-        latestYearIndexRef.current = nextIndex;
-        onSwitchToAdjacentYear(nextIndex);
-        lastAutoScrollTimestampRef.current = timestamp;
-      }
-
-      if (autoScrollFrameRef.current === null) {
-        autoScrollFrameRef.current = window.requestAnimationFrame(step);
-      }
-    },
-    [onSwitchToAdjacentYear, updateAutoScrollDirection]
-  );
-
-  const startAutoScroll = useCallback(
-    (direction: HorizontalScrollDirection) => {
-      if (!onSwitchToAdjacentYear) {
-        return;
-      }
-
-      if (autoScrollDirectionRef.current !== direction) {
-        lastAutoScrollTimestampRef.current = null;
-      }
-
-      autoScrollDirectionRef.current = direction;
-
-      if (autoScrollFrameRef.current === null) {
-        autoScrollFrameRef.current = window.requestAnimationFrame(autoScrollStep);
-      }
-    },
-    [autoScrollStep, onSwitchToAdjacentYear]
-  );
-
-  const handleHorizontalScrollZone = useCallback(
-    (direction: HorizontalScrollDirection) => {
-      if (!onSwitchToAdjacentYear) {
-        stopAutoScroll();
         return false;
       }
 
-      if (direction === 0) {
-        stopAutoScroll();
+      const inLeftExtension = adjustedX < 0 && adjustedX >= -layout.horizontalExtensionWidth;
+      const inRightExtension =
+        adjustedX >= position.width &&
+        adjustedX <= position.width + layout.horizontalExtensionWidth;
+
+      if (!inLeftExtension && !inRightExtension) {
         return false;
       }
 
-      startAutoScroll(direction);
+      const targetYearIndex = findTargetYearIndex(clientX);
+      if (targetYearIndex === null) {
+        return true;
+      }
 
-      if (lastImmediateDirectionRef.current !== direction) {
-        lastImmediateDirectionRef.current = direction;
-        const nextIndex =
-          direction > 0 ? latestYearIndexRef.current + 1 : latestYearIndexRef.current - 1;
-        latestYearIndexRef.current = nextIndex;
-        lastAutoScrollTimestampRef.current = null;
-        onSwitchToAdjacentYear(nextIndex);
+      if (targetYearIndex !== latestYearIndexRef.current) {
+        latestYearIndexRef.current = targetYearIndex;
+        onSwitchToAdjacentYear(targetYearIndex);
       }
 
       return true;
     },
-    [onSwitchToAdjacentYear, startAutoScroll, stopAutoScroll]
+    [findTargetYearIndex, layout.horizontalExtensionWidth, onSwitchToAdjacentYear, position.width]
   );
-
-  useEffect(() => {
-    return () => {
-      stopAutoScroll();
-    };
-  }, [stopAutoScroll]);
 
   const handleMouseMove = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -481,10 +383,7 @@ const useMegaOverlayInteraction = (
       const y = event.clientY - rect.top;
       const adjustedX = x - layout.horizontalExtensionWidth;
 
-      lastPointerClientXRef.current = event.clientX;
-
-      const direction = getHorizontalScrollDirection(adjustedX);
-      if (handleHorizontalScrollZone(direction)) {
+      if (handleExtensionPointer(adjustedX, event.clientX)) {
         return;
       }
 
@@ -504,8 +403,7 @@ const useMegaOverlayInteraction = (
       setCursorPosition({ x: event.clientX, y: event.clientY });
     },
     [
-      getHorizontalScrollDirection,
-      handleHorizontalScrollZone,
+      handleExtensionPointer,
       endMonth,
       hoveredDate,
       layout.horizontalExtensionWidth,
@@ -538,10 +436,8 @@ const useMegaOverlayInteraction = (
       const rawY = touch.clientY - rect.top;
       const adjustedX = rawX - layout.horizontalExtensionWidth;
 
-      lastPointerClientXRef.current = touch.clientX;
-
-      const direction = getHorizontalScrollDirection(adjustedX);
-      if (handleHorizontalScrollZone(direction)) {
+      if (handleExtensionPointer(adjustedX, touch.clientX)) {
+        ignoreMouseEventsRef.current = true;
         return;
       }
 
@@ -569,8 +465,7 @@ const useMegaOverlayInteraction = (
       ignoreMouseEventsRef.current = true;
     },
     [
-      getHorizontalScrollDirection,
-      handleHorizontalScrollZone,
+      handleExtensionPointer,
       containerRef,
       endMonth,
       layout.horizontalExtensionWidth,
@@ -611,10 +506,7 @@ const useMegaOverlayInteraction = (
       const rawY = touch.clientY - rect.top;
       const adjustedX = rawX - layout.horizontalExtensionWidth;
 
-      lastPointerClientXRef.current = touch.clientX;
-
-      const direction = getHorizontalScrollDirection(adjustedX);
-      if (handleHorizontalScrollZone(direction)) {
+      if (handleExtensionPointer(adjustedX, touch.clientX)) {
         return;
       }
 
@@ -640,8 +532,7 @@ const useMegaOverlayInteraction = (
       setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
     },
     [
-      getHorizontalScrollDirection,
-      handleHorizontalScrollZone,
+      handleExtensionPointer,
       containerRef,
       endMonth,
       layout.horizontalExtensionWidth,
@@ -683,10 +574,8 @@ const useMegaOverlayInteraction = (
       const rawY = touch.clientY - rect.top;
       const adjustedX = x - layout.horizontalExtensionWidth;
 
-      lastPointerClientXRef.current = touch.clientX;
-
-      const direction = getHorizontalScrollDirection(adjustedX);
-      if (handleHorizontalScrollZone(direction)) {
+      if (handleExtensionPointer(adjustedX, touch.clientX)) {
+        ignoreMouseEventsRef.current = true;
         return;
       }
 
@@ -711,8 +600,7 @@ const useMegaOverlayInteraction = (
       ignoreMouseEventsRef.current = true;
     },
     [
-      getHorizontalScrollDirection,
-      handleHorizontalScrollZone,
+      handleExtensionPointer,
       containerRef,
       endMonth,
       layout.horizontalExtensionWidth,
@@ -769,7 +657,6 @@ const useMegaOverlayInteraction = (
         setPendingTouchDate(hoveredDate);
       }
 
-      stopAutoScroll();
       activeTouchId.current = null;
       ignoreMouseEventsRef.current = true;
     },
@@ -784,7 +671,6 @@ const useMegaOverlayInteraction = (
       position.width,
       setHoveredDate,
       startMonth,
-      stopAutoScroll,
       year,
     ]
   );
@@ -821,7 +707,6 @@ const useMegaOverlayInteraction = (
         handleDateClick(dateStr);
       }
 
-      stopAutoScroll();
       setShowTimelineYears(false);
     },
     [
@@ -833,7 +718,6 @@ const useMegaOverlayInteraction = (
       position.width,
       setShowTimelineYears,
       startMonth,
-      stopAutoScroll,
       year,
     ]
   );
@@ -854,7 +738,6 @@ const useMegaOverlayInteraction = (
       setShowTimelineYears(false);
       touchYOffsetRef.current = 0;
       ignoreMouseEventsRef.current = false;
-      stopAutoScroll();
     },
     [
       handleDateClick,
@@ -863,7 +746,6 @@ const useMegaOverlayInteraction = (
       pendingTouchDate,
       setHoveredDate,
       setShowTimelineYears,
-      stopAutoScroll,
     ]
   );
 
@@ -874,15 +756,12 @@ const useMegaOverlayInteraction = (
     touchYOffsetRef.current = 0;
     ignoreMouseEventsRef.current = false;
     onInteractionModeChange("touch");
-    stopAutoScroll();
-  }, [onInteractionModeChange, stopAutoScroll]);
+  }, [onInteractionModeChange]);
 
   const handleMouseLeave = useCallback(() => {
     if (isTouchDevice) {
       return;
     }
-
-    stopAutoScroll();
 
     if (hoverClearTimeoutRef.current) {
       clearTimeout(hoverClearTimeoutRef.current);
@@ -894,7 +773,7 @@ const useMegaOverlayInteraction = (
       onMouseLeave?.();
       hoverClearTimeoutRef.current = null;
     }, 50);
-  }, [isTouchDevice, onMouseLeave, setHoveredDate, stopAutoScroll]);
+  }, [isTouchDevice, onMouseLeave, setHoveredDate]);
 
   const handleMouseEnter = useCallback(() => {
     if (isTouchDevice) {
@@ -1055,6 +934,7 @@ const MegaYearOverlay = forwardRef<MegaYearOverlayHandle, MegaYearOverlayProps>(
       setHoveredDate,
       hoveredDate,
       setShowTimelineYears,
+      parentContainerRef,
     });
 
     // Expose handle for external touch handoff
