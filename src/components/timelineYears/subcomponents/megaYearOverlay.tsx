@@ -53,7 +53,7 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
   const ignoreMouseEventsRef = useRef(false);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
-  const [hideTimeout, setHideTimeout] = useState<NodeJS.Timeout | null>(null);
+  const hoverClearTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastInitialTouchSequenceRef = useRef<number | null>(null);
 
   // Global state hooks
@@ -428,22 +428,24 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     // Ignore mouse events on touch devices to prevent interference with touch interactions
     if (isTouchDevice) return;
 
-    if (hideTimeout) clearTimeout(hideTimeout);
-    const timeout = setTimeout(() => {
+    if (hoverClearTimeoutRef.current) {
+      clearTimeout(hoverClearTimeoutRef.current);
+    }
+    hoverClearTimeoutRef.current = setTimeout(() => {
       setHoveredDate(null);
       setCursorPosition(null);
       onMouseLeave?.();
+      hoverClearTimeoutRef.current = null;
     }, 50); // Reduced delay to 50ms to match year header timing
-    setHideTimeout(timeout);
   };
 
   const handleMouseEnter = () => {
     // Ignore mouse events on touch devices to prevent interference with touch interactions
     if (isTouchDevice) return;
 
-    if (hideTimeout) {
-      clearTimeout(hideTimeout);
-      setHideTimeout(null);
+    if (hoverClearTimeoutRef.current) {
+      clearTimeout(hoverClearTimeoutRef.current);
+      hoverClearTimeoutRef.current = null;
     }
     if (onMouseEnter) onMouseEnter();
   };
@@ -463,12 +465,15 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
     }
   }, [forceRedraw, draw]);
 
-  // Cleanup timeouts on unmount
+  // Cleanup hover timeout on unmount
   useEffect(() => {
     return () => {
-      if (hideTimeout) clearTimeout(hideTimeout);
+      if (hoverClearTimeoutRef.current) {
+        clearTimeout(hoverClearTimeoutRef.current);
+        hoverClearTimeoutRef.current = null;
+      }
     };
-  }, [hideTimeout]);
+  }, []);
 
   useEffect(() => {
     if (externalCursorPosition) {

@@ -89,11 +89,16 @@ const AboutModal: FunctionComponent<{
           />
 
           <h4>Who Made This?</h4>
-          <a href="/images/daveandben.jpg" target="_blank" rel="noopener noreferrer">
+          <a href="/images/ben-dave1.jpg" target="_blank" rel="noopener noreferrer">
             <img
-              src="/images/daveandben.jpg"
+              src="/images/ben-dave1.jpg"
               alt="Dave and Ben"
-              style={{ float: "right", width: "180px", marginLeft: "10px" }}
+              style={{
+                float: "right",
+                width: "180px",
+                marginLeft: "10px",
+                borderRadius: "var(--radius)",
+              }}
             />
           </a>
           <p>
