@@ -90,7 +90,7 @@ type MegaOverlayController = {
   year: number | null;
   position: OverlayPosition;
   activeYearIndex: number | null;
-  open: (yearIndex: number) => void;
+  open: (yearIndex: number, options?: { preservePosition?: boolean }) => void;
   close: () => void;
   scheduleHide: (delayMs: number) => void;
   cancelHide: () => void;
@@ -143,7 +143,8 @@ const useMegaOverlayState = ({
   }, [clearHideTimeout, onClose]);
 
   const open = useCallback(
-    (yearIndex: number) => {
+    (yearIndex: number, options?: { preservePosition?: boolean }) => {
+      const preservePosition = options?.preservePosition ?? false;
       const container = containerRef.current;
       if (!container) {
         return;
@@ -174,7 +175,13 @@ const useMegaOverlayState = ({
       pointerInsideOverlayRef.current = false;
       setVisible(true);
       setYear(years[yearIndex]);
-      setPosition({ left, top, width: overlayWidth });
+      setPosition((prevPosition) => {
+        if (preservePosition && prevPosition.width !== 0) {
+          return { left: prevPosition.left, top, width: overlayWidth };
+        }
+
+        return { left, top, width: overlayWidth };
+      });
       setActiveYearIndex(yearIndex);
     },
     [clearHideTimeout, containerRef, overlayOffset, overlayWidthMultiplier, yearHeaderHeight, years]
@@ -354,6 +361,21 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       shouldIgnoreMouseEvents,
       updateEdgeScrollFromPointer,
     ]
+  );
+
+  const handleOverlayPointerUpdate = useCallback(
+    (clientX: number | null, clientY: number | null, hasActivePointer: boolean) => {
+      if (!hasActivePointer || clientX === null || clientY === null) {
+        pointerPositionRef.current = null;
+        stopAutoScroll();
+        return;
+      }
+
+      pointerPositionRef.current = { x: clientX, y: clientY };
+      updateEdgeScrollFromPointer(clientX, true);
+      markUserInteracted();
+    },
+    [markUserInteracted, stopAutoScroll, updateEdgeScrollFromPointer]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -595,9 +617,41 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     pointerLeftOverlay(100);
   };
 
+  const updateActiveYearFromPointer = useCallback(() => {
+    const pointer = pointerPositionRef.current;
+    if (!pointer) {
+      return;
+    }
+
+    const { x, y } = pointer;
+    if (x == null || y == null) {
+      return;
+    }
+
+    const yearIndex = getYearIndexFromPoint(x, y);
+    if (yearIndex === null) {
+      return;
+    }
+
+    if (activeYearIndex === yearIndex) {
+      return;
+    }
+
+    cancelMegaOverlayHide();
+    openMegaOverlay(yearIndex, { preservePosition: true });
+    markUserInteracted();
+  }, [
+    activeYearIndex,
+    cancelMegaOverlayHide,
+    getYearIndexFromPoint,
+    markUserInteracted,
+    openMegaOverlay,
+  ]);
+
   const handleYearsScroll = useCallback(() => {
     markUserInteracted();
-  }, [markUserInteracted]);
+    updateActiveYearFromPointer();
+  }, [markUserInteracted, updateActiveYearFromPointer]);
 
   useEffect(() => {
     const handleWindowMouseUp = () => {
@@ -708,6 +762,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             interactionMode={interactionMode}
             onInteractionModeChange={registerInteractionMode}
             parentContainerRef={containerRef}
+            onPointerUpdate={handleOverlayPointerUpdate}
+            scrollContainerRef={yearsScrollContainerRef}
           />
         )}
       </div>

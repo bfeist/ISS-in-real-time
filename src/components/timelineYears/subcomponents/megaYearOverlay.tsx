@@ -24,7 +24,6 @@ import {
 } from "./megaYearOverlay.utils";
 import { isTouchLikeInteraction, type InteractionMode } from "../types";
 
-
 interface HighlightInfo {
   fill: string;
   stroke?: string;
@@ -238,6 +237,12 @@ interface UseMegaOverlayInteractionOptions {
   hoveredDate: string | null;
   setShowTimelineYears: (value: boolean) => void;
   parentContainerRef?: React.RefObject<HTMLDivElement>;
+  onPointerUpdate?: (
+    clientX: number | null,
+    clientY: number | null,
+    hasActivePointer: boolean
+  ) => void;
+  scrollContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
 interface UseMegaOverlayInteractionResult {
@@ -254,6 +259,12 @@ interface UseMegaOverlayInteractionResult {
   handleTouchCancel: () => void;
   handleClick: (event: ReactMouseEvent<HTMLDivElement>) => void;
   handleKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
+}
+
+interface PointerUpdatePayload {
+  clientX: number | null;
+  clientY?: number | null;
+  hasActivePointer: boolean;
 }
 
 const toNativeTouchEvent = (event: ReactTouchEvent<HTMLDivElement> | TouchEvent): TouchEvent =>
@@ -280,6 +291,8 @@ const useMegaOverlayInteraction = (
     hoveredDate,
     setShowTimelineYears,
     parentContainerRef,
+    onPointerUpdate,
+    scrollContainerRef,
   } = options;
 
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
@@ -291,6 +304,28 @@ const useMegaOverlayInteraction = (
   const ignoreMouseEventsRef = useRef(false);
   const hoverClearTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const latestYearIndexRef = useRef(yearIndex);
+  const lastPointerInfoRef = useRef<PointerUpdatePayload>({
+    clientX: null,
+    clientY: null,
+    hasActivePointer: false,
+  });
+
+  const notifyPointerUpdate = useCallback(
+    ({ clientX, clientY, hasActivePointer }: PointerUpdatePayload) => {
+      const normalizedClientX = clientX ?? null;
+      const normalizedClientY =
+        normalizedClientX === null ? null : (clientY ?? lastPointerInfoRef.current.clientY ?? null);
+
+      lastPointerInfoRef.current = {
+        clientX: normalizedClientX,
+        clientY: normalizedClientY,
+        hasActivePointer,
+      };
+
+      onPointerUpdate?.(normalizedClientX, normalizedClientY, hasActivePointer);
+    },
+    [onPointerUpdate]
+  );
 
   useEffect(() => {
     latestYearIndexRef.current = yearIndex;
@@ -383,6 +418,11 @@ const useMegaOverlayInteraction = (
       const y = event.clientY - rect.top;
       const adjustedX = x - layout.horizontalExtensionWidth;
 
+      notifyPointerUpdate({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        hasActivePointer: true,
+      });
       if (handleExtensionPointer(adjustedX, event.clientX)) {
         return;
       }
@@ -407,6 +447,7 @@ const useMegaOverlayInteraction = (
       endMonth,
       hoveredDate,
       layout.horizontalExtensionWidth,
+      notifyPointerUpdate,
       onInteractionModeChange,
       position.width,
       setHoveredDate,
@@ -436,6 +477,11 @@ const useMegaOverlayInteraction = (
       const rawY = touch.clientY - rect.top;
       const adjustedX = rawX - layout.horizontalExtensionWidth;
 
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
       if (handleExtensionPointer(adjustedX, touch.clientX)) {
         ignoreMouseEventsRef.current = true;
         return;
@@ -463,6 +509,11 @@ const useMegaOverlayInteraction = (
       setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
       isDraggingRef.current = false;
       ignoreMouseEventsRef.current = true;
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
     },
     [
       handleExtensionPointer,
@@ -471,6 +522,7 @@ const useMegaOverlayInteraction = (
       layout.horizontalExtensionWidth,
       layout.touchVerticalOffset,
       layout.totalHeight,
+      notifyPointerUpdate,
       onInteractionModeChange,
       position.width,
       setHoveredDate,
@@ -506,6 +558,11 @@ const useMegaOverlayInteraction = (
       const rawY = touch.clientY - rect.top;
       const adjustedX = rawX - layout.horizontalExtensionWidth;
 
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
       if (handleExtensionPointer(adjustedX, touch.clientX)) {
         return;
       }
@@ -530,6 +587,11 @@ const useMegaOverlayInteraction = (
       }
 
       setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
     },
     [
       handleExtensionPointer,
@@ -538,6 +600,7 @@ const useMegaOverlayInteraction = (
       layout.horizontalExtensionWidth,
       layout.touchVerticalOffset,
       layout.totalHeight,
+      notifyPointerUpdate,
       onInteractionModeChange,
       position.width,
       setHoveredDate,
@@ -574,6 +637,11 @@ const useMegaOverlayInteraction = (
       const rawY = touch.clientY - rect.top;
       const adjustedX = x - layout.horizontalExtensionWidth;
 
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
       if (handleExtensionPointer(adjustedX, touch.clientX)) {
         ignoreMouseEventsRef.current = true;
         return;
@@ -598,6 +666,11 @@ const useMegaOverlayInteraction = (
 
       setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
       ignoreMouseEventsRef.current = true;
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
     },
     [
       handleExtensionPointer,
@@ -605,6 +678,7 @@ const useMegaOverlayInteraction = (
       endMonth,
       layout.horizontalExtensionWidth,
       layout.totalHeight,
+      notifyPointerUpdate,
       onInteractionModeChange,
       position.width,
       setHoveredDate,
@@ -651,6 +725,11 @@ const useMegaOverlayInteraction = (
         }
 
         setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
+        notifyPointerUpdate({
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+          hasActivePointer: false,
+        });
       }
 
       if (!pendingTouchDate && hoveredDate) {
@@ -666,6 +745,7 @@ const useMegaOverlayInteraction = (
       hoveredDate,
       layout.horizontalExtensionWidth,
       layout.totalHeight,
+      notifyPointerUpdate,
       onInteractionModeChange,
       pendingTouchDate,
       position.width,
@@ -708,12 +788,18 @@ const useMegaOverlayInteraction = (
       }
 
       setShowTimelineYears(false);
+      notifyPointerUpdate({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        hasActivePointer: false,
+      });
     },
     [
       endMonth,
       handleDateClick,
       isTouchDevice,
       layout.horizontalExtensionWidth,
+      notifyPointerUpdate,
       onInteractionModeChange,
       position.width,
       setShowTimelineYears,
@@ -738,6 +824,11 @@ const useMegaOverlayInteraction = (
       setShowTimelineYears(false);
       touchYOffsetRef.current = 0;
       ignoreMouseEventsRef.current = false;
+      notifyPointerUpdate({
+        clientX: lastPointerInfoRef.current.clientX,
+        clientY: lastPointerInfoRef.current.clientY,
+        hasActivePointer: false,
+      });
     },
     [
       handleDateClick,
@@ -746,6 +837,7 @@ const useMegaOverlayInteraction = (
       pendingTouchDate,
       setHoveredDate,
       setShowTimelineYears,
+      notifyPointerUpdate,
     ]
   );
 
@@ -756,7 +848,12 @@ const useMegaOverlayInteraction = (
     touchYOffsetRef.current = 0;
     ignoreMouseEventsRef.current = false;
     onInteractionModeChange("touch");
-  }, [onInteractionModeChange]);
+    notifyPointerUpdate({
+      clientX: lastPointerInfoRef.current.clientX,
+      clientY: lastPointerInfoRef.current.clientY,
+      hasActivePointer: false,
+    });
+  }, [notifyPointerUpdate, onInteractionModeChange]);
 
   const handleMouseLeave = useCallback(() => {
     if (isTouchDevice) {
@@ -773,7 +870,12 @@ const useMegaOverlayInteraction = (
       onMouseLeave?.();
       hoverClearTimeoutRef.current = null;
     }, 50);
-  }, [isTouchDevice, onMouseLeave, setHoveredDate]);
+    notifyPointerUpdate({
+      clientX: lastPointerInfoRef.current.clientX,
+      clientY: lastPointerInfoRef.current.clientY,
+      hasActivePointer: false,
+    });
+  }, [isTouchDevice, notifyPointerUpdate, onMouseLeave, setHoveredDate]);
 
   const handleMouseEnter = useCallback(() => {
     if (isTouchDevice) {
@@ -791,6 +893,68 @@ const useMegaOverlayInteraction = (
   const handleKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
     event.preventDefault();
   }, []);
+
+  useEffect(() => {
+    const scrollElement = scrollContainerRef?.current;
+    if (!scrollElement) {
+      return undefined;
+    }
+
+    const handleScroll = () => {
+      const { clientX, clientY, hasActivePointer } = lastPointerInfoRef.current;
+      if (!hasActivePointer || clientX === null) {
+        return;
+      }
+
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+
+      const rect = container.getBoundingClientRect();
+      const pointerX = clientX - rect.left;
+      const adjustedX = pointerX - layout.horizontalExtensionWidth;
+
+      if (handleExtensionPointer(adjustedX, clientX)) {
+        return;
+      }
+
+      if (clientY === null) {
+        return;
+      }
+
+      const pointerY = clientY - rect.top;
+      const dateStr = getMegaDateFromCoordinates(
+        adjustedX,
+        pointerY,
+        year,
+        position.width,
+        startMonth,
+        endMonth
+      );
+
+      if (dateStr && hoveredDate !== dateStr) {
+        setHoveredDate(dateStr);
+      }
+    };
+
+    scrollElement.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      scrollElement.removeEventListener("scroll", handleScroll);
+    };
+  }, [
+    handleExtensionPointer,
+    layout.horizontalExtensionWidth,
+    position.width,
+    scrollContainerRef,
+    setHoveredDate,
+    startMonth,
+    endMonth,
+    year,
+    hoveredDate,
+    containerRef,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -837,6 +1001,12 @@ interface MegaYearOverlayProps {
   interactionMode: InteractionMode;
   onInteractionModeChange: (mode: InteractionMode) => void;
   parentContainerRef?: React.RefObject<HTMLDivElement>;
+  onPointerUpdate?: (
+    clientX: number | null,
+    clientY: number | null,
+    hasActivePointer: boolean
+  ) => void;
+  scrollContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
 // Mega Overlay Component for zoomed year view
@@ -857,6 +1027,8 @@ const MegaYearOverlay = forwardRef<MegaYearOverlayHandle, MegaYearOverlayProps>(
       interactionMode,
       onInteractionModeChange,
       parentContainerRef,
+      onPointerUpdate,
+      scrollContainerRef,
     },
     ref
   ) => {
@@ -935,6 +1107,8 @@ const MegaYearOverlay = forwardRef<MegaYearOverlayHandle, MegaYearOverlayProps>(
       hoveredDate,
       setShowTimelineYears,
       parentContainerRef,
+      onPointerUpdate,
+      scrollContainerRef,
     });
 
     // Expose handle for external touch handoff
