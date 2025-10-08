@@ -1,9 +1,11 @@
 import React, {
+  forwardRef,
   KeyboardEvent,
   MouseEvent as ReactMouseEvent,
   TouchEvent as ReactTouchEvent,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -20,12 +22,19 @@ import {
   MEGA_OVERLAY_MAX_DAYS_IN_MONTH,
   getMegaDateFromCoordinates,
 } from "./megaYearOverlay.utils";
+import { isTouchLikeInteraction, type InteractionMode } from "../types";
 
 interface HighlightInfo {
   fill: string;
   stroke?: string;
   expedition?: boolean;
   notableDatetime?: string;
+}
+
+interface Position {
+  left: number;
+  top: number;
+  width: number;
 }
 
 interface MegaOverlayLayout {
@@ -40,7 +49,11 @@ interface MegaOverlayLayout {
   horizontalExtensionWidth: number;
 }
 
-const useMegaOverlayLayout = (width: number): MegaOverlayLayout => {
+const useMegaOverlayLayout = (
+  width: number,
+  position: Position,
+  parentContainerRef?: React.RefObject<HTMLDivElement>
+): MegaOverlayLayout => {
   return useMemo(() => {
     const cellGap = MEGA_OVERLAY_CELL_GAP;
     const maxDaysInMonth = MEGA_OVERLAY_MAX_DAYS_IN_MONTH;
@@ -50,7 +63,18 @@ const useMegaOverlayLayout = (width: number): MegaOverlayLayout => {
     const touchVerticalOffset = Math.min(Math.max(cellSize * 2, 72), 140);
     const touchExtensionHeight = touchVerticalOffset + cellSize * 1.5;
     const interactiveHeight = totalHeight + touchExtensionHeight;
-    const horizontalExtensionWidth = width * 0.25;
+    let horizontalExtensionWidth = width * 0.25;
+
+    if (parentContainerRef?.current && typeof window !== "undefined") {
+      const parentRect = parentContainerRef.current.getBoundingClientRect();
+      const overlayLeft = parentRect.left + position.left;
+      const overlayRight = overlayLeft + width;
+
+      const leftSpace = Math.max(overlayLeft, 0);
+      const rightSpace = Math.max(window.innerWidth - overlayRight, 0);
+
+      horizontalExtensionWidth = Math.max(horizontalExtensionWidth, leftSpace, rightSpace);
+    }
 
     return {
       cellGap,
@@ -63,7 +87,7 @@ const useMegaOverlayLayout = (width: number): MegaOverlayLayout => {
       interactiveHeight,
       horizontalExtensionWidth,
     };
-  }, [width]);
+  }, [parentContainerRef, position.left, width]);
 };
 
 interface UseMegaOverlayCanvasOptions {
@@ -195,19 +219,6 @@ const useMegaOverlayCanvas = (options: UseMegaOverlayCanvasOptions): void => {
   }, [forceRedraw, draw]);
 };
 
-interface Position {
-  left: number;
-  top: number;
-  width: number;
-}
-
-interface InitialTouch {
-  clientX: number;
-  clientY: number;
-  identifier?: number;
-  sequence: number;
-}
-
 interface UseMegaOverlayInteractionOptions {
   year: number;
   yearIndex: number;
@@ -215,6 +226,7 @@ interface UseMegaOverlayInteractionOptions {
   startMonth: number;
   endMonth: number;
   isTouchDevice: boolean;
+  onInteractionModeChange: (mode: InteractionMode) => void;
   layout: MegaOverlayLayout;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -224,24 +236,39 @@ interface UseMegaOverlayInteractionOptions {
   setHoveredDate: (date: string | null) => void;
   hoveredDate: string | null;
   setShowTimelineYears: (value: boolean) => void;
-  showTimelineYears: boolean;
-  externalCursorPosition?: { x: number; y: number } | null;
-  initialTouch?: InitialTouch | null;
+  parentContainerRef?: React.RefObject<HTMLDivElement>;
+  onPointerUpdate?: (
+    clientX: number | null,
+    clientY: number | null,
+    hasActivePointer: boolean
+  ) => void;
+  scrollContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
 interface UseMegaOverlayInteractionResult {
   cursorPosition: { x: number; y: number } | null;
+  activeTouchId: React.MutableRefObject<number | null>;
   handleMouseMove: (event: ReactMouseEvent<HTMLDivElement>) => void;
   handleMouseLeave: () => void;
   handleMouseEnter: () => void;
+  handleExternalTouchStart: (event: ReactTouchEvent<HTMLDivElement>) => void;
   handleTouchStart: (event: ReactTouchEvent<HTMLDivElement>) => void;
-  handleTouchMove: (event: ReactTouchEvent<HTMLDivElement>) => void;
-  handleTouchEnd: (event: ReactTouchEvent<HTMLDivElement>) => void;
+  handleTouchMove: (event: ReactTouchEvent<HTMLDivElement> | TouchEvent) => void;
+  handleTouchEnd: (event: ReactTouchEvent<HTMLDivElement> | TouchEvent) => void;
   handleTouchGo: (date?: string | null) => void;
   handleTouchCancel: () => void;
   handleClick: (event: ReactMouseEvent<HTMLDivElement>) => void;
   handleKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
 }
+
+interface PointerUpdatePayload {
+  clientX: number | null;
+  clientY?: number | null;
+  hasActivePointer: boolean;
+}
+
+const toNativeTouchEvent = (event: ReactTouchEvent<HTMLDivElement> | TouchEvent): TouchEvent =>
+  "nativeEvent" in event ? (event.nativeEvent as TouchEvent) : event;
 
 const useMegaOverlayInteraction = (
   options: UseMegaOverlayInteractionOptions
@@ -253,6 +280,7 @@ const useMegaOverlayInteraction = (
     startMonth,
     endMonth,
     isTouchDevice,
+    onInteractionModeChange,
     layout,
     onMouseEnter,
     onMouseLeave,
@@ -262,56 +290,140 @@ const useMegaOverlayInteraction = (
     setHoveredDate,
     hoveredDate,
     setShowTimelineYears,
-    showTimelineYears,
-    externalCursorPosition,
-    initialTouch,
+    parentContainerRef,
+    onPointerUpdate,
+    scrollContainerRef,
   } = options;
 
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [pendingTouchDate, setPendingTouchDate] = useState<string | null>(null);
 
+  const activeTouchId = useRef<number | null>(null);
   const touchYOffsetRef = useRef(0);
   const isDraggingRef = useRef(false);
   const ignoreMouseEventsRef = useRef(false);
   const hoverClearTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastInitialTouchSequenceRef = useRef<number | null>(null);
+  const latestYearIndexRef = useRef(yearIndex);
+  const lastPointerInfoRef = useRef<PointerUpdatePayload>({
+    clientX: null,
+    clientY: null,
+    hasActivePointer: false,
+  });
 
-  const checkHorizontalExtension = useCallback(
-    (x: number) => {
+  const notifyPointerUpdate = useCallback(
+    ({ clientX, clientY, hasActivePointer }: PointerUpdatePayload) => {
+      const normalizedClientX = clientX ?? null;
+      const normalizedClientY =
+        normalizedClientX === null ? null : (clientY ?? lastPointerInfoRef.current.clientY ?? null);
+
+      lastPointerInfoRef.current = {
+        clientX: normalizedClientX,
+        clientY: normalizedClientY,
+        hasActivePointer,
+      };
+
+      onPointerUpdate?.(normalizedClientX, normalizedClientY, hasActivePointer);
+    },
+    [onPointerUpdate]
+  );
+
+  useEffect(() => {
+    latestYearIndexRef.current = yearIndex;
+  }, [yearIndex]);
+
+  const findTargetYearIndex = useCallback(
+    (clientX: number) => {
+      const parent = parentContainerRef?.current;
+      if (!parent) {
+        return null;
+      }
+
+      const yearElements = parent.querySelectorAll<HTMLElement>("[data-year-index]");
+      let closestIndex: number | null = null;
+      let smallestDistance = Number.POSITIVE_INFINITY;
+
+      for (const element of Array.from(yearElements)) {
+        const rect = element.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const distance = Math.abs(clientX - centerX);
+
+        if (distance < smallestDistance) {
+          const indexAttr = element.getAttribute("data-year-index");
+          if (indexAttr !== null) {
+            const parsed = Number(indexAttr);
+            if (!Number.isNaN(parsed)) {
+              smallestDistance = distance;
+              closestIndex = parsed;
+            }
+          }
+        }
+      }
+
+      return closestIndex;
+    },
+    [parentContainerRef]
+  );
+
+  const handleExtensionPointer = useCallback(
+    (adjustedX: number, clientX: number) => {
       if (!onSwitchToAdjacentYear) {
         return false;
       }
 
-      if (x < 0 && x >= -layout.horizontalExtensionWidth) {
-        onSwitchToAdjacentYear(yearIndex - 1);
+      const inLeftExtension = adjustedX < 0 && adjustedX >= -layout.horizontalExtensionWidth;
+      const inRightExtension =
+        adjustedX >= position.width &&
+        adjustedX <= position.width + layout.horizontalExtensionWidth;
+
+      if (!inLeftExtension && !inRightExtension) {
+        return false;
+      }
+
+      const targetYearIndex = findTargetYearIndex(clientX);
+      if (targetYearIndex === null) {
         return true;
       }
 
-      if (x >= position.width && x < position.width + layout.horizontalExtensionWidth) {
-        onSwitchToAdjacentYear(yearIndex + 1);
-        return true;
+      if (targetYearIndex !== latestYearIndexRef.current) {
+        latestYearIndexRef.current = targetYearIndex;
+        onSwitchToAdjacentYear(targetYearIndex);
       }
 
-      return false;
+      return true;
     },
-    [layout.horizontalExtensionWidth, onSwitchToAdjacentYear, position.width, yearIndex]
+    [findTargetYearIndex, layout.horizontalExtensionWidth, onSwitchToAdjacentYear, position.width]
   );
 
   const handleMouseMove = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
-      if (ignoreMouseEventsRef.current || isTouchDevice) {
+      if (ignoreMouseEventsRef.current) {
         ignoreMouseEventsRef.current = false;
         return;
       }
+
+      const nativeEvent = event.nativeEvent as MouseEvent & {
+        sourceCapabilities?: { firesTouchEvents?: boolean };
+      };
+
+      if (nativeEvent.sourceCapabilities?.firesTouchEvents) {
+        ignoreMouseEventsRef.current = true;
+        return;
+      }
+
+      onInteractionModeChange("mouse");
 
       const overlay = event.currentTarget;
       const rect = overlay.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
+      const adjustedX = x - layout.horizontalExtensionWidth;
 
-      const adjustedX = isTouchDevice ? x - layout.horizontalExtensionWidth : x;
-
-      if (isTouchDevice && checkHorizontalExtension(adjustedX)) {
+      notifyPointerUpdate({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        hasActivePointer: true,
+      });
+      if (handleExtensionPointer(adjustedX, event.clientX)) {
         return;
       }
 
@@ -329,21 +441,14 @@ const useMegaOverlayInteraction = (
       }
 
       setCursorPosition({ x: event.clientX, y: event.clientY });
-
-      const nativeEvent = event.nativeEvent as MouseEvent & {
-        sourceCapabilities?: { firesTouchEvents?: boolean };
-      };
-
-      if (nativeEvent.sourceCapabilities?.firesTouchEvents) {
-        return;
-      }
     },
     [
-      checkHorizontalExtension,
+      handleExtensionPointer,
       endMonth,
       hoveredDate,
-      isTouchDevice,
       layout.horizontalExtensionWidth,
+      notifyPointerUpdate,
+      onInteractionModeChange,
       position.width,
       setHoveredDate,
       startMonth,
@@ -351,26 +456,34 @@ const useMegaOverlayInteraction = (
     ]
   );
 
-  const handleTouchStart = useCallback(
+  const handleExternalTouchStart = useCallback(
     (event: ReactTouchEvent<HTMLDivElement>) => {
-      event.stopPropagation();
-      event.preventDefault();
-      isDraggingRef.current = false;
-      ignoreMouseEventsRef.current = true;
-
-      const container = containerRef.current;
-      if (!container || event.touches.length === 0) {
+      if (event.touches.length === 0) {
         return;
       }
 
-      const rect = container.getBoundingClientRect();
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+
+      onInteractionModeChange("touch");
+
       const touch = event.touches[0];
+      activeTouchId.current = touch.identifier;
+
+      const rect = container.getBoundingClientRect();
       const rawX = touch.clientX - rect.left;
       const rawY = touch.clientY - rect.top;
-
       const adjustedX = rawX - layout.horizontalExtensionWidth;
 
-      if (checkHorizontalExtension(adjustedX)) {
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
+      if (handleExtensionPointer(adjustedX, touch.clientX)) {
+        ignoreMouseEventsRef.current = true;
         return;
       }
 
@@ -394,14 +507,101 @@ const useMegaOverlayInteraction = (
       }
 
       setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
+      isDraggingRef.current = false;
+      ignoreMouseEventsRef.current = true;
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
     },
     [
-      checkHorizontalExtension,
+      handleExtensionPointer,
       containerRef,
       endMonth,
       layout.horizontalExtensionWidth,
       layout.touchVerticalOffset,
       layout.totalHeight,
+      notifyPointerUpdate,
+      onInteractionModeChange,
+      position.width,
+      setHoveredDate,
+      startMonth,
+      year,
+    ]
+  );
+
+  const handleTouchStart = useCallback(
+    (event: ReactTouchEvent<HTMLDivElement>) => {
+      event.stopPropagation();
+      event.preventDefault();
+
+      if (activeTouchId.current !== null) {
+        return;
+      }
+
+      isDraggingRef.current = false;
+      ignoreMouseEventsRef.current = true;
+
+      const container = containerRef.current;
+      if (!container || event.touches.length === 0) {
+        return;
+      }
+
+      onInteractionModeChange("touch");
+
+      const touch = event.touches[0];
+      activeTouchId.current = touch.identifier;
+
+      const rect = container.getBoundingClientRect();
+      const rawX = touch.clientX - rect.left;
+      const rawY = touch.clientY - rect.top;
+      const adjustedX = rawX - layout.horizontalExtensionWidth;
+
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
+      if (handleExtensionPointer(adjustedX, touch.clientX)) {
+        return;
+      }
+
+      touchYOffsetRef.current = Math.min(rawY, layout.touchVerticalOffset);
+
+      const adjustedY = Math.min(
+        Math.max(rawY - touchYOffsetRef.current, 0),
+        layout.totalHeight - 1
+      );
+      const dateStr = getMegaDateFromCoordinates(
+        adjustedX,
+        adjustedY,
+        year,
+        position.width,
+        startMonth,
+        endMonth
+      );
+
+      if (dateStr) {
+        setHoveredDate(dateStr);
+      }
+
+      setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
+    },
+    [
+      handleExtensionPointer,
+      containerRef,
+      endMonth,
+      layout.horizontalExtensionWidth,
+      layout.touchVerticalOffset,
+      layout.totalHeight,
+      notifyPointerUpdate,
+      onInteractionModeChange,
       position.width,
       setHoveredDate,
       startMonth,
@@ -410,27 +610,40 @@ const useMegaOverlayInteraction = (
   );
 
   const handleTouchMove = useCallback(
-    (event: ReactTouchEvent<HTMLDivElement>) => {
+    (event: ReactTouchEvent<HTMLDivElement> | TouchEvent) => {
       event.stopPropagation();
       event.preventDefault();
-      isDraggingRef.current = true;
-      if (event.touches.length === 0) {
+
+      const nativeEvent = toNativeTouchEvent(event);
+      const touch = Array.from(nativeEvent.touches).find(
+        (t) => t.identifier === activeTouchId.current
+      );
+
+      if (!touch) {
         return;
       }
+
+      isDraggingRef.current = true;
 
       const container = containerRef.current;
       if (!container) {
         return;
       }
 
+      onInteractionModeChange("touch");
+
       const rect = container.getBoundingClientRect();
-      const touch = event.touches[0];
       const x = touch.clientX - rect.left;
       const rawY = touch.clientY - rect.top;
-
       const adjustedX = x - layout.horizontalExtensionWidth;
 
-      if (checkHorizontalExtension(adjustedX)) {
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
+      if (handleExtensionPointer(adjustedX, touch.clientX)) {
+        ignoreMouseEventsRef.current = true;
         return;
       }
 
@@ -452,15 +665,21 @@ const useMegaOverlayInteraction = (
       }
 
       setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
-
       ignoreMouseEventsRef.current = true;
+      notifyPointerUpdate({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        hasActivePointer: true,
+      });
     },
     [
-      checkHorizontalExtension,
+      handleExtensionPointer,
       containerRef,
       endMonth,
       layout.horizontalExtensionWidth,
       layout.totalHeight,
+      notifyPointerUpdate,
+      onInteractionModeChange,
       position.width,
       setHoveredDate,
       startMonth,
@@ -469,42 +688,55 @@ const useMegaOverlayInteraction = (
   );
 
   const handleTouchEnd = useCallback(
-    (event: ReactTouchEvent<HTMLDivElement>) => {
+    (event: ReactTouchEvent<HTMLDivElement> | TouchEvent) => {
       event.stopPropagation();
-      if (event.changedTouches.length > 0) {
-        const container = containerRef.current;
-        if (container) {
-          const rect = container.getBoundingClientRect();
-          const touch = event.changedTouches[0];
-          const rawY = touch.clientY - rect.top;
-          const x = touch.clientX - rect.left;
 
-          const adjustedX = x - layout.horizontalExtensionWidth;
-          const adjustedY = Math.min(
-            Math.max(rawY - touchYOffsetRef.current, 0),
-            layout.totalHeight - 1
-          );
-          const dateStr = getMegaDateFromCoordinates(
-            adjustedX,
-            adjustedY,
-            year,
-            position.width,
-            startMonth,
-            endMonth
-          );
+      const nativeEvent = toNativeTouchEvent(event);
+      const touch = Array.from(nativeEvent.changedTouches).find(
+        (t) => t.identifier === activeTouchId.current
+      );
 
-          if (dateStr) {
-            setHoveredDate(dateStr);
-          }
+      if (!touch) {
+        return;
+      }
 
-          setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
+      const container = containerRef.current;
+      if (container) {
+        onInteractionModeChange("touch");
+        const rect = container.getBoundingClientRect();
+        const rawY = touch.clientY - rect.top;
+        const x = touch.clientX - rect.left;
+        const adjustedX = x - layout.horizontalExtensionWidth;
+        const adjustedY = Math.min(
+          Math.max(rawY - touchYOffsetRef.current, 0),
+          layout.totalHeight - 1
+        );
+        const dateStr = getMegaDateFromCoordinates(
+          adjustedX,
+          adjustedY,
+          year,
+          position.width,
+          startMonth,
+          endMonth
+        );
+
+        if (dateStr) {
+          setHoveredDate(dateStr);
         }
+
+        setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
+        notifyPointerUpdate({
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+          hasActivePointer: false,
+        });
       }
 
       if (!pendingTouchDate && hoveredDate) {
         setPendingTouchDate(hoveredDate);
       }
 
+      activeTouchId.current = null;
       ignoreMouseEventsRef.current = true;
     },
     [
@@ -513,6 +745,8 @@ const useMegaOverlayInteraction = (
       hoveredDate,
       layout.horizontalExtensionWidth,
       layout.totalHeight,
+      notifyPointerUpdate,
+      onInteractionModeChange,
       pendingTouchDate,
       position.width,
       setHoveredDate,
@@ -532,12 +766,13 @@ const useMegaOverlayInteraction = (
         return;
       }
 
+      onInteractionModeChange("mouse");
+
       const overlay = event.currentTarget;
       const rect = overlay.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-
-      const adjustedX = isTouchDevice ? x - layout.horizontalExtensionWidth : x;
+      const adjustedX = x - layout.horizontalExtensionWidth;
 
       const dateStr = getMegaDateFromCoordinates(
         adjustedX,
@@ -553,12 +788,19 @@ const useMegaOverlayInteraction = (
       }
 
       setShowTimelineYears(false);
+      notifyPointerUpdate({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        hasActivePointer: false,
+      });
     },
     [
       endMonth,
       handleDateClick,
       isTouchDevice,
       layout.horizontalExtensionWidth,
+      notifyPointerUpdate,
+      onInteractionModeChange,
       position.width,
       setShowTimelineYears,
       startMonth,
@@ -575,22 +817,43 @@ const useMegaOverlayInteraction = (
       }
 
       handleDateClick(dateToSelect);
+      onInteractionModeChange("touch");
       setPendingTouchDate(null);
       setHoveredDate(null);
       setCursorPosition(null);
       setShowTimelineYears(false);
       touchYOffsetRef.current = 0;
       ignoreMouseEventsRef.current = false;
+      notifyPointerUpdate({
+        clientX: lastPointerInfoRef.current.clientX,
+        clientY: lastPointerInfoRef.current.clientY,
+        hasActivePointer: false,
+      });
     },
-    [handleDateClick, hoveredDate, pendingTouchDate, setHoveredDate, setShowTimelineYears]
+    [
+      handleDateClick,
+      hoveredDate,
+      onInteractionModeChange,
+      pendingTouchDate,
+      setHoveredDate,
+      setShowTimelineYears,
+      notifyPointerUpdate,
+    ]
   );
 
   const handleTouchCancel = useCallback(() => {
+    activeTouchId.current = null;
     setPendingTouchDate(null);
     setCursorPosition(null);
     touchYOffsetRef.current = 0;
     ignoreMouseEventsRef.current = false;
-  }, []);
+    onInteractionModeChange("touch");
+    notifyPointerUpdate({
+      clientX: lastPointerInfoRef.current.clientX,
+      clientY: lastPointerInfoRef.current.clientY,
+      hasActivePointer: false,
+    });
+  }, [notifyPointerUpdate, onInteractionModeChange]);
 
   const handleMouseLeave = useCallback(() => {
     if (isTouchDevice) {
@@ -607,7 +870,12 @@ const useMegaOverlayInteraction = (
       onMouseLeave?.();
       hoverClearTimeoutRef.current = null;
     }, 50);
-  }, [isTouchDevice, onMouseLeave, setHoveredDate]);
+    notifyPointerUpdate({
+      clientX: lastPointerInfoRef.current.clientX,
+      clientY: lastPointerInfoRef.current.clientY,
+      hasActivePointer: false,
+    });
+  }, [isTouchDevice, notifyPointerUpdate, onMouseLeave, setHoveredDate]);
 
   const handleMouseEnter = useCallback(() => {
     if (isTouchDevice) {
@@ -627,6 +895,68 @@ const useMegaOverlayInteraction = (
   }, []);
 
   useEffect(() => {
+    const scrollElement = scrollContainerRef?.current;
+    if (!scrollElement) {
+      return undefined;
+    }
+
+    const handleScroll = () => {
+      const { clientX, clientY, hasActivePointer } = lastPointerInfoRef.current;
+      if (!hasActivePointer || clientX === null) {
+        return;
+      }
+
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+
+      const rect = container.getBoundingClientRect();
+      const pointerX = clientX - rect.left;
+      const adjustedX = pointerX - layout.horizontalExtensionWidth;
+
+      if (handleExtensionPointer(adjustedX, clientX)) {
+        return;
+      }
+
+      if (clientY === null) {
+        return;
+      }
+
+      const pointerY = clientY - rect.top;
+      const dateStr = getMegaDateFromCoordinates(
+        adjustedX,
+        pointerY,
+        year,
+        position.width,
+        startMonth,
+        endMonth
+      );
+
+      if (dateStr && hoveredDate !== dateStr) {
+        setHoveredDate(dateStr);
+      }
+    };
+
+    scrollElement.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      scrollElement.removeEventListener("scroll", handleScroll);
+    };
+  }, [
+    handleExtensionPointer,
+    layout.horizontalExtensionWidth,
+    position.width,
+    scrollContainerRef,
+    setHoveredDate,
+    startMonth,
+    endMonth,
+    year,
+    hoveredDate,
+    containerRef,
+  ]);
+
+  useEffect(() => {
     return () => {
       if (hoverClearTimeoutRef.current) {
         clearTimeout(hoverClearTimeoutRef.current);
@@ -635,120 +965,13 @@ const useMegaOverlayInteraction = (
     };
   }, []);
 
-  useEffect(() => {
-    if (externalCursorPosition) {
-      const container = containerRef.current;
-      if (container) {
-        const rect = container.getBoundingClientRect();
-        const rawX = externalCursorPosition.x - rect.left;
-        const rawY = externalCursorPosition.y - rect.top;
-        const adjustedX = rawX - layout.horizontalExtensionWidth;
-        const adjustedY = Math.min(
-          Math.max(rawY - touchYOffsetRef.current, 0),
-          layout.totalHeight - 1
-        );
-
-        const dateStr = getMegaDateFromCoordinates(
-          adjustedX,
-          adjustedY,
-          year,
-          position.width,
-          startMonth,
-          endMonth
-        );
-
-        if (dateStr && hoveredDate !== dateStr) {
-          setHoveredDate(dateStr);
-        }
-
-        setCursorPosition({
-          x: externalCursorPosition.x,
-          y: externalCursorPosition.y - touchYOffsetRef.current,
-        });
-      }
-      return;
-    }
-
-    if (!pendingTouchDate && !hoveredDate && isTouchDevice) {
-      setCursorPosition(null);
-    }
-  }, [
-    containerRef,
-    endMonth,
-    externalCursorPosition,
-    hoveredDate,
-    isTouchDevice,
-    layout.horizontalExtensionWidth,
-    layout.totalHeight,
-    pendingTouchDate,
-    position.width,
-    setHoveredDate,
-    startMonth,
-    year,
-  ]);
-
-  useEffect(() => {
-    if (!initialTouch || !showTimelineYears) {
-      return;
-    }
-
-    if (lastInitialTouchSequenceRef.current === initialTouch.sequence) {
-      return;
-    }
-
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
-
-    lastInitialTouchSequenceRef.current = initialTouch.sequence;
-
-    const rect = container.getBoundingClientRect();
-    const rawX = initialTouch.clientX - rect.left;
-    const rawY = initialTouch.clientY - rect.top;
-
-    const adjustedX = rawX - layout.horizontalExtensionWidth;
-
-    touchYOffsetRef.current = Math.min(rawY, layout.touchVerticalOffset);
-
-    const adjustedY = Math.min(Math.max(rawY - touchYOffsetRef.current, 0), layout.totalHeight - 1);
-    const dateStr = getMegaDateFromCoordinates(
-      adjustedX,
-      adjustedY,
-      year,
-      position.width,
-      startMonth,
-      endMonth
-    );
-
-    if (dateStr) {
-      setHoveredDate(dateStr);
-    }
-
-    setCursorPosition({
-      x: initialTouch.clientX,
-      y: initialTouch.clientY - touchYOffsetRef.current,
-    });
-    ignoreMouseEventsRef.current = true;
-  }, [
-    containerRef,
-    endMonth,
-    initialTouch,
-    layout.horizontalExtensionWidth,
-    layout.touchVerticalOffset,
-    layout.totalHeight,
-    position.width,
-    setHoveredDate,
-    showTimelineYears,
-    startMonth,
-    year,
-  ]);
-
   return {
     cursorPosition,
+    activeTouchId,
     handleMouseMove,
     handleMouseLeave,
     handleMouseEnter,
+    handleExternalTouchStart,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
@@ -758,6 +981,10 @@ const useMegaOverlayInteraction = (
     handleKeyDown,
   };
 };
+
+export interface MegaYearOverlayHandle {
+  handleExternalTouchStart: (event: ReactTouchEvent<HTMLDivElement>) => void;
+}
 
 interface MegaYearOverlayProps {
   year: number;
@@ -771,134 +998,224 @@ interface MegaYearOverlayProps {
   startMonth?: number; // 0-based month index (0 = January)
   endMonth?: number; // 0-based month index (11 = December)
   selectedDate?: string | null;
-  externalCursorPosition?: { x: number; y: number } | null;
-  initialTouch?: { clientX: number; clientY: number; identifier?: number; sequence: number } | null;
-  isTouchDevice?: boolean;
+  interactionMode: InteractionMode;
+  onInteractionModeChange: (mode: InteractionMode) => void;
+  parentContainerRef?: React.RefObject<HTMLDivElement>;
+  onPointerUpdate?: (
+    clientX: number | null,
+    clientY: number | null,
+    hasActivePointer: boolean
+  ) => void;
+  scrollContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
 // Mega Overlay Component for zoomed year view
-const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
-  year,
-  yearIndex,
-  position,
-  highlights,
-  onMouseEnter,
-  onMouseLeave,
-  onSwitchToAdjacentYear,
-  forceRedraw,
-  startMonth = 0, // Default to January
-  endMonth = 11, // Default to December
-  selectedDate,
-  externalCursorPosition,
-  initialTouch,
-  isTouchDevice = false,
-}) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const calendarContentRef = useRef<HTMLDivElement>(null);
-
-  const { hoveredDate, setHoveredDate } = useStateHover();
-  const { setSelectedDate, setClock } = useStateClock();
-  const { showTimelineYears, setShowTimelineYears } = useStateToggle();
-
-  const layout = useMegaOverlayLayout(position.width);
-
-  // Handle date click using global state with touch device logic
-  const handleDateClick = useCallback(
-    (dateStr: string) => {
-      setSelectedDate(dateStr);
-
-      // Check if this date has a Notable Moment item with a specific time
-      const highlightInfo = highlights.get(dateStr);
-      if (highlightInfo?.notableDatetime) {
-        // Extract the time from the Notable Moment datetime and set the clock
-        const appSeconds = appSecondsFromDateTime(highlightInfo.notableDatetime);
-        if (appSeconds !== null) {
-          setClock(appSeconds);
-        }
-      }
+const MegaYearOverlay = forwardRef<MegaYearOverlayHandle, MegaYearOverlayProps>(
+  (
+    {
+      year,
+      yearIndex,
+      position,
+      highlights,
+      onMouseEnter,
+      onMouseLeave,
+      onSwitchToAdjacentYear,
+      forceRedraw,
+      startMonth = 0, // Default to January
+      endMonth = 11, // Default to December
+      selectedDate,
+      interactionMode,
+      onInteractionModeChange,
+      parentContainerRef,
+      onPointerUpdate,
+      scrollContainerRef,
     },
-    [setSelectedDate, setClock, highlights]
-  );
+    ref
+  ) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const calendarContentRef = useRef<HTMLDivElement>(null);
 
-  useMegaOverlayCanvas({
-    canvasRef,
-    layout,
-    year,
-    width: position.width,
-    startMonth,
-    endMonth,
-    highlights,
-    selectedDate,
-    hoveredDate,
-    forceRedraw,
-  });
+    const { hoveredDate, setHoveredDate } = useStateHover();
+    const { setSelectedDate, setClock } = useStateClock();
+    const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
-  const {
-    cursorPosition,
-    handleMouseMove,
-    handleMouseLeave,
-    handleMouseEnter,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
-    handleTouchGo,
-    handleTouchCancel,
-    handleClick,
-    handleKeyDown,
-  } = useMegaOverlayInteraction({
-    year,
-    yearIndex,
-    position,
-    startMonth,
-    endMonth,
-    isTouchDevice,
-    layout,
-    onMouseEnter,
-    onMouseLeave,
-    onSwitchToAdjacentYear,
-    handleDateClick,
-    containerRef,
-    setHoveredDate,
-    hoveredDate,
-    setShowTimelineYears,
-    showTimelineYears,
-    externalCursorPosition,
-    initialTouch,
-  });
+    const isTouchDevice = isTouchLikeInteraction(interactionMode);
 
-  if (!showTimelineYears) {
-    return null;
-  }
+    const layout = useMegaOverlayLayout(position.width, position, parentContainerRef);
 
-  if (isTouchDevice) {
+    // Handle date click using global state with touch device logic
+    const handleDateClick = useCallback(
+      (dateStr: string) => {
+        setSelectedDate(dateStr);
+
+        // Check if this date has a Notable Moment item with a specific time
+        const highlightInfo = highlights.get(dateStr);
+        if (highlightInfo?.notableDatetime) {
+          // Extract the time from the Notable Moment datetime and set the clock
+          const appSeconds = appSecondsFromDateTime(highlightInfo.notableDatetime);
+          if (appSeconds !== null) {
+            setClock(appSeconds);
+          }
+        }
+      },
+      [setSelectedDate, setClock, highlights]
+    );
+
+    useMegaOverlayCanvas({
+      canvasRef,
+      layout,
+      year,
+      width: position.width,
+      startMonth,
+      endMonth,
+      highlights,
+      selectedDate,
+      hoveredDate,
+      forceRedraw,
+    });
+
+    const {
+      cursorPosition,
+      activeTouchId,
+      handleMouseMove,
+      handleMouseLeave,
+      handleMouseEnter,
+      handleExternalTouchStart,
+      handleTouchStart,
+      handleTouchMove,
+      handleTouchEnd,
+      handleTouchGo,
+      handleTouchCancel,
+      handleClick,
+      handleKeyDown,
+    } = useMegaOverlayInteraction({
+      year,
+      yearIndex,
+      position,
+      startMonth,
+      endMonth,
+      isTouchDevice,
+      onInteractionModeChange,
+      layout,
+      onMouseEnter,
+      onMouseLeave,
+      onSwitchToAdjacentYear,
+      handleDateClick,
+      containerRef,
+      setHoveredDate,
+      hoveredDate,
+      setShowTimelineYears,
+      parentContainerRef,
+      onPointerUpdate,
+      scrollContainerRef,
+    });
+
+    // Expose handle for external touch handoff
+    useImperativeHandle(ref, () => ({
+      handleExternalTouchStart,
+    }));
+
+    // Attach native touch listeners to parent container when we have an active touch
+    // This allows us to receive touchmove events even when the touch started on timeline
+    useEffect(() => {
+      if (!parentContainerRef?.current || !isTouchDevice) {
+        return;
+      }
+
+      const parentElement = parentContainerRef.current;
+
+      const handleParentTouchMove = (event: TouchEvent) => {
+        // Native TouchEvent can be passed directly to our handler
+        handleTouchMove(event);
+      };
+
+      const handleParentTouchEnd = (event: TouchEvent) => {
+        // Find if the ended touch is ours
+        const touch = Array.from(event.changedTouches).find(
+          (t) => t.identifier === activeTouchId.current
+        );
+        if (touch) {
+          handleTouchEnd(event);
+        }
+      };
+
+      const handleParentTouchCancel = (event: TouchEvent) => {
+        const touch = Array.from(event.changedTouches).find(
+          (t) => t.identifier === activeTouchId.current
+        );
+        if (touch) {
+          handleTouchCancel();
+        }
+      };
+
+      // Add listeners to parent
+      parentElement.addEventListener("touchmove", handleParentTouchMove, { passive: false });
+      parentElement.addEventListener("touchend", handleParentTouchEnd);
+      parentElement.addEventListener("touchcancel", handleParentTouchCancel);
+
+      return () => {
+        parentElement.removeEventListener("touchmove", handleParentTouchMove);
+        parentElement.removeEventListener("touchend", handleParentTouchEnd);
+        parentElement.removeEventListener("touchcancel", handleParentTouchCancel);
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [parentContainerRef, isTouchDevice, handleTouchMove, handleTouchEnd, handleTouchCancel]);
+
+    if (!showTimelineYears) {
+      return null;
+    }
+
+    const containerStyle: React.CSSProperties = {
+      position: "absolute",
+      left: position.left - layout.horizontalExtensionWidth,
+      top: position.top,
+      width: position.width + layout.horizontalExtensionWidth * 2,
+      height: isTouchDevice ? layout.interactiveHeight : layout.totalHeight,
+      zIndex: 1100,
+    };
+
     return (
       <div
         ref={containerRef}
         className={styles.touchZone}
-        style={{
-          left: position.left - layout.horizontalExtensionWidth,
-          top: position.top,
-          width: position.width + layout.horizontalExtensionWidth * 2,
-          height: layout.interactiveHeight,
-          zIndex: 10,
-        }}
+        style={containerStyle}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onMouseEnter={handleMouseEnter}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={(event) => {
-          event.stopPropagation();
-          handleTouchCancel();
-        }}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-        }}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
+        onTouchStart={isTouchDevice ? handleTouchStart : undefined}
+        onTouchMove={
+          isTouchDevice
+            ? (event) => {
+                handleTouchMove(event);
+              }
+            : undefined
+        }
+        onTouchEnd={
+          isTouchDevice
+            ? (event) => {
+                handleTouchEnd(event);
+              }
+            : undefined
+        }
+        onTouchCancel={
+          isTouchDevice
+            ? (event) => {
+                event.stopPropagation();
+                handleTouchCancel();
+              }
+            : undefined
+        }
+        onContextMenu={
+          isTouchDevice
+            ? (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }
+            : undefined
+        }
         role="grid"
         tabIndex={0}
         aria-label={`Calendar for ${year}`}
@@ -935,11 +1252,13 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
           style={{ width: layout.horizontalExtensionWidth, height: layout.totalHeight }}
           aria-hidden="true"
         />
-        <div
-          className={styles.touchExtension}
-          style={{ height: layout.touchExtensionHeight }}
-          aria-hidden="true"
-        />
+        {isTouchDevice ? (
+          <div
+            className={styles.touchExtension}
+            style={{ height: layout.touchExtensionHeight }}
+            aria-hidden="true"
+          />
+        ) : null}
         <DateTooltip
           hoveredDate={hoveredDate}
           cursorPosition={cursorPosition}
@@ -951,52 +1270,9 @@ const MegaYearOverlay: React.FC<MegaYearOverlayProps> = ({
       </div>
     );
   }
+);
 
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        position: "absolute",
-        left: position.left,
-        top: position.top,
-        width: position.width,
-        height: layout.totalHeight,
-        zIndex: 10,
-      }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onMouseEnter={handleMouseEnter}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      role="grid"
-      tabIndex={0}
-      aria-label={`Calendar for ${year}`}
-    >
-      <div
-        ref={calendarContentRef}
-        className={styles.yearOverlay}
-        style={{ height: layout.totalHeight }}
-      >
-        <canvas
-          ref={canvasRef}
-          style={{
-            width: `${position.width}px`,
-            height: `${layout.totalHeight}px`,
-            pointerEvents: "none",
-          }}
-        />
-      </div>
-      <DateTooltip
-        hoveredDate={hoveredDate}
-        cursorPosition={cursorPosition}
-        isTouchDevice={isTouchDevice}
-        onTouchGo={handleTouchGo}
-        onTouchCancel={handleTouchCancel}
-        containerRef={calendarContentRef}
-      />
-    </div>
-  );
-};
+MegaYearOverlay.displayName = "MegaYearOverlay";
 
 export { getMegaDateFromCoordinates } from "./megaYearOverlay.utils";
 

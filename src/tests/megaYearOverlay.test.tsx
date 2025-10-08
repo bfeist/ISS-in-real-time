@@ -92,6 +92,7 @@ describe("MegaYearOverlay", () => {
 
   afterEach(() => {
     getContextSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   it("renders nothing when timeline years hidden", () => {
@@ -103,6 +104,8 @@ describe("MegaYearOverlay", () => {
         yearIndex={0}
         position={{ left: 0, top: 0, width: 300 }}
         highlights={new Map()}
+        interactionMode="mouse"
+        onInteractionModeChange={vi.fn()}
       />
     );
 
@@ -118,6 +121,8 @@ describe("MegaYearOverlay", () => {
         yearIndex={0}
         position={{ left: 0, top: 0, width: 300 }}
         highlights={highlights}
+        interactionMode="mouse"
+        onInteractionModeChange={vi.fn()}
       />
     );
 
@@ -126,5 +131,99 @@ describe("MegaYearOverlay", () => {
     expect(toggleState.setShowTimelineYears).toHaveBeenCalledWith(false);
     expect(clockState.setSelectedDate).toHaveBeenCalled();
     expect(clockState.setClock).not.toHaveBeenCalled();
+  });
+
+  it("jumps directly to the year that aligns with the extension pointer", () => {
+    const onSwitchToAdjacentYear = vi.fn();
+    const onInteractionModeChange = vi.fn();
+
+    const Wrapper = () => {
+      const parentRef = React.useRef<HTMLDivElement>(null);
+
+      return (
+        <div ref={parentRef} data-testid="parent" style={{ position: "relative" }}>
+          {Array.from({ length: 10 }).map((_, index) => (
+            <div
+              key={index}
+              data-year-index={index}
+              style={{
+                position: "absolute",
+                left: `${index * 100}px`,
+                top: 0,
+                width: "100px",
+                height: "200px",
+              }}
+            />
+          ))}
+          <MegaYearOverlay
+            year={2024}
+            yearIndex={5}
+            position={{ left: 450, top: 0, width: 200 }}
+            highlights={new Map()}
+            interactionMode="touch"
+            onInteractionModeChange={onInteractionModeChange}
+            onSwitchToAdjacentYear={onSwitchToAdjacentYear}
+            parentContainerRef={parentRef}
+          />
+        </div>
+      );
+    };
+
+    const { getByRole, container } = render(<Wrapper />);
+
+    const parent = container.querySelector("[data-testid='parent']") as HTMLDivElement;
+    Object.defineProperty(parent, "getBoundingClientRect", {
+      value: () => ({
+        left: 0,
+        right: 1000,
+        top: 0,
+        bottom: 200,
+        width: 1000,
+        height: 200,
+      }),
+      configurable: true,
+    });
+
+    parent.querySelectorAll("[data-year-index]").forEach((node, index) => {
+      const element = node as HTMLElement;
+      Object.defineProperty(element, "getBoundingClientRect", {
+        value: () => ({
+          left: index * 100,
+          right: index * 100 + 100,
+          top: 0,
+          bottom: 200,
+          width: 100,
+          height: 200,
+        }),
+        configurable: true,
+      });
+    });
+
+    const grid = getByRole("grid");
+    Object.defineProperty(grid, "getBoundingClientRect", {
+      value: () => ({
+        left: 400,
+        right: 700,
+        top: 0,
+        bottom: 400,
+        width: 300,
+        height: 400,
+      }),
+      configurable: true,
+    });
+
+    fireEvent.touchStart(grid, {
+      touches: [
+        {
+          identifier: 1,
+          clientX: 420,
+          clientY: 50,
+        },
+      ],
+    });
+
+    expect(onSwitchToAdjacentYear).toHaveBeenCalledTimes(1);
+    expect(onSwitchToAdjacentYear).toHaveBeenCalledWith(4);
+    expect(onInteractionModeChange).toHaveBeenCalledWith("touch");
   });
 });
