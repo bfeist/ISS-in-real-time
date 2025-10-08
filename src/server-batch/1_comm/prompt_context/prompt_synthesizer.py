@@ -146,18 +146,81 @@ class PromptSynthesizer:
                             "debug": f"[PROMPT] Using smart truncation (simple list detected)"
                         }
                     )
-                # Truncate at last complete term before 250 chars
-                truncated = text[:PROMPT_CHAR_LIMIT]
-                last_comma = truncated.rfind(",")
-                if last_comma > 0:
-                    text = truncated[:last_comma].rstrip()
-                    char_count = len(text)
-                    if on_event:
-                        on_event(
-                            {
-                                "debug": f"[PROMPT] Smart truncation result: {char_count} chars"
-                            }
-                        )
+
+                # Smart processing: deduplicate, normalize, and prioritize
+                # Split by common separators
+                terms = []
+                for part in text.replace(";", ",").split(","):
+                    part = part.strip()
+                    if part:
+                        terms.append(part)
+
+                # Deduplicate while preserving order (case-insensitive comparison)
+                seen_lower = set()
+                unique_terms = []
+                for term in terms:
+                    term_lower = term.lower()
+                    if term_lower not in seen_lower:
+                        seen_lower.add(term_lower)
+                        unique_terms.append(term)
+
+                if on_event and len(terms) > len(unique_terms):
+                    on_event(
+                        {
+                            "debug": f"[PROMPT] Removed {len(terms) - len(unique_terms)} duplicate terms"
+                        }
+                    )
+
+                # Prioritize terms (crew names, custom terms, acronyms come first)
+                custom_terms_lower = {
+                    t.lower() for t in prompt_input.get("custom_terms", [])
+                }
+                crew_names = {
+                    member["name_first"].lower()
+                    for sample in prompt_input.get("crew", {}).get("samples", [])
+                    for member in sample.get("crew", [])
+                }
+
+                priority_terms = []
+                normal_terms = []
+                for term in unique_terms:
+                    term_lower = term.lower()
+                    # Check if it's a custom term, crew name, or looks like an acronym
+                    is_priority = (
+                        term_lower in custom_terms_lower
+                        or term_lower in crew_names
+                        or (term.isupper() and len(term) >= 2)  # Acronym
+                    )
+                    if is_priority:
+                        priority_terms.append(term)
+                    else:
+                        normal_terms.append(term)
+
+                # Rebuild text with priority terms first
+                all_terms = priority_terms + normal_terms
+                text = ", ".join(all_terms)
+                char_count = len(text)
+
+                if on_event:
+                    on_event(
+                        {
+                            "debug": f"[PROMPT] After deduplication: {char_count} chars ({len(priority_terms)} priority, {len(normal_terms)} normal)"
+                        }
+                    )
+
+                # Truncate at last complete term before limit if still too long
+                if char_count > PROMPT_CHAR_LIMIT:
+                    truncated = text[:PROMPT_CHAR_LIMIT]
+                    last_comma = truncated.rfind(",")
+                    if last_comma > 0:
+                        text = truncated[:last_comma].rstrip()
+                        char_count = len(text)
+                        if on_event:
+                            on_event(
+                                {
+                                    "debug": f"[PROMPT] After truncation: {char_count} chars"
+                                }
+                            )
 
         # Only refine if significantly outside the acceptable range (200-250)
         # We only do ONE refinement pass if needed
@@ -260,8 +323,6 @@ Please expand this glossary by adding more relevant spaceflight terms, acronyms,
             crew_lines.append(f"[{sample['sample_time']}]")
             for member in sample.get("crew", []):
                 line = f"{member['name_first']} ({member['nationality']})"
-                if member.get("vehicle"):
-                    line += f" via {member['vehicle']}"
                 crew_lines.append(f"- {line}")
         if prompt_input["crew"].get("notes"):
             crew_lines.append("Notes: " + "; ".join(prompt_input["crew"]["notes"]))
@@ -294,8 +355,16 @@ IMPORTANT GUIDELINES:
 - The prompt helps Whisper spell words correctly, not understand context
 - Generate a comprehensive list - we'll refine the length afterwards
 
+Custom terms (MUST include in output): {custom_terms or 'None'}
+
 Crew onboard (use first names only):
 {chr(10).join(crew_lines) if crew_lines else '-'}
+
+Call signs: {call_signs or 'None'}
+Acronyms: {acronyms or 'None'}
+
+Comms focus:
+{chr(10).join(comms_lines) if comms_lines else '-'}
 
 Activities:
 {chr(10).join(activity_lines) if activity_lines else '-'}
@@ -303,15 +372,10 @@ Activities:
 Blog topics:
 {chr(10).join(blog_lines) if blog_lines else '-'}
 
-Comms focus:
-{chr(10).join(comms_lines) if comms_lines else '-'}
 
-Call signs: {call_signs or 'None'}
-Acronyms: {acronyms or 'None'}
-Custom terms (MUST include in output): {custom_terms or 'None'}
 
 EXAMPLE OUTPUT FORMAT (glossary style):
-"Crew: Satoshi, Sergey, Michael. Soyuz TMA-20, TMA-02M. Locations: Huntsville, Houston, Moscow, Tsukuba, Munich. Systems: TDRS, S-band, Ku-band, GPS. Activities: docking, EVA, telemetry, resupply."
+"Huntsville, Houston, Moscow, Tsukuba, Munich, space-to-ground, Radio Procedure Language, Satoshi, Sergey, Michael, TDRS, S-band, Ku-band, GPS. Activities: docking, EVA, telemetry, resupply."
 
 Generate a comprehensive glossary now (target ~{PROMPT_CHAR_LIMIT} characters, but focus on completeness over exact length):
 """

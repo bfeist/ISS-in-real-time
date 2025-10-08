@@ -77,3 +77,16 @@ All data is available at `data.issinrealtime.org/ISSiRT_assets`. If that website
 To generate all of the data this website needs, run the server_batch scripts in order. These pull from various publicly available locations into structured data that can be consumed by the ISS in Real Time website.
 
 This is a very large amount of data and the source systems are constantly changing. Depending how far in the future you are reading this, your mileage may vary.
+
+### Transcription-first pipeline (experimental)
+
+- `src/server-batch/1_comm/6_transcribe_using_corpus.py` contains a GPU-oriented transcription-first workflow that reuses daily prompt context. It scans Internet Archive zips from oldest to newest, transcribes each WAV end-to-end with WhisperX once, derives utterance boundaries from alignment, and saves AAC + JSON outputs that match the legacy contract.
+- Usage (after configuring `.env` with the required folder paths):
+
+  ```bash
+  C:/Users/Feist/.pyenv/pyenv-win/versions/3.10.11/python.exe src/server-batch/1_comm/6_transcribe_using_corpus.py --include-ag --limit 5
+  ```
+
+  The example above processes the five oldest SG and AG zips. Omit `--include-ag` to limit runs to SG channels.
+
+- The script caches full-file transcription metadata under `F:/tempF/iss_working/current_ia_zip_wavs/<zip>_wavs/cache`, allowing you to tweak segmentation thresholds without re-running WhisperX.

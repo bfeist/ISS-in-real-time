@@ -26,6 +26,7 @@ CUSTOM_TERMS = [
     "Tsukuba",
     "Munich",
     "space-to-ground",
+    "Radio Procedure Language",
 ]
 
 console = Console()
