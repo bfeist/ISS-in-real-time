@@ -9,19 +9,24 @@ load_dotenv(dotenv_path="../../../.env")
 # issAudioBasePath = r"O:/ISS/Internet_Archive/space_to_grounds/"
 issSpaceToGroundsBasePath = os.getenv("IA_ZIP_SG_FOLDER")
 issDragonCommBasePath = os.getenv("IA_ZIP_AG_FOLDER")
-search = search_items("creator:(john.l.stoll@nasa.gov)")
+creators = ["creator:(Expedition 62 ACR Collection)"]
+
+all_results = []
+for creator in creators:
+    search = search_items(creator)
+    all_results.extend(list(search))
 
 # Filter identifiers for "Space-to" or "Space to" results
 space_to_grounds = [
     result["identifier"]
-    for result in search
+    for result in all_results
     if "Space-to" in result["identifier"] or "Space to" in result["identifier"]
 ]
 
 # Filter identifiers for "Dragon" results
 dragon_to_grounds = [
     result["identifier"]
-    for result in search
+    for result in all_results
     if "Dragon" in result["identifier"] or "CST" in result["identifier"]
 ]
 

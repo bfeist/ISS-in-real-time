@@ -12,6 +12,11 @@ load_dotenv(dotenv_path="../../../.env")
 issSpaceToGroundsBasePath = os.getenv("IA_ZIP_SG_FOLDER")
 issDragonCommBasePath = os.getenv("IA_ZIP_AG_FOLDER")
 
+# Log file for skipped files (one level up from this script)
+skipped_log_path = os.path.join(
+    os.path.dirname(__file__), "ia_zips_download_skipped_collection.txt"
+)
+
 # Create directories if they don't exist
 os.makedirs(issSpaceToGroundsBasePath, exist_ok=True)
 os.makedirs(issDragonCommBasePath, exist_ok=True)
@@ -19,6 +24,42 @@ os.makedirs(issDragonCommBasePath, exist_ok=True)
 # XML file URL
 ia_root_path = "https://archive.org/download/"
 collections_xml = [
+    # "Expedition18", # Skipping Expedition 18 as it has no zips but id does have mp3s we could process separately
+    # "Expedition19", # doesn't exist
+    # "Expedition20", # doesn't have zips
+    # "Expedition21", # doesn't exist
+    # "Expedition22", # doesn't exist
+    # "Expedition23", # doesn't exist
+    # "Expedition24", # doesn't exist
+    # "Expedition25", # doesn't exist
+    # "Expedition26", # doesn't have zips
+    # "Expedition27", # doesn't have zips
+    "Expedition28",
+    "Expedition29",
+    "Expedition30",
+    "Expedition31",
+    "Expedition32",
+    "Expedition33",
+    "Expedition34",
+    "Expedition35",
+    "Expedition36",
+    "Expedition37",
+    "Expedition38",
+    "Expedition39",
+    "Expedition40",
+    "Expedition41",
+    "Expedition42",
+    "Expedition43",
+    "Expedition44",
+    "Expedition45",
+    "Expedition46",
+    "Expedition47",
+    "Expedition48",
+    "Expedition49",
+    "Expedition50",
+    "Expedition51",
+    "Expedition52",
+    "Expedition53",
     "Expedition-64-ACR-Collection",
     "Expedition-65-ACR-Collection",
     "expedition-66-acr-collection",
@@ -77,12 +118,18 @@ def get_existing_files():
 
 def is_space_to_ground(filename):
     """Determine if a file is a space-to-ground zip"""
-    return "Space-to-Ground" in filename or "Space to Ground" in filename
+    # Remove leading underscore for matching
+    cleaned_filename = filename.lstrip("_")
+    return (
+        "Space-to-Ground" in cleaned_filename or "Space to Ground" in cleaned_filename
+    )
 
 
 def is_dragon_comm(filename):
     """Determine if a file is a dragon or CST communication zip"""
-    return "Dragon" in filename or "CST" in filename
+    # Remove leading underscore for matching
+    cleaned_filename = filename.lstrip("_")
+    return "Dragon" in cleaned_filename or "CST" in cleaned_filename
 
 
 def main():
@@ -104,6 +151,7 @@ def main():
         # Track missing files
         missing_space_files = []
         missing_dragon_files = []
+        skipped_files = []
 
         # Check for missing files
         print("Checking for missing files...")
@@ -118,15 +166,28 @@ def main():
             if is_space_to_ground(original_filename):
                 if normalized_filename not in space_files:
                     missing_space_files.append((original_filename, normalized_filename))
+                else:
+                    # File already exists, log it as skipped
+                    skipped_files.append(f"{original_filename}|{collection}")
             elif is_dragon_comm(original_filename):
                 if normalized_filename not in dragon_files:
                     missing_dragon_files.append(
                         (original_filename, normalized_filename)
                     )
+                else:
+                    # File already exists, log it as skipped
+                    skipped_files.append(f"{original_filename}|{collection}")
+
+        # Log skipped files
+        if skipped_files:
+            with open(skipped_log_path, "a", encoding="utf-8") as log_file:
+                for skipped_entry in skipped_files:
+                    log_file.write(f"{skipped_entry}\n")
 
         # Print summary of missing files
         print(f"Found {len(missing_space_files)} missing Space-to-Ground files.")
         print(f"Found {len(missing_dragon_files)} missing Dragon/CST files.")
+        print(f"Skipped {len(skipped_files)} existing files.")
 
         # Download missing Space-to-Ground files
         if missing_space_files:

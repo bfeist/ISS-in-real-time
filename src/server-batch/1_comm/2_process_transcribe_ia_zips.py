@@ -37,6 +37,9 @@ COMPUTE_TYPE = "float16"
 VAD_AGGRESSIVENESS = 2  # Aggressiveness level (0-3)
 MONO_WAV_FRAME_RATE = 32000
 AAC_BITRATE = "96k"
+ZIP_PENDING_GRACE_PERIOD = timedelta(
+    minutes=10
+)  # Time window to consider downloads in-flight
 
 # Number of consecutive non-voice blocks before end of speech is declared
 MIN_WAIT_BLOCKS = 10
@@ -406,6 +409,12 @@ class FilenameParseError(Exception):
     pass
 
 
+class ZipPendingDownloadError(Exception):
+    """Raised when a zip file appears to still be downloading."""
+
+    pass
+
+
 def parse_wav_filename(filename, downlink_number=None):
     """
     Parses the WAV filename and extracts date_time and sg_channel_descriptor.
@@ -415,27 +424,27 @@ def parse_wav_filename(filename, downlink_number=None):
     basename = os.path.splitext(filename)[0]
     patterns = [
         # Pattern 1: 0000000000_SYNC_SG4_2024-01-08_02_09_04_by_servername_desc
-        r"^\d+_SYNC_(SG\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        r"^\d+_SYNC_(SG\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_by_.*)?$",
         # Pattern 2: 0000000000_1_SG4_DUP_2024-07-02_13_56_41_by_ui_startdate_desc
-        r"^\d+_\d+_(SG\d+)_DUP_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        r"^\d+_\d+_(SG\d+)_DUP_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_by_.*)?$",
         # Pattern 3: 0000000038_SYNC_SG_2_2015-10-13_12_09_27_by_ui_duration_desc.wav
-        r"^\d+_SYNC_SG_(\d)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        r"^\d+_SYNC_SG_(\d)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_by_.*)?$",
         # Pattern 4: 0000000140_Channel_15_2015-12-18_20_41_59_by_ui_startdate_asc.wav
-        r"^\d+_Channel_(\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        r"^\d+_Channel_(\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_by_.*)?$",
         # Pattern 5: 2022-03-30-08-30-42-019-Recorder.wav
         r"^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{3}-Recorder$",
         # Pattern 6: 0000000019_DG_1_2021-04-23_02_24_01_by_ui_startdate_utc_asc.wav
-        r"^\d+_(DG)_(\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        r"^\d+_(DG)_(\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_by_.*)?$",
         # Pattern 7: 0000000018_CST_AG-1_2024-05-06_18_53_37_by_ui_startdate_desc.wav
-        r"^\d+_(?:CST_)?(AG-\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        r"^\d+_(?:CST_)?(AG-\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_by_.*)?$",
         # Pattern 8: 0000000012_DG-1_2021-11-11_18_26_36_by_ui_startdate_desc.wav
-        r"^\d+_(DG-\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        r"^\d+_(DG-\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_by_.*)?$",
         # Pattern 9: 0000000013_CST_AG-2__2024-09-04_09_36_01_by_ui_startdate_desc.wav (notice double underscore)
-        r"^\d+_(?:CST_)?(AG-\d+)__(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        r"^\d+_(?:CST_)?(AG-\d+)__(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_by_.*)?$",
         # Pattern 10: Handle any other AG/DG patterns with multiple underscores
-        r"^\d+_(?:CST_)?([AD]G-\d+)_{1,10}(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        r"^\d+_(?:CST_)?([AD]G-\d+)_{1,10}(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_by_.*)?$",
         # Pattern 11: 0000000000_DG2_2020-05-27_07_52_42_by_ui_startdate_desc.wav
-        r"^\d+_(DG\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})_by_.*$",
+        r"^\d+_(DG\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_by_.*)?$",
     ]
     try:
         for pattern in patterns:
@@ -539,6 +548,24 @@ def parse_wav_filename(filename, downlink_number=None):
     raise FilenameParseError(error_msg)
 
 
+def zip_likely_in_progress(zip_path):
+    """Heuristically determine if a zip file is still being written to disk."""
+    try:
+        stat_info = os.stat(zip_path)
+    except OSError:
+        return False
+
+    # Zero-byte files are definitely incomplete
+    if stat_info.st_size == 0:
+        return True
+
+    last_modified = datetime.fromtimestamp(stat_info.st_mtime)
+    age = datetime.now() - last_modified
+
+    # If the file was modified very recently, assume the download is ongoing
+    return age <= ZIP_PENDING_GRACE_PERIOD
+
+
 def unzipIAZipWavs(zip_path, destination_dir, zip_type="SG"):
     """
     Unzips WAV files from IA zip archives (both SG and AG/DG types).
@@ -554,68 +581,99 @@ def unzipIAZipWavs(zip_path, destination_dir, zip_type="SG"):
 
     zipDate = f"20{parts[2]}-{parts[0].zfill(2)}-{parts[1].zfill(2)}"
 
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        # Iterate over each file in the zip archive
-        for file_info in zip_ref.infolist():
-            # Check if the file is a .wav file
-            if file_info.filename.lower().endswith(".wav"):
-                # Extract the filename without any directory structure
-                original_file_name = os.path.basename(file_info.filename)
+    if not zipfile.is_zipfile(zip_path):
+        if zip_likely_in_progress(zip_path):
+            logger.info(
+                f"{zip_type} zip '{os.path.basename(zip_path)}' appears to still be downloading. Will retry later."
+            )
+            raise ZipPendingDownloadError(zip_path)
 
-                # Extract the folder name
-                folder_name = os.path.dirname(file_info.filename)
+        logger.error(
+            f"{zip_type} zip '{os.path.basename(zip_path)}' is not a valid zip archive. Skipping."
+        )
+        add_to_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE, os.path.basename(zip_path))
+        add_to_tracking_file(IA_SKIP_ZIPS_TRACKING_FILE, os.path.basename(zip_path))
+        raise zipfile.BadZipFile(f"{zip_path} is not a valid zip file")
 
-                # Downlink number is the last char of the folder name if it is a number between 1 and 4
-                # Only applicable for SG type
-                downlink_number = None
-                if (
-                    zip_type == "SG"
-                    and folder_name[-1].isdigit()
-                    and int(folder_name[-1]) in range(1, 5)
-                ):
-                    downlink_number = int(folder_name[-1])
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            # Iterate over each file in the zip archive
+            for file_info in zip_ref.infolist():
+                # Check if the file is a .wav file
+                if file_info.filename.lower().endswith(".wav"):
+                    # Extract the filename without any directory structure
+                    original_file_name = os.path.basename(file_info.filename)
 
-                try:
-                    # Parse the filename using the supporting function
-                    date_time, channel_descriptor = parse_wav_filename(
-                        original_file_name, downlink_number
-                    )
+                    # Extract the folder name
+                    folder_name = os.path.dirname(file_info.filename)
+                    folder_suffix = folder_name[-1] if folder_name else ""
 
-                    fileDate = date_time.split("T")[0]
+                    # Downlink number is the last char of the folder name if it is a number between 1 and 4
+                    # Only applicable for SG type
+                    downlink_number = None
+                    if (
+                        zip_type == "SG"
+                        and folder_suffix.isdigit()
+                        and int(folder_suffix) in range(1, 5)
+                    ):
+                        downlink_number = int(folder_suffix)
 
-                    if fileDate != zipDate:
-                        logger.warning(
-                            f"Date mismatch: {fileDate} in filename does not match {zipDate} in zip path. Skipping this file."
+                    try:
+                        # Parse the filename using the supporting function
+                        date_time, channel_descriptor = parse_wav_filename(
+                            original_file_name, downlink_number
                         )
-                        continue
 
-                    # Construct the new filename
-                    new_file_name = f"{date_time}-{channel_descriptor}_IA.wav"
+                        fileDate = date_time.split("T")[0]
 
-                    destination_file_path = os.path.join(destination_dir, new_file_name)
+                        if fileDate != zipDate:
+                            logger.warning(
+                                f"Date mismatch: {fileDate} in filename does not match {zipDate} in zip path. Skipping this file."
+                            )
+                            continue
 
-                    # Handle potential filename conflicts by appending a counter
-                    counter = 1
-                    base_name, extension = os.path.splitext(new_file_name)
-                    while os.path.exists(destination_file_path):
+                        # Construct the new filename
+                        new_file_name = f"{date_time}-{channel_descriptor}_IA.wav"
+
                         destination_file_path = os.path.join(
-                            destination_dir, f"{base_name}_{counter}{extension}"
+                            destination_dir, new_file_name
                         )
-                        counter += 1
 
-                    # Read the file from the zip archive and write it to the destination directory
-                    with zip_ref.open(file_info) as source_file:
-                        with open(destination_file_path, "wb") as target_file:
-                            shutil.copyfileobj(source_file, target_file)
+                        # Handle potential filename conflicts by appending a counter
+                        counter = 1
+                        base_name, extension = os.path.splitext(new_file_name)
+                        while os.path.exists(destination_file_path):
+                            destination_file_path = os.path.join(
+                                destination_dir, f"{base_name}_{counter}{extension}"
+                            )
+                            counter += 1
 
-                except FilenameParseError as e:
-                    logger.critical(f"Critical error: {str(e)}")
-                    # Add to errors file and exit immediately
-                    add_to_tracking_file(
-                        IA_ZIPS_ERRORS_TRACKING_FILE, os.path.basename(zip_path)
-                    )
-                    logger.critical(f"Exiting script due to unparseable filename.")
-                    sys.exit(1)  # Exit with error code 1
+                        # Read the file from the zip archive and write it to the destination directory
+                        with zip_ref.open(file_info) as source_file:
+                            with open(destination_file_path, "wb") as target_file:
+                                shutil.copyfileobj(source_file, target_file)
+
+                    except FilenameParseError as e:
+                        logger.critical(f"Critical error: {str(e)}")
+                        # Add to errors file and exit immediately
+                        add_to_tracking_file(
+                            IA_ZIPS_ERRORS_TRACKING_FILE, os.path.basename(zip_path)
+                        )
+                        logger.critical(f"Exiting script due to unparseable filename.")
+                        sys.exit(1)  # Exit with error code 1
+    except zipfile.BadZipFile as exc:
+        if zip_likely_in_progress(zip_path):
+            logger.info(
+                f"{zip_type} zip '{os.path.basename(zip_path)}' looks incomplete (download likely still in progress)."
+            )
+            raise ZipPendingDownloadError(zip_path) from exc
+
+        logger.error(
+            f"Failed to read {zip_type} zip '{os.path.basename(zip_path)}': {exc}"
+        )
+        add_to_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE, os.path.basename(zip_path))
+        add_to_tracking_file(IA_SKIP_ZIPS_TRACKING_FILE, os.path.basename(zip_path))
+        raise
 
 
 def runTranscriptionLocally(model, utteranceTime, aacFilePath, descriptor):
@@ -714,6 +772,7 @@ def process_zip_file(zip_file, is_ag_zip=False):
         logger.info(f"Immediate exit requested. Skipping zip: {zip_file}")
         return
     add_to_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
+    CURRENT_IA_ZIP_WAVS = None
     try:
         zip_type = "AG" if is_ag_zip else "SG"
         logger.info(f"Processing IA {zip_type} ZIP file...{zip_file}")
@@ -798,6 +857,14 @@ def process_zip_file(zip_file, is_ag_zip=False):
     except SystemExit:
         # Re-raise SystemExit to allow proper exit
         raise
+    except ZipPendingDownloadError:
+        logger.info(
+            f"Deferring IA {zip_type} zip '{zip_file}' because the download is still in progress."
+        )
+        if CURRENT_IA_ZIP_WAVS and CURRENT_IA_ZIP_WAVS.exists():
+            shutil.rmtree(CURRENT_IA_ZIP_WAVS)
+        # Do not mark as error or skip; allow future runs to retry
+        return
     except Exception as e:
         logger.exception(f"Error processing IA ZIP file: {zip_file}")
         # add the bad file to the ia-skip-zips.txt file
