@@ -14,9 +14,11 @@ import threading
 import wave
 import zipfile
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import whisperx  # type: ignore
 from dotenv import load_dotenv
@@ -57,6 +59,7 @@ ZIP_PENDING_GRACE_PERIOD = dt.timedelta(minutes=10)
 file_lock = threading.RLock()
 exit_event = threading.Event()
 immediate_exit_event = threading.Event()
+stdout_silence_lock = threading.RLock()
 
 console = Console()
 logger = logging.getLogger("transcription-first")
@@ -114,9 +117,12 @@ class TranscriptionArtifacts:
 class WhisperResources:
     base_model: object
     align_models: Dict[str, Tuple[object, Dict[str, object]]]
+    _align_lock: threading.RLock = field(default_factory=threading.RLock)
 
     @classmethod
-    def load(cls, device: str, model_type: str, compute_type: str) -> "WhisperResources":
+    def load(
+        cls, device: str, model_type: str, compute_type: str
+    ) -> "WhisperResources":
         console.log(
             f"Loading WhisperX base model '{model_type}' on {device} ({compute_type})"
         )
@@ -130,13 +136,14 @@ class WhisperResources:
     def get_alignment_model(self, language: str) -> Tuple[object, Dict[str, object]]:
         language = language or "en"
         key = language.lower()
-        if key not in self.align_models:
-            console.log(f"Loading alignment model for language '{key}'")
-            align_model, metadata = whisperx.load_align_model(
-                language=key, device=DEVICE
-            )
-            self.align_models[key] = (align_model, metadata)
-        return self.align_models[key]
+        with self._align_lock:
+            if key not in self.align_models:
+                console.log(f"Loading alignment model for language '{key}'")
+                align_model, metadata = whisperx.load_align_model(
+                    language=key, device=DEVICE
+                )
+                self.align_models[key] = (align_model, metadata)
+            return self.align_models[key]
 
 
 # ---------------------------------------------------------------------------
@@ -219,7 +226,9 @@ def zip_likely_in_progress(zip_path: Path) -> bool:
     return dt.datetime.now() - last_modified <= ZIP_PENDING_GRACE_PERIOD
 
 
-def parse_wav_filename(filename: str, downlink_number: Optional[int] = None) -> Tuple[str, str]:
+def parse_wav_filename(
+    filename: str, downlink_number: Optional[int] = None
+) -> Tuple[str, str]:
     import re
 
     basename = os.path.splitext(filename)[0]
@@ -422,16 +431,17 @@ def ensure_mono_wav(input_wav_path: Path) -> Optional[Path]:
 
 @contextmanager
 def suppress_stdout_stderr():
-    with open(os.devnull, "w") as devnull:
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        try:
-            sys.stdout = devnull
-            sys.stderr = devnull
-            yield
-        finally:
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
+    with stdout_silence_lock:
+        with open(os.devnull, "w") as devnull:
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            try:
+                sys.stdout = devnull
+                sys.stderr = devnull
+                yield
+            finally:
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
 
 
 def build_initial_prompt(
@@ -476,9 +486,10 @@ def transcribe_full_wav(
     prompt_text: str,
     resources: WhisperResources,
     cache_dir: Path,
+    force: bool,
 ) -> TranscriptionArtifacts:
     cache_file = cache_dir / f"{wav_path.stem}{CACHE_SUFFIX}"
-    if cache_file.exists():
+    if cache_file.exists() and not force:
         try:
             cached = json.loads(cache_file.read_text(encoding="utf-8"))
             return TranscriptionArtifacts(
@@ -526,7 +537,9 @@ def transcribe_full_wav(
     final_segments = result["segments"]
     if detected_language != "en":
         logger.debug(
-            "Detected language %s for %s; running translation", detected_language, wav_path
+            "Detected language %s for %s; running translation",
+            detected_language,
+            wav_path,
         )
         with suppress_stdout_stderr():
             translation_result = resources.base_model.transcribe(
@@ -555,7 +568,7 @@ def transcribe_full_wav(
 
     cache_payload = {
         "language": artifacts.language,
-    "detected_language": artifacts.detected_language,
+        "detected_language": artifacts.detected_language,
         "final_segments": artifacts.final_segments,
         "source_segments": artifacts.source_segments,
         "alignment_segments": artifacts.alignment_segments,
@@ -568,7 +581,9 @@ def transcribe_full_wav(
     return artifacts
 
 
-def flatten_words(alignment_segments: List[Dict[str, object]]) -> List[Dict[str, object]]:
+def flatten_words(
+    alignment_segments: List[Dict[str, object]],
+) -> List[Dict[str, object]]:
     words: List[Dict[str, object]] = []
     for segment in alignment_segments:
         for word in segment.get("words", []):
@@ -610,9 +625,16 @@ def derive_alignment_intervals(
         gap = start - (last_end or start)
         if gap >= silence_cfg.silence_threshold:
             interval_start = max(current_start - silence_cfg.pre_roll, 0.0)
-            interval_end = min((last_end or current_start) + silence_cfg.post_roll, audio_duration)
+            interval_end = min(
+                (last_end or current_start) + silence_cfg.post_roll, audio_duration
+            )
             intervals.append(
-                Interval(index=idx, start=interval_start, end=interval_end, words=current_words.copy())
+                Interval(
+                    index=idx,
+                    start=interval_start,
+                    end=interval_end,
+                    words=current_words.copy(),
+                )
             )
             idx += 1
             current_start = start
@@ -625,7 +647,12 @@ def derive_alignment_intervals(
         interval_start = max(current_start - silence_cfg.pre_roll, 0.0)
         interval_end = min(last_end + silence_cfg.post_roll, audio_duration)
         intervals.append(
-            Interval(index=idx, start=interval_start, end=interval_end, words=current_words.copy())
+            Interval(
+                index=idx,
+                start=interval_start,
+                end=interval_end,
+                words=current_words.copy(),
+            )
         )
 
     return intervals
@@ -644,7 +671,11 @@ def slice_segments_to_interval(
             continue
         clipped_start = max(seg_start, interval_start)
         clipped_end = min(seg_end, interval_end)
-        new_seg = {key: value for key, value in seg.items() if key not in {"start", "end", "words"}}
+        new_seg = {
+            key: value
+            for key, value in seg.items()
+            if key not in {"start", "end", "words"}
+        }
         new_seg["start"] = clipped_start - interval_start
         new_seg["end"] = max(clipped_end - interval_start, 0.0)
         words = []
@@ -698,7 +729,9 @@ def render_utterances(
         ensure_directory(dated_directory)
 
         aac_path = dated_directory / f"{base_filename}.aac"
-        utterance_audio.export(aac_path, format="adts", codec="aac", bitrate=AAC_BITRATE)
+        utterance_audio.export(
+            aac_path, format="adts", codec="aac", bitrate=AAC_BITRATE
+        )
         logger.debug("Wrote AAC %s", aac_path)
 
         segments = slice_segments_to_interval(
@@ -706,7 +739,9 @@ def render_utterances(
         )
         if not segments:
             logger.warning(
-                "Interval %s produced no transcript segments for %s", interval.index, aac_path
+                "Interval %s produced no transcript segments for %s",
+                interval.index,
+                aac_path,
             )
 
         payload = {
@@ -735,8 +770,13 @@ def render_utterances(
 
 
 def derive_prompt_root(raw_folder: str | None) -> Path:
+    explicit_prompt_root = os.getenv("PROMPT_CONTEXT_ROOT")
+    if explicit_prompt_root:
+        return Path(explicit_prompt_root)
     if not raw_folder:
-        raise RuntimeError("RAW_FOLDER environment variable is not defined")
+        raise RuntimeError(
+            "RAW_FOLDER environment variable is not defined and PROMPT_CONTEXT_ROOT is unset"
+        )
     return Path(raw_folder) / PROMPT_ROOT_SUBPATH
 
 
@@ -763,6 +803,7 @@ def process_wav_file(
     silence_cfg: SilenceConfig,
     output_root: Path,
     cache_dir: Path,
+    force: bool,
 ) -> None:
     prompt_text = build_initial_prompt(start_time, descriptor, prompt_root)
     transcription = transcribe_full_wav(
@@ -772,6 +813,7 @@ def process_wav_file(
         prompt_text,
         resources,
         cache_dir,
+        force,
     )
     audio_segment = prepare_audio_segment(wav_path)
     intervals = derive_alignment_intervals(
@@ -800,6 +842,8 @@ def process_zip_file(
     prompt_root: Path,
     silence_cfg: SilenceConfig,
     output_root: Path,
+    force: bool,
+    workers: int,
 ) -> None:
     if exit_event.is_set() or immediate_exit_event.is_set():
         logger.info("Exit requested before processing %s", zip_file)
@@ -819,32 +863,71 @@ def process_zip_file(
 
         wav_files = sorted(working_dir.glob("*.wav"))
         cache_dir = working_dir / "cache"
+        if force and cache_dir.exists():
+            shutil.rmtree(cache_dir)
         ensure_directory(cache_dir)
 
-        for wav in wav_files:
+        if force and wav_files:
+            day_dirs: set[Path] = set()
+            for wav in wav_files:
+                try:
+                    start_time_str = wav.stem[:17]
+                    start_time = dt.datetime.strptime(start_time_str, "%Y-%m-%dT%H%M%S")
+                except ValueError:
+                    continue
+                day_dirs.add(
+                    output_root
+                    / str(start_time.year)
+                    / str(start_time.month).zfill(2)
+                    / str(start_time.day).zfill(2)
+                )
+            for day_dir in day_dirs:
+                if day_dir.exists():
+                    logger.debug("Force enabled: removing existing output %s", day_dir)
+                    shutil.rmtree(day_dir)
+
+        def _process_single_wav(wav_file: Path) -> None:
             if exit_event.is_set() or immediate_exit_event.is_set():
                 raise RuntimeError("Exit requested")
-            wav = ensure_mono_wav(wav) or wav
+            wav_local = ensure_mono_wav(wav_file) or wav_file
             try:
-                start_time_str = wav.stem[:17]
-                start_time = dt.datetime.strptime(start_time_str, "%Y-%m-%dT%H%M%S")
-                descriptor = wav.stem[18:-3]
+                start_time_str = wav_local.stem[:17]
+                start_time_local = dt.datetime.strptime(
+                    start_time_str, "%Y-%m-%dT%H%M%S"
+                )
+                descriptor_local = wav_local.stem[18:-3]
             except ValueError as exc:
-                logger.error("Failed to parse WAV name %s: %s", wav.name, exc)
-                continue
+                logger.error("Failed to parse WAV name %s: %s", wav_local.name, exc)
+                return
             try:
                 process_wav_file(
-                    wav,
-                    descriptor,
-                    start_time,
+                    wav_local,
+                    descriptor_local,
+                    start_time_local,
                     resources,
                     prompt_root,
                     silence_cfg,
                     output_root,
                     cache_dir,
+                    force,
                 )
-            except Exception as exc:
-                logger.exception("Error processing %s: %s", wav.name, exc)
+            except RuntimeError as exc:
+                if str(exc) == "Exit requested":
+                    raise
+                logger.error("Runtime error processing %s: %s", wav_local.name, exc)
+            except Exception as exc:  # pylint: disable=broad-except
+                logger.exception("Error processing %s: %s", wav_local.name, exc)
+
+        if workers > 1 and len(wav_files) > 1:
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = {
+                    executor.submit(_process_single_wav, wav): wav for wav in wav_files
+                }
+                for future in as_completed(futures):
+                    future.result()
+        else:
+            for wav in wav_files:
+                _process_single_wav(wav)
 
         processed_successfully = True
     except ZipPendingDownloadError:
@@ -896,6 +979,17 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Enable debug logging",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Reprocess outputs even if they already exist",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of concurrent WAV workers sharing the WhisperX model",
+    )
     return parser.parse_args(argv)
 
 
@@ -914,11 +1008,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     prompt_root = derive_prompt_root(raw_folder)
 
-    ia_zip_sg_folder = Path(os.getenv("IA_ZIP_SG_FOLDER", ""))
-    ia_zip_ag_folder = Path(os.getenv("IA_ZIP_AG_FOLDER", ""))
+    raw_audio_folder = os.getenv("RAW_AUDIO_FOLDER")
+    ia_zip_sg_folder: Optional[Path]
+    ia_zip_ag_folder: Optional[Path]
+    if raw_audio_folder:
+        raw_audio_path = Path(raw_audio_folder)
+        ia_zip_sg_folder = raw_audio_path / "InternetArchive_space_to_grounds"
+        ia_zip_ag_folder = raw_audio_path / "InternetArchive_dragon_cst_to_grounds"
 
-    if not ia_zip_sg_folder.exists():
-        logger.error("IA_ZIP_SG_FOLDER not found: %s", ia_zip_sg_folder)
+    working_dir_override = os.getenv("IA_ZIP_WORK_DIR")
+    global CURRENT_IA_ZIP_WAVS_WORKING
+    if working_dir_override:
+        CURRENT_IA_ZIP_WAVS_WORKING = Path(working_dir_override)
+    elif raw_audio_folder:
+        CURRENT_IA_ZIP_WAVS_WORKING = Path(raw_audio_folder) / "current_ia_zip_wavs"
+
+    if not ia_zip_sg_folder or not ia_zip_sg_folder.exists():
+        logger.error(
+            "Space-to-Ground zip folder not found. Set RAW_AUDIO_FOLDER or IA_ZIP_SG_FOLDER"
+        )
         return 1
 
     resources = WhisperResources.load(DEVICE, MODEL_TYPE, COMPUTE_TYPE)
@@ -933,7 +1041,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         sg_zips = sg_zips[: args.limit]
 
     ag_zips: List[str] = []
-    if args.include_ag and ia_zip_ag_folder.exists():
+    if args.include_ag and ia_zip_ag_folder and ia_zip_ag_folder.exists():
         ag_zips = gather_zip_files(ia_zip_ag_folder)
         ag_zips = [z for z in ag_zips if z not in skip_list]
         ag_zips = sort_zips_oldest_first(ag_zips)
@@ -941,6 +1049,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             ag_zips = ag_zips[: args.limit]
 
     logger.info("Processing %d SG zips (oldest -> newest)", len(sg_zips))
+    workers = max(1, args.workers)
+
     for zip_file in sg_zips:
         if exit_event.is_set() or immediate_exit_event.is_set():
             break
@@ -952,6 +1062,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             prompt_root,
             silence_cfg,
             comm_raw,
+            args.force,
+            workers,
         )
 
     if args.include_ag:
@@ -967,6 +1079,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 prompt_root,
                 silence_cfg,
                 comm_raw,
+                args.force,
+                workers,
             )
 
     return 0

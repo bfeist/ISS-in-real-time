@@ -1,14 +1,42 @@
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from internetarchive import search_items, download
+from pathlib import Path
+
+from internetarchive import download, search_items
 from tqdm import tqdm  # Install via `pip install tqdm`
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path="../../../.env")
 
-# issAudioBasePath = r"O:/ISS/Internet_Archive/space_to_grounds/"
-issSpaceToGroundsBasePath = os.getenv("IA_ZIP_SG_FOLDER")
-issDragonCommBasePath = os.getenv("IA_ZIP_AG_FOLDER")
+# Determine destination directories
+issSpaceToGroundsBasePath = None
+issDragonCommBasePath = None
+
+raw_audio_base = os.getenv("RAW_AUDIO_FOLDER")
+if raw_audio_base:
+    raw_audio_path = Path(raw_audio_base)
+    issSpaceToGroundsBasePath = raw_audio_path / "InternetArchive_space_to_grounds"
+    issDragonCommBasePath = raw_audio_path / "InternetArchive_dragon_cst_to_grounds"
+
+if not issSpaceToGroundsBasePath:
+    raise RuntimeError(
+        "Neither RAW_AUDIO_FOLDER nor IA_ZIP_SG_FOLDER is configured for Space-to-Ground zips"
+    )
+
+if not issDragonCommBasePath:
+    raise RuntimeError(
+        "Neither RAW_AUDIO_FOLDER nor IA_ZIP_AG_FOLDER is configured for Dragon/CST zips"
+    )
+
+issSpaceToGroundsBasePath.mkdir(parents=True, exist_ok=True)
+issDragonCommBasePath.mkdir(parents=True, exist_ok=True)
+
+
+def normalize_filename(name: str) -> str:
+    """Remove leading underscores from filenames/identifiers."""
+    return name.lstrip("_")
+
+
 creators = ["creator:(Expedition 62 ACR Collection)"]
 
 all_results = []
@@ -32,21 +60,47 @@ dragon_to_grounds = [
 
 
 # Define a function for downloading an item
-def download_item(identifier, base_path):
+def download_item(identifier, base_path: Path):
     try:
-        destDir = os.path.join(base_path)
-        if not os.path.exists(destDir):
-            os.makedirs(destDir, exist_ok=True)
+        destDir = base_path
+        destDir.mkdir(parents=True, exist_ok=True)
+        normalized_identifier = normalize_filename(identifier)
         # if this zip file already exists, skip it
-        if os.path.exists(os.path.join(destDir, f"{identifier}")):
+        existing_candidates = {
+            destDir / f"{identifier}",
+            destDir / f"{identifier}.zip",
+            destDir / f"{normalized_identifier}",
+            destDir / f"{normalized_identifier}.zip",
+        }
+        if any(path.exists() for path in existing_candidates):
             return
+        before_download = {path.name for path in destDir.glob("*.zip")}
         download(
             identifier,
-            destdir=destDir,
+            destdir=str(destDir),
             no_directory=True,
             ignore_existing=True,
             glob_pattern="*.zip",
         )
+        # Rename any newly downloaded zip files that begin with underscores
+        after_download = {path.name: path for path in destDir.glob("*.zip")}
+        new_files = [
+            after_download[name]
+            for name in after_download.keys()
+            if name not in before_download
+        ]
+        for file_path in new_files:
+            normalized_name = normalize_filename(file_path.name)
+            if normalized_name == file_path.name:
+                continue
+            normalized_path = file_path.with_name(normalized_name)
+            if normalized_path.exists():
+                print(
+                    f"Normalized filename {normalized_path.name} already exists. "
+                    f"Keeping original name {file_path.name}."
+                )
+                continue
+            file_path.rename(normalized_path)
     except Exception as e:
         print(f"Error downloading {identifier}: {e}")
 

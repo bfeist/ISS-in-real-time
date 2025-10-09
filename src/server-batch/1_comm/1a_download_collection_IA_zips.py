@@ -1,25 +1,40 @@
 import os
+import re
+from pathlib import Path
+from urllib.parse import urljoin
+
 import requests
 import xml.etree.ElementTree as ET
-from urllib.parse import urljoin
 from dotenv import load_dotenv
 from tqdm import tqdm
-import re
 
 load_dotenv(dotenv_path="../../../.env")
 
 # Base paths for files
-issSpaceToGroundsBasePath = os.getenv("IA_ZIP_SG_FOLDER")
-issDragonCommBasePath = os.getenv("IA_ZIP_AG_FOLDER")
+issSpaceToGroundsBasePath = None
+issDragonCommBasePath = None
+
+raw_audio_base = os.getenv("RAW_AUDIO_FOLDER")
+if raw_audio_base:
+    raw_audio_path = Path(raw_audio_base)
+    issSpaceToGroundsBasePath = raw_audio_path / "InternetArchive_space_to_grounds"
+    issDragonCommBasePath = raw_audio_path / "InternetArchive_dragon_cst_to_grounds"
+
+if not issSpaceToGroundsBasePath:
+    raise RuntimeError(
+        "Neither RAW_AUDIO_FOLDER nor IA_ZIP_SG_FOLDER is configured for Space-to-Ground zips"
+    )
+
+if not issDragonCommBasePath:
+    raise RuntimeError(
+        "Neither RAW_AUDIO_FOLDER nor IA_ZIP_AG_FOLDER is configured for Dragon/CST zips"
+    )
+
+issSpaceToGroundsBasePath.mkdir(parents=True, exist_ok=True)
+issDragonCommBasePath.mkdir(parents=True, exist_ok=True)
 
 # Log file for skipped files (one level up from this script)
-skipped_log_path = os.path.join(
-    os.path.dirname(__file__), "ia_zips_download_skipped_collection.txt"
-)
-
-# Create directories if they don't exist
-os.makedirs(issSpaceToGroundsBasePath, exist_ok=True)
-os.makedirs(issDragonCommBasePath, exist_ok=True)
+skipped_log_path = Path(__file__).parent / "ia_zips_download_skipped_collection.txt"
 
 # XML file URL
 ia_root_path = "https://archive.org/download/"
@@ -71,13 +86,14 @@ collections_xml = [
 ]
 
 
-def download_file(url, destination):
+def download_file(url, destination: Path):
     """Download a file with progress bar"""
+    destination.parent.mkdir(parents=True, exist_ok=True)
     response = requests.get(url, stream=True)
     total_size = int(response.headers.get("content-length", 0))
 
-    with open(destination, "wb") as file, tqdm(
-        desc=os.path.basename(destination),
+    with destination.open("wb") as file, tqdm(
+        desc=destination.name,
         total=total_size,
         unit="B",
         unit_scale=True,
@@ -91,27 +107,50 @@ def download_file(url, destination):
 
 
 def normalize_filename(filename):
-    """Convert mm-dd-yyyy format to mm-dd-yy in filenames"""
-    # Regular expression to find mm-dd-yyyy patterns
+    """Convert mm-dd-yyyy format to mm-dd-yy in filenames and strip leading underscores."""
+    cleaned = filename.lstrip("_")
     date_pattern = r"(\d{2})-(\d{2})-(\d{4})"
-
-    # Replace with mm-dd-yy format (keeping only last 2 digits of year)
     return re.sub(
-        date_pattern, lambda m: f"{m.group(1)}-{m.group(2)}-{m.group(3)[2:]}", filename
+        date_pattern,
+        lambda m: f"{m.group(1)}-{m.group(2)}-{m.group(3)[2:]}",
+        cleaned,
     )
+
+
+def ensure_normalized_file(path: Path) -> Path:
+    """Rename a file on disk to its normalized name if needed."""
+    normalized_name = normalize_filename(path.name)
+    if normalized_name == path.name:
+        return path
+
+    normalized_path = path.with_name(normalized_name)
+    if normalized_path.exists():
+        # A normalized file already exists; keep the current file name to avoid overwrite.
+        print(
+            f"Normalized filename {normalized_path.name} already exists. "
+            f"Keeping original name {path.name}."
+        )
+        return path
+
+    path.rename(normalized_path)
+    return normalized_path
+
+
+def collect_normalized_files(base_path: Path):
+    files = {}
+    for file_name in os.listdir(base_path):
+        if not file_name.endswith(".zip"):
+            continue
+        normalized_path = ensure_normalized_file(base_path / file_name)
+        normalized_name = normalize_filename(normalized_path.name)
+        files[normalized_name] = normalized_path.name
+    return files
 
 
 def get_existing_files():
     """Get list of existing files in the destination directories"""
-    # Get original filenames
-    space_files = {
-        f for f in os.listdir(issSpaceToGroundsBasePath) if f.endswith(".zip")
-    }
-    dragon_files = {f for f in os.listdir(issDragonCommBasePath) if f.endswith(".zip")}
-
-    # Create dictionaries mapping normalized names to original names
-    space_normalized = {normalize_filename(f): f for f in space_files}
-    dragon_normalized = {normalize_filename(f): f for f in dragon_files}
+    space_normalized = collect_normalized_files(issSpaceToGroundsBasePath)
+    dragon_normalized = collect_normalized_files(issDragonCommBasePath)
 
     return space_normalized, dragon_normalized
 
@@ -180,7 +219,7 @@ def main():
 
         # Log skipped files
         if skipped_files:
-            with open(skipped_log_path, "a", encoding="utf-8") as log_file:
+            with skipped_log_path.open("a", encoding="utf-8") as log_file:
                 for skipped_entry in skipped_files:
                     log_file.write(f"{skipped_entry}\n")
 
@@ -197,7 +236,7 @@ def main():
 
             for original, normalized in missing_space_files:
                 file_url = urljoin(base_download_url, original)
-                destination = os.path.join(issSpaceToGroundsBasePath, normalized)
+                destination = issSpaceToGroundsBasePath / normalized
                 download_file(file_url, destination)
 
         # Download missing Dragon/CST files
@@ -208,7 +247,7 @@ def main():
 
             for original, normalized in missing_dragon_files:
                 file_url = urljoin(base_download_url, original)
-                destination = os.path.join(issDragonCommBasePath, normalized)
+                destination = issDragonCommBasePath / normalized
                 download_file(file_url, destination)
 
     print("\nIncremental download complete!")
