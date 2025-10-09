@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import requests
 
@@ -59,6 +60,7 @@ class InfiniteLoopDetector:
         self.last_token_time: Optional[float] = None
         self.recent_tokens: deque = deque(maxlen=repetition_window)
         self.total_tokens = 0
+        self._word_pattern = re.compile(r"\w+", re.UNICODE)
 
     def start(self) -> None:
         """Start monitoring a new generation."""
@@ -94,16 +96,25 @@ class InfiniteLoopDetector:
 
         # Update state
         self.last_token_time = now
-        self.total_tokens += 1
-        self.recent_tokens.append(token.lower().strip())
+        normalized_tokens = self._extract_tokens(token)
+        if not normalized_tokens:
+            normalized_tokens = [token.lower().strip()] if token.strip() else []
 
-        # Check 3: Repetition detection (only after we have enough samples)
-        if len(self.recent_tokens) >= self.repetition_window * 0.8:
-            repetition_rate = self._calculate_repetition_rate()
-            if repetition_rate >= self.repetition_threshold:
-                return (
-                    f"Detected repetition loop ({repetition_rate:.1%} repetition rate)"
-                )
+        self.total_tokens += len(normalized_tokens)
+        required_samples = max(
+            5,
+            min(self.repetition_window, int(self.repetition_window * 0.8) or 1),
+        )
+
+        for normal_token in normalized_tokens:
+            if not normal_token:
+                continue
+            self.recent_tokens.append(normal_token)
+
+            if len(self.recent_tokens) >= required_samples:
+                repetition_rate = self._calculate_repetition_rate()
+                if repetition_rate >= self.repetition_threshold:
+                    return f"Detected repetition loop ({repetition_rate:.1%} repetition rate)"
 
         return None
 
@@ -119,6 +130,13 @@ class InfiniteLoopDetector:
         # Lower uniqueness = higher repetition
         repetition_rate = 1.0 - (unique_count / total_count)
         return repetition_rate
+
+    def _extract_tokens(self, text: str) -> List[str]:
+        """Split a chunk of model output into normalized tokens."""
+        if not text:
+            return []
+        tokens = [token.lower() for token in self._word_pattern.findall(text)]
+        return tokens
 
 
 class OllamaClient:
@@ -171,6 +189,7 @@ class OllamaClient:
         suffix: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         on_event: Optional[Callable[[dict], None]] = None,
+        max_length: Optional[int] = None,
     ) -> GenerationResult:
         payload = {
             "model": model or self.default_model,
@@ -189,7 +208,9 @@ class OllamaClient:
         last_error: Optional[Exception] = None
         for attempt in range(1, self.max_retries + 1):
             try:
-                return self._execute(payload, attempt, on_event=on_event)
+                return self._execute(
+                    payload, attempt, on_event=on_event, max_length=max_length
+                )
             except Exception as exc:  # pylint: disable=broad-except
                 last_error = exc
                 if attempt == self.max_retries:
@@ -204,6 +225,7 @@ class OllamaClient:
         attempt: int,
         *,
         on_event: Optional[Callable[[dict], None]] = None,
+        max_length: Optional[int] = None,
     ) -> GenerationResult:
         url = f"{self.base_url.rstrip('/')}/api/generate"
         response = requests.post(
@@ -224,6 +246,7 @@ class OllamaClient:
             detector.start()
 
         termination_reason: Optional[str] = None
+        current_length = 0
 
         for line in response.iter_lines():
             if not line:
@@ -268,6 +291,23 @@ class OllamaClient:
 
             if event.get("response"):
                 text_parts.append(event["response"])
+                current_length += len(event["response"])
+                if max_length and current_length > max_length:
+                    termination_reason = (
+                        f"Generation exceeded maximum length ({max_length} characters)"
+                    )
+                    metrics.was_terminated = True
+                    metrics.termination_reason = termination_reason
+                    raw_events.append(
+                        {
+                            "terminated": True,
+                            "reason": termination_reason,
+                            "timestamp": time.perf_counter(),
+                            "current_length": current_length,
+                        }
+                    )
+                    response.close()
+                    break
             if event.get("done"):
                 metrics.eval_count = event.get("eval_count")
                 metrics.eval_duration = event.get("eval_duration")

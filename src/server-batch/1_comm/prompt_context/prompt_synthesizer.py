@@ -116,7 +116,7 @@ class PromptSynthesizer:
         # First attempt: generate initial prompt
         if on_event:
             on_event({"debug": "[PROMPT] Calling Ollama (initial generation)"})
-        result = self.ollama.generate(prompt, on_event=on_event)
+        result = self.ollama.generate(prompt, on_event=on_event, max_length=2000)
 
         # Check if generation was terminated due to infinite loop
         if result.metrics.was_terminated:
@@ -240,7 +240,9 @@ Previous response:
 
 Please shorten this glossary to be ≤{PROMPT_CHAR_LIMIT} characters by removing less critical terms. Keep crew names, mission callsigns, and custom terms (Huntsville, Houston, Moscow, Tsukuba, Munich, space-to-ground). Prioritize unique/uncommon spaceflight terms. Output ONLY the shortened glossary, no explanation."""
 
-            result = self.ollama.generate(refinement_prompt, on_event=on_event)
+            result = self.ollama.generate(
+                refinement_prompt, on_event=on_event, max_length=2000
+            )
             text = result.text.strip().replace("\n", " ")
             char_count = len(text)
             all_raw_events.extend(result.raw_events)
@@ -263,7 +265,9 @@ Previous response:
 
 Please expand this glossary by adding more relevant spaceflight terms, acronyms, or technical vocabulary. Aim for around {PROMPT_CHAR_LIMIT} characters. Output ONLY the expanded glossary, no explanation."""
 
-            result = self.ollama.generate(refinement_prompt, on_event=on_event)
+            result = self.ollama.generate(
+                refinement_prompt, on_event=on_event, max_length=2000
+            )
             text = result.text.strip().replace("\n", " ")
             char_count = len(text)
             all_raw_events.extend(result.raw_events)

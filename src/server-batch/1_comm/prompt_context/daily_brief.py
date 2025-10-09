@@ -209,7 +209,7 @@ class DailyBriefBuilder:
                     "debug": f"[BRIEF] Sending to Ollama (prompt length: {len(prompt)} chars)"
                 }
             )
-        result = self.ollama.generate(prompt, on_event=on_event)
+        result = self.ollama.generate(prompt, on_event=on_event, max_length=2000)
 
         blog_topics, comms_focus = self._parse_summary_response(result)
         cache_file.write_text(
