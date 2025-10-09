@@ -1,3 +1,30 @@
+"""
+Generate AI prompt context for ISS communication transcripts.
+
+This script processes every single day of the ISS mission, from 2000-11-01 to present,
+generating AI-friendly prompt context that includes:
+- Crew roster information
+- Daily activity summaries
+- Blog articles and news
+- Communication-specific vocabulary
+
+IMPORTANT: This script processes EVERY day in the specified range, even if some days
+have missing or incomplete data. The pipeline gracefully handles missing data by:
+- Using empty crew lists for dates with no crew data
+- Using empty activity summaries for dates with no activity data
+- Continuing to process and generate prompts even when data is sparse
+
+Usage:
+  # Process all ISS mission days (default behavior)
+  python 5_corpus_initial_prompt_ai_gen.py
+
+  # Process specific date range (includes ALL days, even with missing data)
+  python 5_corpus_initial_prompt_ai_gen.py --start-date 2020-01-01 --end-date 2020-12-31
+
+  # Process specific dates
+  python 5_corpus_initial_prompt_ai_gen.py --date 2020-03-15 --date 2020-04-20
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -126,17 +153,27 @@ def _worker_task(date: str) -> WorkerResult:
             on_event=on_event,
             status_callback=status_callback,
         )
-        send(
-            "done",
-            {
-                "characters": result.characters,
-                "elapsed": result.elapsed_seconds,
-                "prompt_path": str(result.prompt_path),
-            },
-        )
+        if result.skipped:
+            send(
+                "skipped",
+                {
+                    "characters": result.characters,
+                    "elapsed": result.elapsed_seconds,
+                    "prompt_path": str(result.prompt_path),
+                },
+            )
+        else:
+            send(
+                "done",
+                {
+                    "characters": result.characters,
+                    "elapsed": result.elapsed_seconds,
+                    "prompt_path": str(result.prompt_path),
+                },
+            )
         return WorkerResult(
             date=date,
-            status="ok",
+            status="skipped" if result.skipped else "ok",
             characters=result.characters,
             elapsed=result.elapsed_seconds,
             prompt_path=str(result.prompt_path),
@@ -148,22 +185,33 @@ def _worker_task(date: str) -> WorkerResult:
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Pre-compute daily prompt context inputs"
+        description="Pre-compute daily prompt context inputs for every day, including days with missing data"
     )
     parser.add_argument(
         "--date",
         action="append",
-        help="Specific YYYY-MM-DD date to process",
+        help="Specific YYYY-MM-DD date to process (can be specified multiple times)",
         dest="dates",
     )
-    parser.add_argument("--start-date", help="Inclusive start date (YYYY-MM-DD)")
-    parser.add_argument("--end-date", help="Inclusive end date (YYYY-MM-DD)")
+    parser.add_argument(
+        "--start-date",
+        help="Inclusive start date (YYYY-MM-DD). When used with --end-date, processes EVERY day in the range",
+    )
+    parser.add_argument(
+        "--end-date",
+        help="Inclusive end date (YYYY-MM-DD). When used with --start-date, processes EVERY day in the range",
+    )
     parser.add_argument(
         "--dates-file",
         type=Path,
         help="Path to file containing dates (one per line)",
     )
     parser.add_argument("--env-file", type=Path, help="Override path to .env file")
+    parser.add_argument(
+        "--all-days",
+        action="store_true",
+        help="Process all ISS mission days from 2000-11-01 to today (default when no dates specified)",
+    )
     parser.add_argument(
         "--model", help="Override default Ollama model (default: qwen3:14b)"
     )
@@ -220,12 +268,24 @@ def collect_dates(args: argparse.Namespace, config: PromptContextConfig) -> List
             dates.add(current.strftime("%Y-%m-%d"))
             current += delta
 
-    if not dates:
-        dates.update(discover_ia_sg_dates(config.env_file))
+    # Process all ISS mission days if explicitly requested or if no dates specified
+    if not dates or args.all_days:
+        # Default: process every day from ISS mission start to today
+        # This ensures all days are processed, even if data is missing for some days
+        start = dt.date(2000, 11, 1)  # ISS mission start date
+        end = dt.date.today()
+        console.print(
+            f"[yellow]Processing all ISS mission days: {start} to {end} ({(end - start).days + 1} days total)[/yellow]"
+        )
+        delta = dt.timedelta(days=1)
+        current = start
+        while current <= end:
+            dates.add(current.strftime("%Y-%m-%d"))
+            current += delta
 
     if not dates:
         raise ValueError(
-            "No dates provided. Use --date, --start-date/--end-date, or IA SG zips will be auto-discovered."
+            "No dates provided. Use --date, --start-date/--end-date, or --all-days to specify dates."
         )
 
     return sorted(dates)
@@ -367,6 +427,11 @@ def run_sequential(
                             console.print(f"output: {response}")
                         console.print(f"  [red]✗[/red] Error: {payload.get('error')}\n")
 
+                    elif msg_type == "skipped":
+                        completed += 1
+                        state["stage"] = "skipped"
+                        # No print for skipped days
+
                 except queue.Empty:
                     pass
 
@@ -385,10 +450,11 @@ def run_sequential(
     else:
         _init_worker(settings, None)
         for date in dates:
-            console.print(f"Processing {date}")
             result = _worker_task(date)
             results.append(result)
-            console.print(f"[green]Completed {date}[/green]")
+            if result.status != "skipped":
+                console.print(f"Processing {date}")
+                console.print(f"[green]Completed {date}[/green]")
 
     return results
 
@@ -509,6 +575,18 @@ def monitor_loop(status_queue: mp.Queue, total: int) -> Dict[str, WorkerResult]:
 
             results[date] = WorkerResult(
                 date=date, status="error", error=str(payload.get("error"))
+            )
+
+        elif msg_type == "skipped":
+            completed += 1
+            state["stage"] = "skipped"
+            # No print for skipped days
+            results[date] = WorkerResult(
+                date=date,
+                status="skipped",
+                characters=int(payload.get("characters", 0)),
+                elapsed=float(payload.get("elapsed", 0.0)),
+                prompt_path=payload.get("prompt_path"),
             )
 
     console.print(f"[bold cyan]=== Completed {completed}/{total} dates ===[/bold cyan]")

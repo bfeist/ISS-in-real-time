@@ -22,6 +22,7 @@ class DailyPipelineResult:
     prompt_input_path: Path
     elapsed_seconds: float
     characters: int
+    skipped: bool = False
 
 
 class PromptContextPipeline:
@@ -77,6 +78,7 @@ class PromptContextPipeline:
                 prompt_input_path=prompt_input_path,
                 elapsed_seconds=existing_meta.get("elapsed_seconds", 0.0),
                 characters=len(prompt_path.read_text(encoding="utf-8")),
+                skipped=True,
             )
 
         if status_callback:

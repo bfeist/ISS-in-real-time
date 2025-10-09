@@ -35,6 +35,10 @@
   user-select: none;
 }
 
+.percentage {
+  color: white;
+}
+
 @media (width < 500px) {
   .siteStats {
     width: 357px;

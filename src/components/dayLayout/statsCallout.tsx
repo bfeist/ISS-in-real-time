@@ -32,6 +32,14 @@ const StatsCallout: FunctionComponent<Props> = ({
     );
   }, [stats]);
 
+  const totalDaysSinceStart = useMemo(() => {
+    const start = new Date(2000, 10, 1); // November 1, 2000
+    const now = new Date();
+    const diffTime = now.getTime() - start.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }, []);
+
   return (
     <div className={styles.siteStats}>
       <h3>This Website Contains:</h3>
@@ -40,22 +48,36 @@ const StatsCallout: FunctionComponent<Props> = ({
         {error && <li>Error loading statistics</li>}
         {stats && (
           <>
-            <li>{toLocaleString(stats.data_availability.total_days)} days of mission data</li>
             <li>
-              {toLocaleString(stats.comm.total_words)} words of space-to-ground comm in{" "}
+              {toLocaleString(stats.data_availability.total_days)} /{" "}
+              {toLocaleString(totalDaysSinceStart)} days with mission data (
+              <span className={styles.percentage}>
+                {((stats.data_availability.total_days / totalDaysSinceStart) * 100).toFixed(2)}%
+              </span>
+              ).
+            </li>
+            <li>
+              {toLocaleString(stats.comm.total_days_with_transcripts)} days with full
+              space-to-ground comm coverage.
+            </li>
+            <li>
+              {toLocaleString(stats.comm.total_utterances)} space-to-ground comm calls in{" "}
               {toLocaleString(stats.comm.total_languages)} languages.
             </li>
-            <li>{toLocaleString(stats.comm.total_utterances)} audio clips</li>
+
             <li>
               {toLocaleString(stats.photos.combined.total_photos)} photos taken in space over{" "}
-              {toLocaleString(stats.photos.combined.total_days_with_photos)} days
+              {toLocaleString(stats.photos.combined.total_days_with_photos)} days.
             </li>
-            <li>{toLocaleString(totalArticles)} articles</li>
+            <li>
+              {toLocaleString(totalArticles)} articles across{" "}
+              {toLocaleString(stats.data_availability.days_with_articles)} days.
+            </li>
             <li>
               {toLocaleString(
                 (stats.videos.youtube.total_videos || 0) + (stats.videos.ia.total_videos || 0)
               )}{" "}
-              videos
+              videos across {toLocaleString(stats.videos.total_days_with_videos)} days.
             </li>
           </>
         )}

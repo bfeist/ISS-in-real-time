@@ -546,6 +546,7 @@ def analyze_data_availability():
     counts = {dt: 0 for dt in data_types}
     total_days = 0
     data_per_day = []
+    days_with_articles = 0
 
     try:
         with open(DATA_AVAILABILITY_CSV, "r", encoding="utf-8") as f:
@@ -559,6 +560,13 @@ def analyze_data_availability():
                         counts[data_types[i]] += 1
                         day_count += 1
                 data_per_day.append(day_count)
+                # Check for days with articles (blog, actSum, or timeline)
+                if (
+                    row[5].strip() == "1"
+                    or row[6].strip() == "1"
+                    or row[9].strip() == "1"
+                ):
+                    days_with_articles += 1
 
         avg_data_per_day = sum(data_per_day) / len(data_per_day) if data_per_day else 0
 
@@ -566,6 +574,7 @@ def analyze_data_availability():
             "total_days": total_days,
             "counts": counts,
             "avg_data_types_per_day": round(avg_data_per_day, 2),
+            "days_with_articles": days_with_articles,
         }
     except (IOError, csv.Error) as e:
         print(f"Error reading {DATA_AVAILABILITY_CSV}: {e}")

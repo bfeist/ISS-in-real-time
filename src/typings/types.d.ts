@@ -305,11 +305,13 @@ type Stats = {
       total_videos: number;
       total_duration_seconds: number;
     };
+    total_days_with_videos: number;
   };
   data_availability: {
     total_days: number;
     counts: Record<string, number>;
     avg_data_types_per_day: number;
+    days_with_articles: number;
   };
   generated_at: string;
 };
