@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import threading
 import wave
@@ -584,7 +585,9 @@ def build_initial_prompt(
                 logger.warning("Failed to parse %s: %s", json_fallback, exc)
 
     # Clean the descriptor to remove prefixes/suffixes and format for display
-    clean_descriptor = descriptor.lstrip("1_").rstrip("_IA").replace("_", " ").replace("-", " ")
+    clean_descriptor = (
+        descriptor.lstrip("1_").rstrip("_IA").replace("_", " ").replace("-", " ")
+    )
     channel_hint = f"Channel: {clean_descriptor}"
     if prompt_text:
         return f"{prompt_text}\n\n{channel_hint}"
@@ -1106,6 +1109,7 @@ def display_transcription_summary(
 
 
 def render_utterances(
+    source_wav_path: Path,
     audio_segment: AudioSegment,
     transcription: TranscriptionArtifacts,
     intervals: List[Interval],
@@ -1114,28 +1118,20 @@ def render_utterances(
     output_root: Path,
 ) -> List[Path]:
     outputs: List[Path] = []
+    export_jobs: List[dict] = []
+
     for interval in intervals:
         if interval.duration <= 0:
             continue
-        start_ms = int(interval.start * 1000)
-        end_ms = int(interval.end * 1000)
-        utterance_audio = audio_segment[start_ms:end_ms]
-        if utterance_audio.frame_count() == 0:
-            logger.debug("Skipping empty interval %s", interval)
-            continue
-
-        utterance_start_time = start_time + dt.timedelta(seconds=interval.start)
-        file_stub = utterance_start_time.isoformat().split(".")[0].replace(":", "")
-        base_filename = f"{file_stub}-{descriptor}"
 
         segments = slice_segments_to_interval(
             transcription.final_segments, interval.start, interval.end
         )
         if not segments:
             logger.warning(
-                "Interval %s produced no transcript segments for %s; skipping",
+                "Interval %s produced no transcript segments for %s",
                 interval.index,
-                base_filename,
+                descriptor,
             )
             continue
 
@@ -1154,6 +1150,10 @@ def render_utterances(
             )
             continue
 
+        utterance_start_time = start_time + dt.timedelta(seconds=interval.start)
+        file_stub = utterance_start_time.isoformat().split(".")[0].replace(":", "")
+        base_filename = f"{file_stub}-{descriptor}"
+
         year = str(utterance_start_time.year)
         month = str(utterance_start_time.month).zfill(2)
         day = str(utterance_start_time.day).zfill(2)
@@ -1161,12 +1161,9 @@ def render_utterances(
         ensure_directory(dated_directory)
 
         aac_path = dated_directory / f"{base_filename}.aac"
-        export_result = utterance_audio.export(
-            aac_path, format="adts", codec="aac", bitrate=AAC_BITRATE
-        )
-        if hasattr(export_result, "close"):
-            export_result.close()
-        logger.debug("Wrote AAC %s", aac_path)
+        if aac_path.exists():
+            aac_path.unlink()
+
         payload = {
             "segments": segments,
             "language": transcription.language,
@@ -1187,11 +1184,58 @@ def render_utterances(
             payload["language"] = transcription.language
 
         json_path = dated_directory / f"{base_filename}.json"
-        json_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
+        export_jobs.append(
+            {
+                "start": interval.start,
+                "end": interval.end,
+                "aac_path": aac_path,
+                "json_path": json_path,
+                "payload": payload,
+                "interval_index": interval.index,
+            }
+        )
+
+    if not export_jobs:
+        return outputs
+
+    ffmpeg_success = export_utterances_with_ffmpeg(source_wav_path, export_jobs)
+
+    if not ffmpeg_success:
+        logger.warning("Falling back to in-memory export for %s", source_wav_path.name)
+        for job in export_jobs:
+            start_ms = int(job["start"] * 1000)
+            end_ms = int(job["end"] * 1000)
+            utterance_audio = audio_segment[start_ms:end_ms]
+            if utterance_audio.frame_count() == 0:
+                logger.debug(
+                    "Skipping empty interval %s during fallback",
+                    job["interval_index"],
+                )
+                continue
+            export_result = utterance_audio.export(
+                job["aac_path"],
+                format="adts",
+                codec="aac",
+                bitrate=AAC_BITRATE,
+            )
+            if hasattr(export_result, "close"):
+                export_result.close()
+
+    for job in export_jobs:
+        if not job["aac_path"].exists():
+            logger.warning(
+                "Skipping JSON export for interval %s because %s is missing",
+                job["interval_index"],
+                job["aac_path"].name,
+            )
+            continue
+        logger.debug("Wrote AAC %s", job["aac_path"])
+        job["json_path"].write_text(
+            json.dumps(job["payload"], ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        outputs.append(json_path)
+        outputs.append(job["json_path"])
+
     return outputs
 
 
@@ -1208,6 +1252,74 @@ def derive_prompt_root(raw_folder: str | None) -> Path:
 
 def prepare_audio_segment(wav_path: Path) -> AudioSegment:
     return AudioSegment.from_file(wav_path)
+
+
+def export_utterances_with_ffmpeg(
+    source_wav_path: Path,
+    jobs: Sequence[dict],
+) -> bool:
+    if not jobs:
+        return True
+
+    filter_parts: List[str] = []
+    cmd: List[str] = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-nostdin",
+        "-y",
+        "-i",
+        str(source_wav_path),
+    ]
+
+    for idx, job in enumerate(jobs):
+        start = max(float(job["start"]), 0.0)
+        end = max(float(job["end"]), start)
+        filter_parts.append(
+            f"[0:a]atrim=start={start:.6f}:end={end:.6f},asetpts=PTS-STARTPTS[a{idx}]"
+        )
+
+    cmd.extend(["-filter_complex", ";".join(filter_parts)])
+
+    for idx, job in enumerate(jobs):
+        cmd.extend(
+            [
+                "-map",
+                f"[a{idx}]",
+                "-c:a",
+                "aac",
+                "-b:a",
+                AAC_BITRATE,
+                str(job["aac_path"]),
+            ]
+        )
+
+    try:
+        subprocess.run(cmd, check=True)
+    except FileNotFoundError:
+        logger.error(
+            "ffmpeg executable not found on PATH; falling back to pydub export"
+        )
+        return False
+    except subprocess.CalledProcessError as exc:
+        logger.error(
+            "ffmpeg export failed for %s (code %s)",
+            source_wav_path.name,
+            exc.returncode,
+        )
+        return False
+
+    missing_outputs = [job for job in jobs if not job["aac_path"].exists()]
+    if missing_outputs:
+        logger.error(
+            "ffmpeg completed but %d AAC file(s) missing: %s",
+            len(missing_outputs),
+            ", ".join(job["aac_path"].name for job in missing_outputs),
+        )
+        return False
+
+    return True
 
 
 def extract_zip_date(zip_name: str) -> dt.datetime:
@@ -1260,6 +1372,7 @@ def process_wav_file(
         logger.warning("No speech detected in %s", wav_path.name)
         return transcription
     render_utterances(
+        wav_path,
         audio_segment,
         transcription,
         intervals,

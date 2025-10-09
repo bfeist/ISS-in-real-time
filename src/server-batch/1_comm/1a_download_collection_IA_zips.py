@@ -88,6 +88,13 @@ collections_xml = [
 
 def download_file(url, destination: Path):
     """Download a file with progress bar"""
+    normalized_name = normalize_filename(destination.name)
+    destination = destination.with_name(normalized_name)
+
+    if destination.exists():
+        print(f"Skipping existing file {destination.name}.")
+        return destination
+
     destination.parent.mkdir(parents=True, exist_ok=True)
     response = requests.get(url, stream=True)
     total_size = int(response.headers.get("content-length", 0))

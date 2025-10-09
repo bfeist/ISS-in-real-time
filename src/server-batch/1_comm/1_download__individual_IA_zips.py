@@ -74,7 +74,10 @@ def download_item(identifier, base_path: Path):
         }
         if any(path.exists() for path in existing_candidates):
             return
-        before_download = {path.name for path in destDir.glob("*.zip")}
+        before_download_paths = {path.resolve() for path in destDir.glob("*.zip")}
+        before_normalized_names = {
+            normalize_filename(path.name) for path in destDir.glob("*.zip")
+        }
         download(
             identifier,
             destdir=str(destDir),
@@ -83,24 +86,30 @@ def download_item(identifier, base_path: Path):
             glob_pattern="*.zip",
         )
         # Rename any newly downloaded zip files that begin with underscores
-        after_download = {path.name: path for path in destDir.glob("*.zip")}
-        new_files = [
-            after_download[name]
-            for name in after_download.keys()
-            if name not in before_download
-        ]
-        for file_path in new_files:
+        for file_path in destDir.glob("*.zip"):
+            resolved_path = file_path.resolve()
+            if resolved_path in before_download_paths:
+                continue
+
             normalized_name = normalize_filename(file_path.name)
-            if normalized_name == file_path.name:
+
+            if normalized_name in before_normalized_names:
+                # A file with the normalized name already exists; remove the duplicate download.
+                if file_path.exists():
+                    file_path.unlink()
                 continue
+
             normalized_path = file_path.with_name(normalized_name)
-            if normalized_path.exists():
-                print(
-                    f"Normalized filename {normalized_path.name} already exists. "
-                    f"Keeping original name {file_path.name}."
-                )
+            if normalized_path.exists() and normalized_path.resolve() != resolved_path:
+                # Target file exists but wasn't tracked previously; treat as duplicate.
+                if file_path.exists():
+                    file_path.unlink()
                 continue
-            file_path.rename(normalized_path)
+
+            if normalized_name != file_path.name:
+                file_path.rename(normalized_path)
+
+            before_normalized_names.add(normalized_name)
     except Exception as e:
         print(f"Error downloading {identifier}: {e}")
 
