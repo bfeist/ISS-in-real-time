@@ -119,6 +119,33 @@ def checkIfZipAlreadyProcessed(zipFileName):
     return zipFileName in processed_zips or zipFileName in in_progress_zips
 
 
+def get_zip_date_key(zip_filename):
+    """Return YYYY-MM-DD date string extracted from the zip filename."""
+    date_fragment = zip_filename[:8]
+    try:
+        month = date_fragment[:2]
+        day = date_fragment[3:5]
+        year = date_fragment[6:8]
+        return f"20{year}-{month}-{day}"
+    except Exception:
+        return None
+
+
+def group_zip_files_by_date(zip_files):
+    """Group zip filenames by date while preserving newest-first order."""
+    grouped = {}
+    ordered_dates = []
+    for zip_file in zip_files:
+        date_key = get_zip_date_key(zip_file)
+        if not date_key:
+            date_key = "unknown"
+        if date_key not in grouped:
+            grouped[date_key] = []
+            ordered_dates.append(date_key)
+        grouped[date_key].append(zip_file)
+    return [(date_key, grouped[date_key]) for date_key in ordered_dates]
+
+
 def ensure_mono_wav(input_wav_path):
     try:
         with wave.open(str(input_wav_path), "rb") as wf:
@@ -566,7 +593,7 @@ def zip_likely_in_progress(zip_path):
     return age <= ZIP_PENDING_GRACE_PERIOD
 
 
-def unzipIAZipWavs(zip_path, destination_dir, zip_type="SG"):
+def unzipIAZipWavs(zip_path, destination_dir, zip_type="SG", allow_overwrite=False):
     """
     Unzips WAV files from IA zip archives (both SG and AG/DG types).
 
@@ -635,18 +662,25 @@ def unzipIAZipWavs(zip_path, destination_dir, zip_type="SG"):
                         # Construct the new filename
                         new_file_name = f"{date_time}-{channel_descriptor}_IA.wav"
 
+                        os.makedirs(destination_dir, exist_ok=True)
                         destination_file_path = os.path.join(
                             destination_dir, new_file_name
                         )
 
-                        # Handle potential filename conflicts by appending a counter
-                        counter = 1
-                        base_name, extension = os.path.splitext(new_file_name)
-                        while os.path.exists(destination_file_path):
-                            destination_file_path = os.path.join(
-                                destination_dir, f"{base_name}_{counter}{extension}"
+                        if allow_overwrite and os.path.exists(destination_file_path):
+                            logger.debug(
+                                f"Overwriting existing file during unzip: {destination_file_path}"
                             )
-                            counter += 1
+                        elif not allow_overwrite:
+                            # Handle potential filename conflicts by appending a counter
+                            counter = 1
+                            base_name, extension = os.path.splitext(new_file_name)
+                            while os.path.exists(destination_file_path):
+                                destination_file_path = os.path.join(
+                                    destination_dir,
+                                    f"{base_name}_{counter}{extension}",
+                                )
+                                counter += 1
 
                         # Read the file from the zip archive and write it to the destination directory
                         with zip_ref.open(file_info) as source_file:
@@ -767,41 +801,57 @@ def suppress_stdout_stderr():
             sys.stderr = old_stderr
 
 
-def process_zip_file(zip_file, is_ag_zip=False):
+def process_zip_group(date_key, zip_files, is_ag_zip=False):
+    """Unzip and process every archive for a given date as a single batch."""
     if immediate_exit_event.is_set():
-        logger.info(f"Immediate exit requested. Skipping zip: {zip_file}")
-        return
-    add_to_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
-    CURRENT_IA_ZIP_WAVS = None
+        logger.info(
+            f"Immediate exit requested. Skipping zip group {date_key}: {zip_files}"
+        )
+        return False
+
+    for zip_file in zip_files:
+        add_to_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
+
+    working_dir = None
+    zip_type = "AG" if is_ag_zip else "SG"
+    zip_folder = IA_ZIP_AG_FOLDER if is_ag_zip else IA_ZIP_SG_FOLDER
+
     try:
-        zip_type = "AG" if is_ag_zip else "SG"
-        logger.info(f"Processing IA {zip_type} ZIP file...{zip_file}")
-
-        # Choose the correct folder based on zip type
-        zip_folder = IA_ZIP_AG_FOLDER if is_ag_zip else IA_ZIP_SG_FOLDER
-        input_zip_file_full_path = os.path.join(zip_folder, zip_file)
-
-        # Use zip file name (without extension) for unique directory
-        zip_name_without_ext = os.path.splitext(zip_file)[0]
-        CURRENT_IA_ZIP_WAVS = Path(
-            f"{CURRENT_IA_ZIP_WAVS_WORKING}/{zip_name_without_ext}_wavs"
+        logger.info(
+            f"Processing IA {zip_type} ZIP group for {date_key} containing {len(zip_files)} archive(s)"
         )
 
-        # Clear the unique directory contents
-        if CURRENT_IA_ZIP_WAVS.exists():
-            shutil.rmtree(CURRENT_IA_ZIP_WAVS)
-        CURRENT_IA_ZIP_WAVS.mkdir(parents=True, exist_ok=True)
+        working_dir_name = date_key if date_key != "unknown" else zip_files[0]
+        working_dir = CURRENT_IA_ZIP_WAVS_WORKING / f"{working_dir_name}_wavs"
+        if working_dir.exists():
+            shutil.rmtree(working_dir)
+        working_dir.mkdir(parents=True, exist_ok=True)
 
-        # Unzip the WAV files into the unique directory
-        unzipIAZipWavs(input_zip_file_full_path, CURRENT_IA_ZIP_WAVS, zip_type)
-
-        # Process each IA WAV file in the unique directory
-        for wav_file in CURRENT_IA_ZIP_WAVS.glob("*.wav"):
+        for zip_file in zip_files:
             if immediate_exit_event.is_set():
-                logger.info("Immediate exit requested. Stopping processing.")
-                return
+                logger.info("Immediate exit requested. Stopping unzip phase.")
+                return False
+            input_zip_file_full_path = os.path.join(zip_folder, zip_file)
+            logger.info(f"Unzipping {zip_type} archive {zip_file} into {working_dir}")
+            unzipIAZipWavs(
+                input_zip_file_full_path,
+                working_dir,
+                zip_type,
+                allow_overwrite=True,
+            )
 
-            # Wrap individual WAV file processing in try-except to prevent one bad file from stopping the entire zip
+        wav_files = sorted(working_dir.glob("*.wav"))
+        if not wav_files:
+            logger.warning(
+                f"No WAV files extracted for group {date_key}. Nothing to process."
+            )
+            return True
+
+        for wav_file in wav_files:
+            if immediate_exit_event.is_set():
+                logger.info("Immediate exit requested. Stopping processing phase.")
+                return False
+
             try:
                 original_wav_file = Path(wav_file)
                 wav_file = ensure_mono_wav(original_wav_file)
@@ -812,10 +862,8 @@ def process_zip_file(zip_file, is_ag_zip=False):
                     continue
 
                 try:
-                    # Parse the start time from filename
                     start_time_str = wav_file.stem[:17]
                     start_time = datetime.strptime(start_time_str, "%Y-%m-%dT%H%M%S")
-                    # Parse out the descriptor (SG or AG/DG)
                     descriptor = wav_file.stem[18:-3]
                     segmenter = AudioSegmenter(
                         str(wav_file),
@@ -833,14 +881,15 @@ def process_zip_file(zip_file, is_ag_zip=False):
                 while True:
                     if immediate_exit_event.is_set():
                         logger.info("Immediate exit requested during segmentation.")
-                        return
+                        return False
                     if not segmenter.processWav():
                         break
                 segmenter.stop()
+
                 if immediate_exit_event.is_set():
                     logger.info("Immediate exit requested after segmentation.")
-                    return
-                # Delete the "orig" file
+                    return False
+
                 orig_wav_file = wav_file.parent / (wav_file.stem + "_orig.wav")
                 if orig_wav_file.exists():
                     orig_wav_file.unlink()
@@ -851,26 +900,25 @@ def process_zip_file(zip_file, is_ag_zip=False):
                 )
                 continue
 
-        # Clean up the unique directory after processing
-        if CURRENT_IA_ZIP_WAVS.exists():
-            shutil.rmtree(CURRENT_IA_ZIP_WAVS)
+        return True
+
     except SystemExit:
-        # Re-raise SystemExit to allow proper exit
         raise
     except ZipPendingDownloadError:
         logger.info(
-            f"Deferring IA {zip_type} zip '{zip_file}' because the download is still in progress."
+            f"Deferring IA {zip_type} zip group for {date_key} because a download is still in progress."
         )
-        if CURRENT_IA_ZIP_WAVS and CURRENT_IA_ZIP_WAVS.exists():
-            shutil.rmtree(CURRENT_IA_ZIP_WAVS)
-        # Do not mark as error or skip; allow future runs to retry
-        return
-    except Exception as e:
-        logger.exception(f"Error processing IA ZIP file: {zip_file}")
-        # add the bad file to the ia-skip-zips.txt file
-        add_to_tracking_file(IA_SKIP_ZIPS_TRACKING_FILE, zip_file)
+        return False
+    except Exception:
+        logger.exception(f"Error processing IA ZIP group for {date_key}")
+        for zip_file in zip_files:
+            add_to_tracking_file(IA_SKIP_ZIPS_TRACKING_FILE, zip_file)
+        return False
     finally:
-        remove_from_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
+        if working_dir and working_dir.exists():
+            shutil.rmtree(working_dir)
+        for zip_file in zip_files:
+            remove_from_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
 
 
 def check_for_exit():
@@ -950,31 +998,37 @@ if __name__ == "__main__":
 
     logger.info(f"Processing {len(sg_zip_files)} Space-to-Ground (SG) zip files")
 
-    # Process SG zip files first
-    for zip_file in sg_zip_files:
+    # Combine multi-part archives by processing all zips that share a date together.
+    sg_groups = group_zip_files_by_date(sg_zip_files)
+
+    # Process SG zip groups first
+    for date_key, zip_group in sg_groups:
         if immediate_exit_event.is_set():
             logger.info("Immediate exit requested. Exiting main loop.")
             break
         if exit_event.is_set() and not immediate_exit_event.is_set():
             logger.info("Exit after current IA zip requested. Exiting main loop.")
             break
-        if zip_file in skip_zips:
-            logger.info(f"Skipping {zip_file} as it is in the skip list.")
+        if any(zip_file in skip_zips for zip_file in zip_group):
+            logger.info(
+                f"Skipping group {zip_group} because at least one zip is in the skip list."
+            )
             continue
-        if checkIfZipAlreadyProcessed(zip_file):
+        if all(checkIfZipAlreadyProcessed(zip_file) for zip_file in zip_group):
             logger.debug(
-                f"Skipping {zip_file} because it has already been processed or is in progress"
+                f"Skipping group {zip_group} because every zip has already been processed or is in progress"
             )
             continue
 
-        process_zip_file(zip_file, is_ag_zip=False)
+        processed_successfully = process_zip_group(date_key, zip_group, is_ag_zip=False)
 
         # Add the zip to the processed list only if an immediate exit was not requested
         # and if no error has occurred (i.e. not in ia_zips_errors.txt)
-        if not immediate_exit_event.is_set() and zip_file not in read_tracking_file(
-            IA_ZIPS_ERRORS_TRACKING_FILE
-        ):
-            add_to_tracking_file(IA_ZIPS_PROCESSED_TRACKING_FILE, zip_file)
+        if processed_successfully and not immediate_exit_event.is_set():
+            errors = read_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE)
+            for zip_file in zip_group:
+                if zip_file not in errors:
+                    add_to_tracking_file(IA_ZIPS_PROCESSED_TRACKING_FILE, zip_file)
 
         if immediate_exit_event.is_set():
             logger.info("Immediate exit requested after processing zip.")
@@ -1009,8 +1063,11 @@ if __name__ == "__main__":
                 f"Processing {len(ag_zip_files)} Air-to-Ground/Downlink-Ground (AG/DG) zip files"
             )
 
-            # Process AG zip files
-            for zip_file in ag_zip_files:
+            # Group AG/DG archives by date so each day is processed as a single unit.
+            ag_groups = group_zip_files_by_date(ag_zip_files)
+
+            # Process AG zip groups
+            for date_key, zip_group in ag_groups:
                 if immediate_exit_event.is_set():
                     logger.info("Immediate exit requested. Exiting AG/DG processing.")
                     break
@@ -1019,24 +1076,30 @@ if __name__ == "__main__":
                         "Exit after current IA zip requested. Exiting AG/DG processing."
                     )
                     break
-                if zip_file in skip_zips:
-                    logger.info(f"Skipping {zip_file} as it is in the skip list.")
+                if any(zip_file in skip_zips for zip_file in zip_group):
+                    logger.info(
+                        f"Skipping group {zip_group} because at least one zip is in the skip list."
+                    )
                     continue
-                if checkIfZipAlreadyProcessed(zip_file):
+                if all(checkIfZipAlreadyProcessed(zip_file) for zip_file in zip_group):
                     logger.debug(
-                        f"Skipping {zip_file} because it has already been processed or is in progress"
+                        f"Skipping group {zip_group} because every zip has already been processed or is in progress"
                     )
                     continue
 
-                process_zip_file(zip_file, is_ag_zip=True)
+                processed_successfully = process_zip_group(
+                    date_key, zip_group, is_ag_zip=True
+                )
 
                 # Add the zip to the processed list only if an immediate exit was not requested
                 # and if no error has occurred
-                if (
-                    not immediate_exit_event.is_set()
-                    and zip_file not in read_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE)
-                ):
-                    add_to_tracking_file(IA_ZIPS_PROCESSED_TRACKING_FILE, zip_file)
+                if processed_successfully and not immediate_exit_event.is_set():
+                    errors = read_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE)
+                    for zip_file in zip_group:
+                        if zip_file not in errors:
+                            add_to_tracking_file(
+                                IA_ZIPS_PROCESSED_TRACKING_FILE, zip_file
+                            )
 
                 if immediate_exit_event.is_set():
                     logger.info("Immediate exit requested after processing AG/DG zip.")

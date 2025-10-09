@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import inspect
 import json
 import logging
 import os
@@ -16,11 +17,12 @@ import zipfile
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import lru_cache
 
 import whisperx  # type: ignore
+import webrtcvad  # type: ignore
 from dotenv import load_dotenv
 from pydub import AudioSegment  # type: ignore
 from rich.console import Console
@@ -44,10 +46,27 @@ AAC_BITRATE = "96k"
 CACHE_SUFFIX = ".transcription.json"
 ALIGNMENT_CACHE_SUFFIX = ".alignment.json"
 PROMPT_ROOT_SUBPATH = "prompt_context"
+VAD_SAMPLE_RATE = 16000
+VAD_AGGRESSIVENESS = int(os.getenv("WHISPER_VAD_MODE", "2"))
+
+INVALID_TRANSCRIPT_MARKERS = [
+    " Thank you.",
+    " Bye.",
+    " ...",
+    " Thanks for watching!",
+    " Thank you for watching.",
+    " Thank you for watching!",
+    " Thank you for watching",
+    " .",
+    " This video is a derivative work of the Touhou Project",
+]
 
 ROOT_ENV_PATH = Path(__file__).resolve().parents[3] / ".env"
 TRACKING_DIR = Path(__file__).parent.parent
-CURRENT_IA_ZIP_WAVS_WORKING = Path("F:/tempF/iss_working/current_ia_zip_wavs")
+DEFAULT_WORKING_ROOT = TRACKING_DIR / "current_ia_zip_wavs"
+CURRENT_IA_ZIP_WAVS_WORKING = Path(
+    os.getenv("IA_ZIP_WORK_DIR", str(DEFAULT_WORKING_ROOT))
+)
 
 IA_ZIPS_PROCESSED_TRACKING_FILE = TRACKING_DIR / "ia_zips_processed.txt"
 IA_ZIPS_IN_PROGRESS_TRACKING_FILE = TRACKING_DIR / "ia_zips_in_progress.txt"
@@ -140,7 +159,7 @@ class WhisperResources:
             if key not in self.align_models:
                 console.log(f"Loading alignment model for language '{key}'")
                 align_model, metadata = whisperx.load_align_model(
-                    language=key, device=DEVICE
+                    language_code=key, device=DEVICE
                 )
                 self.align_models[key] = (align_model, metadata)
             return self.align_models[key]
@@ -173,6 +192,10 @@ def configure_logging(debug: bool = False) -> None:
     )
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
+    # Suppress noisy torio/torchaudio FFmpeg extension warnings on Windows
+    logging.getLogger("torio._extension.utils").setLevel(logging.ERROR)
+    logging.getLogger("torchaudio._extension.utils").setLevel(logging.ERROR)
+
 
 def load_environment(env_path: Path | None = None) -> None:
     env_path = env_path or ROOT_ENV_PATH
@@ -189,7 +212,11 @@ def ensure_directory(path: Path) -> None:
 def read_tracking_file(file_path: Path) -> List[str]:
     with file_lock:
         if file_path.exists():
-            return [line.strip() for line in file_path.read_text().splitlines() if line]
+            return [
+                line.strip()
+                for line in file_path.read_text(encoding="utf-8").splitlines()
+                if line
+            ]
     return []
 
 
@@ -198,21 +225,72 @@ def add_to_tracking_file(file_path: Path, item: str) -> None:
         items = set(read_tracking_file(file_path))
         if item not in items:
             items.add(item)
-            file_path.write_text("\n".join(sorted(items)))
+            file_path.write_text("\n".join(sorted(items)), encoding="utf-8")
 
 
 def remove_from_tracking_file(file_path: Path, item: str) -> None:
     with file_lock:
         if not file_path.exists():
             return
-        items = [line.strip() for line in file_path.read_text().splitlines() if line]
+        items = [
+            line.strip()
+            for line in file_path.read_text(encoding="utf-8").splitlines()
+            if line
+        ]
         if item in items:
             items.remove(item)
-            file_path.write_text("\n".join(items))
+            file_path.write_text("\n".join(items), encoding="utf-8")
 
 
 def read_skip_list(file_path: Path) -> List[str]:
     return read_tracking_file(file_path)
+
+
+def get_zip_date_key(zip_filename: str) -> str:
+    date_fragment = zip_filename[:8]
+    try:
+        month = date_fragment[:2]
+        day = date_fragment[3:5]
+        year = date_fragment[6:8]
+        return f"20{year}-{month}-{day}"
+    except Exception:
+        return "unknown"
+
+
+def group_zip_entries_by_date(
+    entries: List[Tuple[str, Path, str]],
+) -> List[Tuple[str, List[Tuple[str, Path, str]]]]:
+    sorted_entries = sorted(entries, key=lambda item: extract_zip_date(item[0]))
+    grouped: List[Tuple[str, List[Tuple[str, Path, str]]]] = []
+    for entry in sorted_entries:
+        date_key = get_zip_date_key(entry[0])
+        if grouped and grouped[-1][0] == date_key:
+            grouped[-1][1].append(entry)
+        else:
+            grouped.append((date_key, [entry]))
+    return grouped
+
+
+def list_zip_entries(
+    folder: Optional[Path],
+    zip_type: str,
+    selected: Optional[set[str]],
+    skip_list: set[str],
+) -> List[Tuple[str, Path, str]]:
+    if not folder or not folder.exists():
+        return []
+
+    entries: List[Tuple[str, Path, str]] = []
+    for name in os.listdir(folder):
+        if not name.lower().endswith(".zip"):
+            continue
+        if selected is not None and name not in selected:
+            continue
+        if name in skip_list:
+            continue
+        entries.append((name, folder, zip_type))
+
+    return entries
 
 
 def zip_likely_in_progress(zip_path: Path) -> bool:
@@ -346,7 +424,12 @@ def parse_wav_filename(
     )
 
 
-def unzip_ia_zip_wavs(zip_path: Path, destination_dir: Path, zip_type: str) -> None:
+def unzip_ia_zip_wavs(
+    zip_path: Path,
+    destination_dir: Path,
+    zip_type: str,
+    allow_overwrite: bool = False,
+) -> None:
     if not zipfile.is_zipfile(zip_path):
         if zip_likely_in_progress(zip_path):
             raise ZipPendingDownloadError(str(zip_path))
@@ -388,13 +471,21 @@ def unzip_ia_zip_wavs(zip_path: Path, destination_dir: Path, zip_type: str) -> N
                 )
                 continue
 
+            ensure_directory(destination_dir)
             new_file_name = f"{date_time}-{descriptor}_IA.wav"
             destination_file_path = destination_dir / new_file_name
-            counter = 1
-            base_name = destination_file_path.stem
-            while destination_file_path.exists():
-                destination_file_path = destination_dir / f"{base_name}_{counter}.wav"
-                counter += 1
+            if allow_overwrite and destination_file_path.exists():
+                logger.debug(
+                    "Overwriting existing file during unzip: %s", destination_file_path
+                )
+            elif not allow_overwrite:
+                counter = 1
+                base_name = destination_file_path.stem
+                while destination_file_path.exists():
+                    destination_file_path = (
+                        destination_dir / f"{base_name}_{counter}.wav"
+                    )
+                    counter += 1
 
             with zip_ref.open(file_info) as source_file:
                 with open(destination_file_path, "wb") as target_file:
@@ -421,9 +512,28 @@ def ensure_mono_wav(input_wav_path: Path) -> Optional[Path]:
         audio = AudioSegment.from_file(input_wav_path)
         audio = audio.set_channels(1)
         audio = audio.set_frame_rate(32000)
-        converted_path = input_wav_path.with_name(f"{input_wav_path.stem}_mono32.wav")
-        audio.export(converted_path, format="wav")
-        return converted_path
+        temp_converted = input_wav_path.with_name(
+            f"{input_wav_path.stem}_mono32_temp.wav"
+        )
+        audio.export(temp_converted, format="wav")
+
+        backup_path = input_wav_path.with_name(f"{input_wav_path.stem}_orig.wav")
+        if backup_path.exists():
+            backup_path.unlink()
+        try:
+            input_wav_path.rename(backup_path)
+        except OSError as exc:
+            logger.error("Failed to backup original WAV %s: %s", input_wav_path, exc)
+            temp_converted.unlink(missing_ok=True)
+            return None
+
+        try:
+            temp_converted.replace(input_wav_path)
+        finally:
+            if temp_converted.exists():
+                temp_converted.unlink()
+
+        return input_wav_path
     except Exception as exc:
         logger.error("Mono conversion failed for %s: %s", input_wav_path, exc)
         return None
@@ -473,10 +583,64 @@ def build_initial_prompt(
             except json.JSONDecodeError as exc:
                 logger.warning("Failed to parse %s: %s", json_fallback, exc)
 
-    channel_hint = f"Channel: {descriptor.replace('_', ' ')}"
+    # Clean the descriptor to remove prefixes/suffixes and format for display
+    clean_descriptor = descriptor.lstrip("1_").rstrip("_IA").replace("_", " ").replace("-", " ")
+    channel_hint = f"Channel: {clean_descriptor}"
     if prompt_text:
         return f"{prompt_text}\n\n{channel_hint}"
     return channel_hint
+
+
+@lru_cache(maxsize=None)
+def _pipeline_supported_transcribe_params(pipeline_cls: type) -> set[str]:
+    transcribe_fn = getattr(pipeline_cls, "transcribe", None)
+    if not callable(transcribe_fn):
+        return set()
+    try:
+        signature = inspect.signature(transcribe_fn)
+    except (TypeError, ValueError):
+        return set()
+
+    params = set(signature.parameters.keys())
+    params.discard("self")
+    params.discard("args")
+    params.discard("kwargs")
+    return params
+
+
+def transcribe_with_model(pipeline: object, audio, **kwargs):
+    transcribe_fn = getattr(pipeline, "transcribe", None)
+    if not callable(transcribe_fn):
+        raise AttributeError(
+            f"Pipeline '{type(pipeline).__name__}' does not expose a callable transcribe() method"
+        )
+
+    supported_params = _pipeline_supported_transcribe_params(type(pipeline))
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k in supported_params}
+    remapped_params: set[str] = set()
+
+    if "chunk_length" in kwargs and "chunk_length" not in supported_params:
+        chunk_length_value = kwargs["chunk_length"]
+        if "chunk_size" in supported_params and "chunk_size" not in filtered_kwargs:
+            filtered_kwargs["chunk_size"] = chunk_length_value
+            logger.debug(
+                "Translated chunk_length=%s to chunk_size for %s",
+                chunk_length_value,
+                type(pipeline).__name__,
+            )
+            remapped_params.add("chunk_length")
+
+    dropped_params = sorted(
+        set(kwargs.keys()) - set(filtered_kwargs.keys()) - remapped_params
+    )
+    if dropped_params:
+        logger.debug(
+            "Skipping unsupported transcribe kwargs for %s: %s",
+            type(pipeline).__name__,
+            ", ".join(dropped_params),
+        )
+
+    return transcribe_fn(audio, **filtered_kwargs)
 
 
 def transcribe_full_wav(
@@ -509,7 +673,8 @@ def transcribe_full_wav(
 
     logger.debug("Transcribing %s", wav_path.name)
     with suppress_stdout_stderr():
-        result = resources.base_model.transcribe(
+        result = transcribe_with_model(
+            resources.base_model,
             audio,
             batch_size=BATCH_SIZE,
             chunk_length=CHUNK_LENGTH,
@@ -542,7 +707,8 @@ def transcribe_full_wav(
             wav_path,
         )
         with suppress_stdout_stderr():
-            translation_result = resources.base_model.transcribe(
+            translation_result = transcribe_with_model(
+                resources.base_model,
                 audio,
                 batch_size=BATCH_SIZE,
                 chunk_length=CHUNK_LENGTH,
@@ -576,7 +742,10 @@ def transcribe_full_wav(
         "prompt_text": artifacts.prompt_text,
     }
     ensure_directory(cache_file.parent)
-    cache_file.write_text(json.dumps(cache_payload, ensure_ascii=False, indent=2))
+    cache_file.write_text(
+        json.dumps(cache_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     return artifacts
 
@@ -598,13 +767,12 @@ def flatten_words(
     return words
 
 
-def derive_alignment_intervals(
-    alignment_segments: List[Dict[str, object]],
+def _build_intervals_from_word_entries(
+    word_entries: List[Dict[str, object]],
     audio_duration: float,
     silence_cfg: SilenceConfig,
 ) -> List[Interval]:
-    words = flatten_words(alignment_segments)
-    if not words:
+    if not word_entries:
         return []
 
     intervals: List[Interval] = []
@@ -613,7 +781,7 @@ def derive_alignment_intervals(
     last_end: Optional[float] = None
     idx = 0
 
-    for word in words:
+    for word in word_entries:
         start = float(word.get("start", 0.0))
         end = float(word.get("end", start))
         if current_start is None:
@@ -658,6 +826,188 @@ def derive_alignment_intervals(
     return intervals
 
 
+def derive_alignment_intervals(
+    alignment_segments: List[Dict[str, object]],
+    audio_duration: float,
+    silence_cfg: SilenceConfig,
+    fallback_segments: Optional[List[Dict[str, object]]] = None,
+) -> List[Interval]:
+    words = flatten_words(alignment_segments)
+    if not words and fallback_segments:
+        fallback_words: List[Dict[str, object]] = []
+        for segment in fallback_segments:
+            seg_start = segment.get("start")
+            seg_end = segment.get("end")
+            if seg_start is None or seg_end is None:
+                continue
+            try:
+                start_val = float(seg_start)
+                end_val = float(seg_end)
+            except (TypeError, ValueError):
+                continue
+            fallback_words.append(
+                {
+                    "start": start_val,
+                    "end": end_val,
+                    "word": str(segment.get("text", "")).strip(),
+                }
+            )
+        fallback_words.sort(key=lambda item: item.get("start", 0.0))
+        if fallback_words:
+            logger.debug(
+                "Falling back to segment boundaries for interval derivation (%d segment(s))",
+                len(fallback_words),
+            )
+            words = fallback_words
+
+    if not words:
+        return []
+
+    return _build_intervals_from_word_entries(words, audio_duration, silence_cfg)
+
+
+def _prepare_vad_audio(audio_segment: AudioSegment) -> AudioSegment:
+    return (
+        audio_segment.set_channels(1)
+        .set_frame_rate(VAD_SAMPLE_RATE)
+        .set_sample_width(2)
+    )
+
+
+def detect_vad_segments(
+    audio_segment: AudioSegment, silence_cfg: SilenceConfig
+) -> List[Tuple[float, float]]:
+    vad = webrtcvad.Vad()
+    vad.set_mode(VAD_AGGRESSIVENESS)
+
+    prepared = _prepare_vad_audio(audio_segment)
+    raw_data = prepared.raw_data
+    bytes_per_sample = prepared.sample_width
+    frame_bytes = (
+        int(VAD_SAMPLE_RATE * silence_cfg.frame_duration_seconds) * bytes_per_sample
+    )
+    if frame_bytes <= 0:
+        return []
+
+    segments: List[Tuple[float, float]] = []
+    in_speech = False
+    segment_start = 0.0
+    trailing_silence_blocks = 0
+    total_frames = len(raw_data) // frame_bytes
+    duration_seconds = prepared.duration_seconds
+
+    for frame_idx in range(total_frames):
+        offset = frame_idx * frame_bytes
+        frame = raw_data[offset : offset + frame_bytes]
+        if len(frame) < frame_bytes:
+            break
+        frame_time = frame_idx * silence_cfg.frame_duration_seconds
+        try:
+            is_speech = vad.is_speech(frame, VAD_SAMPLE_RATE)
+        except Exception:
+            is_speech = False
+
+        if is_speech:
+            if not in_speech:
+                in_speech = True
+                segment_start = frame_time
+            trailing_silence_blocks = 0
+        else:
+            if in_speech:
+                trailing_silence_blocks += 1
+                if trailing_silence_blocks > silence_cfg.min_gap_blocks:
+                    segment_end = frame_time - (
+                        trailing_silence_blocks * silence_cfg.frame_duration_seconds
+                    )
+                    segment_end = max(segment_end, segment_start)
+                    segments.append((segment_start, min(segment_end, duration_seconds)))
+                    in_speech = False
+                    trailing_silence_blocks = 0
+            else:
+                trailing_silence_blocks = 0
+
+    if in_speech:
+        segment_end = duration_seconds
+        if trailing_silence_blocks:
+            segment_end -= (
+                min(trailing_silence_blocks, silence_cfg.min_gap_blocks)
+                * silence_cfg.frame_duration_seconds
+            )
+        segment_end = max(segment_end, segment_start)
+        segments.append((segment_start, min(segment_end, duration_seconds)))
+
+    return segments
+
+
+def merge_intervals_with_vad(
+    intervals: List[Interval],
+    vad_segments: List[Tuple[float, float]],
+    audio_duration: float,
+    silence_cfg: SilenceConfig,
+) -> List[Interval]:
+    if not intervals or not vad_segments:
+        return intervals
+
+    consumed = [False] * len(intervals)
+    merged: List[Interval] = []
+
+    for vad_start, vad_end in vad_segments:
+        overlapping_indices = [
+            idx
+            for idx, interval in enumerate(intervals)
+            if not consumed[idx]
+            and interval.start < vad_end
+            and interval.end > vad_start
+        ]
+        if not overlapping_indices:
+            continue
+
+        cluster_words: List[Dict[str, object]] = []
+        cluster_start: Optional[float] = None
+        cluster_end: Optional[float] = None
+
+        for idx in overlapping_indices:
+            interval = intervals[idx]
+            cluster_start = (
+                interval.start
+                if cluster_start is None
+                else min(cluster_start, interval.start)
+            )
+            cluster_end = (
+                interval.end if cluster_end is None else max(cluster_end, interval.end)
+            )
+            cluster_words.extend(interval.words)
+            consumed[idx] = True
+
+        cluster_words.sort(key=lambda w: float(w.get("start", 0.0)))
+        merged.append(
+            Interval(
+                index=len(merged),
+                start=max((cluster_start or vad_start), 0.0),
+                end=min((cluster_end or vad_end), audio_duration),
+                words=cluster_words,
+            )
+        )
+
+    for idx, interval in enumerate(intervals):
+        if consumed[idx]:
+            continue
+        merged.append(
+            Interval(
+                index=len(merged),
+                start=max(interval.start, 0.0),
+                end=min(interval.end, audio_duration),
+                words=sorted(interval.words, key=lambda w: float(w.get("start", 0.0))),
+            )
+        )
+
+    merged.sort(key=lambda item: item.start)
+    for idx, interval in enumerate(merged):
+        interval.index = idx
+
+    return merged
+
+
 def slice_segments_to_interval(
     segments: List[Dict[str, object]],
     interval_start: float,
@@ -699,6 +1049,62 @@ def slice_segments_to_interval(
     return sliced
 
 
+def segments_to_text(segments: Optional[Sequence[Dict[str, object]]]) -> str:
+    if not segments:
+        return ""
+    texts = []
+    for segment in segments:
+        text_value = str(segment.get("text", "")).strip()
+        if text_value:
+            texts.append(text_value)
+    return " ".join(texts).strip()
+
+
+def display_transcription_summary(
+    wav_path: Path, transcription: TranscriptionArtifacts
+) -> None:
+    console.rule(f"[bold cyan]{wav_path.name}")
+    console.print(
+        f"[bold]Detected language:[/] {transcription.detected_language or 'unknown'}"
+    )
+
+    original_text = segments_to_text(transcription.source_segments)
+    translated_text = (
+        segments_to_text(transcription.translation_segments)
+        if transcription.translation_segments is not None
+        else segments_to_text(transcription.final_segments)
+    )
+
+    language_label = transcription.detected_language or "unknown"
+
+    if transcription.translation_segments is not None:
+        if original_text:
+            console.print(
+                f"[bold]Original transcript ({language_label}):[/]\n{original_text}"
+            )
+        else:
+            console.print(
+                f"[bold]Original transcript ({language_label}):[/] [italic]Unavailable[/]"
+            )
+
+        if translated_text:
+            console.print(
+                "[bold]Translated transcript (English):[/]\n" f"{translated_text}"
+            )
+        else:
+            console.print(
+                "[bold]Translated transcript (English):[/] [italic]Unavailable[/]"
+            )
+    else:
+        combined_text = translated_text or original_text
+        if combined_text:
+            console.print(f"[bold]Transcript ({language_label}):[/]\n{combined_text}")
+        else:
+            console.print(
+                f"[bold]Transcript ({language_label}):[/] [italic]Unavailable[/]"
+            )
+
+
 def render_utterances(
     audio_segment: AudioSegment,
     transcription: TranscriptionArtifacts,
@@ -720,7 +1126,33 @@ def render_utterances(
 
         utterance_start_time = start_time + dt.timedelta(seconds=interval.start)
         file_stub = utterance_start_time.isoformat().split(".")[0].replace(":", "")
-        base_filename = f"{file_stub}-{descriptor}_IA"
+        base_filename = f"{file_stub}-{descriptor}"
+
+        segments = slice_segments_to_interval(
+            transcription.final_segments, interval.start, interval.end
+        )
+        if not segments:
+            logger.warning(
+                "Interval %s produced no transcript segments for %s; skipping",
+                interval.index,
+                base_filename,
+            )
+            continue
+
+        first_text_raw = str(segments[0].get("text", ""))
+        candidate_texts = [first_text_raw, first_text_raw.strip()]
+        if any(
+            marker in candidate
+            for candidate in candidate_texts
+            if candidate
+            for marker in INVALID_TRANSCRIPT_MARKERS
+        ):
+            logger.info(
+                "Skipping interval %s due to invalid transcript text: %s",
+                interval.index,
+                first_text_raw.strip() or first_text_raw,
+            )
+            continue
 
         year = str(utterance_start_time.year)
         month = str(utterance_start_time.month).zfill(2)
@@ -729,21 +1161,12 @@ def render_utterances(
         ensure_directory(dated_directory)
 
         aac_path = dated_directory / f"{base_filename}.aac"
-        utterance_audio.export(
+        export_result = utterance_audio.export(
             aac_path, format="adts", codec="aac", bitrate=AAC_BITRATE
         )
+        if hasattr(export_result, "close"):
+            export_result.close()
         logger.debug("Wrote AAC %s", aac_path)
-
-        segments = slice_segments_to_interval(
-            transcription.final_segments, interval.start, interval.end
-        )
-        if not segments:
-            logger.warning(
-                "Interval %s produced no transcript segments for %s",
-                interval.index,
-                aac_path,
-            )
-
         payload = {
             "segments": segments,
             "language": transcription.language,
@@ -764,7 +1187,10 @@ def render_utterances(
             payload["language"] = transcription.language
 
         json_path = dated_directory / f"{base_filename}.json"
-        json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2))
+        json_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
         outputs.append(json_path)
     return outputs
 
@@ -804,7 +1230,7 @@ def process_wav_file(
     output_root: Path,
     cache_dir: Path,
     force: bool,
-) -> None:
+) -> TranscriptionArtifacts:
     prompt_text = build_initial_prompt(start_time, descriptor, prompt_root)
     transcription = transcribe_full_wav(
         wav_path,
@@ -820,10 +1246,19 @@ def process_wav_file(
         transcription.alignment_segments,
         audio_segment.duration_seconds,
         silence_cfg,
+        fallback_segments=transcription.final_segments,
     )
+    vad_segments = detect_vad_segments(audio_segment, silence_cfg)
+    if vad_segments:
+        intervals = merge_intervals_with_vad(
+            intervals,
+            vad_segments,
+            audio_segment.duration_seconds,
+            silence_cfg,
+        )
     if not intervals:
         logger.warning("No speech detected in %s", wav_path.name)
-        return
+        return transcription
     render_utterances(
         audio_segment,
         transcription,
@@ -832,34 +1267,74 @@ def process_wav_file(
         start_time,
         output_root,
     )
+    return transcription
 
 
-def process_zip_file(
-    zip_file: str,
-    zip_folder: Path,
-    zip_type: str,
+def process_zip_group(
+    date_key: str,
+    zip_entries: Sequence[Tuple[str, Path, str]],
     resources: WhisperResources,
     prompt_root: Path,
     silence_cfg: SilenceConfig,
     output_root: Path,
     force: bool,
-    workers: int,
-) -> None:
+    see_transcriptions: bool,
+) -> bool:
+    """Unzip and process every archive belonging to a single date group."""
     if exit_event.is_set() or immediate_exit_event.is_set():
-        logger.info("Exit requested before processing %s", zip_file)
-        return
+        logger.info("Exit requested before processing group %s", date_key)
+        return False
 
-    add_to_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
-    zip_path = zip_folder / zip_file
-    working_dir = CURRENT_IA_ZIP_WAVS_WORKING / f"{zip_path.stem}_wavs"
+    if not zip_entries:
+        logger.warning("No archives provided for group %s", date_key)
+        return False
 
+    for zip_file, _, _ in zip_entries:
+        add_to_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
+
+    working_dir_name = date_key if date_key != "unknown" else zip_entries[0][0]
+    working_dir = CURRENT_IA_ZIP_WAVS_WORKING / f"{working_dir_name}_wavs"
     if working_dir.exists():
         shutil.rmtree(working_dir)
     ensure_directory(working_dir)
+    logger.info("Unzipped archives will be staged in %s", working_dir)
 
     processed_successfully = False
+
     try:
-        unzip_ia_zip_wavs(zip_path, working_dir, zip_type)
+        for zip_file, zip_folder, zip_type in zip_entries:
+            if exit_event.is_set() or immediate_exit_event.is_set():
+                raise RuntimeError("Exit requested")
+            zip_path = zip_folder / zip_file
+            logger.info(
+                "Unzipping %s archive %s for group %s", zip_type, zip_file, date_key
+            )
+            try:
+                unzip_ia_zip_wavs(
+                    zip_path,
+                    working_dir,
+                    zip_type,
+                    allow_overwrite=True,
+                )
+                logger.info(
+                    "Finished unpacking %s into %s",
+                    zip_path,
+                    working_dir,
+                )
+            except ZipPendingDownloadError:
+                logger.info(
+                    "%s appears to be downloading; postponing group %s",
+                    zip_file,
+                    date_key,
+                )
+                raise
+            except zipfile.BadZipFile as exc:
+                logger.error("Failed to unzip %s: %s", zip_file, exc)
+                add_to_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE, zip_file)
+                raise
+            except Exception as exc:  # pylint: disable=broad-except
+                logger.exception("Unexpected error unzipping %s: %s", zip_file, exc)
+                raise
 
         wav_files = sorted(working_dir.glob("*.wav"))
         cache_dir = working_dir / "cache"
@@ -871,8 +1346,7 @@ def process_zip_file(
             day_dirs: set[Path] = set()
             for wav in wav_files:
                 try:
-                    start_time_str = wav.stem[:17]
-                    start_time = dt.datetime.strptime(start_time_str, "%Y-%m-%dT%H%M%S")
+                    start_time = dt.datetime.strptime(wav.stem[:17], "%Y-%m-%dT%H%M%S")
                 except ValueError:
                     continue
                 day_dirs.add(
@@ -886,21 +1360,23 @@ def process_zip_file(
                     logger.debug("Force enabled: removing existing output %s", day_dir)
                     shutil.rmtree(day_dir)
 
-        def _process_single_wav(wav_file: Path) -> None:
+        for wav_file in wav_files:
             if exit_event.is_set() or immediate_exit_event.is_set():
                 raise RuntimeError("Exit requested")
+
             wav_local = ensure_mono_wav(wav_file) or wav_file
             try:
                 start_time_str = wav_local.stem[:17]
                 start_time_local = dt.datetime.strptime(
                     start_time_str, "%Y-%m-%dT%H%M%S"
                 )
-                descriptor_local = wav_local.stem[18:-3]
+                descriptor_local = wav_local.stem[18:]
             except ValueError as exc:
                 logger.error("Failed to parse WAV name %s: %s", wav_local.name, exc)
-                return
+                continue
+
             try:
-                process_wav_file(
+                transcription = process_wav_file(
                     wav_local,
                     descriptor_local,
                     start_time_local,
@@ -911,6 +1387,8 @@ def process_zip_file(
                     cache_dir,
                     force,
                 )
+                if see_transcriptions and transcription is not None:
+                    display_transcription_summary(wav_local, transcription)
             except RuntimeError as exc:
                 if str(exc) == "Exit requested":
                     raise
@@ -918,40 +1396,40 @@ def process_zip_file(
             except Exception as exc:  # pylint: disable=broad-except
                 logger.exception("Error processing %s: %s", wav_local.name, exc)
 
-        if workers > 1 and len(wav_files) > 1:
-            with ThreadPoolExecutor(max_workers=workers) as executor:
-                futures = {
-                    executor.submit(_process_single_wav, wav): wav for wav in wav_files
-                }
-                for future in as_completed(futures):
-                    future.result()
-        else:
-            for wav in wav_files:
-                _process_single_wav(wav)
+            orig_wav_file = wav_local.parent / (wav_local.stem + "_orig.wav")
+            if orig_wav_file.exists():
+                orig_wav_file.unlink()
 
         processed_successfully = True
     except ZipPendingDownloadError:
-        logger.info("%s appears to be downloading; will retry later", zip_file)
-    except zipfile.BadZipFile as exc:
-        logger.error("Failed to unzip %s: %s", zip_file, exc)
-        add_to_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE, zip_file)
+        logger.info("Group %s deferred due to pending download", date_key)
     except RuntimeError as exc:
         if str(exc) == "Exit requested":
-            logger.info("Exit requested during %s; partial progress saved", zip_file)
+            logger.info(
+                "Exit requested during group %s; partial progress saved", date_key
+            )
         else:
-            logger.error("Runtime error while processing %s: %s", zip_file, exc)
+            logger.error("Runtime error while processing group %s: %s", date_key, exc)
     finally:
-        if processed_successfully:
+        if working_dir.exists():
+            shutil.rmtree(working_dir)
+        for zip_file, _, _ in zip_entries:
+            remove_from_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
+
+    if processed_successfully:
+        for zip_file, _, _ in zip_entries:
             add_to_tracking_file(IA_ZIPS_PROCESSED_TRACKING_FILE, zip_file)
-        remove_from_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
+
+    return processed_successfully
 
 
-def gather_zip_files(folder: Path) -> List[str]:
-    return [f for f in os.listdir(folder) if f.lower().endswith(".zip")]
-
-
-def sort_zips_oldest_first(zips: Iterable[str]) -> List[str]:
-    return sorted(zips, key=extract_zip_date)
+def parse_date_arg(value: str) -> dt.date:
+    try:
+        return dt.datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"Invalid date '{value}'. Expected format YYYY-MM-DD"
+        ) from exc
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -965,14 +1443,9 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Specific zip filename to process (can be provided multiple times)",
     )
     parser.add_argument(
-        "--include-ag",
-        action="store_true",
-        help="Process AG/DG zips in addition to SG",
-    )
-    parser.add_argument(
         "--limit",
         type=int,
-        help="Only process this many zips per category",
+        help="Only process this many date groups",
     )
     parser.add_argument(
         "--debug",
@@ -985,10 +1458,26 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Reprocess outputs even if they already exist",
     )
     parser.add_argument(
-        "--workers",
-        type=int,
-        default=1,
-        help="Number of concurrent WAV workers sharing the WhisperX model",
+        "--date",
+        action="append",
+        type=parse_date_arg,
+        help="Specific YYYY-MM-DD date to process (can be specified multiple times)",
+        dest="dates",
+    )
+    parser.add_argument(
+        "--start-date",
+        type=parse_date_arg,
+        help="Inclusive start date (YYYY-MM-DD). When used with --end-date, processes EVERY day in the range",
+    )
+    parser.add_argument(
+        "--end-date",
+        type=parse_date_arg,
+        help="Inclusive end date (YYYY-MM-DD). When used with --start-date, processes EVERY day in the range",
+    )
+    parser.add_argument(
+        "--see-transcriptions",
+        action="store_true",
+        help="Print original-language and translated Whisper transcripts for each WAV after processing",
     )
     return parser.parse_args(argv)
 
@@ -997,6 +1486,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv)
     configure_logging(debug=args.debug)
     load_environment(ROOT_ENV_PATH)
+
+    if args.start_date and args.end_date and args.start_date > args.end_date:
+        logger.error(
+            "Start date %s is after end date %s",
+            args.start_date.isoformat(),
+            args.end_date.isoformat(),
+        )
+        return 2
+
+    requested_dates = set(args.dates or [])
 
     raw_folder = os.getenv("RAW_FOLDER")
     if not raw_folder:
@@ -1009,8 +1508,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     prompt_root = derive_prompt_root(raw_folder)
 
     raw_audio_folder = os.getenv("RAW_AUDIO_FOLDER")
-    ia_zip_sg_folder: Optional[Path]
-    ia_zip_ag_folder: Optional[Path]
+    ia_zip_sg_folder: Optional[Path] = None
+    ia_zip_ag_folder: Optional[Path] = None
     if raw_audio_folder:
         raw_audio_path = Path(raw_audio_folder)
         ia_zip_sg_folder = raw_audio_path / "InternetArchive_space_to_grounds"
@@ -1023,6 +1522,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     elif raw_audio_folder:
         CURRENT_IA_ZIP_WAVS_WORKING = Path(raw_audio_folder) / "current_ia_zip_wavs"
 
+    ensure_directory(CURRENT_IA_ZIP_WAVS_WORKING)
+    logger.info(
+        "Using working directory %s for temporary zip extraction",
+        CURRENT_IA_ZIP_WAVS_WORKING,
+    )
+
     if not ia_zip_sg_folder or not ia_zip_sg_folder.exists():
         logger.error(
             "Space-to-Ground zip folder not found. Set RAW_AUDIO_FOLDER or IA_ZIP_SG_FOLDER"
@@ -1033,55 +1538,74 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     silence_cfg = SilenceConfig()
 
     skip_list = set(read_skip_list(IA_SKIP_ZIPS_TRACKING_FILE))
+    selected_names = set(args.zips) if args.zips else None
 
-    sg_zips = args.zips if args.zips else gather_zip_files(ia_zip_sg_folder)
-    sg_zips = [z for z in sg_zips if z not in skip_list]
-    sg_zips = sort_zips_oldest_first(sg_zips)
+    sg_entries = list_zip_entries(ia_zip_sg_folder, "SG", selected_names, skip_list)
+    ag_entries = list_zip_entries(ia_zip_ag_folder, "AG", selected_names, skip_list)
+
+    combined_entries = sg_entries + ag_entries
+
+    # Combine multi-part archives by grouping every zip that shares a date key.
+
+    if selected_names is not None:
+        found_names = {name for name, _, _ in combined_entries}
+        missing = selected_names - found_names
+        if missing:
+            logger.warning("Requested zip(s) not found: %s", ", ".join(sorted(missing)))
+
+    if not combined_entries:
+        logger.info("No zip archives to process.")
+        return 0
+
+    grouped_entries = group_zip_entries_by_date(combined_entries)
+
+    if requested_dates or args.start_date or args.end_date:
+        filtered_entries: List[Tuple[str, List[Tuple[str, Path, str]]]] = []
+        skipped_unknown: set[str] = set()
+        for date_key, zip_group in grouped_entries:
+            try:
+                date_value = dt.date.fromisoformat(date_key)
+            except ValueError:
+                skipped_unknown.add(date_key)
+                continue
+            if requested_dates and date_value not in requested_dates:
+                continue
+            if args.start_date and date_value < args.start_date:
+                continue
+            if args.end_date and date_value > args.end_date:
+                continue
+            filtered_entries.append((date_key, zip_group))
+        if skipped_unknown:
+            logger.warning(
+                "Skipping %d group(s) with unrecognized date key(s): %s",
+                len(skipped_unknown),
+                ", ".join(sorted(skipped_unknown)),
+            )
+        grouped_entries = filtered_entries
+        if not grouped_entries:
+            logger.info("No zip archives matched the requested date filters.")
+            return 0
     if args.limit:
-        sg_zips = sg_zips[: args.limit]
+        grouped_entries = grouped_entries[: args.limit]
 
-    ag_zips: List[str] = []
-    if args.include_ag and ia_zip_ag_folder and ia_zip_ag_folder.exists():
-        ag_zips = gather_zip_files(ia_zip_ag_folder)
-        ag_zips = [z for z in ag_zips if z not in skip_list]
-        ag_zips = sort_zips_oldest_first(ag_zips)
-        if args.limit:
-            ag_zips = ag_zips[: args.limit]
+    logger.info("Processing %d zip group(s) (oldest -> newest)", len(grouped_entries))
 
-    logger.info("Processing %d SG zips (oldest -> newest)", len(sg_zips))
-    workers = max(1, args.workers)
-
-    for zip_file in sg_zips:
+    for date_key, zip_group in grouped_entries:
         if exit_event.is_set() or immediate_exit_event.is_set():
             break
-        process_zip_file(
-            zip_file,
-            ia_zip_sg_folder,
-            "SG",
+        logger.info("Processing %s (%d archive(s))", date_key, len(zip_group))
+        success = process_zip_group(
+            date_key,
+            zip_group,
             resources,
             prompt_root,
             silence_cfg,
             comm_raw,
             args.force,
-            workers,
+            args.see_transcriptions,
         )
-
-    if args.include_ag:
-        logger.info("Processing %d AG/DG zips (oldest -> newest)", len(ag_zips))
-        for zip_file in ag_zips:
-            if exit_event.is_set() or immediate_exit_event.is_set():
-                break
-            process_zip_file(
-                zip_file,
-                ia_zip_ag_folder,
-                "AG",
-                resources,
-                prompt_root,
-                silence_cfg,
-                comm_raw,
-                args.force,
-                workers,
-            )
+        if not success:
+            logger.warning("Group %s did not complete successfully", date_key)
 
     return 0
 

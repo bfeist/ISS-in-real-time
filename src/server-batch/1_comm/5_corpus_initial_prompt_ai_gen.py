@@ -201,11 +201,6 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "--end-date",
         help="Inclusive end date (YYYY-MM-DD). When used with --start-date, processes EVERY day in the range",
     )
-    parser.add_argument(
-        "--dates-file",
-        type=Path,
-        help="Path to file containing dates (one per line)",
-    )
     parser.add_argument("--env-file", type=Path, help="Override path to .env file")
     parser.add_argument(
         "--all-days",
@@ -252,11 +247,6 @@ def collect_dates(args: argparse.Namespace, config: PromptContextConfig) -> List
     dates: set[str] = set()
     if args.dates:
         dates.update(args.dates)
-    if args.dates_file and args.dates_file.exists():
-        for line in args.dates_file.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if line:
-                dates.add(line)
     if args.start_date and args.end_date:
         start = dt.datetime.strptime(args.start_date, "%Y-%m-%d").date()
         end = dt.datetime.strptime(args.end_date, "%Y-%m-%d").date()
