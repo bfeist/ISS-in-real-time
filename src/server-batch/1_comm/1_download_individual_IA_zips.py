@@ -33,11 +33,39 @@ issDragonCommBasePath.mkdir(parents=True, exist_ok=True)
 
 
 def normalize_filename(name: str) -> str:
-    """Remove leading underscores from filenames/identifiers."""
-    return name.lstrip("_")
+    """
+    Normalize filenames by:
+    - Removing leading underscores
+    - Padding single-digit months/days with leading zeros (e.g., 5-3-24 -> 05-03-24)
+    - Converting 4-digit years to 2-digit years (e.g., 2024 -> 24)
+    """
+    import re
+
+    cleaned = name.lstrip("_")
+
+    # Match date patterns: m-d-yy, mm-dd-yy, m-d-yyyy, mm-dd-yyyy
+    # Pad single digits and convert 4-digit years to 2-digit
+    def pad_date(match):
+        month = match.group(1).zfill(2)
+        day = match.group(2).zfill(2)
+        year = match.group(3)
+        # Convert 4-digit year to 2-digit if necessary
+        if len(year) == 4:
+            year = year[2:]
+        return f"{month}-{day}-{year}"
+
+    # Pattern matches 1-2 digit month, 1-2 digit day, 2 or 4 digit year
+    date_pattern = r"(\d{1,2})-(\d{1,2})-(\d{2,4})"
+    return re.sub(date_pattern, pad_date, cleaned)
 
 
-creators = ["creator:(Expedition 62 ACR Collection)"]
+creators = [
+    "creator:(Houston Audio Control Room)",
+    "creator:(john.l.stoll@nasa.gov)",
+    "creator:(Expedition 62 ACR Collection)",
+    "creator:(Johnson Space Center)",
+    "creator:(Beth Weissinger)",
+]
 
 all_results = []
 for creator in creators:

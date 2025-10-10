@@ -114,14 +114,28 @@ def download_file(url, destination: Path):
 
 
 def normalize_filename(filename):
-    """Convert mm-dd-yyyy format to mm-dd-yy in filenames and strip leading underscores."""
+    """
+    Normalize filenames by:
+    - Stripping leading underscores
+    - Padding single-digit months/days with leading zeros (e.g., 5-3-24 -> 05-03-24)
+    - Converting 4-digit years to 2-digit years (e.g., 2024 -> 24)
+    """
     cleaned = filename.lstrip("_")
-    date_pattern = r"(\d{2})-(\d{2})-(\d{4})"
-    return re.sub(
-        date_pattern,
-        lambda m: f"{m.group(1)}-{m.group(2)}-{m.group(3)[2:]}",
-        cleaned,
-    )
+
+    # Match date patterns: m-d-yy, mm-dd-yy, m-d-yyyy, mm-dd-yyyy
+    # Pad single digits and convert 4-digit years to 2-digit
+    def pad_date(match):
+        month = match.group(1).zfill(2)
+        day = match.group(2).zfill(2)
+        year = match.group(3)
+        # Convert 4-digit year to 2-digit if necessary
+        if len(year) == 4:
+            year = year[2:]
+        return f"{month}-{day}-{year}"
+
+    # Pattern matches 1-2 digit month, 1-2 digit day, 2 or 4 digit year
+    date_pattern = r"(\d{1,2})-(\d{1,2})-(\d{2,4})"
+    return re.sub(date_pattern, pad_date, cleaned)
 
 
 def ensure_normalized_file(path: Path) -> Path:

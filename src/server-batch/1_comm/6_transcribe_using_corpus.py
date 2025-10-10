@@ -1778,6 +1778,7 @@ def process_zip_group(
     silence_cfg: SilenceConfig,
     output_root: Path,
     force: bool,
+    erase: bool,
     see_transcriptions: bool,
     *,
     log: CommTranscriptionLog,
@@ -1860,11 +1861,14 @@ def process_zip_group(
 
         wav_files = sorted(working_dir.glob("*.wav"))
         cache_dir = working_dir / "cache"
+        # Always clear cache when force is enabled (to re-transcribe)
         if force and cache_dir.exists():
+            logger.debug("Force enabled: clearing transcription cache")
             shutil.rmtree(cache_dir)
         ensure_directory(cache_dir)
 
-        if force and wav_files:
+        # Only clear output directories if --erase is explicitly requested
+        if erase and wav_files:
             day_dirs: set[Path] = set()
             for wav in wav_files:
                 try:
@@ -1882,7 +1886,7 @@ def process_zip_group(
                 )
             for day_dir in day_dirs:
                 if day_dir.exists():
-                    logger.debug("Force enabled: removing existing output %s", day_dir)
+                    logger.info("Erase enabled: removing existing output %s", day_dir)
                     shutil.rmtree(day_dir)
 
         for wav_file in wav_files:
@@ -2014,7 +2018,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Reprocess outputs even if they already exist",
+        help="Process archives even if already marked as completed in the log file",
+    )
+    parser.add_argument(
+        "--erase",
+        action="store_true",
+        help="Clear the output folder for each day before processing (use with caution)",
     )
     parser.add_argument(
         "--date",
@@ -2124,23 +2133,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     "Requested zip(s) not found: %s", ", ".join(sorted(missing))
                 )
 
+        # Check for already completed archives (unless --force is used)
         if not args.force:
             completed_v2 = transcription_log.zips_by_status(
                 [LOG_STATUS_COMPLETED], version=TRANSCRIPTION_VERSION
             )
+            already_completed = {name for name, _, _ in combined_entries} & completed_v2
+            if already_completed:
+                logger.info(
+                    "Skipping %d archive(s) already completed for version %d",
+                    len(already_completed),
+                    TRANSCRIPTION_VERSION,
+                )
+                combined_entries = [
+                    entry for entry in combined_entries if entry[0] not in already_completed
+                ]
         else:
-            completed_v2 = set()
-
-        already_completed = {name for name, _, _ in combined_entries} & completed_v2
-        if already_completed:
             logger.info(
-                "Skipping %d archive(s) already completed for version %d",
-                len(already_completed),
-                TRANSCRIPTION_VERSION,
+                "Force mode enabled: will process archives even if marked as completed"
             )
-            combined_entries = [
-                entry for entry in combined_entries if entry[0] not in already_completed
-            ]
 
         if not combined_entries:
             logger.info("No zip archives to process.")
@@ -2193,6 +2204,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 silence_cfg,
                 comm_raw,
                 args.force,
+                args.erase,
                 args.see_transcriptions,
                 log=transcription_log,
                 transcription_version=TRANSCRIPTION_VERSION,
