@@ -19,6 +19,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
+from zoneinfo import ZoneInfo
 
 from functools import lru_cache
 
@@ -116,6 +117,9 @@ DEFAULT_WORKING_ROOT = TRACKING_DIR / "current_ia_zip_wavs"
 CURRENT_IA_ZIP_WAVS_WORKING = Path(
     os.getenv("IA_ZIP_WORK_DIR", str(DEFAULT_WORKING_ROOT))
 )
+
+CENTRAL_TZ = ZoneInfo("America/Chicago")
+UTC_TZ = dt.timezone.utc
 
 TRANSCRIPTION_VERSION = 2
 ZIP_KIND_DEFAULT_TYPE = {
@@ -1526,13 +1530,19 @@ def render_utterances(
             )
             continue
 
-        utterance_start_time = start_time + dt.timedelta(seconds=interval.start)
-        file_stub = utterance_start_time.isoformat().split(".")[0].replace(":", "")
+        utterance_start_time_local = start_time + dt.timedelta(seconds=interval.start)
+        if utterance_start_time_local.tzinfo is None:
+            utterance_start_time_local = utterance_start_time_local.replace(
+                tzinfo=CENTRAL_TZ
+            )
+        utterance_start_time_utc = utterance_start_time_local.astimezone(UTC_TZ)
+
+        file_stub = utterance_start_time_utc.strftime("%Y-%m-%dT%H%M%S")
         base_filename = f"{file_stub}-{descriptor}"
 
-        year = str(utterance_start_time.year)
-        month = str(utterance_start_time.month).zfill(2)
-        day = str(utterance_start_time.day).zfill(2)
+        year = str(utterance_start_time_utc.year)
+        month = str(utterance_start_time_utc.month).zfill(2)
+        day = str(utterance_start_time_utc.day).zfill(2)
         dated_directory = output_root / year / month / day
         ensure_directory(dated_directory)
 
@@ -1546,7 +1556,7 @@ def render_utterances(
             "detectedLanguage": transcription.detected_language,
             "descriptor": descriptor,
             "filename": aac_path.name,
-            "utteranceTime": utterance_start_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "utteranceTime": utterance_start_time_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "model": MODEL_TYPE,
             "modelrunner": "whisperx",
             "prompt": transcription.prompt_text,
@@ -1717,6 +1727,9 @@ def process_wav_file(
     cache_dir: Path,
     force: bool,
 ) -> TranscriptionArtifacts:
+    if start_time.tzinfo is None:
+        start_time = start_time.replace(tzinfo=CENTRAL_TZ)
+
     prompt_text = build_initial_prompt(start_time, descriptor, prompt_root)
     transcription = transcribe_full_wav(
         wav_path,
@@ -1855,14 +1868,17 @@ def process_zip_group(
             day_dirs: set[Path] = set()
             for wav in wav_files:
                 try:
-                    start_time = dt.datetime.strptime(wav.stem[:17], "%Y-%m-%dT%H%M%S")
+                    start_time = dt.datetime.strptime(
+                        wav.stem[:17], "%Y-%m-%dT%H%M%S"
+                    ).replace(tzinfo=CENTRAL_TZ)
                 except ValueError:
                     continue
+                start_time_utc = start_time.astimezone(UTC_TZ)
                 day_dirs.add(
                     output_root
-                    / str(start_time.year)
-                    / str(start_time.month).zfill(2)
-                    / str(start_time.day).zfill(2)
+                    / str(start_time_utc.year)
+                    / str(start_time_utc.month).zfill(2)
+                    / str(start_time_utc.day).zfill(2)
                 )
             for day_dir in day_dirs:
                 if day_dir.exists():
@@ -1878,7 +1894,7 @@ def process_zip_group(
                 start_time_str = wav_local.stem[:17]
                 start_time_local = dt.datetime.strptime(
                     start_time_str, "%Y-%m-%dT%H%M%S"
-                )
+                ).replace(tzinfo=CENTRAL_TZ)
                 descriptor_local = wav_local.stem[18:]
             except ValueError as exc:
                 logger.error("Failed to parse WAV name %s: %s", wav_local.name, exc)

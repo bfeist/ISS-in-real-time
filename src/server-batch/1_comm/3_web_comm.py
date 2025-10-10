@@ -80,18 +80,20 @@ def create_daily_transcript(root_dir, date_str, output_dir):
         with open(file_path, "r", encoding="utf-8") as f:
             json_data = json.load(f)
 
-            # Extract and correct 'utteranceTime'
+            # Extract and normalize 'utteranceTime' (already stored as UTC in source JSON)
             utteranceTime_str = json_data.get("utteranceTime", "")
-            # Remove 'Z' at the end
-            utteranceTime_str = utteranceTime_str.rstrip("Z")
-            # Parse datetime
-            local_dt = datetime.strptime(utteranceTime_str, "%Y-%m-%dT%H:%M:%S")
-            # Assign 'America/Chicago' timezone
-            local_dt = local_dt.replace(tzinfo=ZoneInfo("America/Chicago"))
-            # Convert to UTC
-            utc_dt = local_dt.astimezone(ZoneInfo("UTC"))
-            # Get ISO format string and extract time part
-            utteranceTime_utc = utc_dt.strftime("%H:%M:%S")
+            utterance_dt = None
+            if utteranceTime_str:
+                try:
+                    utterance_dt = datetime.strptime(
+                        utteranceTime_str, "%Y-%m-%dT%H:%M:%SZ"
+                    )
+                except ValueError:
+                    utterance_dt = None
+
+            utteranceTime_utc = (
+                utterance_dt.strftime("%H:%M:%S") if utterance_dt else ""
+            )
 
             # Concatenate 'text' from all segments
             segments = json_data.get("segments", [])
