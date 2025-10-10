@@ -29,6 +29,20 @@ from pydub import AudioSegment  # type: ignore
 from rich.console import Console
 from rich.logging import RichHandler
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from log_db import (  # noqa: E402  - local module import after path injection
+    CommTranscriptionLog,
+    LOG_STATUS_COMPLETED,
+    LOG_STATUS_ERROR,
+    LOG_STATUS_IN_PROGRESS,
+    LOG_STATUS_SKIPPED,
+    parse_zip_metadata,
+)
+from log_migration import migrate_legacy_tracking_files  # noqa: E402
+
 
 # ---------------------------------------------------------------------------
 # Constants & Configuration
@@ -69,6 +83,12 @@ DEFAULT_WORKING_ROOT = TRACKING_DIR / "current_ia_zip_wavs"
 CURRENT_IA_ZIP_WAVS_WORKING = Path(
     os.getenv("IA_ZIP_WORK_DIR", str(DEFAULT_WORKING_ROOT))
 )
+
+TRANSCRIPTION_VERSION = 2
+ZIP_KIND_DEFAULT_TYPE = {
+    "SG": "Space-to-Grounds",
+    "AG": "Dragon-to-Grounds",
+}
 
 IA_ZIPS_PROCESSED_TRACKING_FILE = TRACKING_DIR / "ia_zips_processed.txt"
 IA_ZIPS_IN_PROGRESS_TRACKING_FILE = TRACKING_DIR / "ia_zips_in_progress.txt"
@@ -272,6 +292,52 @@ def read_skip_list(file_path: Path) -> List[str]:
     return read_tracking_file(file_path)
 
 
+def sync_skip_entries_with_log(
+    log: CommTranscriptionLog,
+    skip_entries: Sequence[str],
+    *,
+    target_version: int,
+) -> None:
+    """Ensure any manual skip entries are reflected in the database."""
+
+    pending_updates = False
+    for zip_name in skip_entries:
+        entry = log.latest_entry_for_zip(zip_name)
+        if entry and entry.status == LOG_STATUS_SKIPPED:
+            continue
+        try:
+            iso_date, zip_type = parse_zip_metadata(zip_name)
+        except ValueError:
+            logger.warning("Unable to parse skip entry %s; skipping DB sync", zip_name)
+            continue
+        log.record_zip_status(
+            zip_name,
+            iso_date,
+            zip_type,
+            LOG_STATUS_SKIPPED,
+            version=target_version,
+            transcribed_at=None,
+            error_message="legacy skip import",
+            commit=False,
+        )
+        pending_updates = True
+    if pending_updates:
+        log.commit()
+
+
+def reset_in_progress_entries(log: CommTranscriptionLog, *, version: int) -> None:
+    """Convert stranded in-progress rows back to pending so they can resume."""
+
+    stalled = log.zips_by_status([LOG_STATUS_IN_PROGRESS], version=version)
+    if not stalled:
+        return
+    for zip_name in stalled:
+        entry = log.latest_entry_for_zip(zip_name)
+        if not entry:
+            continue
+        log.mark_zip_pending(zip_name, entry.date, entry.zip_type, version=version)
+
+
 def get_zip_date_key(zip_filename: str) -> str:
     date_fragment = zip_filename[:8]
     try:
@@ -455,11 +521,27 @@ def unzip_ia_zip_wavs(
     destination_dir: Path,
     zip_type: str,
     allow_overwrite: bool = False,
+    *,
+    transcription_log: CommTranscriptionLog | None = None,
+    transcription_version: int = TRANSCRIPTION_VERSION,
 ) -> None:
     if not zipfile.is_zipfile(zip_path):
         if zip_likely_in_progress(zip_path):
             raise ZipPendingDownloadError(str(zip_path))
         add_to_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE, zip_path.name)
+        if transcription_log is not None:
+            try:
+                iso_date, derived_type = parse_zip_metadata(zip_path.name)
+            except ValueError:
+                iso_date = dt.datetime.utcnow().date().isoformat()
+                derived_type = zip_type
+            transcription_log.mark_zip_error(
+                zip_path.name,
+                iso_date,
+                derived_type,
+                version=transcription_version,
+                error_message="bad_zip_file",
+            )
         raise zipfile.BadZipFile(f"{zip_path} is not a valid zip archive")
 
     filename = zip_path.name
@@ -485,6 +567,19 @@ def unzip_ia_zip_wavs(
                 logger.critical("Critical filename error in %s: %s", zip_path.name, exc)
                 add_to_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE, zip_path.name)
                 add_to_tracking_file(IA_SKIP_ZIPS_TRACKING_FILE, zip_path.name)
+                if transcription_log is not None:
+                    try:
+                        iso_date, derived_type = parse_zip_metadata(zip_path.name)
+                    except ValueError:
+                        iso_date = dt.datetime.utcnow().date().isoformat()
+                        derived_type = zip_type
+                    transcription_log.mark_zip_skipped(
+                        zip_path.name,
+                        iso_date,
+                        derived_type,
+                        version=transcription_version,
+                        note="filename_parse_error",
+                    )
                 raise
 
             file_date = date_time.split("T")[0]
@@ -1586,6 +1681,9 @@ def process_zip_group(
     output_root: Path,
     force: bool,
     see_transcriptions: bool,
+    *,
+    log: CommTranscriptionLog,
+    transcription_version: int,
 ) -> bool:
     """Unzip and process every archive belonging to a single date group."""
     if exit_event.is_set() or immediate_exit_event.is_set():
@@ -1596,7 +1694,24 @@ def process_zip_group(
         logger.warning("No archives provided for group %s", date_key)
         return False
 
-    for zip_file, _, _ in zip_entries:
+    zip_entries = list(zip_entries)
+
+    metadata_map: dict[str, tuple[str, str]] = {}
+    for zip_file, _, zip_kind in zip_entries:
+        fallback_type = ZIP_KIND_DEFAULT_TYPE.get(zip_kind, zip_kind)
+        try:
+            iso_date, derived_type = parse_zip_metadata(zip_file)
+        except ValueError:
+            iso_date = (
+                date_key
+                if date_key != "unknown"
+                else dt.datetime.utcnow().date().isoformat()
+            )
+            derived_type = fallback_type
+        metadata_map[zip_file] = (iso_date, derived_type)
+        log.mark_zip_in_progress(
+            zip_file, iso_date, derived_type, version=transcription_version
+        )
         add_to_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
 
     working_dir_name = date_key if date_key != "unknown" else zip_entries[0][0]
@@ -1622,6 +1737,8 @@ def process_zip_group(
                     working_dir,
                     zip_type,
                     allow_overwrite=True,
+                    transcription_log=log,
+                    transcription_version=transcription_version,
                 )
                 logger.info(
                     "Finished unpacking %s into %s",
@@ -1708,15 +1825,41 @@ def process_zip_group(
                 orig_wav_file.unlink()
 
         processed_successfully = True
-    except ZipPendingDownloadError:
-        logger.info("Group %s deferred due to pending download", date_key)
+    except ZipPendingDownloadError as exc:
+        logger.info("Group %s deferred due to pending download (%s)", date_key, exc)
+        for zip_file, (iso_date, derived_type) in metadata_map.items():
+            log.mark_zip_pending(
+                zip_file, iso_date, derived_type, version=transcription_version
+            )
     except RuntimeError as exc:
         if str(exc) == "Exit requested":
             logger.info(
                 "Exit requested during group %s; partial progress saved", date_key
             )
+            for zip_file, (iso_date, derived_type) in metadata_map.items():
+                log.mark_zip_pending(
+                    zip_file, iso_date, derived_type, version=transcription_version
+                )
         else:
             logger.error("Runtime error while processing group %s: %s", date_key, exc)
+            for zip_file, (iso_date, derived_type) in metadata_map.items():
+                log.mark_zip_error(
+                    zip_file,
+                    iso_date,
+                    derived_type,
+                    version=transcription_version,
+                    error_message=str(exc),
+                )
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.exception("Unhandled exception processing group %s: %s", date_key, exc)
+        for zip_file, (iso_date, derived_type) in metadata_map.items():
+            log.mark_zip_error(
+                zip_file,
+                iso_date,
+                derived_type,
+                version=transcription_version,
+                error_message=str(exc),
+            )
     finally:
         if working_dir.exists():
             shutil.rmtree(working_dir)
@@ -1724,7 +1867,15 @@ def process_zip_group(
             remove_from_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
 
     if processed_successfully:
-        for zip_file, _, _ in zip_entries:
+        completed_at = dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+        for zip_file, (iso_date, derived_type) in metadata_map.items():
+            log.mark_zip_completed(
+                zip_file,
+                iso_date,
+                derived_type,
+                version=transcription_version,
+                transcribed_at=completed_at,
+            )
             add_to_tracking_file(IA_ZIPS_PROCESSED_TRACKING_FILE, zip_file)
 
     return processed_successfully
@@ -1843,76 +1994,110 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     resources = WhisperResources.load(DEVICE, MODEL_TYPE, COMPUTE_TYPE)
     silence_cfg = SilenceConfig()
-
-    skip_list = set(read_skip_list(IA_SKIP_ZIPS_TRACKING_FILE))
     selected_names = set(args.zips) if args.zips else None
 
-    sg_entries = list_zip_entries(ia_zip_sg_folder, "SG", selected_names, skip_list)
-    ag_entries = list_zip_entries(ia_zip_ag_folder, "AG", selected_names, skip_list)
+    with CommTranscriptionLog(TRACKING_DIR) as transcription_log:
+        migrate_legacy_tracking_files(transcription_log, TRACKING_DIR)
+        reset_in_progress_entries(transcription_log, version=TRANSCRIPTION_VERSION)
 
-    combined_entries = sg_entries + ag_entries
-
-    # Combine multi-part archives by grouping every zip that shares a date key.
-
-    if selected_names is not None:
-        found_names = {name for name, _, _ in combined_entries}
-        missing = selected_names - found_names
-        if missing:
-            logger.warning("Requested zip(s) not found: %s", ", ".join(sorted(missing)))
-
-    if not combined_entries:
-        logger.info("No zip archives to process.")
-        return 0
-
-    grouped_entries = group_zip_entries_by_date(combined_entries)
-
-    if requested_dates or args.start_date or args.end_date:
-        filtered_entries: List[Tuple[str, List[Tuple[str, Path, str]]]] = []
-        skipped_unknown: set[str] = set()
-        for date_key, zip_group in grouped_entries:
-            try:
-                date_value = dt.date.fromisoformat(date_key)
-            except ValueError:
-                skipped_unknown.add(date_key)
-                continue
-            if requested_dates and date_value not in requested_dates:
-                continue
-            if args.start_date and date_value < args.start_date:
-                continue
-            if args.end_date and date_value > args.end_date:
-                continue
-            filtered_entries.append((date_key, zip_group))
-        if skipped_unknown:
-            logger.warning(
-                "Skipping %d group(s) with unrecognized date key(s): %s",
-                len(skipped_unknown),
-                ", ".join(sorted(skipped_unknown)),
-            )
-        grouped_entries = filtered_entries
-        if not grouped_entries:
-            logger.info("No zip archives matched the requested date filters.")
-            return 0
-    if args.limit:
-        grouped_entries = grouped_entries[: args.limit]
-
-    logger.info("Processing %d zip group(s) (oldest -> newest)", len(grouped_entries))
-
-    for date_key, zip_group in grouped_entries:
-        if exit_event.is_set() or immediate_exit_event.is_set():
-            break
-        logger.info("Processing %s (%d archive(s))", date_key, len(zip_group))
-        success = process_zip_group(
-            date_key,
-            zip_group,
-            resources,
-            prompt_root,
-            silence_cfg,
-            comm_raw,
-            args.force,
-            args.see_transcriptions,
+        manual_skip_entries = set(read_skip_list(IA_SKIP_ZIPS_TRACKING_FILE))
+        sync_skip_entries_with_log(
+            transcription_log,
+            manual_skip_entries,
+            target_version=TRANSCRIPTION_VERSION,
         )
-        if not success:
-            logger.warning("Group %s did not complete successfully", date_key)
+
+        db_skip_entries = transcription_log.zips_by_status([LOG_STATUS_SKIPPED])
+        skip_list = manual_skip_entries | db_skip_entries
+
+        sg_entries = list_zip_entries(ia_zip_sg_folder, "SG", selected_names, skip_list)
+        ag_entries = list_zip_entries(ia_zip_ag_folder, "AG", selected_names, skip_list)
+
+        combined_entries = sg_entries + ag_entries
+
+        if selected_names is not None:
+            found_names = {name for name, _, _ in combined_entries}
+            missing = selected_names - found_names
+            if missing:
+                logger.warning(
+                    "Requested zip(s) not found: %s", ", ".join(sorted(missing))
+                )
+
+        if not args.force:
+            completed_v2 = transcription_log.zips_by_status(
+                [LOG_STATUS_COMPLETED], version=TRANSCRIPTION_VERSION
+            )
+        else:
+            completed_v2 = set()
+
+        already_completed = {name for name, _, _ in combined_entries} & completed_v2
+        if already_completed:
+            logger.info(
+                "Skipping %d archive(s) already completed for version %d",
+                len(already_completed),
+                TRANSCRIPTION_VERSION,
+            )
+            combined_entries = [
+                entry for entry in combined_entries if entry[0] not in already_completed
+            ]
+
+        if not combined_entries:
+            logger.info("No zip archives to process.")
+            return 0
+
+        grouped_entries = group_zip_entries_by_date(combined_entries)
+
+        if requested_dates or args.start_date or args.end_date:
+            filtered_entries: List[Tuple[str, List[Tuple[str, Path, str]]]] = []
+            skipped_unknown: set[str] = set()
+            for date_key, zip_group in grouped_entries:
+                try:
+                    date_value = dt.date.fromisoformat(date_key)
+                except ValueError:
+                    skipped_unknown.add(date_key)
+                    continue
+                if requested_dates and date_value not in requested_dates:
+                    continue
+                if args.start_date and date_value < args.start_date:
+                    continue
+                if args.end_date and date_value > args.end_date:
+                    continue
+                filtered_entries.append((date_key, zip_group))
+            if skipped_unknown:
+                logger.warning(
+                    "Skipping %d group(s) with unrecognized date key(s): %s",
+                    len(skipped_unknown),
+                    ", ".join(sorted(skipped_unknown)),
+                )
+            grouped_entries = filtered_entries
+            if not grouped_entries:
+                logger.info("No zip archives matched the requested date filters.")
+                return 0
+        if args.limit:
+            grouped_entries = grouped_entries[: args.limit]
+
+        logger.info(
+            "Processing %d zip group(s) (oldest -> newest)", len(grouped_entries)
+        )
+
+        for date_key, zip_group in grouped_entries:
+            if exit_event.is_set() or immediate_exit_event.is_set():
+                break
+            logger.info("Processing %s (%d archive(s))", date_key, len(zip_group))
+            success = process_zip_group(
+                date_key,
+                zip_group,
+                resources,
+                prompt_root,
+                silence_cfg,
+                comm_raw,
+                args.force,
+                args.see_transcriptions,
+                log=transcription_log,
+                transcription_version=TRANSCRIPTION_VERSION,
+            )
+            if not success:
+                logger.warning("Group %s did not complete successfully", date_key)
 
     return 0
 

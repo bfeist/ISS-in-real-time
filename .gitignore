@@ -67,6 +67,7 @@ ia_skip_zips.txt
 ia_zips_errors.txt
 identifiers.txt
 ia_zips_download_skipped_collection.txt
+comm_transcription_log*
 
 **/__pycache__/
 copilot-instructions.md
