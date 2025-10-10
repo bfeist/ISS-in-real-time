@@ -2047,6 +2047,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Print original-language and translated Whisper transcripts for each WAV after processing",
     )
+    parser.add_argument(
+        "--newest-first",
+        action="store_true",
+        help="Process zip archives in reverse chronological order (newest first)",
+    )
     return parser.parse_args(argv)
 
 
@@ -2146,7 +2151,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     TRANSCRIPTION_VERSION,
                 )
                 combined_entries = [
-                    entry for entry in combined_entries if entry[0] not in already_completed
+                    entry
+                    for entry in combined_entries
+                    if entry[0] not in already_completed
                 ]
         else:
             logger.info(
@@ -2185,12 +2192,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             if not grouped_entries:
                 logger.info("No zip archives matched the requested date filters.")
                 return 0
+        if args.newest_first:
+            grouped_entries = list(reversed(grouped_entries))
+            logger.info(
+                "Newest-first mode enabled: processing in reverse chronological order"
+            )
+
         if args.limit:
             grouped_entries = grouped_entries[: args.limit]
 
-        logger.info(
-            "Processing %d zip group(s) (oldest -> newest)", len(grouped_entries)
-        )
+        order_desc = "newest -> oldest" if args.newest_first else "oldest -> newest"
+        logger.info("Processing %d zip group(s) (%s)", len(grouped_entries), order_desc)
 
         for date_key, zip_group in grouped_entries:
             if exit_event.is_set() or immediate_exit_event.is_set():
