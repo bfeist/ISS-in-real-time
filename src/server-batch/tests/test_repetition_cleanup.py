@@ -19,6 +19,8 @@ dedupe_segment_repetitions = TRANSCRIPTION_MODULE.dedupe_segment_repetitions
 _collapse_repetition_sequences = TRANSCRIPTION_MODULE._collapse_repetition_sequences
 _normalize_repetition_token = TRANSCRIPTION_MODULE._normalize_repetition_token
 
+actual_transcription_text_to_test = """Tango, speed and rotation are normal. 2-3, on board is in order, ready for landing. Arrived. 530 seconds. There is a shutdown of the engine in the third stage. There is a detachment. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. Astray, I'm transmitting to Moscow, good luck with the flight. I got you, Astray. The inflow is on. Everything is fine, listen to me. The inflow is on, the heating is on. We are waiting for your first measurements. The first is closed, the second is closed. Turn on the speedometer. Turn on the speedometer. We are waiting for you. We are waiting for you. We are waiting for you. We are waiting for you. The table on the KDU parameters, page 45. Over. So, I transfer the page to the table 45. The parameters are 17. 17.8. 18th 17.8 19th 268 20th 1.9 21st 1.2 22nd 330 23rd 326 24th, 17.6 25th, 17.7 26th, 56th How did you take it? 26th, repeat? I repeat, 26th, 766 Roger, 266 Astray, how do you feel? Astray-1, I feel good, the crew on board is in order. We checked the control, everything is working properly. Understood. Work further along the landing page. We'll give you a 27-30 five-minute measurement. Working on 30-46. Astray 73300, TV will be turned off via KRL. April 7, 33 via KRL. Anton, Stolyar 7. Thank you very much. We continue to work. Everything is going well. The crew is good. Congratulations! Astray and Yatsub, Moscow. Let's check the data on Yatsub, number 1. Page 59. Book of Exhibition of Art. Diaspora 1.20.2.59. We are ready. C, communication session 08.45.00, over. 08.45.00, over. RRP, 08.49.50, over. Departure 08.50.10, over. C3.9.01.10, over. Over. Next session, 08.46.00, over. 8.46, the start of the landing. Moscow, 5-minute measurement, the pressure is 790. Accepted, 790. I remind you that after this session of communication, do not forget to conduct VIPSH. And in the next session of communication, be always ready to conduct test-suit №1. The VIPSH is ready for test-suit №1. I will transmit the parameters of the orbit. The period is 88.8, the inclination is 51.64, the minimum altitude is 200, the maximum is 258. Roger that. Astray, this is Moscow. Astray-1, roger. The ship has been successfully taken into orbit. The construction elements are open. Allow us to loosen the shoulder straps, the straps are tightened. Raise the windscreen. Turn off the thermometers at the specified time. Astray, roger. Loosen the straps, open the windscreen. Thermometers at the specified time. At the specified time. Let me remind you, the next signal is 0846. Roger that, 0846. I-31, proceed to check the transparant of the CST. Proceed. 3 minutes before the end of the session. I remind you, the next session is at 8.46. Thank you. I got you. That's right."""
+
 
 def test_normalize_repetition_token():
     """Test token normalization removes punctuation and lowercases."""
@@ -262,6 +264,70 @@ def test_dedupe_multiple_segments():
     assert result[0]["words"][0]["word"] == "repeat"
     assert len(result[1]["words"]) == 1
     assert result[1]["words"][0]["word"] == "another"
+
+
+def test_dedupe_actual_full_transcription():
+    """Test deduplication on the actual problematic transcription text.
+
+    This text contains multiple repetition patterns:
+    - 'Astray, I'm transmitting to Moscow, good luck with the flight.' repeated 14 times
+    - 'Turn on the speedometer.' repeated 2 times (with period variation)
+    - 'We are waiting for you.' repeated 4 times
+    """
+    # Parse the actual text into tokens
+    tokens = actual_transcription_text_to_test.split()
+
+    # Create words list with mock timestamps
+    words = []
+    time_offset = 0.0
+    for token in tokens:
+        words.append({"word": token, "start": time_offset, "end": time_offset + 0.3})
+        time_offset += 0.3
+
+    segments = [
+        {
+            "start": 0.0,
+            "end": time_offset,
+            "text": actual_transcription_text_to_test,
+            "words": words,
+        }
+    ]
+
+    result = dedupe_segment_repetitions(segments, max_phrase_len=12)
+
+    assert len(result) == 1
+    result_text = result[0]["text"]
+
+    # Look for the pattern in the text
+    import re
+
+    waiting_matches = list(re.finditer(r"We are waiting for you", result_text))
+    print(f"\nFound 'We are waiting for you' {len(waiting_matches)} times")
+    for i, match in enumerate(waiting_matches):
+        context_start = max(0, match.start() - 50)
+        context_end = min(len(result_text), match.end() + 50)
+        print(
+            f"  Match {i+1}: ...{result_text[context_start:context_end].encode('ascii', errors='replace').decode()}..."
+        )
+
+    # Check that the 14-time repetition is now only 1
+    astray_phrase = "Astray, I'm transmitting to Moscow, good luck with the flight."
+    assert (
+        result_text.count(astray_phrase) == 1
+    ), f"Expected 1 occurrence of Astray phrase, got {result_text.count(astray_phrase)}"
+
+    # Check that "Turn on the speedometer" appears only once
+    # (it appears as "Turn on the speedometer." and then "Turn on the speedometer." again)
+    speedometer_count = result_text.lower().count("turn on the speedometer")
+    assert (
+        speedometer_count == 1
+    ), f"Expected 1 occurrence of speedometer phrase, got {speedometer_count}"
+
+    # Check that "We are waiting for you" appears only once
+    waiting_count = result_text.count("We are waiting for you.")
+    assert (
+        waiting_count == 1
+    ), f"Expected 1 occurrence of waiting phrase, got {waiting_count}"
 
 
 if __name__ == "__main__":

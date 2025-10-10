@@ -596,6 +596,135 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
         self.assertEqual(artifacts.alignment_segments, primary_segments)
         self.assertEqual(artifacts.final_segments, translation_segments)
 
+    def test_render_utterances_deduplicates_only_english_translations(self) -> None:
+        """Test that deduplication only applies to English translations of non-English audio."""
+        audio = AudioSegment.silent(duration=3000)
+        source_wav_path = Path(self.temp_dir.name) / "test_dedupe_translation.wav"
+        export_handle = audio.export(source_wav_path, format="wav")
+        if hasattr(export_handle, "close"):
+            export_handle.close()
+
+        # Simulated non-English transcription with translation containing repetitions
+        translation_with_repetitions = [
+            {
+                "start": 0.0,
+                "end": 2.0,
+                "text": "hello hello world",
+                "words": [
+                    {"word": "hello", "start": 0.0, "end": 0.5},
+                    {"word": "hello", "start": 0.5, "end": 1.0},
+                    {"word": "world", "start": 1.0, "end": 1.5},
+                ],
+            }
+        ]
+
+        original_segments = [
+            {
+                "start": 0.0,
+                "end": 2.0,
+                "text": "bonjour bonjour monde",
+                "words": [
+                    {"word": "bonjour", "start": 0.0, "end": 0.5},
+                    {"word": "bonjour", "start": 0.5, "end": 1.0},
+                    {"word": "monde", "start": 1.0, "end": 1.5},
+                ],
+            }
+        ]
+
+        # Case 1: Non-English audio with translation - should deduplicate translation
+        transcription_with_translation = TranscriptionArtifacts(
+            language="en",
+            detected_language="fr",
+            final_segments=translation_with_repetitions,
+            source_segments=original_segments,
+            alignment_segments=original_segments,
+            translation_segments=translation_with_repetitions,
+            prompt_text="",
+        )
+
+        interval = Interval(
+            index=0,
+            start=0.0,
+            end=2.0,
+            words=[
+                {"word": "hello", "start": 0.0, "end": 0.5},
+                {"word": "hello", "start": 0.5, "end": 1.0},
+                {"word": "world", "start": 1.0, "end": 1.5},
+            ],
+        )
+
+        output_root_translation = Path(self.temp_dir.name) / "output_translation"
+        with mock.patch.object(
+            TRANSCRIPTION_MODULE,
+            "export_utterances_with_ffmpeg",
+            return_value=False,
+        ):
+            outputs = render_utterances(
+                source_wav_path,
+                audio,
+                transcription_with_translation,
+                [interval],
+                "1_SG_1",
+                TRANSCRIPTION_MODULE.dt.datetime(2024, 1, 1, 0, 0, 0),
+                output_root_translation,
+            )
+
+        self.assertEqual(len(outputs), 1)
+        result_json = json.loads(outputs[0].read_text(encoding="utf-8"))
+        # Translation should be deduplicated: "hello hello world" -> "hello world"
+        self.assertEqual(result_json["segments"][0]["text"], "hello world")
+        # Original segments should NOT be deduplicated
+        self.assertIn("bonjour", result_json["origLangSegments"][0]["text"])
+
+        # Case 2: English-only audio - should NOT deduplicate
+        english_segments_with_repetitions = [
+            {
+                "start": 0.0,
+                "end": 2.0,
+                "text": "hello hello world",
+                "words": [
+                    {"word": "hello", "start": 0.0, "end": 0.5},
+                    {"word": "hello", "start": 0.5, "end": 1.0},
+                    {"word": "world", "start": 1.0, "end": 1.5},
+                ],
+            }
+        ]
+
+        transcription_english_only = TranscriptionArtifacts(
+            language="en",
+            detected_language="en",
+            final_segments=english_segments_with_repetitions,
+            source_segments=english_segments_with_repetitions,
+            alignment_segments=english_segments_with_repetitions,
+            translation_segments=None,  # No translation for English audio
+            prompt_text="",
+        )
+
+        output_root_english = Path(self.temp_dir.name) / "output_english"
+        with mock.patch.object(
+            TRANSCRIPTION_MODULE,
+            "export_utterances_with_ffmpeg",
+            return_value=False,
+        ):
+            outputs_english = render_utterances(
+                source_wav_path,
+                audio,
+                transcription_english_only,
+                [interval],
+                "1_SG_1",
+                TRANSCRIPTION_MODULE.dt.datetime(2024, 1, 1, 0, 0, 0),
+                output_root_english,
+            )
+
+        self.assertEqual(len(outputs_english), 1)
+        result_json_english = json.loads(
+            outputs_english[0].read_text(encoding="utf-8")
+        )
+        # English-only should NOT be deduplicated: keep "hello hello world"
+        self.assertEqual(
+            result_json_english["segments"][0]["text"], "hello hello world"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

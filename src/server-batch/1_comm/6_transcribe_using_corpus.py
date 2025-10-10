@@ -1479,20 +1479,33 @@ def _dedupe_segment_words(
     if not words:
         return []
 
-    normalized = [
-        (
-            _normalize_repetition_token(str(word.get("word", "")))
-            if isinstance(word, dict)
-            else ""
+    # Iterate until no more repetitions are found
+    current_words = list(words)
+    max_iterations = 10  # Safety limit to prevent infinite loops
+    iteration = 0
+
+    while iteration < max_iterations:
+        normalized = [
+            (
+                _normalize_repetition_token(str(word.get("word", "")))
+                if isinstance(word, dict)
+                else ""
+            )
+            for word in current_words
+        ]
+        collapsed = _collapse_repetition_sequences(
+            current_words, normalized, max_phrase_len=max_phrase_len
         )
-        for word in words
-    ]
-    collapsed = _collapse_repetition_sequences(
-        list(words), normalized, max_phrase_len=max_phrase_len
-    )
+
+        # If no change, we're done
+        if len(collapsed) == len(current_words):
+            break
+
+        current_words = collapsed
+        iteration += 1
 
     cleaned: List[Dict[str, object]] = []
-    for word in collapsed:
+    for word in current_words:
         if not isinstance(word, dict):
             continue
         word_text = str(word.get("word", "")).strip()
@@ -1524,15 +1537,29 @@ def dedupe_segment_repetitions(
             existing_text = str(segment_copy.get("text", "")).strip()
             if existing_text:
                 tokens = existing_text.split()
-                normalized_tokens = [
-                    _normalize_repetition_token(token) for token in tokens
-                ]
-                collapsed_tokens = _collapse_repetition_sequences(
-                    tokens,
-                    normalized_tokens,
-                    max_phrase_len=max_phrase_len,
-                )
-                segment_copy["text"] = " ".join(collapsed_tokens).strip()
+
+                # Iterate until no more repetitions found in text
+                max_iterations = 10
+                iteration = 0
+                current_tokens = tokens
+
+                while iteration < max_iterations:
+                    normalized_tokens = [
+                        _normalize_repetition_token(token) for token in current_tokens
+                    ]
+                    collapsed_tokens = _collapse_repetition_sequences(
+                        current_tokens,
+                        normalized_tokens,
+                        max_phrase_len=max_phrase_len,
+                    )
+
+                    if len(collapsed_tokens) == len(current_tokens):
+                        break
+
+                    current_tokens = collapsed_tokens
+                    iteration += 1
+
+                segment_copy["text"] = " ".join(current_tokens).strip()
             elif "text" in segment_copy:
                 segment_copy.pop("text")
         cleaned_segments.append(segment_copy)
@@ -1627,6 +1654,7 @@ def render_utterances(
         using_translation = transcription.translation_segments is not None
 
         if using_translation:
+            # Apply deduplication ONLY to English translations of non-English audio
             segments = dedupe_segment_repetitions(
                 slice_segments_to_interval(
                     transcription.translation_segments or [],
@@ -1636,7 +1664,8 @@ def render_utterances(
                 )
             )
             segments = prune_empty_segments(segments)
-            orig_segments = dedupe_segment_repetitions(
+            # Do NOT dedupe original non-English segments
+            orig_segments = prune_empty_segments(
                 slice_segments_to_interval(
                     transcription.alignment_segments,
                     interval.start,
@@ -1644,9 +1673,9 @@ def render_utterances(
                     allow_approximate_text=False,
                 )
             )
-            orig_segments = prune_empty_segments(orig_segments)
         else:
-            segments = dedupe_segment_repetitions(
+            # For English-only audio, do NOT apply deduplication
+            segments = prune_empty_segments(
                 slice_segments_to_interval(
                     transcription.alignment_segments,
                     interval.start,
@@ -1654,11 +1683,11 @@ def render_utterances(
                     allow_approximate_text=False,
                 )
             )
-            segments = prune_empty_segments(segments)
             orig_segments = []
 
         if not segments and not using_translation:
-            segments = dedupe_segment_repetitions(
+            # Fallback for English-only: do NOT apply deduplication
+            segments = prune_empty_segments(
                 slice_segments_to_interval(
                     transcription.final_segments,
                     interval.start,
@@ -1666,7 +1695,6 @@ def render_utterances(
                     allow_approximate_text=False,
                 )
             )
-            segments = prune_empty_segments(segments)
 
         if not segments:
             logger.warning(
