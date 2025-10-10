@@ -9,6 +9,7 @@ import inspect
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -18,7 +19,7 @@ import zipfile
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, TypeVar
 from zoneinfo import ZoneInfo
 
 from functools import lru_cache
@@ -27,6 +28,7 @@ import whisperx  # type: ignore
 import webrtcvad  # type: ignore
 from dotenv import load_dotenv
 from pydub import AudioSegment  # type: ignore
+from pydub.exceptions import CouldntDecodeError  # type: ignore
 from rich.console import Console
 from rich.logging import RichHandler
 
@@ -149,6 +151,7 @@ IA_ZIPS_PROCESSED_TRACKING_FILE = TRACKING_DIR / "ia_zips_processed.txt"
 IA_ZIPS_IN_PROGRESS_TRACKING_FILE = TRACKING_DIR / "ia_zips_in_progress.txt"
 IA_SKIP_ZIPS_TRACKING_FILE = TRACKING_DIR / "ia_skip_zips.txt"
 IA_ZIPS_ERRORS_TRACKING_FILE = TRACKING_DIR / "ia_zips_errors.txt"
+UNREADABLE_WAV_SUBDIR = "unreadable"
 
 ZIP_PENDING_GRACE_PERIOD = dt.timedelta(minutes=10)
 
@@ -164,6 +167,14 @@ logger = logging.getLogger("transcription-first")
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
+
+
+class AudioDecodeError(RuntimeError):
+    """Raised when an audio file cannot be decoded for preprocessing."""
+
+    def __init__(self, path: Path, message: str):
+        super().__init__(f"{path}: {message}")
+        self.path = path
 
 
 @dataclass
@@ -710,6 +721,9 @@ def ensure_mono_wav(input_wav_path: Path) -> Optional[Path]:
                 temp_converted.unlink()
 
         return input_wav_path
+    except CouldntDecodeError as exc:
+        logger.error("Mono conversion failed for %s: %s", input_wav_path, exc)
+        raise AudioDecodeError(input_wav_path, "ffmpeg could not decode audio") from exc
     except Exception as exc:
         logger.error("Mono conversion failed for %s: %s", input_wav_path, exc)
         return None
@@ -978,7 +992,9 @@ def transcribe_full_wav(
                 task="translate",
                 word_timestamps=True,
             )
-        translation_segments = translation_result["segments"]
+        translation_segments = dedupe_segment_repetitions(
+            translation_result["segments"]
+        )
         final_segments = translation_segments
         release_cuda_memory()
 
@@ -1398,6 +1414,131 @@ def _segment_words_to_text(words: Optional[Sequence[Dict[str, object]]]) -> str:
     return " ".join(collected).strip()
 
 
+_NON_WORD_RE = re.compile(r"[^\w']+")
+_DEFAULT_MAX_PHRASE_LEN = 8
+_SequenceItem = TypeVar("_SequenceItem")
+
+
+def _normalize_repetition_token(token: str) -> str:
+    token = token.strip().lower()
+    if not token:
+        return ""
+    return _NON_WORD_RE.sub("", token)
+
+
+def _collapse_repetition_sequences(
+    items: Sequence[_SequenceItem],
+    normalized_tokens: Sequence[str],
+    *,
+    max_phrase_len: int = _DEFAULT_MAX_PHRASE_LEN,
+) -> List[_SequenceItem]:
+    total = len(items)
+    if total <= 1:
+        return list(items)
+
+    result: List[_SequenceItem] = []
+    index = 0
+    while index < total:
+        max_candidate = min(max_phrase_len, total - index)
+        repeated_length = 0
+        repeated_count = 1
+
+        for phrase_len in range(max_candidate, 0, -1):
+            pattern = normalized_tokens[index : index + phrase_len]
+            if not any(pattern):
+                continue
+            count = 1
+            while (
+                index + (count + 1) * phrase_len <= total
+                and normalized_tokens[
+                    index + count * phrase_len : index + (count + 1) * phrase_len
+                ]
+                == pattern
+            ):
+                count += 1
+            if count > 1:
+                repeated_length = phrase_len
+                repeated_count = count
+                break
+
+        if repeated_length:
+            result.extend(items[index : index + repeated_length])
+            index += repeated_length * repeated_count
+        else:
+            result.append(items[index])
+            index += 1
+
+    return result
+
+
+def _dedupe_segment_words(
+    words: Optional[Sequence[Dict[str, object]]],
+    *,
+    max_phrase_len: int = _DEFAULT_MAX_PHRASE_LEN,
+) -> List[Dict[str, object]]:
+    if not words:
+        return []
+
+    normalized = [
+        (
+            _normalize_repetition_token(str(word.get("word", "")))
+            if isinstance(word, dict)
+            else ""
+        )
+        for word in words
+    ]
+    collapsed = _collapse_repetition_sequences(
+        list(words), normalized, max_phrase_len=max_phrase_len
+    )
+
+    cleaned: List[Dict[str, object]] = []
+    for word in collapsed:
+        if not isinstance(word, dict):
+            continue
+        word_text = str(word.get("word", "")).strip()
+        if not word_text:
+            continue
+        cleaned.append(dict(word))
+    return cleaned
+
+
+def dedupe_segment_repetitions(
+    segments: Sequence[Dict[str, object]],
+    *,
+    max_phrase_len: int = _DEFAULT_MAX_PHRASE_LEN,
+) -> List[Dict[str, object]]:
+    cleaned_segments: List[Dict[str, object]] = []
+    for segment in segments:
+        if not isinstance(segment, dict):
+            continue
+        segment_copy = dict(segment)
+        words = segment_copy.get("words")
+        cleaned_words = _dedupe_segment_words(words, max_phrase_len=max_phrase_len)
+        if cleaned_words:
+            segment_copy["words"] = cleaned_words
+            segment_copy["text"] = " ".join(
+                str(word.get("word", "")).strip() for word in cleaned_words
+            ).strip()
+        else:
+            segment_copy.pop("words", None)
+            existing_text = str(segment_copy.get("text", "")).strip()
+            if existing_text:
+                tokens = existing_text.split()
+                normalized_tokens = [
+                    _normalize_repetition_token(token) for token in tokens
+                ]
+                collapsed_tokens = _collapse_repetition_sequences(
+                    tokens,
+                    normalized_tokens,
+                    max_phrase_len=max_phrase_len,
+                )
+                segment_copy["text"] = " ".join(collapsed_tokens).strip()
+            elif "text" in segment_copy:
+                segment_copy.pop("text")
+        cleaned_segments.append(segment_copy)
+    return cleaned_segments
+
+
 def prune_empty_segments(
     segments: Sequence[Dict[str, object]],
 ) -> List[Dict[str, object]]:
@@ -1486,7 +1627,7 @@ def render_utterances(
         using_translation = transcription.translation_segments is not None
 
         if using_translation:
-            segments = prune_empty_segments(
+            segments = dedupe_segment_repetitions(
                 slice_segments_to_interval(
                     transcription.translation_segments or [],
                     interval.start,
@@ -1494,7 +1635,8 @@ def render_utterances(
                     allow_approximate_text=True,
                 )
             )
-            orig_segments = prune_empty_segments(
+            segments = prune_empty_segments(segments)
+            orig_segments = dedupe_segment_repetitions(
                 slice_segments_to_interval(
                     transcription.alignment_segments,
                     interval.start,
@@ -1502,8 +1644,9 @@ def render_utterances(
                     allow_approximate_text=False,
                 )
             )
+            orig_segments = prune_empty_segments(orig_segments)
         else:
-            segments = prune_empty_segments(
+            segments = dedupe_segment_repetitions(
                 slice_segments_to_interval(
                     transcription.alignment_segments,
                     interval.start,
@@ -1511,10 +1654,11 @@ def render_utterances(
                     allow_approximate_text=False,
                 )
             )
+            segments = prune_empty_segments(segments)
             orig_segments = []
 
         if not segments and not using_translation:
-            segments = prune_empty_segments(
+            segments = dedupe_segment_repetitions(
                 slice_segments_to_interval(
                     transcription.final_segments,
                     interval.start,
@@ -1522,6 +1666,7 @@ def render_utterances(
                     allow_approximate_text=False,
                 )
             )
+            segments = prune_empty_segments(segments)
 
         if not segments:
             logger.warning(
@@ -1911,7 +2056,26 @@ def process_zip_group(
             if exit_event.is_set() or immediate_exit_event.is_set():
                 raise RuntimeError("Exit requested")
 
-            wav_local = ensure_mono_wav(wav_file) or wav_file
+            try:
+                wav_local_candidate = ensure_mono_wav(wav_file)
+            except AudioDecodeError as exc:
+                logger.error("Skipping unreadable WAV %s: %s", wav_file.name, exc)
+                unreadable_dir = working_dir / UNREADABLE_WAV_SUBDIR
+                ensure_directory(unreadable_dir)
+                destination = unreadable_dir / wav_file.name
+                try:
+                    if destination.exists():
+                        destination.unlink()
+                    wav_file.rename(destination)
+                except OSError as move_exc:
+                    logger.warning(
+                        "Failed to quarantine unreadable WAV %s: %s",
+                        wav_file,
+                        move_exc,
+                    )
+                continue
+
+            wav_local = wav_local_candidate or wav_file
             try:
                 start_time_str = wav_local.stem[:17]
                 start_time_local = dt.datetime.strptime(

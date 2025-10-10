@@ -30,6 +30,8 @@ merge_intervals_with_vad = TRANSCRIPTION_MODULE.merge_intervals_with_vad
 transcribe_full_wav = TRANSCRIPTION_MODULE.transcribe_full_wav
 WhisperResources = TRANSCRIPTION_MODULE.WhisperResources
 AlignmentModelUnavailableError = TRANSCRIPTION_MODULE.AlignmentModelUnavailableError
+ensure_mono_wav = TRANSCRIPTION_MODULE.ensure_mono_wav
+AudioDecodeError = TRANSCRIPTION_MODULE.AudioDecodeError
 
 
 class TranscriptionFirstHelpersTests(unittest.TestCase):
@@ -49,6 +51,13 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
 
         self.assertIn("Custom prompt", prompt)
         self.assertIn("Channel: SG 1", prompt)
+
+    def test_ensure_mono_wav_raises_on_decode_error(self) -> None:
+        bogus_wav = Path(self.temp_dir.name) / "invalid.wav"
+        bogus_wav.write_bytes(b"not a wav file")
+
+        with self.assertRaises(AudioDecodeError):
+            ensure_mono_wav(bogus_wav)
 
     def test_build_initial_prompt_falls_back_to_json(self) -> None:
         day_dir = self.prompt_root / "2024" / "09" / "08"
