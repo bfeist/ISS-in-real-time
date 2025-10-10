@@ -133,10 +133,10 @@ def ensure_normalized_file(path: Path) -> Path:
     normalized_path = path.with_name(normalized_name)
     if normalized_path.exists():
         # A normalized file already exists; keep the current file name to avoid overwrite.
-        print(
-            f"Normalized filename {normalized_path.name} already exists. "
-            f"Keeping original name {path.name}."
-        )
+        # print(
+        #     f"Normalized filename {normalized_path.name} already exists. "
+        #     f"Keeping original name {path.name}."
+        # )
         return path
 
     path.rename(normalized_path)

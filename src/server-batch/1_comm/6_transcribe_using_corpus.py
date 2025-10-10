@@ -52,6 +52,7 @@ VAD_AGGRESSIVENESS = int(os.getenv("WHISPER_VAD_MODE", "2"))
 
 INVALID_TRANSCRIPT_MARKERS = [
     " Thank you.",
+    "Thank you.",
     " Bye.",
     " ...",
     " Thanks for watching!",
@@ -136,7 +137,7 @@ class TranscriptionArtifacts:
 @dataclass
 class WhisperResources:
     base_model: object
-    align_models: Dict[str, Tuple[object, Dict[str, object]]]
+    align_models: Dict[str, Tuple[Optional[object], Optional[Dict[str, object]]]]
     _align_lock: threading.RLock = field(default_factory=threading.RLock)
 
     @classmethod
@@ -157,13 +158,29 @@ class WhisperResources:
         language = language or "en"
         key = language.lower()
         with self._align_lock:
-            if key not in self.align_models:
-                console.log(f"Loading alignment model for language '{key}'")
+            cached = self.align_models.get(key)
+            if cached is not None:
+                align_model, metadata = cached
+                if align_model is None or metadata is None:
+                    raise AlignmentModelUnavailableError(key)
+                return align_model, metadata
+
+            console.log(f"Loading alignment model for language '{key}'")
+            try:
                 align_model, metadata = whisperx.load_align_model(
                     language_code=key, device=DEVICE
                 )
-                self.align_models[key] = (align_model, metadata)
-            return self.align_models[key]
+            except ValueError as exc:
+                logger.warning(
+                    "No default alignment model found for language '%s'; "
+                    "falling back to Whisper timestamps",
+                    key,
+                )
+                self.align_models[key] = (None, None)
+                raise AlignmentModelUnavailableError(key) from exc
+
+            self.align_models[key] = (align_model, metadata)
+            return align_model, metadata
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +194,14 @@ class FilenameParseError(Exception):
 
 class ZipPendingDownloadError(Exception):
     """Raised when a zip file appears to still be downloading."""
+
+
+class AlignmentModelUnavailableError(Exception):
+    """Raised when no WhisperX alignment model exists for a language."""
+
+    def __init__(self, language: str):
+        super().__init__(f"No alignment model available for language '{language}'")
+        self.language = language
 
 
 # ---------------------------------------------------------------------------
@@ -690,16 +715,39 @@ def transcribe_full_wav(
         )
 
     detected_language = result.get("language", "en") or "en"
-    align_model, metadata = resources.get_alignment_model(detected_language)
-    with suppress_stdout_stderr():
-        alignment = whisperx.align(
-            result["segments"],
-            align_model,
-            metadata,
-            audio,
-            device=DEVICE,
-            return_char_alignments=False,
+
+    def _attempt_alignment(language_code: str) -> Optional[List[Dict[str, object]]]:
+        align_model, metadata = resources.get_alignment_model(language_code)
+        with suppress_stdout_stderr():
+            alignment_result = whisperx.align(
+                result["segments"],
+                align_model,
+                metadata,
+                audio,
+                device=DEVICE,
+                return_char_alignments=False,
+            )
+        return alignment_result.get("segments", [])
+
+    alignment_segments: List[Dict[str, object]]
+    try:
+        alignment_segments = _attempt_alignment(detected_language) or []
+    except AlignmentModelUnavailableError:
+        logger.warning(
+            "Skipping alignment for language '%s' due to missing model",
+            detected_language,
         )
+        alignment_segments = []
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.warning(
+            "Alignment failed for %s (%s); falling back to Whisper timestamps",
+            wav_path.name,
+            exc,
+        )
+        alignment_segments = []
+
+    if not alignment_segments:
+        alignment_segments = result["segments"]
 
     translation_segments: Optional[List[Dict[str, object]]] = None
     final_segments = result["segments"]
@@ -730,7 +778,7 @@ def transcribe_full_wav(
         detected_language=detected_language,
         final_segments=final_segments,
         source_segments=result["segments"],
-        alignment_segments=alignment["segments"],
+        alignment_segments=alignment_segments,
         translation_segments=translation_segments,
         prompt_text=prompt_text,
     )
@@ -1011,10 +1059,57 @@ def merge_intervals_with_vad(
     return merged
 
 
+def _approximate_text_slice(
+    raw_text: str,
+    segment_start: float,
+    segment_end: float,
+    clip_start: float,
+    clip_end: float,
+) -> str:
+    text = raw_text.strip()
+    if not text:
+        return ""
+
+    duration = segment_end - segment_start
+    if duration <= 0:
+        return text
+
+    start_ratio = max(min((clip_start - segment_start) / duration, 1.0), 0.0)
+    end_ratio = max(min((clip_end - segment_start) / duration, 1.0), start_ratio)
+
+    length = len(text)
+    if length == 0:
+        return ""
+
+    start_idx = min(int(round(start_ratio * length)), length)
+    end_idx = min(int(round(end_ratio * length)), length)
+
+    if start_idx == end_idx:
+        end_idx = min(end_idx + max(1, int(0.05 * length)), length)
+
+    while start_idx > 0 and not text[start_idx - 1].isspace():
+        start_idx -= 1
+    while end_idx < length and not text[end_idx - 1 if end_idx > 0 else 0].isspace():
+        end_idx += 1
+        if end_idx >= length:
+            end_idx = length
+            break
+
+    trimmed = text[start_idx:end_idx].strip()
+    if trimmed:
+        return trimmed
+
+    # Fall back to the best-effort slice without whitespace adjustment.
+    rough_slice = text[start_idx:end_idx].strip()
+    return rough_slice or text
+
+
 def slice_segments_to_interval(
     segments: List[Dict[str, object]],
     interval_start: float,
     interval_end: float,
+    *,
+    allow_approximate_text: bool = False,
 ) -> List[Dict[str, object]]:
     sliced: List[Dict[str, object]] = []
     for seg in segments:
@@ -1045,9 +1140,27 @@ def slice_segments_to_interval(
             words.append(clipped_word)
         if words:
             new_seg["words"] = words
-            text = "".join(word.get("word", "") for word in words)
+            text = " ".join(word.get("word", "").strip() for word in words)
+            text = text.replace("  ", " ")
             if text.strip():
                 new_seg["text"] = text.strip()
+        elif allow_approximate_text:
+            existing_text = str(seg.get("text", ""))
+            if existing_text:
+                trimmed_text = _approximate_text_slice(
+                    existing_text,
+                    seg_start,
+                    seg_end,
+                    clipped_start,
+                    clipped_end,
+                )
+                if trimmed_text:
+                    new_seg["text"] = trimmed_text
+                elif "text" in new_seg:
+                    new_seg.pop("text")
+        elif "text" in new_seg and not new_seg.get("words"):
+            # Drop text without supporting timestamps when approximation is disabled
+            new_seg.pop("text", None)
         sliced.append(new_seg)
     return sliced
 
@@ -1061,6 +1174,43 @@ def segments_to_text(segments: Optional[Sequence[Dict[str, object]]]) -> str:
         if text_value:
             texts.append(text_value)
     return " ".join(texts).strip()
+
+
+def _segment_words_to_text(words: Optional[Sequence[Dict[str, object]]]) -> str:
+    if not words:
+        return ""
+    collected: List[str] = []
+    for word in words:
+        if not isinstance(word, dict):
+            continue
+        word_text = str(word.get("word", "")).strip()
+        if word_text:
+            collected.append(word_text)
+    return " ".join(collected).strip()
+
+
+def prune_empty_segments(
+    segments: Sequence[Dict[str, object]],
+) -> List[Dict[str, object]]:
+    cleaned: List[Dict[str, object]] = []
+    for segment in segments:
+        text_value = str(segment.get("text", "")).strip()
+        words_value = _segment_words_to_text(segment.get("words"))
+        if not text_value and not words_value:
+            continue
+        segment_copy = dict(segment)
+        if words_value:
+            segment_copy["words"] = [
+                dict(word)
+                for word in segment.get("words", [])
+                if isinstance(word, dict) and str(word.get("word", "")).strip()
+            ]
+        if text_value:
+            segment_copy["text"] = text_value
+        elif words_value:
+            segment_copy["text"] = words_value
+        cleaned.append(segment_copy)
+    return cleaned
 
 
 def display_transcription_summary(
@@ -1124,12 +1274,58 @@ def render_utterances(
         if interval.duration <= 0:
             continue
 
-        segments = slice_segments_to_interval(
-            transcription.final_segments, interval.start, interval.end
-        )
+        using_translation = transcription.translation_segments is not None
+
+        if using_translation:
+            segments = prune_empty_segments(
+                slice_segments_to_interval(
+                    transcription.translation_segments or [],
+                    interval.start,
+                    interval.end,
+                    allow_approximate_text=True,
+                )
+            )
+            orig_segments = prune_empty_segments(
+                slice_segments_to_interval(
+                    transcription.alignment_segments,
+                    interval.start,
+                    interval.end,
+                    allow_approximate_text=False,
+                )
+            )
+        else:
+            segments = prune_empty_segments(
+                slice_segments_to_interval(
+                    transcription.alignment_segments,
+                    interval.start,
+                    interval.end,
+                    allow_approximate_text=False,
+                )
+            )
+            orig_segments = []
+
+        if not segments and not using_translation:
+            segments = prune_empty_segments(
+                slice_segments_to_interval(
+                    transcription.final_segments,
+                    interval.start,
+                    interval.end,
+                    allow_approximate_text=False,
+                )
+            )
+
         if not segments:
             logger.warning(
                 "Interval %s produced no transcript segments for %s",
+                interval.index,
+                descriptor,
+            )
+            continue
+
+        utterance_text = segments_to_text(segments)
+        if not utterance_text:
+            logger.info(
+                "Skipping interval %s for %s due to empty transcript content",
                 interval.index,
                 descriptor,
             )
@@ -1176,10 +1372,8 @@ def render_utterances(
             "prompt": transcription.prompt_text,
             "transcriptionServerCreateTime": dt.datetime.utcnow().isoformat(),
         }
-        if transcription.translation_segments is not None:
-            payload["origLangSegments"] = slice_segments_to_interval(
-                transcription.source_segments, interval.start, interval.end
-            )
+        if transcription.translation_segments is not None and orig_segments:
+            payload["origLangSegments"] = orig_segments
         else:
             payload["language"] = transcription.language
 

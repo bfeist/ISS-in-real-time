@@ -5,6 +5,7 @@ import shutil
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+import argparse
 
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../../.env")
@@ -236,7 +237,28 @@ def process_all_transcripts(root_dir, output_dir):
 
 
 if __name__ == "__main__":
-    processed_dates = process_all_transcripts(COMM_RAW, COMM_WEB)
-    # Save processed dates to a file for use in make_tles.py
-    # with open("processed_dates.json", "w") as f:
-    #     json.dump(processed_dates, f)
+    parser = argparse.ArgumentParser(description="Process comm transcripts.")
+    parser.add_argument("--date", help="Process only this date in YYYY-MM-DD format")
+    args = parser.parse_args()
+
+    if args.date:
+        # Validate date format
+        try:
+            datetime.strptime(args.date, "%Y-%m-%d")
+        except ValueError:
+            print("Invalid date format. Use YYYY-MM-DD")
+            exit(1)
+
+        # Clear destination folder for the date
+        year, month, day = args.date.split("-")
+        dest_dir = os.path.join(COMM_WEB, year, month, day)
+        if os.path.exists(dest_dir):
+            shutil.rmtree(dest_dir)
+            print(f"Cleared destination folder: {dest_dir}")
+
+        # Process the specific date
+        processed_date = create_daily_transcript(COMM_RAW, args.date, COMM_WEB)
+        print(f"Processed date: {processed_date}")
+    else:
+        processed_dates = process_all_transcripts(COMM_RAW, COMM_WEB)
+        print(f"Processed dates: {processed_dates}")
