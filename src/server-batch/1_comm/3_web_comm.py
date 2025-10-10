@@ -2,10 +2,18 @@ import os
 import json
 import csv
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 import argparse
+
+
+def parse_date_arg(date_str):
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        raise argparse.ArgumentTypeError("Invalid date format. Use YYYY-MM-DD")
+
 
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../../.env")
@@ -146,23 +154,28 @@ def create_daily_transcript(root_dir, date_str, output_dir):
     output_file = os.path.join(
         output_dir, year, month, day, f"_transcript_{date_str}.csv"
     )
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-    fieldnames = [
-        "utteranceTime",
-        "filename",
-        "start",
-        "end",
-        "language",
-        "text",
-        "textOriginalLang",
-    ]
+    # Only write the file if there's data to write
+    if data_list:
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-    with open(output_file, "w", encoding="utf-8") as txtfile:
-        # txtfile.write('|'.join(fieldnames) + '\n')
-        for data in data_list:
-            row = [data[field] for field in fieldnames]
-            txtfile.write("|".join(row) + "\n")
+        fieldnames = [
+            "utteranceTime",
+            "filename",
+            "start",
+            "end",
+            "language",
+            "text",
+            "textOriginalLang",
+        ]
+
+        with open(output_file, "w", encoding="utf-8") as txtfile:
+            # txtfile.write('|'.join(fieldnames) + '\n')
+            for data in data_list:
+                row = [data[field] for field in fieldnames]
+                txtfile.write("|".join(row) + "\n")
+    else:
+        print(f"No valid transcript data to write for {date_str} (data_list is empty)")
 
     # Now copy all AAC files individually
     if aac_files_to_copy:
@@ -192,7 +205,8 @@ def create_daily_transcript(root_dir, date_str, output_dir):
 
         print(f"Finished copying AAC files for {date_str}")
 
-    print(f"Transcript for {date_str} has been created: {output_file}")
+    if data_list:
+        print(f"Transcript for {date_str} has been created: {output_file}")
     print(
         f"Processed {len(data_list)} transcript entries and {len(aac_files_to_copy)} AAC files"
     )
@@ -241,16 +255,28 @@ def process_all_transcripts(root_dir, output_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process comm transcripts.")
     parser.add_argument("--date", help="Process only this date in YYYY-MM-DD format")
+    parser.add_argument(
+        "--start-date",
+        type=parse_date_arg,
+        help="Inclusive start date (YYYY-MM-DD). When used with --end-date, processes EVERY day in the range",
+    )
+    parser.add_argument(
+        "--end-date",
+        type=parse_date_arg,
+        help="Inclusive end date (YYYY-MM-DD). When used with --start-date, processes EVERY day in the range",
+    )
     args = parser.parse_args()
 
-    if args.date:
-        # Validate date format
-        try:
-            datetime.strptime(args.date, "%Y-%m-%d")
-        except ValueError:
-            print("Invalid date format. Use YYYY-MM-DD")
-            exit(1)
-
+    if args.start_date and args.end_date:
+        processed_dates = []
+        current = args.start_date
+        while current <= args.end_date:
+            date_str = current.strftime("%Y-%m-%d")
+            processed_date = create_daily_transcript(COMM_RAW, date_str, COMM_WEB)
+            processed_dates.append(processed_date)
+            current += timedelta(days=1)
+        print(f"Processed dates: {processed_dates}")
+    elif args.date:
         # Clear destination folder for the date
         year, month, day = args.date.split("-")
         dest_dir = os.path.join(COMM_WEB, year, month, day)

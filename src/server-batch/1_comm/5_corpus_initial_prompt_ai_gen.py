@@ -23,6 +23,9 @@ Usage:
 
   # Process specific dates
   python 5_corpus_initial_prompt_ai_gen.py --date 2020-03-15 --date 2020-04-20
+
+  # Do all the days
+  python 5_corpus_initial_prompt_ai_gen.py --workers 2 --monitor --all-days
 """
 
 from __future__ import annotations
