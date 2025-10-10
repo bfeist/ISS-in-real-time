@@ -99,17 +99,35 @@ VAD_SAMPLE_RATE = WHISPER_AUDIO_SAMPLE_RATE
 VAD_AGGRESSIVENESS = int(os.getenv("WHISPER_VAD_MODE", "2"))
 
 INVALID_TRANSCRIPT_MARKERS = [
-    " Thank you.",
     "Thank you.",
-    " Bye.",
-    " ...",
-    " Thanks for watching!",
-    " Thank you for watching.",
-    " Thank you for watching!",
-    " Thank you for watching",
-    " .",
-    " This video is a derivative work of the Touhou Project",
+    "Bye.",
+    "...",
+    "Thanks for watching!",
+    "Thank you for watching.",
+    "Thank you for watching!",
+    "Thank you for watching",
+    ".",
+    "This video is a derivative work of the Touhou Project",
 ]
+
+
+def _normalize_transcript_text(value: str) -> str:
+    """Collapse whitespace and lowercase for consistent comparisons."""
+
+    collapsed = " ".join(value.strip().split())
+    return collapsed.lower()
+
+
+_INVALID_TRANSCRIPT_MARKERS_NORMALIZED = {
+    _normalize_transcript_text(marker) for marker in INVALID_TRANSCRIPT_MARKERS
+}
+
+
+def is_invalid_transcript_text(value: str) -> bool:
+    if not value:
+        return False
+    return _normalize_transcript_text(value) in _INVALID_TRANSCRIPT_MARKERS_NORMALIZED
+
 
 ROOT_ENV_PATH = Path(__file__).resolve().parents[3] / ".env"
 TRACKING_DIR = Path(__file__).parent.parent
@@ -868,12 +886,19 @@ def transcribe_full_wav(
     with suppress_stdout_stderr():
         audio = whisperx.load_audio(str(wav_path))
 
-    if hasattr(audio, "shape") and audio.shape:
-        sample_count = int(audio.shape[-1])
-    elif hasattr(audio, "__len__"):
-        sample_count = len(audio)
-    else:
-        sample_count = 0
+    sample_count = 0
+    if hasattr(audio, "shape"):
+        try:
+            shape = audio.shape
+            if shape:
+                sample_count = int(shape[-1])
+        except (TypeError, IndexError, ValueError):
+            sample_count = 0
+    if not sample_count and hasattr(audio, "__len__"):
+        try:
+            sample_count = len(audio)
+        except TypeError:
+            sample_count = 0
 
     audio_duration_seconds = (
         float(sample_count) / float(WHISPER_AUDIO_SAMPLE_RATE) if sample_count else 0.0
@@ -1515,18 +1540,11 @@ def render_utterances(
             )
             continue
 
-        first_text_raw = str(segments[0].get("text", ""))
-        candidate_texts = [first_text_raw, first_text_raw.strip()]
-        if any(
-            marker in candidate
-            for candidate in candidate_texts
-            if candidate
-            for marker in INVALID_TRANSCRIPT_MARKERS
-        ):
+        if is_invalid_transcript_text(utterance_text):
             logger.info(
                 "Skipping interval %s due to invalid transcript text: %s",
                 interval.index,
-                first_text_raw.strip() or first_text_raw,
+                utterance_text,
             )
             continue
 

@@ -277,6 +277,93 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
         self.assertEqual(outputs, [])
         self.assertFalse(output_root.exists())
 
+    def test_render_utterances_allows_marker_substring_with_additional_text(
+        self,
+    ) -> None:
+        audio = AudioSegment.silent(duration=1500)
+        source_wav_path = Path(self.temp_dir.name) / "substring.wav"
+        export_handle = audio.export(source_wav_path, format="wav")
+        if hasattr(export_handle, "close"):
+            export_handle.close()
+
+        rich_text = "Yes, well received. Thank you. Moscow, Moscow, MKS, SG-1 on the scaffolding."
+        transcription = TranscriptionArtifacts(
+            language="en",
+            detected_language="en",
+            final_segments=[{"start": 0.0, "end": 1.4, "text": rich_text}],
+            source_segments=[{"start": 0.0, "end": 1.4, "text": rich_text}],
+            alignment_segments=[
+                {
+                    "start": 0.0,
+                    "end": 0.9,
+                    "words": [
+                        {"start": 0.0, "end": 0.2, "word": "Yes,"},
+                        {"start": 0.2, "end": 0.35, "word": "well"},
+                        {"start": 0.35, "end": 0.6, "word": "received."},
+                        {"start": 0.6, "end": 0.8, "word": "Thank"},
+                        {"start": 0.8, "end": 0.9, "word": "you."},
+                    ],
+                },
+                {
+                    "start": 0.9,
+                    "end": 1.5,
+                    "words": [
+                        {"start": 0.9, "end": 1.05, "word": "Moscow,"},
+                        {"start": 1.05, "end": 1.2, "word": "Moscow,"},
+                        {"start": 1.2, "end": 1.3, "word": "MKS,"},
+                        {"start": 1.3, "end": 1.35, "word": "SG-1"},
+                        {"start": 1.35, "end": 1.4, "word": "on"},
+                        {"start": 1.4, "end": 1.45, "word": "the"},
+                        {"start": 1.45, "end": 1.5, "word": "scaffolding."},
+                    ],
+                },
+            ],
+            translation_segments=None,
+            prompt_text="",
+        )
+
+        interval = Interval(
+            index=0,
+            start=0.0,
+            end=1.5,
+            words=[
+                {"start": 0.0, "end": 0.2, "word": "Yes,"},
+                {"start": 0.2, "end": 0.35, "word": "well"},
+                {"start": 0.35, "end": 0.6, "word": "received."},
+                {"start": 0.6, "end": 0.8, "word": "Thank"},
+                {"start": 0.8, "end": 0.95, "word": "you."},
+                {"start": 0.95, "end": 1.1, "word": "Moscow,"},
+                {"start": 1.1, "end": 1.2, "word": "Moscow,"},
+                {"start": 1.2, "end": 1.3, "word": "MKS,"},
+                {"start": 1.3, "end": 1.35, "word": "SG-1"},
+                {"start": 1.35, "end": 1.4, "word": "on"},
+                {"start": 1.4, "end": 1.45, "word": "the"},
+                {"start": 1.45, "end": 1.5, "word": "scaffolding."},
+            ],
+        )
+
+        output_root = Path(self.temp_dir.name) / "substring_output"
+        with mock.patch.object(
+            TRANSCRIPTION_MODULE,
+            "export_utterances_with_ffmpeg",
+            return_value=False,
+        ):
+            outputs = render_utterances(
+                source_wav_path,
+                audio,
+                transcription,
+                [interval],
+                "1_SG_1",
+                TRANSCRIPTION_MODULE.dt.datetime(2024, 1, 1, 0, 0, 0),
+                output_root,
+            )
+
+        self.assertEqual(len(outputs), 1)
+        transcript_path = outputs[0]
+        self.assertTrue(transcript_path.exists())
+        payload = json.loads(transcript_path.read_text(encoding="utf-8"))
+        self.assertIn("Thank you", payload["segments"][0]["text"])
+
     def test_render_utterances_skips_empty_segments(self) -> None:
         audio = AudioSegment.silent(duration=1000)
         source_wav_path = Path(self.temp_dir.name) / "empty_source.wav"
