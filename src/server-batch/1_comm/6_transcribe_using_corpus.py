@@ -29,6 +29,11 @@ from pydub import AudioSegment  # type: ignore
 from rich.console import Console
 from rich.logging import RichHandler
 
+try:
+    import torch
+except ImportError:  # pragma: no cover - torch is optional for CPU-only environments
+    torch = None  # type: ignore
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
@@ -44,15 +49,43 @@ from log_db import (  # noqa: E402  - local module import after path injection
 from log_migration import migrate_legacy_tracking_files  # noqa: E402
 
 
+def _parse_positive_int(value: Optional[str], default: int, *, minimum: int = 1) -> int:
+    try:
+        parsed = int(value) if value is not None else default
+    except (TypeError, ValueError):
+        parsed = default
+    return max(minimum, parsed)
+
+
 # ---------------------------------------------------------------------------
 # Constants & Configuration
 # ---------------------------------------------------------------------------
 
-MODEL_TYPE = "large-v3"
-DEVICE = "cuda"
+MODEL_TYPE = os.getenv("WHISPER_MODEL_TYPE", "large-v3")
+DEVICE = os.getenv("WHISPER_DEVICE", "cuda")
 COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "float16")
-BATCH_SIZE = 32
-CHUNK_LENGTH = 30
+DEFAULT_BATCH_SIZE = _parse_positive_int(os.getenv("WHISPER_BATCH_SIZE"), 32)
+DEFAULT_CHUNK_LENGTH = _parse_positive_int(os.getenv("WHISPER_CHUNK_LENGTH"), 30)
+LONG_AUDIO_THRESHOLD_SECONDS = _parse_positive_int(
+    os.getenv("WHISPER_LONG_AUDIO_THRESHOLD_SECONDS"),
+    1200,
+    minimum=60,
+)
+LONG_AUDIO_BATCH_SIZE = max(
+    1,
+    min(
+        DEFAULT_BATCH_SIZE,
+        _parse_positive_int(os.getenv("WHISPER_LONG_AUDIO_BATCH_SIZE"), 8),
+    ),
+)
+LONG_AUDIO_CHUNK_LENGTH = max(
+    1,
+    min(
+        DEFAULT_CHUNK_LENGTH,
+        _parse_positive_int(os.getenv("WHISPER_LONG_AUDIO_CHUNK_LENGTH"), 20),
+    ),
+)
+WHISPER_AUDIO_SAMPLE_RATE = 16000
 FRAME_DURATION_SECONDS = 0.02
 MIN_WAIT_BLOCKS = 10
 PRE_ROLL_BLOCKS = 2
@@ -61,7 +94,7 @@ AAC_BITRATE = "96k"
 CACHE_SUFFIX = ".transcription.json"
 ALIGNMENT_CACHE_SUFFIX = ".alignment.json"
 PROMPT_ROOT_SUBPATH = "prompt_context"
-VAD_SAMPLE_RATE = 16000
+VAD_SAMPLE_RATE = WHISPER_AUDIO_SAMPLE_RATE
 VAD_AGGRESSIVENESS = int(os.getenv("WHISPER_VAD_MODE", "2"))
 
 INVALID_TRANSCRIPT_MARKERS = [
@@ -766,6 +799,43 @@ def transcribe_with_model(pipeline: object, audio, **kwargs):
     return transcribe_fn(audio, **filtered_kwargs)
 
 
+def resolve_transcription_params(audio_duration_seconds: float) -> Tuple[int, int]:
+    batch_size = DEFAULT_BATCH_SIZE
+    chunk_length = DEFAULT_CHUNK_LENGTH
+
+    if audio_duration_seconds >= LONG_AUDIO_THRESHOLD_SECONDS:
+        adjusted_batch = min(batch_size, LONG_AUDIO_BATCH_SIZE)
+        adjusted_chunk = min(chunk_length, LONG_AUDIO_CHUNK_LENGTH)
+        if adjusted_batch != batch_size or adjusted_chunk != chunk_length:
+            logger.info(
+                "Detected long audio (%.1fs). Using Whisper batch_size=%s, chunk_length=%s",
+                audio_duration_seconds,
+                adjusted_batch,
+                adjusted_chunk,
+            )
+        batch_size = max(1, adjusted_batch)
+        chunk_length = max(1, adjusted_chunk)
+
+    logger.debug(
+        "Resolved Whisper parameters: batch_size=%s, chunk_length=%s for %.1fs audio",
+        batch_size,
+        chunk_length,
+        audio_duration_seconds,
+    )
+    return batch_size, chunk_length
+
+
+def release_cuda_memory() -> None:
+    if not DEVICE.startswith("cuda"):
+        return
+    if torch is None or not torch.cuda.is_available():  # pragma: no cover - GPU only
+        return
+    try:
+        torch.cuda.empty_cache()
+    except Exception:  # pragma: no cover - defensive guard
+        logger.debug("torch.cuda.empty_cache() raised unexpectedly", exc_info=True)
+
+
 def transcribe_full_wav(
     wav_path: Path,
     descriptor: str,
@@ -794,13 +864,25 @@ def transcribe_full_wav(
     with suppress_stdout_stderr():
         audio = whisperx.load_audio(str(wav_path))
 
+    if hasattr(audio, "shape") and audio.shape:
+        sample_count = int(audio.shape[-1])
+    elif hasattr(audio, "__len__"):
+        sample_count = len(audio)
+    else:
+        sample_count = 0
+
+    audio_duration_seconds = (
+        float(sample_count) / float(WHISPER_AUDIO_SAMPLE_RATE) if sample_count else 0.0
+    )
+    batch_size, chunk_length = resolve_transcription_params(audio_duration_seconds)
+
     logger.debug("Transcribing %s", wav_path.name)
     with suppress_stdout_stderr():
         result = transcribe_with_model(
             resources.base_model,
             audio,
-            batch_size=BATCH_SIZE,
-            chunk_length=CHUNK_LENGTH,
+            batch_size=batch_size,
+            chunk_length=chunk_length,
             condition_on_previous_text=False,
             beam_size=2,
             best_of=2,
@@ -808,6 +890,7 @@ def transcribe_full_wav(
             initial_prompt=prompt_text,
             word_timestamps=True,
         )
+    release_cuda_memory()
 
     detected_language = result.get("language", "en") or "en"
 
@@ -843,6 +926,7 @@ def transcribe_full_wav(
 
     if not alignment_segments:
         alignment_segments = result["segments"]
+    release_cuda_memory()
 
     translation_segments: Optional[List[Dict[str, object]]] = None
     final_segments = result["segments"]
@@ -856,8 +940,8 @@ def transcribe_full_wav(
             translation_result = transcribe_with_model(
                 resources.base_model,
                 audio,
-                batch_size=BATCH_SIZE,
-                chunk_length=CHUNK_LENGTH,
+                batch_size=batch_size,
+                chunk_length=chunk_length,
                 condition_on_previous_text=False,
                 beam_size=2,
                 best_of=2,
@@ -867,6 +951,7 @@ def transcribe_full_wav(
             )
         translation_segments = translation_result["segments"]
         final_segments = translation_segments
+        release_cuda_memory()
 
     artifacts = TranscriptionArtifacts(
         language="en" if translation_segments else detected_language,
