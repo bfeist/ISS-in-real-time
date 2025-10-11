@@ -254,13 +254,13 @@ const DAYS_IN_LONGEST_MONTH = 31;
 const TIMELINE_WIDTH_MULTIPLIER = 1.25; // Extend timeline width by 25% beyond calculated max
 const SCROLL_EDGE_TOLERANCE_PX = 8;
 
-const TouchScrollArrow: React.FC<{ direction: "left" | "right" }> = ({ direction }) => (
+const ScrollIndicatorArrow: React.FC<{ direction: "left" | "right" }> = ({ direction }) => (
   <svg
     viewBox="0 0 56 56"
     role="presentation"
     aria-hidden="true"
     focusable="false"
-    className={styles.touchScrollArrowIcon}
+    className={styles.scrollIndicatorArrowIcon}
     style={{ transform: direction === "right" ? "rotate(180deg)" : undefined }}
   >
     <path
@@ -309,19 +309,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const { showHint: showMouseHint, markInteracted: markUserInteracted } =
     useMouseHint(showTimelineYears);
 
-  const [interactionMode, setInteractionMode] = useState<InteractionMode>(() => {
-    if (typeof window !== "undefined" && window.matchMedia) {
-      try {
-        if (window.matchMedia("(pointer: coarse)").matches) {
-          return "touch";
-        }
-      } catch (_error) {
-        // Ignore matchMedia errors and default to mouse
-      }
-    }
-
-    return "mouse";
-  });
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>(() => "mouse");
   const ignoreMouseEventsUntilRef = useRef<number>(0);
   const pointerDownRef = useRef(false);
   const pointerPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -860,16 +848,16 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         }}
         onTouchStart={handleTouchStart}
       >
-        {isTouchLike && showTimelineYears && scrollIndicators.isScrollable && (
+        {showTimelineYears && scrollIndicators.isScrollable && (
           <>
             {scrollIndicators.canScrollLeft && (
-              <div className={`${styles.touchScrollIndicator} ${styles.touchScrollIndicatorLeft}`}>
-                <TouchScrollArrow direction="left" />
+              <div className={`${styles.scrollIndicator} ${styles.scrollIndicatorLeft}`}>
+                <ScrollIndicatorArrow direction="left" />
               </div>
             )}
             {scrollIndicators.canScrollRight && (
-              <div className={`${styles.touchScrollIndicator} ${styles.touchScrollIndicatorRight}`}>
-                <TouchScrollArrow direction="right" />
+              <div className={`${styles.scrollIndicator} ${styles.scrollIndicatorRight}`}>
+                <ScrollIndicatorArrow direction="right" />
               </div>
             )}
           </>
