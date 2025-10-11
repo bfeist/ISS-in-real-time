@@ -1,9 +1,10 @@
-import { FunctionComponent, useCallback, useEffect, useRef, useState } from "react";
+import { FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowsSpin } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photosThumbs.module.css";
 import { appSecondsFromDateTime, timeComponentFromDateTime } from "utils/time";
 import { useStateClock } from "store/hooks/useStateClock";
+import { isIosSafari } from "utils/device";
 
 interface PhotosThumbsProps {
   photoItemsCombined: PhotoItem[];
@@ -19,6 +20,8 @@ interface PhotosThumbsProps {
   setClickedPhotoFilename: (filename: string | null) => void;
   setLastAppSeconds: (seconds: number | null) => void;
 }
+
+const SCROLL_EPSILON = 0.5;
 
 const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   photoItemsCombined,
@@ -59,6 +62,65 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   const isPointerDownRef = useRef(false);
   const userScrollIntentRef = useRef(false);
   const previousStartStopTimestampRef = useRef<string | null>(null);
+
+  const isIosSafariDevice = useMemo(() => isIosSafari(), []);
+
+  const programmaticScrollTo = useCallback(
+    (container: HTMLDivElement | null, targetScrollLeft: number) => {
+      if (!container) {
+        return false;
+      }
+
+      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+      const clampedTarget = Math.min(Math.max(targetScrollLeft, 0), maxScrollLeft);
+      const diff = clampedTarget - container.scrollLeft;
+
+      if (Math.abs(diff) <= SCROLL_EPSILON) {
+        return false;
+      }
+
+      isProgrammaticScrollingRef.current = true;
+
+      const finalize = () => {
+        requestAnimationFrame(() => {
+          isProgrammaticScrollingRef.current = false;
+        });
+      };
+
+      if (isIosSafariDevice) {
+        const previousOverflowX = container.style.overflowX;
+        const previousOverflowY = container.style.overflowY;
+        const previousWebkitOverflow = container.style.getPropertyValue(
+          "-webkit-overflow-scrolling"
+        );
+
+        container.style.overflowX = "hidden";
+        container.style.overflowY = "hidden";
+        container.style.setProperty("-webkit-overflow-scrolling", "auto");
+        container.scrollLeft = clampedTarget;
+
+        requestAnimationFrame(() => {
+          container.style.overflowX = previousOverflowX || "";
+          container.style.overflowY = previousOverflowY || "";
+
+          if (previousWebkitOverflow) {
+            container.style.setProperty("-webkit-overflow-scrolling", previousWebkitOverflow);
+          } else {
+            container.style.removeProperty("-webkit-overflow-scrolling");
+          }
+
+          container.scrollLeft = clampedTarget;
+          finalize();
+        });
+      } else {
+        container.scrollTo({ left: clampedTarget, behavior: "auto" });
+        finalize();
+      }
+
+      return true;
+    },
+    [isIosSafariDevice]
+  );
 
   // Window management function refs to avoid circular dependencies
   const calculateInitialWindowRef = useRef<(centerPhoto: PhotoItem | null) => void>();
@@ -560,21 +622,10 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
 
       isProgrammaticScrollingRef.current = true;
 
-      const targetRect = targetElement.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
+      const targetCenterOffset = targetElement.offsetLeft + targetElement.offsetWidth / 2;
+      const desiredScrollLeft = targetCenterOffset - container.clientWidth / 2;
 
-      const targetCenterX = targetRect.left + targetRect.width / 2;
-      const containerCenterX = containerRect.left + containerRect.width / 2;
-      const scrollOffset = targetCenterX - containerCenterX;
-
-      container.scrollBy({
-        left: scrollOffset,
-        behavior: "instant",
-      });
-
-      requestAnimationFrame(() => {
-        isProgrammaticScrollingRef.current = false;
-      });
+      programmaticScrollTo(container, desiredScrollLeft);
     }
   }, [
     appSeconds,
@@ -586,6 +637,7 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
     setLastAppSeconds,
     photoItemsCombined,
     resetWindowState,
+    programmaticScrollTo,
   ]);
 
   const handleThumbnailClick = useCallback(

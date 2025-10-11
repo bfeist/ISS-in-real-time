@@ -64,3 +64,26 @@ export const isMobileDevice = (): boolean => {
     (hasTouch && window.matchMedia && window.matchMedia("(hover: none)").matches)
   );
 };
+
+/**
+ * Detects if the current browser is Safari running on iOS.
+ * iOS Safari applies system-level momentum scrolling that can override programmatic scroll adjustments.
+ */
+export const isIosSafari = (): boolean => {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  const userAgent = navigator.userAgent || navigator.vendor || "";
+  const isIOS = /iP(ad|hone|od)/.test(userAgent);
+
+  if (!isIOS) {
+    return false;
+  }
+
+  const isWebKit = /WebKit/i.test(userAgent);
+  const isChromeIOS = /CriOS/i.test(userAgent);
+  const isFirefoxIOS = /FxiOS/i.test(userAgent);
+
+  return isIOS && isWebKit && !isChromeIOS && !isFirefoxIOS;
+};
