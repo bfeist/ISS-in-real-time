@@ -136,16 +136,16 @@ describe("MegaYearOverlay", () => {
     Object.defineProperty(grid, "getBoundingClientRect", {
       value: () => ({
         left: 0,
-        right: 300,
+        right: 450,
         top: 0,
         bottom: 400,
-        width: 300,
+        width: 450,
         height: 400,
       }),
       configurable: true,
     });
 
-    fireEvent.click(grid, { clientX: 10, clientY: 50 });
+    fireEvent.click(grid, { clientX: 90, clientY: 60 });
 
     expect(toggleState.setShowTimelineYears).toHaveBeenCalledWith(false);
     expect(clockState.setSelectedDate).toHaveBeenCalled();

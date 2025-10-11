@@ -140,6 +140,7 @@ const drawMegaOverlay = ({
   ctx.font = `600 ${headerFontSize}px/1 "Inter", "Helvetica Neue", Arial, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  const canDrawText = typeof ctx.fillText === "function";
 
   for (let month = startMonth; month <= endMonth; month++) {
     const x = month * (layout.cellWidth + layout.cellGap);
@@ -147,7 +148,7 @@ const drawMegaOverlay = ({
     ctx.fillRect(x, 0, layout.cellWidth, layout.headerHeight);
 
     const label = MONTH_INITIALS[month] ?? "";
-    if (label) {
+    if (label && canDrawText) {
       ctx.fillStyle = "#e0e0e0";
       ctx.fillText(label, x + layout.cellWidth / 2, layout.headerHeight / 2);
     }
