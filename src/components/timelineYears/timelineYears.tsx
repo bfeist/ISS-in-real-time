@@ -252,6 +252,27 @@ const YEAR_GAP = "2px"; // done in css
 const MONTHS_IN_YEAR = 12;
 const DAYS_IN_LONGEST_MONTH = 31;
 const TIMELINE_WIDTH_MULTIPLIER = 1.25; // Extend timeline width by 25% beyond calculated max
+const SCROLL_EDGE_TOLERANCE_PX = 8;
+
+const TouchScrollArrow: React.FC<{ direction: "left" | "right" }> = ({ direction }) => (
+  <svg
+    viewBox="0 0 56 56"
+    role="presentation"
+    aria-hidden="true"
+    focusable="false"
+    className={styles.touchScrollArrowIcon}
+    style={{ transform: direction === "right" ? "rotate(180deg)" : undefined }}
+  >
+    <path
+      d="M34.5 12.5 19 28l15.5 15.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 
 // Props interface for the TimelineYears2 component
 interface TimelineYears2Props {
@@ -288,10 +309,27 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const { showHint: showMouseHint, markInteracted: markUserInteracted } =
     useMouseHint(showTimelineYears);
 
-  const [interactionMode, setInteractionMode] = useState<InteractionMode>("mouse");
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>(() => {
+    if (typeof window !== "undefined" && window.matchMedia) {
+      try {
+        if (window.matchMedia("(pointer: coarse)").matches) {
+          return "touch";
+        }
+      } catch (_error) {
+        // Ignore matchMedia errors and default to mouse
+      }
+    }
+
+    return "mouse";
+  });
   const ignoreMouseEventsUntilRef = useRef<number>(0);
   const pointerDownRef = useRef(false);
   const pointerPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const [scrollIndicators, setScrollIndicators] = useState({
+    canScrollLeft: false,
+    canScrollRight: false,
+    isScrollable: false,
+  });
 
   const getNow = useCallback(() => {
     if (typeof performance !== "undefined" && typeof performance.now === "function") {
@@ -322,6 +360,53 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     [getNow]
   );
 
+  const updateScrollIndicators = useCallback(() => {
+    const container = yearsScrollContainerRef.current;
+    if (!container) {
+      setScrollIndicators((prev) =>
+        prev.canScrollLeft || prev.canScrollRight || prev.isScrollable
+          ? { canScrollLeft: false, canScrollRight: false, isScrollable: false }
+          : prev
+      );
+      return;
+    }
+
+    const { scrollLeft, clientWidth, scrollWidth } = container;
+    const maxScrollLeft = Math.max(0, scrollWidth - clientWidth);
+
+    if (maxScrollLeft <= SCROLL_EDGE_TOLERANCE_PX) {
+      setScrollIndicators((prev) =>
+        prev.isScrollable
+          ? { canScrollLeft: false, canScrollRight: false, isScrollable: false }
+          : prev
+      );
+      return;
+    }
+
+    const normalizedScrollLeft = Math.round(scrollLeft);
+    const normalizedMaxScrollLeft = Math.round(maxScrollLeft);
+
+    const canScrollLeft = normalizedScrollLeft > SCROLL_EDGE_TOLERANCE_PX;
+    const canScrollRight =
+      normalizedScrollLeft < normalizedMaxScrollLeft - SCROLL_EDGE_TOLERANCE_PX;
+
+    setScrollIndicators((prev) => {
+      if (
+        prev.canScrollLeft === canScrollLeft &&
+        prev.canScrollRight === canScrollRight &&
+        prev.isScrollable
+      ) {
+        return prev;
+      }
+
+      return {
+        canScrollLeft,
+        canScrollRight,
+        isScrollable: true,
+      };
+    });
+  }, []);
+
   const handleMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (event.button !== 0) {
@@ -339,6 +424,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
       const hasActivePointer = pointerDownRef.current || pointerPositionRef.current !== null;
       updateEdgeScrollFromPointer(event.clientX, hasActivePointer);
+      updateScrollIndicators();
       markUserInteracted();
     },
     [
@@ -346,6 +432,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       registerInteractionMode,
       shouldIgnoreMouseEvents,
       updateEdgeScrollFromPointer,
+      updateScrollIndicators,
     ]
   );
 
@@ -361,6 +448,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
       const hasActivePointer = pointerDownRef.current || pointerPositionRef.current !== null;
       updateEdgeScrollFromPointer(event.clientX, hasActivePointer);
+      updateScrollIndicators();
       markUserInteracted();
     },
     [
@@ -368,6 +456,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       registerInteractionMode,
       shouldIgnoreMouseEvents,
       updateEdgeScrollFromPointer,
+      updateScrollIndicators,
     ]
   );
 
@@ -381,9 +470,10 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
       pointerPositionRef.current = { x: clientX, y: clientY };
       updateEdgeScrollFromPointer(clientX, true);
+      updateScrollIndicators();
       markUserInteracted();
     },
-    [markUserInteracted, stopAutoScroll, updateEdgeScrollFromPointer]
+    [markUserInteracted, stopAutoScroll, updateEdgeScrollFromPointer, updateScrollIndicators]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -401,7 +491,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       stopAutoScroll();
     }
     pointerPositionRef.current = null;
-  }, [stopAutoScroll]);
+    updateScrollIndicators();
+  }, [stopAutoScroll, updateScrollIndicators]);
 
   // Audio refs and state
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -412,6 +503,42 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       stopAutoScroll();
     };
   }, [stopAutoScroll]);
+
+  useEffect(() => {
+    const container = yearsScrollContainerRef.current;
+    if (!container) {
+      setScrollIndicators({
+        canScrollLeft: false,
+        canScrollRight: false,
+        isScrollable: false,
+      });
+      return;
+    }
+
+    updateScrollIndicators();
+
+    const handleResize = () => {
+      updateScrollIndicators();
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    let resizeObserver: ResizeObserver | null = null;
+
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => {
+        updateScrollIndicators();
+      });
+      resizeObserver.observe(container);
+    }
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, [showTimelineYears, updateScrollIndicators]);
 
   const getYearIndexFromPoint = useCallback((clientX: number, clientY: number) => {
     if (!containerRef.current) return null;
@@ -631,10 +758,17 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
         // Open the overlay - useEffect will forward the touch
         openMegaOverlay(yearIndex);
+        updateScrollIndicators();
         markUserInteracted();
       }
     },
-    [getYearIndexFromPoint, markUserInteracted, openMegaOverlay, registerInteractionMode]
+    [
+      getYearIndexFromPoint,
+      markUserInteracted,
+      openMegaOverlay,
+      registerInteractionMode,
+      updateScrollIndicators,
+    ]
   );
 
   const handleMegaOverlayMouseEnter = () => {
@@ -679,9 +813,10 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   ]);
 
   const handleYearsScroll = useCallback(() => {
+    updateScrollIndicators();
     markUserInteracted();
     updateActiveYearFromPointer();
-  }, [markUserInteracted, updateActiveYearFromPointer]);
+  }, [markUserInteracted, updateActiveYearFromPointer, updateScrollIndicators]);
 
   useEffect(() => {
     const handleWindowMouseUp = () => {
@@ -725,6 +860,20 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         }}
         onTouchStart={handleTouchStart}
       >
+        {isTouchLike && showTimelineYears && scrollIndicators.isScrollable && (
+          <>
+            {scrollIndicators.canScrollLeft && (
+              <div className={`${styles.touchScrollIndicator} ${styles.touchScrollIndicatorLeft}`}>
+                <TouchScrollArrow direction="left" />
+              </div>
+            )}
+            {scrollIndicators.canScrollRight && (
+              <div className={`${styles.touchScrollIndicator} ${styles.touchScrollIndicatorRight}`}>
+                <TouchScrollArrow direction="right" />
+              </div>
+            )}
+          </>
+        )}
         <div
           className={styles.yearsScrollContainer}
           ref={yearsScrollContainerRef}
