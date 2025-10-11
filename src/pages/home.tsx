@@ -1,7 +1,7 @@
 import styles from "./home.module.css";
-import { FunctionComponent, JSX, useEffect, useMemo } from "react";
+import { FunctionComponent, JSX, useEffect, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { Tooltip } from "react-tooltip";
+import { Tooltip, type TooltipRefProps } from "react-tooltip";
 import DayLayout from "components/dayLayout/dayLayout";
 import { useStateClock } from "../store/hooks/useStateClock";
 import { useStateToggle } from "../store/hooks/useStateToggle";
@@ -10,38 +10,32 @@ import NoDateSelected from "../components/dayLayout/noDateSelected";
 import { parseDateTimeSlug } from "../utils/params";
 import { appSecondsFromTimeStr } from "../utils/time";
 import TimelineYears2Container from "components/timelineYears/timelineYearsContainer";
-import { isTouchDevice } from "../utils/device";
 
 const HomePage: FunctionComponent = (): JSX.Element => {
   const { dateTimeSlug } = useParams();
   const { selectedDate, setDateOnly, setDateTime } = useStateClock();
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
-  // Determine tooltip close events based on device capabilities
-  const tooltipCloseEvents = useMemo(() => {
-    const isTouch = isTouchDevice();
+  const tooltipRef = useRef<TooltipRefProps | null>(null);
 
-    if (isTouch) {
-      // For touch devices, include touchstart to dismiss tooltips when tapping elsewhere
-      return {
-        mouseout: true,
-        mouseleave: true,
-        blur: true,
-        click: true,
-        clickoutside: true,
-        touchstart: true, // This helps dismiss tooltips on mobile when tapping elsewhere
-        escape: true,
-      };
-    } else {
-      // For non-touch devices, use the standard desktop events
-      return {
-        mouseout: true,
-        mouseleave: true,
-        blur: true,
-        click: true,
-        clickoutside: true,
-      };
-    }
+  // Determine tooltip close events based on device capabilities
+  const tooltipEvents = useMemo(() => {
+    const closeEvents = {
+      mouseout: true,
+      mouseleave: true,
+      blur: true,
+      click: true,
+      mouseup: true,
+    } as const;
+
+    const globalCloseEvents = {
+      escape: true,
+      clickOutsideAnchor: true,
+      resize: true,
+      scroll: true,
+    } as const;
+
+    return { closeEvents, globalCloseEvents };
   }, []);
 
   // Handle slug parameter to set date and time in Zustand state
@@ -119,6 +113,36 @@ const HomePage: FunctionComponent = (): JSX.Element => {
     };
   }, []);
 
+  // Ensure tooltips close when their anchor nodes unmount or when leaving the page
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof document === "undefined" ||
+      !window.MutationObserver
+    ) {
+      return;
+    }
+
+    const closeTooltip = () => {
+      tooltipRef.current?.close({ delay: 0 });
+    };
+
+    const observer = new MutationObserver(() => {
+      const activeAnchor = tooltipRef.current?.activeAnchor;
+
+      if (activeAnchor && !document.body.contains(activeAnchor)) {
+        closeTooltip();
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      closeTooltip();
+    };
+  }, []);
+
   return (
     <div className={styles.page}>
       <Header />
@@ -144,10 +168,12 @@ const HomePage: FunctionComponent = (): JSX.Element => {
         </div>
       </div>
       <Tooltip
+        ref={tooltipRef}
         id="issirt-tooltip"
         className="tooltip-style"
         delayShow={500}
-        closeEvents={tooltipCloseEvents}
+        closeEvents={tooltipEvents.closeEvents}
+        globalCloseEvents={tooltipEvents.globalCloseEvents}
       />
     </div>
   );
