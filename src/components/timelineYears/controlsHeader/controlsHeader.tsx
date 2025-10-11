@@ -143,9 +143,9 @@ const ControlsHeader: FunctionComponent = () => {
               }}
               role="button"
               tabIndex={0}
-              aria-label="Select a date to start"
+              aria-label="Select a date to begin"
             >
-              Select a date to start
+              Select a Date to Begin
             </div>
           )}
         </div>

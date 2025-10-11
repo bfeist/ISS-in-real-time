@@ -38,6 +38,7 @@
   background-repeat: no-repeat;
   background-size: 100% 100%;
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 4px;
@@ -119,8 +120,9 @@
 }
 
 .noDateSelectedMessage {
-  font-family: "Roboto Mono", sans-serif;
-  font-size: 1.1rem;
+  margin-bottom: 5px;
+  font-family: var(--font-sans);
+  font-size: 1.3rem;
   font-weight: 400;
   color: var(--highlight);
   text-align: center;

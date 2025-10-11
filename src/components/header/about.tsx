@@ -55,8 +55,9 @@ const AboutModal: FunctionComponent<{
             onboard the International Space Station.
           </p>
           <p>
-            All data here is original historical mission material sourced from across the internet.
-            We have placed it into context so you can experience each day as it happened.
+            All data here is original historical public mission material sourced from across the
+            internet. We have placed the data into mission context so you can experience each day as
+            it happened.
           </p>
           <p>
             Sourcing and processing the data was a challenge. We found it in many different places
@@ -71,9 +72,9 @@ const AboutModal: FunctionComponent<{
             , youtube, and flickr.
           </p>
           <p>
-            Comm transcription and image classification were achieved using AI processing on a
-            massive scale. There may be some errors in the data, but we did our best to ensure
-            accuracy.
+            Communication transcription and image classification were achieved using AI processing
+            on a massive scale. There may be some errors in the data, but we&apos;ve done our best
+            to ensure accuracy and will continue to improve the result over time.
           </p>
           <IconButton
             icon={faBook}
@@ -110,8 +111,8 @@ const AboutModal: FunctionComponent<{
             <a href="https://davidcharney.com" target="_blank" rel="noopener noreferrer">
               David Charney
             </a>
-            . We are both contractors at NASA, but we did this on evenings and weekends, just
-            because we like to put good things on the Internet.
+            . We are both contractors at NASA, but we built this website independently on evenings
+            and weekends just because we like to put good things on the Internet.
           </p>
 
           <p>
