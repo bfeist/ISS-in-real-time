@@ -19,7 +19,7 @@ import zipfile
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple, TypeVar
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, TypeVar
 from zoneinfo import ZoneInfo
 
 from functools import lru_cache
@@ -67,6 +67,7 @@ def _parse_positive_int(value: Optional[str], default: int, *, minimum: int = 1)
 MODEL_TYPE = os.getenv("WHISPER_MODEL_TYPE", "large-v3")
 DEVICE = os.getenv("WHISPER_DEVICE", "cuda")
 COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "float16")
+CPU_FALLBACK_COMPUTE_TYPE = os.getenv("WHISPER_CPU_COMPUTE_TYPE", "float32")
 DEFAULT_BATCH_SIZE = _parse_positive_int(os.getenv("WHISPER_BATCH_SIZE"), 32)
 DEFAULT_CHUNK_LENGTH = _parse_positive_int(os.getenv("WHISPER_CHUNK_LENGTH"), 30)
 LONG_AUDIO_THRESHOLD_SECONDS = _parse_positive_int(
@@ -224,6 +225,9 @@ class TranscriptionArtifacts:
 class WhisperResources:
     base_model: object
     align_models: Dict[str, Tuple[Optional[object], Optional[Dict[str, object]]]]
+    device: str
+    compute_type: str
+    model_type: str
     _align_lock: threading.RLock = field(default_factory=threading.RLock)
 
     @classmethod
@@ -238,7 +242,52 @@ class WhisperResources:
             device,
             compute_type=compute_type,
         )
-        return cls(base_model=base_model, align_models={})
+        return cls(
+            base_model=base_model,
+            align_models={},
+            device=device,
+            compute_type=compute_type,
+            model_type=model_type,
+        )
+
+    def switch_device(
+        self,
+        device: str,
+        compute_type: Optional[str] = None,
+        *,
+        force_reload: bool = False,
+    ) -> None:
+        compute_type = compute_type or self.compute_type
+        if (
+            not force_reload
+            and device == self.device
+            and compute_type == self.compute_type
+        ):
+            return
+        logger.warning(
+            "Reloading WhisperX base model '%s' on %s (%s)",
+            self.model_type,
+            device,
+            compute_type,
+        )
+        if torch is not None and self.device.startswith("cuda"):
+            try:
+                torch.cuda.synchronize()
+            except Exception:  # pragma: no cover - defensive guard
+                logger.debug(
+                    "torch.cuda.synchronize() failed during device switch",
+                    exc_info=True,
+                )
+        release_cuda_memory()
+        base_model = whisperx.load_model(
+            self.model_type,
+            device,
+            compute_type=compute_type,
+        )
+        self.base_model = base_model
+        self.align_models.clear()
+        self.device = device
+        self.compute_type = compute_type
 
     def get_alignment_model(self, language: str) -> Tuple[object, Dict[str, object]]:
         language = language or "en"
@@ -251,10 +300,12 @@ class WhisperResources:
                     raise AlignmentModelUnavailableError(key)
                 return align_model, metadata
 
-            console.log(f"Loading alignment model for language '{key}'")
+            console.log(
+                f"Loading alignment model for language '{key}' on {self.device}"
+            )
             try:
                 align_model, metadata = whisperx.load_align_model(
-                    language_code=key, device=DEVICE
+                    language_code=key, device=self.device
                 )
             except ValueError as exc:
                 logger.warning(
@@ -872,6 +923,72 @@ def release_cuda_memory() -> None:
         logger.debug("torch.cuda.empty_cache() raised unexpectedly", exc_info=True)
 
 
+def _is_cuda_error(exc: BaseException) -> bool:
+    if torch is not None and isinstance(exc, Exception):  # torch-specific checks
+        cuda_error_types = (
+            getattr(torch.cuda, "CudaError", tuple()),
+            getattr(torch.cuda, "OutOfMemoryError", tuple()),
+        )
+        for err_type in cuda_error_types:
+            if err_type and isinstance(exc, err_type):
+                return True
+    message = str(exc).lower()
+    cuda_indicators = [
+        "cuda error",
+        "cuda runtime error",
+        "device-side assert",
+        "cublas",
+        "cudnn",
+    ]
+    return any(token in message for token in cuda_indicators)
+
+
+_ResultT = TypeVar("_ResultT")
+
+
+def _run_with_cuda_fallback(
+    stage: str,
+    resources: "WhisperResources",
+    operation: Callable[[], _ResultT],
+) -> _ResultT:
+    try:
+        return operation()
+    except Exception as exc:  # pylint: disable=broad-except
+        if not _is_cuda_error(exc) or not resources.device.startswith("cuda"):
+            raise
+        logger.error(
+            "CUDA failure during %s: %s; reloading CUDA model",
+            stage,
+            exc,
+        )
+        try:
+            resources.switch_device(
+                resources.device,
+                resources.compute_type,
+                force_reload=True,
+            )
+        except Exception:  # pragma: no cover - defensive guard
+            logger.exception("Failed to reload CUDA model; falling back to CPU")
+            resources.switch_device("cpu", CPU_FALLBACK_COMPUTE_TYPE)
+            logger.info("Retrying %s on CPU", stage)
+            return operation()
+
+        logger.info("Retrying %s on CUDA after reload", stage)
+        try:
+            return operation()
+        except Exception as retry_exc:  # pylint: disable=broad-except
+            if _is_cuda_error(retry_exc):
+                logger.error(
+                    "Second CUDA attempt for %s failed: %s; switching to CPU fallback",
+                    stage,
+                    retry_exc,
+                )
+                resources.switch_device("cpu", CPU_FALLBACK_COMPUTE_TYPE)
+                logger.info("Retrying %s on CPU", stage)
+                return operation()
+            raise retry_exc
+
+
 def transcribe_full_wav(
     wav_path: Path,
     descriptor: str,
@@ -959,34 +1076,45 @@ def transcribe_full_wav(
     batch_size, chunk_length = resolve_transcription_params(audio_duration_seconds)
 
     logger.debug("Transcribing %s", wav_path.name)
-    with suppress_stdout_stderr():
-        result = transcribe_with_model(
-            resources.base_model,
-            audio,
-            batch_size=batch_size,
-            chunk_length=chunk_length,
-            condition_on_previous_text=False,
-            beam_size=2,
-            best_of=2,
-            temperature=0,
-            initial_prompt=prompt_text,
-            word_timestamps=True,
-        )
+
+    def _perform_transcription() -> Dict[str, object]:
+        with suppress_stdout_stderr():
+            return transcribe_with_model(
+                resources.base_model,
+                audio,
+                batch_size=batch_size,
+                chunk_length=chunk_length,
+                condition_on_previous_text=False,
+                beam_size=2,
+                best_of=2,
+                temperature=0,
+                initial_prompt=prompt_text,
+                word_timestamps=True,
+            )
+
+    result = _run_with_cuda_fallback("transcription", resources, _perform_transcription)
     release_cuda_memory()
 
     detected_language = result.get("language", "en") or "en"
 
     def _attempt_alignment(language_code: str) -> Optional[List[Dict[str, object]]]:
-        align_model, metadata = resources.get_alignment_model(language_code)
-        with suppress_stdout_stderr():
-            alignment_result = whisperx.align(
-                result["segments"],
-                align_model,
-                metadata,
-                audio,
-                device=DEVICE,
-                return_char_alignments=False,
-            )
+        def _perform_alignment() -> Dict[str, object]:
+            align_model, metadata = resources.get_alignment_model(language_code)
+            with suppress_stdout_stderr():
+                return whisperx.align(
+                    result["segments"],
+                    align_model,
+                    metadata,
+                    audio,
+                    device=resources.device,
+                    return_char_alignments=False,
+                )
+
+        alignment_result = _run_with_cuda_fallback(
+            f"alignment[{language_code}]",
+            resources,
+            _perform_alignment,
+        )
         return alignment_result.get("segments", [])
 
     alignment_segments: List[Dict[str, object]]
@@ -1018,19 +1146,26 @@ def transcribe_full_wav(
             detected_language,
             wav_path,
         )
-        with suppress_stdout_stderr():
-            translation_result = transcribe_with_model(
-                resources.base_model,
-                audio,
-                batch_size=batch_size,
-                chunk_length=chunk_length,
-                condition_on_previous_text=False,
-                beam_size=2,
-                best_of=2,
-                temperature=0,
-                task="translate",
-                word_timestamps=True,
-            )
+        def _perform_translation() -> Dict[str, object]:
+            with suppress_stdout_stderr():
+                return transcribe_with_model(
+                    resources.base_model,
+                    audio,
+                    batch_size=batch_size,
+                    chunk_length=chunk_length,
+                    condition_on_previous_text=False,
+                    beam_size=2,
+                    best_of=2,
+                    temperature=0,
+                    task="translate",
+                    word_timestamps=True,
+                )
+
+        translation_result = _run_with_cuda_fallback(
+            "translation",
+            resources,
+            _perform_translation,
+        )
         translation_segments = dedupe_segment_repetitions(
             translation_result["segments"]
         )
