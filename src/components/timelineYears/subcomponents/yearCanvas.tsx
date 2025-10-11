@@ -3,8 +3,9 @@ import styles from "./yearCanvas.module.css";
 import { useStateToggle } from "store/hooks/useStateToggle";
 
 // Constants from the original HTML
-const MONTH_GAP = 1;
-const ROW_GAP = 1;
+export const MONTH_GAP = 1;
+export const ROW_GAP = 1;
+export const YEAR_CANVAS_HEIGHT = 160;
 
 // Color constants
 const COLORS = {
@@ -229,7 +230,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
         className={styles.monthsCanvas}
         style={{ display: !showTimelineYears ? "none" : "block" }}
       >
-        <canvas ref={canvasRef} style={{ width: "100%", height: "160px" }} />
+        <canvas ref={canvasRef} style={{ width: "100%", height: `${YEAR_CANVAS_HEIGHT}px` }} />
       </div>
     </div>
   );

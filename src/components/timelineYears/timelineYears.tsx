@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -7,7 +7,12 @@ import mouseHintStyles from "./mouseHint.module.css";
 import { useStateToggle } from "../../store/hooks/useStateToggle";
 import { useStateHover } from "../../store/hooks/useStateHover";
 import HighlightData from "./subcomponents/highlightData";
-import YearCanvas, { COLORS } from "./subcomponents/yearCanvas";
+import YearCanvas, {
+  COLORS,
+  MONTH_GAP,
+  ROW_GAP,
+  YEAR_CANVAS_HEIGHT,
+} from "./subcomponents/yearCanvas";
 import MegaYearOverlay from "./subcomponents/megaYearOverlay";
 import { useAutoEdgeScroll } from "./hooks/useAutoEdgeScroll";
 import { isTouchLikeInteraction, type InteractionMode } from "./types";
@@ -244,6 +249,8 @@ const now = new Date();
 const START_YEAR = 2000; // Fixed start from November 2000
 const END_YEAR = now.getFullYear(); // Dynamic end year
 const YEAR_GAP = "2px"; // done in css
+const MONTHS_IN_YEAR = 12;
+const DAYS_IN_LONGEST_MONTH = 31;
 
 // Props interface for the TimelineYears2 component
 interface TimelineYears2Props {
@@ -517,6 +524,28 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
   const years = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, i) => START_YEAR + i);
 
+  const timelineMaxWidth = useMemo(() => {
+    const numericYearGap = Number.parseFloat(YEAR_GAP);
+    if (!Number.isFinite(numericYearGap)) {
+      return null;
+    }
+
+    const cellHeight =
+      (YEAR_CANVAS_HEIGHT - (DAYS_IN_LONGEST_MONTH - 1) * ROW_GAP) / DAYS_IN_LONGEST_MONTH;
+    const yearWidth = cellHeight * MONTHS_IN_YEAR + (MONTHS_IN_YEAR - 1) * MONTH_GAP;
+    const totalWidth = yearWidth * years.length + numericYearGap * Math.max(0, years.length - 1);
+
+    if (!Number.isFinite(totalWidth)) {
+      return null;
+    }
+
+    return Math.ceil(totalWidth);
+  }, [years.length]);
+
+  const timelineInlineStyle = timelineMaxWidth
+    ? { width: "100%", maxWidth: `${timelineMaxWidth}px`, margin: "0 auto" }
+    : { margin: "0 auto" };
+
   const {
     visible: megaOverlayVisible,
     year: megaOverlayYear,
@@ -681,6 +710,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       <div
         className={`${styles.yearsTimeline} ${!showTimelineYears ? styles.isCollapsed : ""}`}
         ref={containerRef}
+        style={timelineInlineStyle}
         onMouseDownCapture={handleMouseDown}
         onMouseMoveCapture={handleMouseMove}
         onMouseUpCapture={handleMouseUp}
