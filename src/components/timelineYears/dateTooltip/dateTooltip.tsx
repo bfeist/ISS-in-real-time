@@ -46,9 +46,11 @@ const DateTooltip: FunctionComponent<{
   const isExtraSmallScreen = viewportWidth < 740;
 
   // Computed flags for conditional rendering
-  const showTouchButtons = isTouchDevice;
-  const showGoButtonInHeader = showTouchButtons && !isExtraSmallScreen;
-  const showGoButtonInSeparateRow = showTouchButtons && isExtraSmallScreen;
+  const showGoButton = isTouchDevice;
+  const showCloseButton = isTouchDevice;
+  const showClickPrompt = !isTouchDevice;
+  const showGoButtonInHeader = showGoButton && !isExtraSmallScreen;
+  const showClickPromptInHeader = showClickPrompt && !isExtraSmallScreen;
   const showTooltipContent = !isExtraSmallScreen;
   const showContentIndicators = !isExtraSmallScreen;
 
@@ -210,63 +212,74 @@ const DateTooltip: FunctionComponent<{
     >
       {hoveredDate && (
         <>
-          {showGoButtonInSeparateRow ? (
+          {isExtraSmallScreen ? (
             <>
-              {/* Extra small screen: Go button (75% width) with close button (top right), date on 2nd row */}
+              {/* Extra small screen layout */}
               <div className={styles.extraSmallHeader}>
-                <button
-                  className={styles.extraSmallGoButton}
-                  onClick={handleGoButtonClick}
-                  onTouchStart={handleGoButtonTouchStart}
-                  onTouchMove={stopEventPropagation}
-                  onTouchEnd={handleGoButtonTouchEnd}
-                  onTouchCancel={handleGoButtonTouchCancel}
-                  type="button"
-                  disabled={!hoveredDate}
-                >
-                  Go
-                </button>
-                <button
-                  className={styles.extraSmallCloseButton}
-                  onClick={handleCancelButtonClick}
-                  onTouchStart={handleCancelButtonTouchStart}
-                  onTouchMove={stopEventPropagation}
-                  onTouchEnd={handleCancelButtonTouchEnd}
-                  onTouchCancel={handleCancelButtonTouchCancel}
-                  type="button"
-                  title="Close"
-                >
-                  ×
-                </button>
+                {showGoButton ? (
+                  <>
+                    <button
+                      className={styles.extraSmallGoButton}
+                      onClick={handleGoButtonClick}
+                      onTouchStart={handleGoButtonTouchStart}
+                      onTouchMove={stopEventPropagation}
+                      onTouchEnd={handleGoButtonTouchEnd}
+                      onTouchCancel={handleGoButtonTouchCancel}
+                      type="button"
+                      disabled={!hoveredDate}
+                    >
+                      Select Date
+                    </button>
+                    <button
+                      className={styles.extraSmallCloseButton}
+                      onClick={handleCancelButtonClick}
+                      onTouchStart={handleCancelButtonTouchStart}
+                      onTouchMove={stopEventPropagation}
+                      onTouchEnd={handleCancelButtonTouchEnd}
+                      onTouchCancel={handleCancelButtonTouchCancel}
+                      type="button"
+                      title="Close"
+                    >
+                      ×
+                    </button>
+                  </>
+                ) : (
+                  <div className={styles.clickPrompt}>Click to select date</div>
+                )}
               </div>
               <div className={styles.extraSmallDateRow}>{formatTooltipDate(hoveredDate)}</div>
             </>
           ) : (
             <div className={styles.tooltipHeader}>
-              <div className={styles.tooltipDate}>{formatTooltipDate(hoveredDate)}</div>
-              <div className={styles.tooltipHeaderRight}>
-                {showTooltipContent && orbitsDaily && orbitsDaily[hoveredDate] && (
-                  <div className={styles.tooltipOrbits}>Orbits: {orbitsDaily[hoveredDate]}</div>
+              <div className={styles.tooltipHeaderLeft}>
+                <div className={styles.tooltipDate}>{formatTooltipDate(hoveredDate)}</div>
+
+                {showGoButtonInHeader && (
+                  <button
+                    className={styles.tooltipGoButton}
+                    onClick={handleGoButtonClick}
+                    onTouchStart={handleGoButtonTouchStart}
+                    onTouchMove={stopEventPropagation}
+                    onTouchEnd={handleGoButtonTouchEnd}
+                    onTouchCancel={handleGoButtonTouchCancel}
+                    type="button"
+                    disabled={!hoveredDate}
+                  >
+                    Select Date
+                  </button>
                 )}
-                {showTouchButtons && (
+
+                {showClickPromptInHeader && (
+                  <div className={styles.clickPrompt}>Click to select date</div>
+                )}
+              </div>
+
+              <div className={styles.tooltipHeaderRight}>
+                {showCloseButton && (
                   <div
                     className={styles.tooltipButtons}
                     style={{ display: "flex", flexDirection: "row", alignItems: "flex-end" }}
                   >
-                    {showGoButtonInHeader && (
-                      <button
-                        className={styles.tooltipGoButton}
-                        onClick={handleGoButtonClick}
-                        onTouchStart={handleGoButtonTouchStart}
-                        onTouchMove={stopEventPropagation}
-                        onTouchEnd={handleGoButtonTouchEnd}
-                        onTouchCancel={handleGoButtonTouchCancel}
-                        type="button"
-                        disabled={!hoveredDate}
-                      >
-                        Go
-                      </button>
-                    )}
                     <button
                       className={styles.tooltipCancelButton}
                       onClick={handleCancelButtonClick}
@@ -300,6 +313,14 @@ const DateTooltip: FunctionComponent<{
                     <div className={styles.subSectionTitle}>Crew Onboard</div>
                     <CrewOnboardSection hoveredDate={hoveredDate} />
                   </div>
+                  {orbitsDaily && orbitsDaily[hoveredDate] && (
+                    <div className={styles.subSection}>
+                      <div className={styles.subSectionTitle}>Station Total Orbits</div>
+                      <div className={styles.tooltipOrbits}>
+                        {orbitsDaily[hoveredDate].toLocaleString()}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 {isLargeScreen && <VehiclesDockedSection hoveredDate={hoveredDate} />}
               </div>

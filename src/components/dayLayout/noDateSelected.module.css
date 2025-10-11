@@ -75,7 +75,7 @@ h2 {
   margin-top: 30px;
   padding: 10px 45px;
   background-color: var(--grey2);
-  border: 1px solid var(--headerbutton);
+  border: 1px solid var(--highlight);
   color: white;
   text-decoration: none;
   border-radius: var(--radius);

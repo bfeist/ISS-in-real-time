@@ -38,16 +38,28 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 10px 16px;
   background-color: #1a202c;
   border-bottom: 1px solid #4a5568;
+}
+
+.tooltipHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tooltipHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .tooltipDate {
   font-family: var(--font-mono);
   font-size: 1.2em;
   font-weight: 500;
-  color: #e2e8f0;
+  color: var(--highlight);
   margin: 0;
 }
 
@@ -119,32 +131,36 @@
   align-items: center;
 }
 
-.tooltipHeaderRight {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .tooltipOrbits {
   font-family: "Roboto Mono", monospace;
-  font-size: 1em;
+  font-size: 0.9em;
   font-weight: 400;
 }
 
 .tooltipGoButton {
-  padding: 4px 8px;
-  border: 1px solid #007acc;
-  border-radius: 4px;
-  background-color: #007acc;
-  color: white;
-  font-size: 12px;
+  width: fit-content;
+  padding: 6px 12px;
+  background-color: var(--grey2);
+  border: 1px solid var(--highlight);
+  color: var(--grey5);
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .tooltipGoButton:hover {
-  background-color: #005999;
+  background-color: var(--grey3);
+}
+
+.clickPrompt {
+  padding: 2px 0 0 0;
+  color: #a0aec0;
+  font-family: var(--font-sans);
+  font-size: 1em;
+  font-weight: 400;
 }
 
 .tooltipCancelButton {
@@ -187,19 +203,21 @@
 
 .extraSmallGoButton {
   flex: 0 0 75%;
-  padding: 8px 16px;
-  border: 1px solid #007acc;
-  border-radius: 4px;
-  background-color: #007acc;
-  color: white;
-  font-size: 13px;
+  padding: 6px 12px;
+  background-color: var(--grey2);
+  border: 1px solid var(--highlight);
+  color: var(--grey5);
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .extraSmallGoButton:hover {
-  background-color: #005999;
+  background-color: var(--grey3);
 }
 
 .extraSmallCloseButton {
@@ -229,7 +247,7 @@
   padding: 10px 12px;
   font-size: 1em;
   font-weight: 500;
-  color: #e2e8f0;
+  color: var(--grey5);
   text-align: center;
   background-color: #2a3441;
 }
