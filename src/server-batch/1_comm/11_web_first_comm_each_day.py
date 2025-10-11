@@ -6,7 +6,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv(dotenv_path="../../.env")
+load_dotenv(dotenv_path="../../../.env")
 
 # This script processes the CSV transcript files created by 3_web_comm.py and creates
 # a single JSON file with the first communication entry for each date.
@@ -123,32 +123,37 @@ def get_first_comm_for_date(comm_web_dir, date_str):
         return None
 
 
-def get_dates_with_comm(web_assets_root):
-    """Read data_availability.csv and return list of dates that have comm data."""
-    data_availability_file = os.path.join(web_assets_root, "data_availability.csv")
-
-    if not os.path.exists(data_availability_file):
-        raise FileNotFoundError(
-            f"Required file {data_availability_file} not found. Please run 10_web_data_availability.py first."
-        )
-
+def get_dates_with_comm(comm_web_dir, existing_dates=None):
+    """Scan the comm directory and return list of dates that have a transcript CSV, skipping dates already in existing_dates."""
+    if existing_dates is None:
+        existing_dates = set()
     dates_with_comm = []
-    try:
-        with open(data_availability_file, "r", encoding="utf-8") as f:
-            reader = csv.reader(f, delimiter="|")
-            # Skip header row
-            next(reader, None)
-
-            for row in reader:
-                if len(row) >= 2:  # date and comm columns
-                    date, has_comm = row[0], row[1]
-                    # Check if comm column is '1' (has comm data)
-                    if has_comm == "1":
-                        dates_with_comm.append(date)
-    except (OSError, UnicodeDecodeError) as e:
-        raise RuntimeError(f"Error reading {data_availability_file}: {e}")
-
-    print(f"Found {len(dates_with_comm)} dates with comm data")
+    for root, dirs, files in os.walk(comm_web_dir):
+        # Check if this is a day folder (comm/year/month/day)
+        parts = os.path.relpath(root, comm_web_dir).split(os.sep)
+        if len(parts) == 3:  # year/month/day
+            try:
+                year, month, day = parts
+                date_str = f"{year}-{month}-{day}"
+                if date_str in existing_dates:
+                    # Skip this directory and don't recurse further
+                    dirs[:] = []
+                    continue
+            except ValueError:
+                pass
+        for file in files:
+            if file.startswith("_transcript_") and file.endswith(".csv"):
+                # Extract date from filename
+                date_str = file[len("_transcript_") : -len(".csv")]
+                # Validate date format
+                try:
+                    datetime.strptime(date_str, "%Y-%m-%d")
+                    if date_str not in existing_dates:
+                        dates_with_comm.append(date_str)
+                except ValueError:
+                    pass
+    dates_with_comm = sorted(set(dates_with_comm))  # unique and sorted
+    print(f"Found {len(dates_with_comm)} new dates with comm CSV")
     return dates_with_comm
 
 
@@ -170,8 +175,9 @@ def create_first_comm_json(comm_web_dir, output_file, override=False):
     elif override:
         print("Override mode: Starting with empty data (will reprocess all dates)")
 
-    # Get dates with comm data from data_availability.csv
-    dates_with_comm = get_dates_with_comm(WEB_ASSETS_ROOT)
+    # Get dates with comm data from scanning the comm directory
+    existing_dates = set(first_comm_data.keys()) if not override else set()
+    dates_with_comm = get_dates_with_comm(comm_web_dir, existing_dates)
 
     if override:
         # Process all dates when overriding
@@ -180,10 +186,8 @@ def create_first_comm_json(comm_web_dir, output_file, override=False):
             f"Override mode: Processing all {len(dates_to_process)} dates with comm data..."
         )
     else:
-        # Filter to only process missing dates
-        dates_to_process = [
-            date for date in dates_with_comm if date not in first_comm_data
-        ]
+        # dates_with_comm already excludes existing dates
+        dates_to_process = dates_with_comm
 
         if not dates_to_process:
             print(
@@ -193,7 +197,7 @@ def create_first_comm_json(comm_web_dir, output_file, override=False):
 
         # Process only missing dates
         print(
-            f"Incremental mode: Processing {len(dates_to_process)} missing dates out of {len(dates_with_comm)} total dates with comm data..."
+            f"Incremental mode: Processing {len(dates_to_process)} new dates with comm data..."
         )
 
     for date_str in dates_to_process:

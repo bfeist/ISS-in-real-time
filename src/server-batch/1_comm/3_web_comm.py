@@ -192,18 +192,26 @@ def create_daily_transcript(root_dir, date_str, output_dir):
     return date_str
 
 
-def process_all_transcripts(root_dir, output_dir):
+def process_all_transcripts(root_dir, output_dir, end_date=None):
     processed_dates = []
-    for year in os.listdir(root_dir):
+    years = sorted(os.listdir(root_dir))
+    for year in years:
         year_path = os.path.join(root_dir, year)
         if os.path.isdir(year_path):
-            for month in os.listdir(year_path):
+            months = sorted(os.listdir(year_path))
+            for month in months:
                 month_path = os.path.join(year_path, month)
                 if os.path.isdir(month_path):
-                    for day in os.listdir(month_path):
+                    days = sorted(os.listdir(month_path))
+                    for day in days:
                         day_path = os.path.join(month_path, day)
                         if os.path.isdir(day_path):
                             date_str = f"{year}-{month}-{day}"
+                            date_dt = datetime.strptime(date_str, "%Y-%m-%d")
+                            if end_date and date_dt > end_date:
+                                return (
+                                    processed_dates  # Stop processing beyond end_date
+                                )
                             transcript_exists = os.path.exists(
                                 os.path.join(
                                     output_dir,
@@ -249,6 +257,13 @@ if __name__ == "__main__":
             processed_dates.append(processed_date)
             current += timedelta(days=1)
         print(f"Processed dates: {processed_dates}")
+    elif args.end_date:
+        processed_dates = process_all_transcripts(
+            COMM_RAW, COMM_WEB, end_date=args.end_date
+        )
+        print(
+            f"Processed dates up to {args.end_date.strftime('%Y-%m-%d')}: {processed_dates}"
+        )
     elif args.date:
         # Clear destination folder for the date
         year, month, day = args.date.split("-")
