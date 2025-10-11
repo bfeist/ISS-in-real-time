@@ -102,6 +102,10 @@
   flex-shrink: 0; /* Prevent title from shrinking */
 }
 
+.expeditionTitle:hover {
+  text-decoration: underline;
+}
+
 .expeditionBlurb {
   font-size: 0.8em;
   font-weight: 200;

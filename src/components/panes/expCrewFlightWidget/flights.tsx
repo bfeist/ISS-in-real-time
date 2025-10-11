@@ -98,7 +98,15 @@ const CrewedFlights: FunctionComponent = (): JSX.Element | null => {
                 />
               )}
               <div className={styles.missionInfo}>
-                <h3>{flight.mission_name}</h3>
+                <h3>
+                  <a
+                    href={`https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(flight.mission_name)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {flight.mission_name}
+                  </a>
+                </h3>
                 <div>
                   <span className={styles.labelText}>Flight:</span> {flight.iss_flight}
                 </div>
@@ -227,9 +235,16 @@ const SupplyFlights: FunctionComponent = () => {
           return (
             <div key={supply.number} className={styles.supplyFlight}>
               <div className={styles.missionHeader}>
-                {/* Supply flights don't have mission_patch_url, so we can't use it here */}
                 <div className={styles.missionInfo}>
-                  <h3>{supply.mission}</h3>
+                  <h3>
+                    <a
+                      href={`https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(supply.mission)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {supply.mission}
+                    </a>
+                  </h3>
                   <div>
                     <span className={styles.labelText}>Flight:</span> {supply.flight_no}
                   </div>

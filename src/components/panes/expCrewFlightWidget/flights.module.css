@@ -59,6 +59,16 @@
   color: var(--highlight);
 }
 
+.missionInfo h3 a {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.missionInfo h3 a:hover {
+  text-decoration: underline;
+}
+
 .missionInfo div {
   margin: 8px 0;
   font-size: 0.9em;
