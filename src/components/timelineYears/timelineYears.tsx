@@ -764,6 +764,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
             parentContainerRef={containerRef}
             onPointerUpdate={handleOverlayPointerUpdate}
             scrollContainerRef={yearsScrollContainerRef}
+            onRequestClose={closeMegaOverlay}
           />
         )}
       </div>

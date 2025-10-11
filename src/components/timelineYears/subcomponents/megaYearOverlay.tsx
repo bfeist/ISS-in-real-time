@@ -236,6 +236,7 @@ interface UseMegaOverlayInteractionOptions {
   setHoveredDate: (date: string | null) => void;
   hoveredDate: string | null;
   setShowTimelineYears: (value: boolean) => void;
+  onRequestClose: () => void;
   parentContainerRef?: React.RefObject<HTMLDivElement>;
   onPointerUpdate?: (
     clientX: number | null,
@@ -290,6 +291,7 @@ const useMegaOverlayInteraction = (
     setHoveredDate,
     hoveredDate,
     setShowTimelineYears,
+    onRequestClose,
     parentContainerRef,
     onPointerUpdate,
     scrollContainerRef,
@@ -847,13 +849,14 @@ const useMegaOverlayInteraction = (
     setCursorPosition(null);
     touchYOffsetRef.current = 0;
     ignoreMouseEventsRef.current = false;
+    onRequestClose();
     onInteractionModeChange("touch");
     notifyPointerUpdate({
       clientX: lastPointerInfoRef.current.clientX,
       clientY: lastPointerInfoRef.current.clientY,
       hasActivePointer: false,
     });
-  }, [notifyPointerUpdate, onInteractionModeChange]);
+  }, [notifyPointerUpdate, onInteractionModeChange, onRequestClose]);
 
   const handleMouseLeave = useCallback(() => {
     if (isTouchDevice) {
@@ -1007,6 +1010,7 @@ interface MegaYearOverlayProps {
     hasActivePointer: boolean
   ) => void;
   scrollContainerRef?: React.RefObject<HTMLDivElement>;
+  onRequestClose: () => void;
 }
 
 // Mega Overlay Component for zoomed year view
@@ -1029,6 +1033,7 @@ const MegaYearOverlay = forwardRef<MegaYearOverlayHandle, MegaYearOverlayProps>(
       parentContainerRef,
       onPointerUpdate,
       scrollContainerRef,
+      onRequestClose,
     },
     ref
   ) => {
@@ -1106,6 +1111,7 @@ const MegaYearOverlay = forwardRef<MegaYearOverlayHandle, MegaYearOverlayProps>(
       setHoveredDate,
       hoveredDate,
       setShowTimelineYears,
+      onRequestClose,
       parentContainerRef,
       onPointerUpdate,
       scrollContainerRef,

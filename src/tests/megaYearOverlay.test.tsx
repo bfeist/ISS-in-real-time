@@ -106,6 +106,7 @@ describe("MegaYearOverlay", () => {
         highlights={new Map()}
         interactionMode="mouse"
         onInteractionModeChange={vi.fn()}
+        onRequestClose={vi.fn()}
       />
     );
 
@@ -123,6 +124,7 @@ describe("MegaYearOverlay", () => {
         highlights={highlights}
         interactionMode="mouse"
         onInteractionModeChange={vi.fn()}
+        onRequestClose={vi.fn()}
       />
     );
 
@@ -131,6 +133,27 @@ describe("MegaYearOverlay", () => {
     expect(toggleState.setShowTimelineYears).toHaveBeenCalledWith(false);
     expect(clockState.setSelectedDate).toHaveBeenCalled();
     expect(clockState.setClock).not.toHaveBeenCalled();
+  });
+
+  it("calls onRequestClose when touch cancel occurs", () => {
+    const onRequestClose = vi.fn();
+
+    const { getByRole } = render(
+      <MegaYearOverlay
+        year={2024}
+        yearIndex={0}
+        position={{ left: 0, top: 0, width: 300 }}
+        highlights={new Map()}
+        interactionMode="touch"
+        onInteractionModeChange={vi.fn()}
+        onRequestClose={onRequestClose}
+      />
+    );
+
+    const grid = getByRole("grid");
+    fireEvent.touchCancel(grid);
+
+    expect(onRequestClose).toHaveBeenCalledTimes(1);
   });
 
   it("jumps directly to the year that aligns with the extension pointer", () => {
@@ -164,6 +187,7 @@ describe("MegaYearOverlay", () => {
             onInteractionModeChange={onInteractionModeChange}
             onSwitchToAdjacentYear={onSwitchToAdjacentYear}
             parentContainerRef={parentRef}
+            onRequestClose={vi.fn()}
           />
         </div>
       );
