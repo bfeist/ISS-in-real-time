@@ -103,7 +103,6 @@
 }
 
 .listItem.selected {
-  font-weight: 500;
   color: white;
 }
 
@@ -118,9 +117,12 @@
   color: black !important;
 }
 
+.notableItem {
+  border: 1px solid transparent;
+}
+
 .notableItem.selected {
-  background-color: var(--highlight);
-  color: black !important;
+  border: 1px solid var(--highlight);
 }
 
 /* No Results */

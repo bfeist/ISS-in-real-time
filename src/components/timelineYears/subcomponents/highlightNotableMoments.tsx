@@ -1,14 +1,18 @@
 import React, { FunctionComponent, useMemo } from "react";
 import styles from "./highlightNotableMoments.module.css";
 import { useStateSearch } from "store/hooks/useStateSearch";
+import { useStateClock } from "store/hooks/useStateClock";
 import { useGeneralNotableMoments } from "api/useGeneralData";
 import HighlightType, { HighlightTypeConfig } from "./highlightType";
+import { useStateToggle } from "store/hooks/useStateToggle";
 
 interface HighlightNotableMomentsProps {}
 
 const HighlightNotableMoments: FunctionComponent<HighlightNotableMomentsProps> = () => {
   const { data: notableData } = useGeneralNotableMoments();
   const { selectedNotableMoment, setSelectedNotableMoment } = useStateSearch();
+  const { setSelectedDate } = useStateClock();
+  const { setShowTimelineYears } = useStateToggle();
 
   // Generate Notable Moments list for display (sorted by datetime ascending from API)
   const notableItems: NotableMomentItem[] = useMemo(() => {
@@ -37,6 +41,14 @@ const HighlightNotableMoments: FunctionComponent<HighlightNotableMomentsProps> =
     return `${dateStr} ${timeStr}`;
   };
 
+  const handleGoToMoment = (datetime: string) => {
+    // Extract just the date part (YYYY-MM-DD) from the datetime string
+    const dateOnly = datetime.split("T")[0];
+    setSelectedDate(dateOnly);
+    // close the years dropdown
+    setShowTimelineYears(false);
+  };
+
   // Configuration for the generic HighlightType component
   const config: HighlightTypeConfig<NotableMomentItem> = {
     items: notableItems,
@@ -47,12 +59,28 @@ const HighlightNotableMoments: FunctionComponent<HighlightNotableMomentsProps> =
     clearAllTitle: "Clear notable moments highlights",
     itemClassName: "notableItem",
     getItemKey: (item) => item.datetime,
-    renderItem: (item) => (
-      <div className={styles.notableItemContent}>
-        <div className={styles.notableDescription}>{item.description}</div>
-        <div className={styles.notableDateTime}>{formatDateTime(item.datetime)}</div>
-      </div>
-    ),
+    renderItem: (item) => {
+      const isSelected =
+        selectedNotableMoment !== null && selectedNotableMoment.datetime === item.datetime;
+      return (
+        <div className={styles.notableItemContent}>
+          {isSelected && (
+            <button
+              className={styles.goButton}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleGoToMoment(item.datetime);
+              }}
+              title="Go to this date and time"
+            >
+              GO
+            </button>
+          )}
+          <div className={styles.notableDescription}>{item.description}</div>
+          <div className={styles.notableDateTime}>{formatDateTime(item.datetime)}</div>
+        </div>
+      );
+    },
     filterItem: (item, searchTerm) => {
       const searchLower = searchTerm.toLowerCase();
       return (
@@ -68,5 +96,6 @@ const HighlightNotableMoments: FunctionComponent<HighlightNotableMomentsProps> =
 // Dummy references to satisfy CSS modules linter for classes used dynamically by HighlightType
 const _unusedNotableItem = styles.notableItem;
 const _unusedSelected = styles.selected;
+const _unusedGoButton = styles.goButton;
 
 export default HighlightNotableMoments;
