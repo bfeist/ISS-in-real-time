@@ -49,8 +49,8 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
           </h2>
 
           <p>
-            This multimedia project replays every day of the past 25 years onboard.
-            <br /> It consists entirely of historical mission material.
+            This multimedia project replays every day of the past 25 years onboard and consists
+            entirely of historical mission material.
           </p>
         </div>
         <div

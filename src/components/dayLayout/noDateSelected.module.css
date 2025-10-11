@@ -64,6 +64,7 @@ h2 {
 
 .headerContent p {
   color: var(--grey45);
+  background: rgb(0 0 0 / 70%);
 }
 
 .breakSpan {
@@ -127,8 +128,7 @@ h2 {
   text-align: left;
   padding: 15px;
   border-radius: var(--panel-radius);
-  width: fit-content;
-  min-width: 440px;
+  width: 440px;
   background: rgb(0 0 0 / 60%);
   backdrop-filter: blur(15px);
 }
@@ -143,6 +143,13 @@ h2 {
 @media (width <= 840px) {
   .breakSpan {
     display: block;
+  }
+}
+
+/* if on a super small screen, don't bother helping with wrapping the title */
+@media (width < 390px) {
+  .breakSpan {
+    display: inline;
   }
 }
 
@@ -162,7 +169,7 @@ h2 {
   }
 
   .forumCallout {
-    min-width: 320px;
+    width: min(calc(100vw - 70px), 440px);
     font-size: 0.8em;
   }
 

@@ -41,7 +41,7 @@
 
 @media (width < 500px) {
   .siteStats {
-    width: 357px;
+    width: min(calc(100vw - 70px), 440px);
     font-size: 0.9em;
   }
 

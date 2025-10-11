@@ -48,7 +48,7 @@
 
 @media (width < 500px) {
   .dayCounterContainer {
-    width: 357px;
+    width: min(calc(100vw - 70px), 440px);
   }
 
   .title {
