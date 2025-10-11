@@ -238,11 +238,11 @@ const SupplyFlights: FunctionComponent = () => {
                 <div className={styles.missionInfo}>
                   <h3>
                     <a
-                      href={`https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(supply.mission)}`}
+                      href={`https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(supply.spacecraft_name)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      {supply.mission}
+                      {supply.spacecraft_name}
                     </a>
                   </h3>
                   <div>
