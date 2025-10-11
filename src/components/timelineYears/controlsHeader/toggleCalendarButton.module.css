@@ -5,10 +5,10 @@
   transform: translateX(-50%);
   cursor: pointer;
   background-color: var(--grey2);
-  border: none;
+  border: 1px solid var(--highlight);
   filter: drop-shadow(0 1px 0 var(--grey3));
   border-radius: 0 0 15px 15px;
-  padding: 5px 10px;
+  padding: 4px 10px;
   font-size: 0.8rem;
   color: white;
   display: flex;

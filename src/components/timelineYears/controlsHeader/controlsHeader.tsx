@@ -145,7 +145,7 @@ const ControlsHeader: FunctionComponent = () => {
               tabIndex={0}
               aria-label="Select a date to begin"
             >
-              Select a Date to Begin
+              Select a date to begin
             </div>
           )}
         </div>

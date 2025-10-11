@@ -122,9 +122,10 @@
 .noDateSelectedMessage {
   margin-bottom: 5px;
   font-family: var(--font-sans);
-  font-size: 1.3rem;
-  font-weight: 400;
-  color: var(--highlight);
+  font-size: 1rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--grey5);
   text-align: center;
   cursor: pointer;
 }
