@@ -1,33 +1,44 @@
 export const MEGA_OVERLAY_CELL_GAP = 1;
 export const MEGA_OVERLAY_MAX_DAYS_IN_MONTH = 31;
 
+interface MegaDateCoordinateOptions {
+  gridOffsetY?: number;
+  cellGap?: number;
+  maxDaysInMonth?: number;
+}
+
 export const getMegaDateFromCoordinates = (
   x: number,
   y: number,
   year: number,
   width: number,
   startMonth: number = 0,
-  endMonth: number = 11
+  endMonth: number = 11,
+  options: MegaDateCoordinateOptions = {}
 ): string | null => {
-  const cellGap = MEGA_OVERLAY_CELL_GAP;
+  const cellGap = options.cellGap ?? MEGA_OVERLAY_CELL_GAP;
+  const maxDaysInMonth = options.maxDaysInMonth ?? MEGA_OVERLAY_MAX_DAYS_IN_MONTH;
+  const gridOffsetY = options.gridOffsetY ?? 0;
+
   // Use 12-month layout for coordinate calculation
   const cellWidth = (width - (12 - 1) * cellGap) / 12;
   const cellSize = cellWidth;
   const cellSpanX = cellWidth + cellGap;
   const cellSpanY = cellSize + cellGap;
-  const maxDaysInMonth = MEGA_OVERLAY_MAX_DAYS_IN_MONTH;
-  const totalHeight = maxDaysInMonth * cellSpanY;
+  const totalGridHeight = maxDaysInMonth * cellSpanY;
 
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
     return null;
   }
 
-  if (y < 0 || y >= totalHeight) {
+  const adjustedY = y - gridOffsetY;
+
+  if (adjustedY < 0 || adjustedY >= totalGridHeight) {
     return null;
   }
 
   const normalizedX = Math.min(Math.max(x, 0), width - Number.EPSILON);
-  const normalizedY = Math.min(Math.max(y, 0), totalHeight - Number.EPSILON);
+  const normalizedY = Math.min(Math.max(adjustedY, 0), totalGridHeight - Number.EPSILON);
 
   let month = Math.floor(normalizedX / cellSpanX);
   const monthOffsetWithinCell = normalizedX - month * cellSpanX;

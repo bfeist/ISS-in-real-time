@@ -24,6 +24,8 @@ import {
 } from "./megaYearOverlay.utils";
 import { isTouchLikeInteraction, type InteractionMode } from "../types";
 
+const MONTH_INITIALS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"] as const;
+
 interface HighlightInfo {
   fill: string;
   stroke?: string;
@@ -42,6 +44,8 @@ interface MegaOverlayLayout {
   maxDaysInMonth: number;
   cellWidth: number;
   cellSize: number;
+  headerHeight: number;
+  gridOffsetY: number;
   totalHeight: number;
   touchVerticalOffset: number;
   touchExtensionHeight: number;
@@ -59,7 +63,9 @@ const useMegaOverlayLayout = (
     const maxDaysInMonth = MEGA_OVERLAY_MAX_DAYS_IN_MONTH;
     const cellWidth = (width - (12 - 1) * cellGap) / 12;
     const cellSize = cellWidth;
-    const totalHeight = maxDaysInMonth * (cellSize + cellGap);
+    const headerHeight = cellSize;
+    const gridOffsetY = headerHeight + cellGap;
+    const totalHeight = gridOffsetY + maxDaysInMonth * (cellSize + cellGap);
     const touchVerticalOffset = Math.min(Math.max(cellSize * 2, 72), 140);
     const touchExtensionHeight = touchVerticalOffset + cellSize * 1.5;
     const interactiveHeight = totalHeight + touchExtensionHeight;
@@ -81,6 +87,8 @@ const useMegaOverlayLayout = (
       maxDaysInMonth,
       cellWidth,
       cellSize,
+      headerHeight,
+      gridOffsetY,
       totalHeight,
       touchVerticalOffset,
       touchExtensionHeight,
@@ -128,8 +136,25 @@ const drawMegaOverlay = ({
 
   ctx.clearRect(0, 0, width, layout.totalHeight);
 
+  const headerFontSize = Math.max(Math.floor(layout.headerHeight * 0.6), 10);
+  ctx.font = `600 ${headerFontSize}px/1 "Inter", "Helvetica Neue", Arial, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  for (let month = startMonth; month <= endMonth; month++) {
+    const x = month * (layout.cellWidth + layout.cellGap);
+    ctx.fillStyle = COLORS.noData;
+    ctx.fillRect(x, 0, layout.cellWidth, layout.headerHeight);
+
+    const label = MONTH_INITIALS[month] ?? "";
+    if (label) {
+      ctx.fillStyle = "#e0e0e0";
+      ctx.fillText(label, x + layout.cellWidth / 2, layout.headerHeight / 2);
+    }
+  }
+
   for (let day = 1; day <= layout.maxDaysInMonth; day++) {
-    const y = (day - 1) * (layout.cellSize + layout.cellGap);
+    const y = layout.gridOffsetY + (day - 1) * (layout.cellSize + layout.cellGap);
 
     for (let month = startMonth; month <= endMonth; month++) {
       const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -435,7 +460,12 @@ const useMegaOverlayInteraction = (
         year,
         position.width,
         startMonth,
-        endMonth
+        endMonth,
+        {
+          gridOffsetY: layout.gridOffsetY,
+          cellGap: layout.cellGap,
+          maxDaysInMonth: layout.maxDaysInMonth,
+        }
       );
 
       if (dateStr && hoveredDate !== dateStr) {
@@ -448,6 +478,9 @@ const useMegaOverlayInteraction = (
       handleExtensionPointer,
       endMonth,
       hoveredDate,
+      layout.cellGap,
+      layout.gridOffsetY,
+      layout.maxDaysInMonth,
       layout.horizontalExtensionWidth,
       notifyPointerUpdate,
       onInteractionModeChange,
@@ -501,7 +534,12 @@ const useMegaOverlayInteraction = (
         year,
         position.width,
         startMonth,
-        endMonth
+        endMonth,
+        {
+          gridOffsetY: layout.gridOffsetY,
+          cellGap: layout.cellGap,
+          maxDaysInMonth: layout.maxDaysInMonth,
+        }
       );
 
       if (dateStr) {
@@ -521,6 +559,9 @@ const useMegaOverlayInteraction = (
       handleExtensionPointer,
       containerRef,
       endMonth,
+      layout.cellGap,
+      layout.gridOffsetY,
+      layout.maxDaysInMonth,
       layout.horizontalExtensionWidth,
       layout.touchVerticalOffset,
       layout.totalHeight,
@@ -581,7 +622,12 @@ const useMegaOverlayInteraction = (
         year,
         position.width,
         startMonth,
-        endMonth
+        endMonth,
+        {
+          gridOffsetY: layout.gridOffsetY,
+          cellGap: layout.cellGap,
+          maxDaysInMonth: layout.maxDaysInMonth,
+        }
       );
 
       if (dateStr) {
@@ -599,6 +645,9 @@ const useMegaOverlayInteraction = (
       handleExtensionPointer,
       containerRef,
       endMonth,
+      layout.cellGap,
+      layout.gridOffsetY,
+      layout.maxDaysInMonth,
       layout.horizontalExtensionWidth,
       layout.touchVerticalOffset,
       layout.totalHeight,
@@ -659,7 +708,12 @@ const useMegaOverlayInteraction = (
         year,
         position.width,
         startMonth,
-        endMonth
+        endMonth,
+        {
+          gridOffsetY: layout.gridOffsetY,
+          cellGap: layout.cellGap,
+          maxDaysInMonth: layout.maxDaysInMonth,
+        }
       );
 
       if (dateStr) {
@@ -678,6 +732,9 @@ const useMegaOverlayInteraction = (
       handleExtensionPointer,
       containerRef,
       endMonth,
+      layout.cellGap,
+      layout.gridOffsetY,
+      layout.maxDaysInMonth,
       layout.horizontalExtensionWidth,
       layout.totalHeight,
       notifyPointerUpdate,
@@ -719,7 +776,12 @@ const useMegaOverlayInteraction = (
           year,
           position.width,
           startMonth,
-          endMonth
+          endMonth,
+          {
+            gridOffsetY: layout.gridOffsetY,
+            cellGap: layout.cellGap,
+            maxDaysInMonth: layout.maxDaysInMonth,
+          }
         );
 
         if (dateStr) {
@@ -745,6 +807,9 @@ const useMegaOverlayInteraction = (
       containerRef,
       endMonth,
       hoveredDate,
+      layout.cellGap,
+      layout.gridOffsetY,
+      layout.maxDaysInMonth,
       layout.horizontalExtensionWidth,
       layout.totalHeight,
       notifyPointerUpdate,
@@ -782,7 +847,12 @@ const useMegaOverlayInteraction = (
         year,
         position.width,
         startMonth,
-        endMonth
+        endMonth,
+        {
+          gridOffsetY: layout.gridOffsetY,
+          cellGap: layout.cellGap,
+          maxDaysInMonth: layout.maxDaysInMonth,
+        }
       );
 
       if (dateStr) {
@@ -800,6 +870,9 @@ const useMegaOverlayInteraction = (
       endMonth,
       handleDateClick,
       isTouchDevice,
+      layout.cellGap,
+      layout.gridOffsetY,
+      layout.maxDaysInMonth,
       layout.horizontalExtensionWidth,
       notifyPointerUpdate,
       onInteractionModeChange,
@@ -933,7 +1006,12 @@ const useMegaOverlayInteraction = (
         year,
         position.width,
         startMonth,
-        endMonth
+        endMonth,
+        {
+          gridOffsetY: layout.gridOffsetY,
+          cellGap: layout.cellGap,
+          maxDaysInMonth: layout.maxDaysInMonth,
+        }
       );
 
       if (dateStr && hoveredDate !== dateStr) {
@@ -948,6 +1026,9 @@ const useMegaOverlayInteraction = (
     };
   }, [
     handleExtensionPointer,
+    layout.cellGap,
+    layout.gridOffsetY,
+    layout.maxDaysInMonth,
     layout.horizontalExtensionWidth,
     position.width,
     scrollContainerRef,
