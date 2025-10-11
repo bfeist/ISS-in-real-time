@@ -14,8 +14,10 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 import wave
 import zipfile
+from collections import OrderedDict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -60,6 +62,24 @@ def _parse_positive_int(value: Optional[str], default: int, *, minimum: int = 1)
     return max(minimum, parsed)
 
 
+def _parse_float(
+    value: Optional[str],
+    default: float,
+    *,
+    minimum: Optional[float] = None,
+    maximum: Optional[float] = None,
+) -> float:
+    try:
+        parsed = float(value) if value is not None else default
+    except (TypeError, ValueError):
+        parsed = default
+    if minimum is not None:
+        parsed = max(minimum, parsed)
+    if maximum is not None:
+        parsed = min(maximum, parsed)
+    return parsed
+
+
 # ---------------------------------------------------------------------------
 # Constants & Configuration
 # ---------------------------------------------------------------------------
@@ -100,6 +120,33 @@ ALIGNMENT_CACHE_SUFFIX = ".alignment.json"
 PROMPT_ROOT_SUBPATH = "prompt_context"
 VAD_SAMPLE_RATE = WHISPER_AUDIO_SAMPLE_RATE
 VAD_AGGRESSIVENESS = int(os.getenv("WHISPER_VAD_MODE", "2"))
+MAX_ALIGNMENT_MODELS_CACHED = _parse_positive_int(
+    os.getenv("WHISPER_ALIGNMENT_CACHE_SIZE"), 2, minimum=0
+)
+GPU_MEMORY_WARN_RATIO = _parse_float(
+    os.getenv("WHISPER_GPU_MEMORY_WARN_RATIO"),
+    0.75,
+    minimum=0.0,
+    maximum=0.999,
+)
+GPU_MEMORY_RELOAD_RATIO = _parse_float(
+    os.getenv("WHISPER_GPU_MEMORY_RELOAD_RATIO"),
+    0.9,
+    minimum=0.0,
+    maximum=0.999,
+)
+if GPU_MEMORY_WARN_RATIO >= GPU_MEMORY_RELOAD_RATIO:
+    GPU_MEMORY_WARN_RATIO = max(0.0, GPU_MEMORY_RELOAD_RATIO - 0.05)
+GPU_MAX_RELOAD_HOLDOFF_SECONDS = _parse_positive_int(
+    os.getenv("WHISPER_GPU_RELOAD_MIN_INTERVAL_SECONDS"),
+    900,
+    minimum=0,
+)
+MODEL_HEALTH_REFRESH_SECONDS = _parse_positive_int(
+    os.getenv("WHISPER_MODEL_HEALTH_REFRESH_SECONDS"),
+    3 * 3600,
+    minimum=0,
+)
 
 INVALID_TRANSCRIPT_MARKERS = [
     "Thank you.",
@@ -222,13 +269,36 @@ class TranscriptionArtifacts:
 
 
 @dataclass
+class GPUMemorySnapshot:
+    device: str
+    total_bytes: int
+    reserved_bytes: int
+    allocated_bytes: int
+    free_bytes: int
+    max_reserved_bytes: int
+    timestamp: float
+
+    @property
+    def reserved_ratio(self) -> float:
+        if self.total_bytes <= 0:
+            return 0.0
+        return self.reserved_bytes / float(self.total_bytes)
+
+
+@dataclass
 class WhisperResources:
     base_model: object
-    align_models: Dict[str, Tuple[Optional[object], Optional[Dict[str, object]]]]
+    align_models: (
+        "OrderedDict[str, Tuple[Optional[object], Optional[Dict[str, object]]]]"
+    )
     device: str
     compute_type: str
     model_type: str
     _align_lock: threading.RLock = field(default_factory=threading.RLock)
+    _align_usage: Dict[str, float] = field(default_factory=dict)
+    _last_reload_time: float = field(default_factory=time.monotonic)
+    _last_gpu_reload_time: float = field(default_factory=lambda: 0.0)
+    _max_reserved_bytes: int = 0
 
     @classmethod
     def load(
@@ -244,10 +314,12 @@ class WhisperResources:
         )
         return cls(
             base_model=base_model,
-            align_models={},
+            align_models=OrderedDict(),
             device=device,
             compute_type=compute_type,
             model_type=model_type,
+            _last_reload_time=time.monotonic(),
+            _last_gpu_reload_time=time.monotonic(),
         )
 
     def switch_device(
@@ -286,8 +358,28 @@ class WhisperResources:
         )
         self.base_model = base_model
         self.align_models.clear()
+        self._align_usage.clear()
         self.device = device
         self.compute_type = compute_type
+        now = time.monotonic()
+        self._last_reload_time = now
+        self._last_gpu_reload_time = now
+
+    def transcribe(
+        self,
+        audio,
+        *,
+        batch_size: int,
+        chunk_length: int,
+        **kwargs,
+    ) -> Dict[str, object]:
+        return transcribe_with_model(
+            self.base_model,
+            audio,
+            batch_size=batch_size,
+            chunk_length=chunk_length,
+            **kwargs,
+        )
 
     def get_alignment_model(self, language: str) -> Tuple[object, Dict[str, object]]:
         language = language or "en"
@@ -298,6 +390,8 @@ class WhisperResources:
                 align_model, metadata = cached
                 if align_model is None or metadata is None:
                     raise AlignmentModelUnavailableError(key)
+                self.align_models.move_to_end(key)
+                self._align_usage[key] = time.monotonic()
                 return align_model, metadata
 
             console.log(
@@ -317,7 +411,214 @@ class WhisperResources:
                 raise AlignmentModelUnavailableError(key) from exc
 
             self.align_models[key] = (align_model, metadata)
+            self.align_models.move_to_end(key)
+            self._align_usage[key] = time.monotonic()
+            self._evict_alignment_cache_if_needed()
             return align_model, metadata
+
+    def _resident_alignment_model_keys(self) -> List[str]:
+        return [
+            key
+            for key, (align_model, _metadata) in self.align_models.items()
+            if align_model is not None
+        ]
+
+    def _evict_alignment_cache_if_needed(self) -> None:
+        target_limit = max(0, MAX_ALIGNMENT_MODELS_CACHED)
+        resident_keys = self._resident_alignment_model_keys()
+        if len(resident_keys) <= target_limit:
+            return
+        # Evict least-recently-used alignment models while respecting the cache limit
+        for key in list(self.align_models.keys()):
+            if len(self._resident_alignment_model_keys()) <= target_limit:
+                break
+            align_model, _metadata = self.align_models[key]
+            if align_model is None:
+                continue
+            self._dispose_alignment_model(key, align_model)
+            del self.align_models[key]
+            self._align_usage.pop(key, None)
+            logger.info(
+                "Evicted alignment model '%s' to contain GPU memory usage",
+                key,
+            )
+        release_cuda_memory()
+
+    def _dispose_alignment_model(self, key: str, align_model: Optional[object]) -> None:
+        if align_model is None:
+            return
+        try:
+            if torch is not None and hasattr(align_model, "to"):
+                align_model.to("cpu")  # type: ignore[call-arg]
+        except Exception:  # pragma: no cover - defensive guard
+            logger.debug(
+                "Failed to move alignment model '%s' to CPU during dispose",
+                key,
+                exc_info=True,
+            )
+        # Help GC by dropping strong references
+        del align_model
+
+    def purge_alignment_models(self, *, reason: str) -> None:
+        with self._align_lock:
+            removed: List[str] = []
+            for key, (align_model, _metadata) in list(self.align_models.items()):
+                if align_model is None:
+                    continue
+                self._dispose_alignment_model(key, align_model)
+                del self.align_models[key]
+                removed.append(key)
+                self._align_usage.pop(key, None)
+            if removed:
+                logger.warning(
+                    "Purged %d cached alignment model(s) after %s: %s",
+                    len(removed),
+                    reason,
+                    ", ".join(sorted(removed)),
+                )
+        release_cuda_memory()
+
+    def _device_index(self) -> Optional[int]:
+        if torch is None or not self.device.startswith("cuda"):
+            return None
+        try:
+            device_obj = torch.device(self.device)
+            if device_obj.index is not None:
+                return device_obj.index
+            return torch.cuda.current_device()
+        except Exception:  # pragma: no cover - defensive guard
+            logger.debug(
+                "Unable to resolve CUDA device index for %s", self.device, exc_info=True
+            )
+            return None
+
+    def capture_gpu_memory(self) -> Optional[GPUMemorySnapshot]:
+        if torch is None or not self.device.startswith("cuda"):
+            return None
+        if not torch.cuda.is_available():  # pragma: no cover - GPU only
+            return None
+        index = self._device_index()
+        if index is None:
+            return None
+        try:
+            total_bytes = torch.cuda.get_device_properties(index).total_memory
+            reserved_bytes = torch.cuda.memory_reserved(index)
+            allocated_bytes = torch.cuda.memory_allocated(index)
+            free_bytes = total_bytes - reserved_bytes
+            max_reserved = torch.cuda.max_memory_reserved(index)
+            snapshot = GPUMemorySnapshot(
+                device=f"cuda:{index}",
+                total_bytes=int(total_bytes),
+                reserved_bytes=int(reserved_bytes),
+                allocated_bytes=int(allocated_bytes),
+                free_bytes=int(free_bytes),
+                max_reserved_bytes=int(max_reserved),
+                timestamp=time.monotonic(),
+            )
+            self._max_reserved_bytes = max(
+                self._max_reserved_bytes, snapshot.reserved_bytes
+            )
+            return snapshot
+        except Exception:  # pragma: no cover - GPU only
+            logger.debug("Failed to capture GPU memory stats", exc_info=True)
+            return None
+
+    def monitor_gpu_health(self, stage: str) -> None:
+        snapshot = self.capture_gpu_memory()
+        if snapshot is None:
+            return
+        reserved_ratio = snapshot.reserved_ratio
+        reserved_gib = snapshot.reserved_bytes / float(1024**3)
+        total_gib = snapshot.total_bytes / float(1024**3)
+        logger.debug(
+            "GPU usage after %s: reserved %.2f%% (%.2f / %.2f GiB)",
+            stage,
+            reserved_ratio * 100.0,
+            reserved_gib,
+            total_gib,
+        )
+        if reserved_ratio >= GPU_MEMORY_WARN_RATIO:
+            self.purge_alignment_models(
+                reason=f"GPU usage {reserved_ratio*100:.1f}% after {stage}"
+            )
+            snapshot = self.capture_gpu_memory() or snapshot
+            reserved_ratio = snapshot.reserved_ratio
+        now = time.monotonic()
+        if (
+            reserved_ratio >= GPU_MEMORY_RELOAD_RATIO
+            and now - self._last_gpu_reload_time >= GPU_MAX_RELOAD_HOLDOFF_SECONDS
+        ):
+            logger.warning(
+                "GPU memory still high (%.1f%% reserved) after %s; reloading Whisper model",
+                reserved_ratio * 100.0,
+                stage,
+            )
+            self.switch_device(self.device, self.compute_type, force_reload=True)
+            self._last_gpu_reload_time = time.monotonic()
+
+    def maybe_refresh_by_age(self, *, stage: str) -> None:
+        if MODEL_HEALTH_REFRESH_SECONDS <= 0:
+            return
+        now = time.monotonic()
+        if now - self._last_reload_time >= MODEL_HEALTH_REFRESH_SECONDS:
+            logger.info(
+                "Reloading Whisper model after %.1f hours for health (%s)",
+                (now - self._last_reload_time) / 3600.0,
+                stage,
+            )
+            self.switch_device(self.device, self.compute_type, force_reload=True)
+
+
+@lru_cache(maxsize=None)
+def _pipeline_supported_transcribe_params(pipeline_cls: type) -> set[str]:
+    transcribe_fn = getattr(pipeline_cls, "transcribe", None)
+    if not callable(transcribe_fn):
+        return set()
+    try:
+        signature = inspect.signature(transcribe_fn)
+    except (TypeError, ValueError):
+        return set()
+
+    params = set(signature.parameters.keys())
+    params.discard("self")
+    params.discard("args")
+    params.discard("kwargs")
+    return params
+
+
+def transcribe_with_model(pipeline: object, audio, **kwargs):
+    transcribe_fn = getattr(pipeline, "transcribe", None)
+    if not callable(transcribe_fn):
+        raise AttributeError(
+            f"Pipeline '{type(pipeline).__name__}' does not expose a callable transcribe() method"
+        )
+
+    supported_params = _pipeline_supported_transcribe_params(type(pipeline))
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k in supported_params}
+    remapped_params: set[str] = set()
+
+    if "chunk_length" in kwargs and "chunk_length" not in supported_params:
+        chunk_length_value = kwargs["chunk_length"]
+        if "chunk_size" in supported_params and "chunk_size" not in filtered_kwargs:
+            filtered_kwargs["chunk_size"] = chunk_length_value
+            logger.debug(
+                "Translated chunk_length=%s to chunk_size for %s",
+                chunk_length_value,
+                type(pipeline).__name__,
+            )
+            remapped_params.add("chunk_length")
+
+    dropped_params = sorted(
+        set(kwargs.keys()) - set(filtered_kwargs.keys()) - remapped_params
+    )
+    if dropped_params:
+        logger.debug(
+            "Skipping unsupported transcribe kwargs for %s: %s",
+            type(pipeline).__name__,
+            ", ".join(dropped_params),
+        )
+
+    return transcribe_fn(audio, **filtered_kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -834,58 +1135,6 @@ def build_initial_prompt(
     return channel_hint
 
 
-@lru_cache(maxsize=None)
-def _pipeline_supported_transcribe_params(pipeline_cls: type) -> set[str]:
-    transcribe_fn = getattr(pipeline_cls, "transcribe", None)
-    if not callable(transcribe_fn):
-        return set()
-    try:
-        signature = inspect.signature(transcribe_fn)
-    except (TypeError, ValueError):
-        return set()
-
-    params = set(signature.parameters.keys())
-    params.discard("self")
-    params.discard("args")
-    params.discard("kwargs")
-    return params
-
-
-def transcribe_with_model(pipeline: object, audio, **kwargs):
-    transcribe_fn = getattr(pipeline, "transcribe", None)
-    if not callable(transcribe_fn):
-        raise AttributeError(
-            f"Pipeline '{type(pipeline).__name__}' does not expose a callable transcribe() method"
-        )
-
-    supported_params = _pipeline_supported_transcribe_params(type(pipeline))
-    filtered_kwargs = {k: v for k, v in kwargs.items() if k in supported_params}
-    remapped_params: set[str] = set()
-
-    if "chunk_length" in kwargs and "chunk_length" not in supported_params:
-        chunk_length_value = kwargs["chunk_length"]
-        if "chunk_size" in supported_params and "chunk_size" not in filtered_kwargs:
-            filtered_kwargs["chunk_size"] = chunk_length_value
-            logger.debug(
-                "Translated chunk_length=%s to chunk_size for %s",
-                chunk_length_value,
-                type(pipeline).__name__,
-            )
-            remapped_params.add("chunk_length")
-
-    dropped_params = sorted(
-        set(kwargs.keys()) - set(filtered_kwargs.keys()) - remapped_params
-    )
-    if dropped_params:
-        logger.debug(
-            "Skipping unsupported transcribe kwargs for %s: %s",
-            type(pipeline).__name__,
-            ", ".join(dropped_params),
-        )
-
-    return transcribe_fn(audio, **filtered_kwargs)
-
-
 def resolve_transcription_params(audio_duration_seconds: float) -> Tuple[int, int]:
     batch_size = DEFAULT_BATCH_SIZE
     chunk_length = DEFAULT_CHUNK_LENGTH
@@ -999,6 +1248,7 @@ def transcribe_full_wav(
     force: bool,
 ) -> TranscriptionArtifacts:
     cache_file = cache_dir / f"{wav_path.stem}{CACHE_SUFFIX}"
+    resources.maybe_refresh_by_age(stage=f"{wav_path.name} (pre-cache)")
     if cache_file.exists() and not force:
         try:
             cached = json.loads(cache_file.read_text(encoding="utf-8"))
@@ -1056,6 +1306,8 @@ def transcribe_full_wav(
     with suppress_stdout_stderr():
         audio = whisperx.load_audio(str(wav_path))
 
+    resources.monitor_gpu_health(stage=f"{wav_path.name} audio load")
+
     sample_count = 0
     if hasattr(audio, "shape"):
         try:
@@ -1079,8 +1331,7 @@ def transcribe_full_wav(
 
     def _perform_transcription() -> Dict[str, object]:
         with suppress_stdout_stderr():
-            return transcribe_with_model(
-                resources.base_model,
+            return resources.transcribe(
                 audio,
                 batch_size=batch_size,
                 chunk_length=chunk_length,
@@ -1094,6 +1345,7 @@ def transcribe_full_wav(
 
     result = _run_with_cuda_fallback("transcription", resources, _perform_transcription)
     release_cuda_memory()
+    resources.monitor_gpu_health(stage=f"{wav_path.name} transcription")
 
     detected_language = result.get("language", "en") or "en"
 
@@ -1137,6 +1389,7 @@ def transcribe_full_wav(
     if not alignment_segments:
         alignment_segments = result["segments"]
     release_cuda_memory()
+    resources.monitor_gpu_health(stage=f"{wav_path.name} alignment")
 
     translation_segments: Optional[List[Dict[str, object]]] = None
     final_segments = result["segments"]
@@ -1146,10 +1399,10 @@ def transcribe_full_wav(
             detected_language,
             wav_path,
         )
+
         def _perform_translation() -> Dict[str, object]:
             with suppress_stdout_stderr():
-                return transcribe_with_model(
-                    resources.base_model,
+                return resources.transcribe(
                     audio,
                     batch_size=batch_size,
                     chunk_length=chunk_length,
@@ -1171,6 +1424,7 @@ def transcribe_full_wav(
         )
         final_segments = translation_segments
         release_cuda_memory()
+        resources.monitor_gpu_health(stage=f"{wav_path.name} translation")
 
     artifacts = TranscriptionArtifacts(
         language="en" if translation_segments else detected_language,
@@ -2132,6 +2386,7 @@ def process_wav_file(
         start_time,
         output_root,
     )
+    resources.monitor_gpu_health(stage=f"{wav_path.name} finalization")
     return transcription
 
 
