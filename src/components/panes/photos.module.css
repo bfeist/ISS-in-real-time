@@ -68,3 +68,17 @@
 .metadataRow strong {
   margin-right: 6px;
 }
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--grey4);
+}
+
+.emptyStateIcon {
+  font-size: 120px;
+  opacity: 0.3;
+}

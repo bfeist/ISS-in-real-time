@@ -1,6 +1,6 @@
 import { FunctionComponent, useCallback, useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faExternalLinkAlt, faExpand } from "@fortawesome/free-solid-svg-icons";
+import { faExternalLinkAlt, faExpand, faCamera } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photos.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
@@ -248,6 +248,8 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     return <div>Loading Photos...</div>;
   }
 
+  const noPhotosAvailable = photoItemsCombined.length === 0;
+
   return (
     <div
       className={styles.imageComponentContainer}
@@ -261,7 +263,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       }}
     >
       <PhotoToggle
-        isVisible={isHoveringContainer || isTouchDevice}
+        isVisible={noPhotosAvailable || isHoveringContainer || isTouchDevice}
         earthPhotosCount={earthPhotosCount}
         timelapsePhotosCount={timelapsePhotosCount}
         missionPhotosCount={missionPhotosCount}
@@ -286,8 +288,14 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
           }
         }}
       >
-        {mostRecentImage && (
-          <img src={getImageUrl(mostRecentImage, "medium")} alt={mostRecentImage.nasaId} />
+        {noPhotosAvailable ? (
+          <div className={styles.emptyState}>
+            <FontAwesomeIcon icon={faCamera} className={styles.emptyStateIcon} />
+          </div>
+        ) : (
+          mostRecentImage && (
+            <img src={getImageUrl(mostRecentImage, "medium")} alt={mostRecentImage.nasaId} />
+          )
         )}
         {mostRecentImage && mostRecentImage.type === "photos_flickr" && (
           <div className={styles.descriptionOverlay} style={{ opacity: showCaption ? 1 : 0 }}>
