@@ -96,6 +96,7 @@
   align-items: flex-start;
   gap: 5px;
   margin-top: 3px;
+  cursor: pointer;
 }
 
 .arriveDepartTime {

@@ -76,11 +76,31 @@ const CrewOnboard: FunctionComponent = () => {
                 </div>
               </div>
               <div className={styles.timeOnboard}>
-                <div className={styles.arriveDepartTime}>
+                <div
+                  className={styles.arriveDepartTime}
+                  data-tooltip-id="issirt-tooltip"
+                  data-tooltip-content={`Time since arrival: ${ddhhmmssBetweenDateStrings(
+                    crewItem.arrivalDate,
+                    currentTimeStr
+                  )}`}
+                  data-tooltip-place="top"
+                >
                   <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowUp} />
                   {ddhhmmssBetweenDateStrings(crewItem.arrivalDate, currentTimeStr)}
                 </div>
-                <div className={styles.arriveDepartTime}>
+                <div
+                  className={styles.arriveDepartTime}
+                  data-tooltip-id="issirt-tooltip"
+                  data-tooltip-content={
+                    currentlyInSpace
+                      ? "Landing date TBD"
+                      : `Time until departure: ${ddhhmmssBetweenDateStrings(
+                          currentTimeStr,
+                          crewItem.departureDate
+                        )}`
+                  }
+                  data-tooltip-place="top"
+                >
                   {currentlyInSpace ? (
                     <>
                       <FontAwesomeIcon className={styles.arrowIcon} icon={faArrowDown} />
