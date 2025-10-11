@@ -251,6 +251,7 @@ const END_YEAR = now.getFullYear(); // Dynamic end year
 const YEAR_GAP = "2px"; // done in css
 const MONTHS_IN_YEAR = 12;
 const DAYS_IN_LONGEST_MONTH = 31;
+const TIMELINE_WIDTH_MULTIPLIER = 1.25; // Extend timeline width by 25% beyond calculated max
 
 // Props interface for the TimelineYears2 component
 interface TimelineYears2Props {
@@ -539,7 +540,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       return null;
     }
 
-    return Math.ceil(totalWidth);
+    return Math.ceil(totalWidth * TIMELINE_WIDTH_MULTIPLIER);
   }, [years.length]);
 
   const timelineInlineStyle = timelineMaxWidth
