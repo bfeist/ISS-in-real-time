@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import styles from "./yearCanvas.module.css";
-import { useStateToggle } from "store/hooks/useStateToggle";
 
 // Constants from the original HTML
 export const MONTH_GAP = 1;
@@ -36,6 +35,12 @@ interface YearCanvasProps {
   startMonth?: number; // 0-based month index (0 = January)
   endMonth?: number; // 0-based month index (11 = December)
   selectedDate?: string | null;
+  isTimelineExpanded: boolean;
+  onToggleTimeline: () => void;
+  onHeaderPointerDown?: (event: React.PointerEvent<HTMLDivElement>, yearIndex: number) => void;
+  onHeaderPointerMove?: (event: React.PointerEvent<HTMLDivElement>, yearIndex: number) => void;
+  onHeaderPointerUp?: (event: React.PointerEvent<HTMLDivElement>, yearIndex: number) => void;
+  onHeaderPointerCancel?: (event: React.PointerEvent<HTMLDivElement>, yearIndex: number) => void;
 }
 
 // Individual year canvas component
@@ -51,9 +56,13 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
   startMonth = 0, // Default to January
   endMonth = 11, // Default to December
   selectedDate,
+  isTimelineExpanded,
+  onToggleTimeline,
+  onHeaderPointerDown,
+  onHeaderPointerMove,
+  onHeaderPointerUp,
+  onHeaderPointerCancel,
 }) => {
-  const { showTimelineYears, setShowTimelineYears } = useStateToggle();
-
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -65,7 +74,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
       return;
     }
     // For other parts of the container, only show overlay if timeline is expanded
-    if (showTimelineYears && onYearHover) {
+    if (isTimelineExpanded && onYearHover) {
       onYearHover(index);
     }
   };
@@ -203,6 +212,36 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
     }
   }, [forceRedraw, draw]);
 
+  const handleHeaderPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    onHeaderPointerDown?.(event, index);
+  };
+
+  const handleHeaderPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    onHeaderPointerMove?.(event, index);
+  };
+
+  const handleHeaderPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    onHeaderPointerUp?.(event, index);
+  };
+
+  const handleHeaderPointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    onHeaderPointerCancel?.(event, index);
+  };
+
+  const handleHeaderKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onToggleTimeline();
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -216,19 +255,18 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
         className={styles.yearHeader}
         role="button"
         tabIndex={0}
-        onClick={() => setShowTimelineYears(!showTimelineYears)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            setShowTimelineYears(!showTimelineYears);
-            e.preventDefault();
-          }
-        }}
+        data-year-header="true"
+        onPointerDown={handleHeaderPointerDown}
+        onPointerMove={handleHeaderPointerMove}
+        onPointerUp={handleHeaderPointerUp}
+        onPointerCancel={handleHeaderPointerCancel}
+        onKeyDown={handleHeaderKeyDown}
       >
         <div className={styles.yearTitle}>{year}</div>
       </div>
       <div
         className={styles.monthsCanvas}
-        style={{ display: !showTimelineYears ? "none" : "block" }}
+        style={{ display: !isTimelineExpanded ? "none" : "block" }}
       >
         <canvas ref={canvasRef} style={{ width: "100%", height: `${YEAR_CANVAS_HEIGHT}px` }} />
       </div>

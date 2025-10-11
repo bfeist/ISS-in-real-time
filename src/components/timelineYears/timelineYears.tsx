@@ -22,6 +22,7 @@ import { isTouchLikeInteraction, type InteractionMode } from "./types";
 // ---------------------------------------------------------------------------
 
 const HINT_DELAY_MS = 4000;
+const HEADER_DRAG_THRESHOLD_PX = 6;
 
 type MouseHintController = {
   showHint: boolean;
@@ -274,6 +275,26 @@ const ScrollIndicatorArrow: React.FC<{ direction: "left" | "right" }> = ({ direc
   </svg>
 );
 
+type HeaderDragState = {
+  pointerId: number | null;
+  startX: number;
+  lastX: number;
+  startScrollLeft: number;
+  isActive: boolean;
+  isDragging: boolean;
+  pointerMode: InteractionMode;
+};
+
+const DEFAULT_HEADER_DRAG_STATE: HeaderDragState = {
+  pointerId: null,
+  startX: 0,
+  lastX: 0,
+  startScrollLeft: 0,
+  isActive: false,
+  isDragging: false,
+  pointerMode: "mouse",
+};
+
 // Props interface for the TimelineYears2 component
 interface TimelineYears2Props {
   highlights: Map<
@@ -291,7 +312,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   commFirstData,
 }) => {
   // Global state hooks
-  const { showTimelineYears } = useStateToggle();
+  const { showTimelineYears, setShowTimelineYears } = useStateToggle();
   const { hoveredDate, setHoveredDate } = useStateHover();
 
   // State to force redraw when timeline becomes visible
@@ -318,6 +339,15 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     canScrollRight: false,
     isScrollable: false,
   });
+  const headerDragStateRef = useRef<HeaderDragState>({ ...DEFAULT_HEADER_DRAG_STATE });
+  const years = useMemo(
+    () => Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, i) => START_YEAR + i),
+    []
+  );
+
+  const toggleTimelineYears = useCallback(() => {
+    setShowTimelineYears(!showTimelineYears);
+  }, [setShowTimelineYears, showTimelineYears]);
 
   const getNow = useCallback(() => {
     if (typeof performance !== "undefined" && typeof performance.now === "function") {
@@ -395,8 +425,158 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     });
   }, []);
 
+  const pointerTypeToInteractionMode = useCallback((pointerType: string): InteractionMode => {
+    if (pointerType === "touch") {
+      return "touch";
+    }
+    if (pointerType === "pen") {
+      return "pen";
+    }
+    return "mouse";
+  }, []);
+
+  const resetHeaderDragState = useCallback(() => {
+    headerDragStateRef.current = { ...DEFAULT_HEADER_DRAG_STATE };
+  }, []);
+
+  const isHeaderDragActive = useCallback(() => headerDragStateRef.current.isActive, []);
+  const {
+    visible: megaOverlayVisible,
+    year: megaOverlayYear,
+    position: megaOverlayPosition,
+    activeYearIndex,
+    open: openMegaOverlay,
+    close: closeMegaOverlay,
+    scheduleHide: scheduleMegaOverlayHide,
+    cancelHide: cancelMegaOverlayHide,
+    pointerEnteredOverlay,
+    pointerLeftOverlay,
+  } = useMegaOverlayState({
+    containerRef,
+    years,
+    onClose: () => {
+      setHoveredDate(null);
+    },
+  });
+
+  const handleHeaderPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+
+      const scrollContainer = yearsScrollContainerRef.current;
+      if (!scrollContainer) {
+        return;
+      }
+
+      registerInteractionMode(pointerTypeToInteractionMode(event.pointerType));
+      markUserInteracted();
+
+      cancelMegaOverlayHide();
+      closeMegaOverlay();
+      setHoveredDate(null);
+
+      stopAutoScroll();
+      pointerDownRef.current = false;
+      pointerPositionRef.current = null;
+
+      headerDragStateRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        lastX: event.clientX,
+        startScrollLeft: scrollContainer.scrollLeft,
+        isActive: true,
+        isDragging: false,
+        pointerMode: pointerTypeToInteractionMode(event.pointerType),
+      };
+
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    [
+      cancelMegaOverlayHide,
+      closeMegaOverlay,
+      markUserInteracted,
+      pointerTypeToInteractionMode,
+      registerInteractionMode,
+      setHoveredDate,
+      stopAutoScroll,
+    ]
+  );
+
+  const handleHeaderPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const state = headerDragStateRef.current;
+    if (!state.isActive || state.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const scrollContainer = yearsScrollContainerRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+
+    const deltaX = event.clientX - state.startX;
+    if (!state.isDragging && Math.abs(deltaX) >= HEADER_DRAG_THRESHOLD_PX) {
+      state.isDragging = true;
+    }
+
+    if (state.isDragging) {
+      scrollContainer.scrollLeft = state.startScrollLeft - deltaX;
+      state.lastX = event.clientX;
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, []);
+
+  const finalizeHeaderDrag = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>, shouldToggle: boolean) => {
+      const state = headerDragStateRef.current;
+      if (!state.isActive || state.pointerId !== event.pointerId) {
+        return;
+      }
+
+      const wasDragging = state.isDragging;
+      const mode = state.pointerMode;
+      resetHeaderDragState();
+
+      if (mode) {
+        registerInteractionMode(mode);
+      }
+
+      if (wasDragging) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
+      if (shouldToggle) {
+        toggleTimelineYears();
+      }
+    },
+    [registerInteractionMode, resetHeaderDragState, toggleTimelineYears]
+  );
+
+  const handleHeaderPointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      finalizeHeaderDrag(event, true);
+    },
+    [finalizeHeaderDrag]
+  );
+
+  const handleHeaderPointerCancel = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      finalizeHeaderDrag(event, false);
+    },
+    [finalizeHeaderDrag]
+  );
+
   const handleMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
+      if ((event.target as HTMLElement)?.closest("[data-year-header='true']")) {
+        return;
+      }
+
       if (event.button !== 0) {
         return;
       }
@@ -426,6 +606,13 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
   const handleMouseMove = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
+      if (
+        (event.target as HTMLElement)?.closest("[data-year-header='true']") ||
+        isHeaderDragActive()
+      ) {
+        return;
+      }
+
       if (shouldIgnoreMouseEvents()) {
         return;
       }
@@ -445,6 +632,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       shouldIgnoreMouseEvents,
       updateEdgeScrollFromPointer,
       updateScrollIndicators,
+      isHeaderDragActive,
     ]
   );
 
@@ -475,12 +663,16 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   }, [shouldIgnoreMouseEvents, stopAutoScroll]);
 
   const handleMouseLeave = useCallback(() => {
+    if (isHeaderDragActive()) {
+      return;
+    }
+
     if (!pointerDownRef.current) {
       stopAutoScroll();
     }
     pointerPositionRef.current = null;
     updateScrollIndicators();
-  }, [stopAutoScroll, updateScrollIndicators]);
+  }, [stopAutoScroll, updateScrollIndicators, isHeaderDragActive]);
 
   // Audio refs and state
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -637,9 +829,6 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       document.removeEventListener("touchstart", enableAudio);
     };
   }, []);
-
-  const years = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, i) => START_YEAR + i);
-
   const timelineMaxWidth = useMemo(() => {
     const numericYearGap = Number.parseFloat(YEAR_GAP);
     if (!Number.isFinite(numericYearGap)) {
@@ -662,24 +851,6 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     ? { width: "100%", maxWidth: `${timelineMaxWidth}px`, margin: "0 auto" }
     : { margin: "0 auto" };
 
-  const {
-    visible: megaOverlayVisible,
-    year: megaOverlayYear,
-    position: megaOverlayPosition,
-    activeYearIndex,
-    open: openMegaOverlay,
-    close: closeMegaOverlay,
-    scheduleHide: scheduleMegaOverlayHide,
-    cancelHide: cancelMegaOverlayHide,
-    pointerEnteredOverlay,
-    pointerLeftOverlay,
-  } = useMegaOverlayState({
-    containerRef,
-    years,
-    onClose: () => {
-      setHoveredDate(null);
-    },
-  });
   const selectedYearEl = selectedDate ? new Date(selectedDate).getFullYear() : null;
 
   // Track pending touch event to forward to overlay when it mounts
@@ -734,6 +905,12 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const handleTouchStart = useCallback(
     (event: React.TouchEvent<HTMLDivElement>) => {
       if (event.touches.length === 0) return;
+
+      if ((event.target as HTMLElement)?.closest("[data-year-header='true']")) {
+        registerInteractionMode("touch");
+        markUserInteracted();
+        return;
+      }
 
       registerInteractionMode("touch");
 
@@ -801,10 +978,17 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   ]);
 
   const handleYearsScroll = useCallback(() => {
+    if (isHeaderDragActive()) {
+      return;
+    }
+
+    markUserInteracted();
+    updateActiveYearFromPointer();
+
     updateScrollIndicators();
     markUserInteracted();
     updateActiveYearFromPointer();
-  }, [markUserInteracted, updateActiveYearFromPointer, updateScrollIndicators]);
+  }, [isHeaderDragActive, markUserInteracted, updateActiveYearFromPointer, updateScrollIndicators]);
 
   useEffect(() => {
     const handleWindowMouseUp = () => {
@@ -890,6 +1074,12 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
                   startMonth={monthRange.startMonth}
                   endMonth={monthRange.endMonth}
                   selectedDate={selectedDate}
+                  isTimelineExpanded={showTimelineYears}
+                  onToggleTimeline={toggleTimelineYears}
+                  onHeaderPointerDown={handleHeaderPointerDown}
+                  onHeaderPointerMove={handleHeaderPointerMove}
+                  onHeaderPointerUp={handleHeaderPointerUp}
+                  onHeaderPointerCancel={handleHeaderPointerCancel}
                 />
               );
             })}

@@ -16,8 +16,13 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: pan-y;
   border: 1px solid var(--grey3);
+}
+
+.yearHeader:active {
+  cursor: grabbing;
 }
 
 .yearTitle {
