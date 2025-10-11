@@ -456,6 +456,11 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     years,
     onClose: () => {
       setHoveredDate(null);
+      // Stop audio playback when mega overlay is closed
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
     },
   });
 
