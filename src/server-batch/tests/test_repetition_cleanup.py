@@ -32,24 +32,44 @@ def test_normalize_repetition_token():
 
 
 def test_collapse_simple_word_repetition():
-    """Test that repeated single words are collapsed to one instance."""
-    items = ["hello", "hello", "hello", "world"]
-    normalized = ["hello", "hello", "hello", "world"]
+    """Test that repeated single words are collapsed to one instance when repeated 4+ times."""
+    items = ["hello", "hello", "hello", "hello", "world"]
+    normalized = ["hello", "hello", "hello", "hello", "world"]
     result = _collapse_repetition_sequences(items, normalized)
     assert result == ["hello", "world"]
 
 
 def test_collapse_phrase_repetition():
-    """Test that repeated phrases are collapsed to one instance."""
-    items = ["good", "luck", "good", "luck", "good", "luck", "end"]
-    normalized = ["good", "luck", "good", "luck", "good", "luck", "end"]
+    """Test that repeated phrases are collapsed to one instance when repeated 4+ times."""
+    items = ["good", "luck", "good", "luck", "good", "luck", "good", "luck", "end"]
+    normalized = ["good", "luck", "good", "luck", "good", "luck", "good", "luck", "end"]
     result = _collapse_repetition_sequences(items, normalized)
     assert result == ["good", "luck", "end"]
 
 
 def test_collapse_long_phrase_repetition():
-    """Test that longer repeated phrases are detected."""
+    """Test that longer repeated phrases are detected when repeated 4+ times."""
     items = [
+        "Astray",
+        "I'm",
+        "transmitting",
+        "to",
+        "Moscow",
+        "good",
+        "luck",
+        "with",
+        "the",
+        "flight",
+        "Astray",
+        "I'm",
+        "transmitting",
+        "to",
+        "Moscow",
+        "good",
+        "luck",
+        "with",
+        "the",
+        "flight",
         "Astray",
         "I'm",
         "transmitting",
@@ -80,17 +100,18 @@ def test_collapse_long_phrase_repetition():
 
 
 def test_dedupe_segment_with_repeated_words():
-    """Test deduplication of segment with word-level repetitions."""
+    """Test deduplication of segment with word-level repetitions (4+ times)."""
     segments = [
         {
             "start": 0.0,
             "end": 5.0,
-            "text": "hello hello hello world",
+            "text": "hello hello hello hello world",
             "words": [
                 {"word": "hello", "start": 0.0, "end": 1.0},
                 {"word": "hello", "start": 1.0, "end": 2.0},
                 {"word": "hello", "start": 2.0, "end": 3.0},
-                {"word": "world", "start": 3.0, "end": 4.0},
+                {"word": "hello", "start": 3.0, "end": 3.5},
+                {"word": "world", "start": 3.5, "end": 4.0},
             ],
         }
     ]
@@ -185,13 +206,65 @@ def test_dedupe_preserves_non_repeated_content():
     assert result[0]["text"] == "This is unique content."
 
 
+def test_dedupe_preserves_short_repetitions():
+    """Test that repetitions of 3 or fewer are NOT deduplicated (threshold is 4+)."""
+    # Test with 2 repetitions
+    segments_2 = [
+        {
+            "start": 0.0,
+            "end": 2.0,
+            "text": "hello hello",
+            "words": [
+                {"word": "hello", "start": 0.0, "end": 1.0},
+                {"word": "hello", "start": 1.0, "end": 2.0},
+            ],
+        }
+    ]
+    result_2 = dedupe_segment_repetitions(segments_2)
+    assert len(result_2[0]["words"]) == 2, "Should NOT deduplicate 2 repetitions"
+
+    # Test with 3 repetitions
+    segments_3 = [
+        {
+            "start": 0.0,
+            "end": 3.0,
+            "text": "hello hello hello",
+            "words": [
+                {"word": "hello", "start": 0.0, "end": 1.0},
+                {"word": "hello", "start": 1.0, "end": 2.0},
+                {"word": "hello", "start": 2.0, "end": 3.0},
+            ],
+        }
+    ]
+    result_3 = dedupe_segment_repetitions(segments_3)
+    assert len(result_3[0]["words"]) == 3, "Should NOT deduplicate 3 repetitions"
+
+    # Test with 4 repetitions
+    segments_4 = [
+        {
+            "start": 0.0,
+            "end": 4.0,
+            "text": "hello hello hello hello",
+            "words": [
+                {"word": "hello", "start": 0.0, "end": 1.0},
+                {"word": "hello", "start": 1.0, "end": 2.0},
+                {"word": "hello", "start": 2.0, "end": 3.0},
+                {"word": "hello", "start": 3.0, "end": 4.0},
+            ],
+        }
+    ]
+    result_4 = dedupe_segment_repetitions(segments_4)
+    assert len(result_4[0]["words"]) == 1, "Should deduplicate 4 repetitions"
+    assert result_4[0]["words"][0]["word"] == "hello"
+
+
 def test_dedupe_text_only_segment():
-    """Test deduplication when segment has text but no words."""
+    """Test deduplication when segment has text but no words (4+ repetitions)."""
     segments = [
         {
             "start": 0.0,
             "end": 5.0,
-            "text": "hello hello hello world world",
+            "text": "hello hello hello hello world world world world",
         }
     ]
 
@@ -200,25 +273,29 @@ def test_dedupe_text_only_segment():
     assert len(result) == 1
     # Should collapse repeated tokens in text
     assert "hello world" in result[0]["text"]
-    # Should not have triple "hello"
+    # Should not have 4x "hello"
     assert result[0]["text"].count("hello") == 1
+    assert result[0]["text"].count("world") == 1
 
 
 def test_dedupe_mixed_content():
-    """Test deduplication with mixed repeated and unique content."""
+    """Test deduplication with mixed repeated and unique content (4+ repetitions)."""
     segments = [
         {
             "start": 0.0,
             "end": 10.0,
-            "text": "start start unique content end end end",
+            "text": "start start start start unique content end end end end",
             "words": [
                 {"word": "start", "start": 0.0, "end": 0.5},
                 {"word": "start", "start": 0.5, "end": 1.0},
-                {"word": "unique", "start": 1.0, "end": 1.5},
-                {"word": "content", "start": 1.5, "end": 2.0},
-                {"word": "end", "start": 2.0, "end": 2.5},
-                {"word": "end", "start": 2.5, "end": 3.0},
-                {"word": "end", "start": 3.0, "end": 3.5},
+                {"word": "start", "start": 1.0, "end": 1.2},
+                {"word": "start", "start": 1.2, "end": 1.4},
+                {"word": "unique", "start": 1.4, "end": 1.9},
+                {"word": "content", "start": 1.9, "end": 2.4},
+                {"word": "end", "start": 2.4, "end": 2.9},
+                {"word": "end", "start": 2.9, "end": 3.4},
+                {"word": "end", "start": 3.4, "end": 3.9},
+                {"word": "end", "start": 3.9, "end": 4.4},
             ],
         }
     ]
@@ -234,25 +311,28 @@ def test_dedupe_mixed_content():
 
 
 def test_dedupe_multiple_segments():
-    """Test deduplication across multiple segments."""
+    """Test deduplication across multiple segments (4+ repetitions)."""
     segments = [
         {
             "start": 0.0,
             "end": 2.0,
-            "text": "repeat repeat repeat",
+            "text": "repeat repeat repeat repeat",
             "words": [
                 {"word": "repeat", "start": 0.0, "end": 0.5},
                 {"word": "repeat", "start": 0.5, "end": 1.0},
                 {"word": "repeat", "start": 1.0, "end": 1.5},
+                {"word": "repeat", "start": 1.5, "end": 2.0},
             ],
         },
         {
             "start": 2.0,
             "end": 4.0,
-            "text": "another another",
+            "text": "another another another another",
             "words": [
                 {"word": "another", "start": 2.0, "end": 2.5},
                 {"word": "another", "start": 2.5, "end": 3.0},
+                {"word": "another", "start": 3.0, "end": 3.5},
+                {"word": "another", "start": 3.5, "end": 4.0},
             ],
         },
     ]
@@ -316,18 +396,18 @@ def test_dedupe_actual_full_transcription():
         result_text.count(astray_phrase) == 1
     ), f"Expected 1 occurrence of Astray phrase, got {result_text.count(astray_phrase)}"
 
-    # Check that "Turn on the speedometer" appears only once
+    # Check that "Turn on the speedometer" appears only twice (not deduplicated, only 2 occurrences)
     # (it appears as "Turn on the speedometer." and then "Turn on the speedometer." again)
     speedometer_count = result_text.lower().count("turn on the speedometer")
     assert (
-        speedometer_count == 1
-    ), f"Expected 1 occurrence of speedometer phrase, got {speedometer_count}"
+        speedometer_count == 2
+    ), f"Expected 2 occurrences of speedometer phrase (not enough to dedupe), got {speedometer_count}"
 
-    # Check that "We are waiting for you" appears only once
+    # Check that "We are waiting for you" appears only once (4 occurrences deduplicated)
     waiting_count = result_text.count("We are waiting for you.")
     assert (
         waiting_count == 1
-    ), f"Expected 1 occurrence of waiting phrase, got {waiting_count}"
+    ), f"Expected 1 occurrence of waiting phrase (deduped from 4), got {waiting_count}"
 
 
 if __name__ == "__main__":

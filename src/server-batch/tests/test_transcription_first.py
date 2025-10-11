@@ -604,16 +604,18 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
         if hasattr(export_handle, "close"):
             export_handle.close()
 
-        # Simulated non-English transcription with translation containing repetitions
+        # Simulated non-English transcription with translation containing repetitions (4+ times)
         translation_with_repetitions = [
             {
                 "start": 0.0,
                 "end": 2.0,
-                "text": "hello hello world",
+                "text": "hello hello hello hello world",
                 "words": [
                     {"word": "hello", "start": 0.0, "end": 0.5},
                     {"word": "hello", "start": 0.5, "end": 1.0},
-                    {"word": "world", "start": 1.0, "end": 1.5},
+                    {"word": "hello", "start": 1.0, "end": 1.3},
+                    {"word": "hello", "start": 1.3, "end": 1.6},
+                    {"word": "world", "start": 1.6, "end": 2.0},
                 ],
             }
         ]
@@ -622,11 +624,13 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
             {
                 "start": 0.0,
                 "end": 2.0,
-                "text": "bonjour bonjour monde",
+                "text": "bonjour bonjour bonjour bonjour monde",
                 "words": [
                     {"word": "bonjour", "start": 0.0, "end": 0.5},
                     {"word": "bonjour", "start": 0.5, "end": 1.0},
-                    {"word": "monde", "start": 1.0, "end": 1.5},
+                    {"word": "bonjour", "start": 1.0, "end": 1.3},
+                    {"word": "bonjour", "start": 1.3, "end": 1.6},
+                    {"word": "monde", "start": 1.6, "end": 2.0},
                 ],
             }
         ]
@@ -649,7 +653,9 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
             words=[
                 {"word": "hello", "start": 0.0, "end": 0.5},
                 {"word": "hello", "start": 0.5, "end": 1.0},
-                {"word": "world", "start": 1.0, "end": 1.5},
+                {"word": "hello", "start": 1.0, "end": 1.3},
+                {"word": "hello", "start": 1.3, "end": 1.6},
+                {"word": "world", "start": 1.6, "end": 2.0},
             ],
         )
 
@@ -676,16 +682,18 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
         # Original segments should NOT be deduplicated
         self.assertIn("bonjour", result_json["origLangSegments"][0]["text"])
 
-        # Case 2: English-only audio - should NOT deduplicate
+        # Case 2: English-only audio - should NOT deduplicate (even with 4+ repetitions)
         english_segments_with_repetitions = [
             {
                 "start": 0.0,
                 "end": 2.0,
-                "text": "hello hello world",
+                "text": "hello hello hello hello world",
                 "words": [
                     {"word": "hello", "start": 0.0, "end": 0.5},
                     {"word": "hello", "start": 0.5, "end": 1.0},
-                    {"word": "world", "start": 1.0, "end": 1.5},
+                    {"word": "hello", "start": 1.0, "end": 1.3},
+                    {"word": "hello", "start": 1.3, "end": 1.6},
+                    {"word": "world", "start": 1.6, "end": 2.0},
                 ],
             }
         ]
@@ -717,13 +725,87 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
             )
 
         self.assertEqual(len(outputs_english), 1)
-        result_json_english = json.loads(
-            outputs_english[0].read_text(encoding="utf-8")
-        )
-        # English-only should NOT be deduplicated: keep "hello hello world"
+        result_json_english = json.loads(outputs_english[0].read_text(encoding="utf-8"))
+        # English-only should NOT be deduplicated: keep "hello hello hello hello world"
         self.assertEqual(
-            result_json_english["segments"][0]["text"], "hello hello world"
+            result_json_english["segments"][0]["text"], "hello hello hello hello world"
         )
+
+    def test_transcribe_full_wav_cache_applies_translation_dedupe(self) -> None:
+        cache_dir = Path(self.temp_dir.name) / "cache_dedupe"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        wav_path = Path(self.temp_dir.name) / "cached.wav"
+        cache_path = cache_dir / f"{wav_path.stem}{TRANSCRIPTION_MODULE.CACHE_SUFFIX}"
+
+        repeated_translation_segment = {
+            "start": 0.0,
+            "end": 3.0,
+            "text": "hello hello hello hello world world world world",
+            "words": [
+                {"word": "hello", "start": 0.0, "end": 0.5},
+                {"word": "hello", "start": 0.5, "end": 1.0},
+                {"word": "hello", "start": 1.0, "end": 1.5},
+                {"word": "hello", "start": 1.5, "end": 2.0},
+                {"word": "world", "start": 2.0, "end": 2.5},
+                {"word": "world", "start": 2.5, "end": 2.7},
+                {"word": "world", "start": 2.7, "end": 2.9},
+                {"word": "world", "start": 2.9, "end": 3.0},
+            ],
+        }
+
+        cached_payload = {
+            "language": "ru",
+            "detected_language": "ru",
+            "final_segments": [repeated_translation_segment],
+            "source_segments": [
+                {
+                    "start": 0.0,
+                    "end": 3.0,
+                    "text": "bonjour bonjour monde",
+                }
+            ],
+            "alignment_segments": [
+                {
+                    "start": 0.0,
+                    "end": 3.0,
+                    "words": [
+                        {"word": "bonjour", "start": 0.0, "end": 0.5},
+                        {"word": "bonjour", "start": 0.5, "end": 1.0},
+                        {"word": "monde", "start": 1.0, "end": 1.5},
+                    ],
+                }
+            ],
+            "translation_segments": [repeated_translation_segment],
+            "prompt_text": "cache prompt",
+        }
+        cache_path.write_text(
+            json.dumps(cached_payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+        resources = WhisperResources(base_model=mock.Mock(), align_models={})
+
+        artifacts = transcribe_full_wav(
+            wav_path,
+            "1_SG_1",
+            TRANSCRIPTION_MODULE.dt.datetime(2024, 1, 1, 0, 0, 0),
+            "prompt",
+            resources,
+            cache_dir,
+            force=False,
+        )
+
+        self.assertIsNotNone(artifacts.translation_segments)
+        translation_segment = artifacts.translation_segments[0]
+        self.assertEqual(translation_segment["text"], "hello world")
+        self.assertEqual(len(translation_segment.get("words", [])), 2)
+        self.assertEqual(artifacts.final_segments[0]["text"], "hello world")
+        self.assertEqual(artifacts.language, "en")
+
+        cached_after = json.loads(cache_path.read_text(encoding="utf-8"))
+        self.assertEqual(cached_after["translation_segments"][0]["text"], "hello world")
+        self.assertEqual(cached_after["language"], "en")
 
 
 if __name__ == "__main__":

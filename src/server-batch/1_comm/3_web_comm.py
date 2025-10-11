@@ -62,10 +62,6 @@ def create_daily_transcript(root_dir, date_str, output_dir):
     year, month, day = date_str.split("-")
     dir_path = os.path.join(root_dir, year, month, day)
 
-    print(f"Processing transcripts for {date_str}...")
-    print(f"Source directory: {dir_path}")
-    print(f"Primary output directory: {output_dir}")
-
     # Initialize a list to collect data and AAC files to copy
     data_list = []
     aac_files_to_copy = []
@@ -80,7 +76,9 @@ def create_daily_transcript(root_dir, date_str, output_dir):
     aac_files = [f for f in all_files if f.endswith(".aac")]
 
     print(
-        f"Found {len(json_files)} JSON files and {len(aac_files)} AAC files in {dir_path}"
+        f"Processing {date_str} that has {len(aac_files)} aac files",
+        end=" ",
+        flush=True,
     )
 
     for filename in json_files:
@@ -144,11 +142,6 @@ def create_daily_transcript(root_dir, date_str, output_dir):
                 aac_file_path = os.path.join(dir_path, aac_filename)
                 if os.path.exists(aac_file_path):
                     aac_files_to_copy.append((aac_file_path, aac_filename))
-                    print(f"Found AAC file: {aac_filename}")
-                else:
-                    print(f"AAC file not found: {aac_file_path}")
-            else:
-                print(f"No filename specified in JSON: {filename}")
 
     # Write the data to a pipe-delimited file
     output_file = os.path.join(
@@ -174,19 +167,14 @@ def create_daily_transcript(root_dir, date_str, output_dir):
             for data in data_list:
                 row = [data[field] for field in fieldnames]
                 txtfile.write("|".join(row) + "\n")
-    else:
-        print(f"No valid transcript data to write for {date_str} (data_list is empty)")
 
     # Now copy all AAC files individually
     if aac_files_to_copy:
         dest_dir = os.path.join(output_dir, year, month, day)
         os.makedirs(dest_dir, exist_ok=True)
-        print(f"Created destination directory: {dest_dir}")
 
         # Use individual file copying for reliable results
         import subprocess
-
-        print(f"Copying {len(aac_files_to_copy)} AAC files for {date_str}...")
 
         # Copy each AAC file individually
         for aac_file_path, aac_filename in aac_files_to_copy:
@@ -196,20 +184,11 @@ def create_daily_transcript(root_dir, date_str, output_dir):
                 # Copy to destination
                 if not os.path.exists(dest_file):
                     shutil.copy(aac_file_path, dest_file)
-                    print(f"Copied {aac_filename} to {dest_dir}")
-                else:
-                    print(f"File already exists: {aac_filename}")
 
             except Exception as e:
-                print(f"Failed to copy {aac_filename}: {e}")
+                print(f"\nFailed to copy {aac_filename}: {e}")
 
-        print(f"Finished copying AAC files for {date_str}")
-
-    if data_list:
-        print(f"Transcript for {date_str} has been created: {output_file}")
-    print(
-        f"Processed {len(data_list)} transcript entries and {len(aac_files_to_copy)} AAC files"
-    )
+    print("...completed")
     return date_str
 
 
@@ -237,13 +216,7 @@ def process_all_transcripts(root_dir, output_dir):
 
                             # Skip only if transcript exists AND there are no SG/DG files
                             if transcript_exists:
-                                print(
-                                    f"Transcript for {date_str} already exists. Skipping."
-                                )
                                 continue
-
-                            else:
-                                print(f"Processing date: {date_str}")
 
                             processed_date = create_daily_transcript(
                                 root_dir, date_str, output_dir

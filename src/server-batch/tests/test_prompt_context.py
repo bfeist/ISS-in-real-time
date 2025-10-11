@@ -69,10 +69,10 @@ class PromptContextTests(unittest.TestCase):
     def test_roster_matches_typescript_expectations(self) -> None:
         roster = self.crew_builder.build_daily_roster(date_str="2000-12-01")
         first_sample = roster["samples"][0]["crew"]
-        names = [member["name_full"] for member in first_sample]
+        names = [member["name_first"] for member in first_sample]
         self.assertEqual(
             names,
-            ["Yuri Gidzenko", "Sergei Krikalev", "William Shepherd"],
+            ["Yuri", "Sergei", "William"],
         )
 
     def test_roster_includes_handover_notes(self) -> None:
@@ -183,6 +183,8 @@ class PromptContextTests(unittest.TestCase):
             ),
             "This is a deliberately long prompt describing operations and crew status that will be trimmed to meet the character requirement."
             * 5,
+            # Add a shortened response for the refinement call
+            "Yuri, Sergei, William, Maintenance, Cargo ops, Life support, Network, ISS, MCC, Houston, Moscow, Tsukuba, EVA, ECLSS, payload",
         ]
         fake_client = FakeOllamaClient(fake_responses)
         pipeline = PromptContextPipeline(self.config, fake_client)

@@ -885,13 +885,52 @@ def transcribe_full_wav(
     if cache_file.exists() and not force:
         try:
             cached = json.loads(cache_file.read_text(encoding="utf-8"))
+
+            cached_translation = cached.get("translation_segments")
+            translation_segments = (
+                dedupe_segment_repetitions(cached_translation)
+                if cached_translation is not None
+                else None
+            )
+
+            final_segments: List[Dict[str, object]] = cached.get("final_segments", [])
+            updated_cache = False
+
+            if translation_segments is not None:
+                # Ensure final segments mirror the deduplicated translation output.
+                deduped_final = dedupe_segment_repetitions(final_segments)
+                if deduped_final != final_segments:
+                    final_segments = deduped_final
+                    cached["final_segments"] = final_segments
+                    updated_cache = True
+
+                if translation_segments != cached_translation:
+                    cached["translation_segments"] = translation_segments
+                    updated_cache = True
+
+                # When translations exist, the canonical language should be English.
+                cached_language = cached.get("language")
+                if cached_language != "en":
+                    cached["language"] = "en"
+                    updated_cache = True
+            else:
+                translation_segments = None
+
+            if updated_cache:
+                cache_file.write_text(
+                    json.dumps(cached, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+
             return TranscriptionArtifacts(
-                language=cached["language"],
-                detected_language=cached.get("detected_language", cached["language"]),
-                final_segments=cached["final_segments"],
-                source_segments=cached["source_segments"],
-                alignment_segments=cached["alignment_segments"],
-                translation_segments=cached.get("translation_segments"),
+                language=cached.get("language", "en"),
+                detected_language=cached.get(
+                    "detected_language", cached.get("language", "en")
+                ),
+                final_segments=final_segments,
+                source_segments=cached.get("source_segments", []),
+                alignment_segments=cached.get("alignment_segments", []),
+                translation_segments=translation_segments,
                 prompt_text=cached.get("prompt_text", ""),
             )
         except Exception as exc:
@@ -1456,7 +1495,7 @@ def _collapse_repetition_sequences(
                 == pattern
             ):
                 count += 1
-            if count > 1:
+            if count >= 4:
                 repeated_length = phrase_len
                 repeated_count = count
                 break
