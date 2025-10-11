@@ -31,7 +31,7 @@ export const isValidDateString = (dateStr: string): boolean => {
 
 export interface ParsedDateTimeSlug {
   date: string;
-  time: string;
+  time?: string;
 }
 
 export const parseDateTimeSlug = (slug: string): ParsedDateTimeSlug | null => {
@@ -39,34 +39,46 @@ export const parseDateTimeSlug = (slug: string): ParsedDateTimeSlug | null => {
 
   // Expected format: YYYY-MM-DD/HH:MM:SS but encoded as YYYY-MM-DD%2FHH%3AMM%3ASS
   // or YYYY-MM-DDTHH:MM:SS (using T as separator to avoid URL encoding issues)
-  let datePart: string;
-  let timePart: string;
+  let datePart: string | undefined;
+  let timePart: string | undefined;
+
+  let decoded = slug;
+  try {
+    decoded = decodeURIComponent(slug);
+  } catch {
+    // Keep the original slug if decoding fails
+    decoded = slug;
+  }
 
   // Try URL decoded format first (YYYY-MM-DD/HH:MM:SS)
-  try {
-    const decoded = decodeURIComponent(slug);
-    const parts = decoded.split("/");
-    if (parts.length === 2) {
-      [datePart, timePart] = parts;
+  const slashParts = decoded.split("/");
+  if (slashParts.length === 2) {
+    [datePart, timePart] = slashParts;
+  } else {
+    // Try alternative format with T separator (YYYY-MM-DDTHH:MM:SS)
+    const tParts = decoded.split("T");
+    if (tParts.length === 2) {
+      [datePart, timePart] = tParts;
+    } else if (tParts.length === 1) {
+      // Handle date-only slug (YYYY-MM-DD)
+      [datePart] = tParts;
     } else {
-      // Try alternative format with T separator (YYYY-MM-DDTHH:MM:SS)
-      const altParts = slug.split("T");
-      if (altParts.length === 2) {
-        [datePart, timePart] = altParts;
-      } else {
-        return null;
-      }
+      return null;
     }
-  } catch {
+  }
+
+  if (!datePart || !isValidDateString(datePart)) {
     return null;
   }
 
-  // Validate date and time formats
-  if (!isValidDateString(datePart) || !isValidTimestring(timePart)) {
-    return null;
+  if (timePart !== undefined) {
+    if (!isValidTimestring(timePart)) {
+      return null;
+    }
+    return { date: datePart, time: timePart };
   }
 
-  return { date: datePart, time: timePart };
+  return { date: datePart };
 };
 
 export const createDateTimeSlug = (date: string, time: string): string => {

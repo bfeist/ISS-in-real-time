@@ -24,7 +24,7 @@ const VideoNone: FunctionComponent<NoVideoProps> = ({
 }) => {
   const { data: videoYt = [], isLoading: isloadingYt } = useGeneralVideoYt();
   const { data: videoIa = [], isLoading: isloadingIa } = useGeneralVideoIa();
-  const { selectedDate, setClock, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
+  const { selectedDate, setTimeOnly, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
 
   const isLoading = isloadingYt || isloadingIa;
 
@@ -145,7 +145,7 @@ const VideoNone: FunctionComponent<NoVideoProps> = ({
 
     const targetVideo = videosForDate[targetIndex];
     if (targetVideo) {
-      setClock(targetVideo.startSeconds);
+      setTimeOnly(targetVideo.startSeconds);
     }
   };
 

@@ -67,8 +67,9 @@ describe("MegaYearOverlay", () => {
       selectedDate: null,
       startClock: vi.fn(),
       stopClock: vi.fn(),
-      setClock: vi.fn(),
-      setSelectedDate: vi.fn(),
+      setTimeOnly: vi.fn(),
+      setDateOnly: vi.fn(),
+      setDateTime: vi.fn(),
       handleDayRollover: vi.fn(),
     };
 
@@ -148,8 +149,8 @@ describe("MegaYearOverlay", () => {
     fireEvent.click(grid, { clientX: 90, clientY: 60 });
 
     expect(toggleState.setShowTimelineYears).toHaveBeenCalledWith(false);
-    expect(clockState.setSelectedDate).toHaveBeenCalled();
-    expect(clockState.setClock).not.toHaveBeenCalled();
+    expect(clockState.setDateTime).toHaveBeenCalled();
+    expect(clockState.setTimeOnly).not.toHaveBeenCalled();
   });
 
   it("calls onRequestClose when touch cancel occurs", () => {

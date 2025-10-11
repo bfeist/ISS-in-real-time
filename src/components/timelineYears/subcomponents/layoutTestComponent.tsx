@@ -166,7 +166,7 @@ interface LayoutTestComponentProps {
 }
 
 const LayoutTestComponent: FunctionComponent<LayoutTestComponentProps> = ({ onClose }) => {
-  const { setSelectedDate } = useStateClock();
+  const { setDateOnly } = useStateClock();
   const { setShowTimelineYears } = useStateToggle();
   const { data: dataAvailabilityItems, isLoading } = useGeneralDataAvailabilities();
 
@@ -230,7 +230,7 @@ const LayoutTestComponent: FunctionComponent<LayoutTestComponentProps> = ({ onCl
     event.stopPropagation();
     const date = layoutTestData[layoutKey];
     if (date) {
-      setSelectedDate(date);
+      setDateOnly(date);
       setShowTimelineYears(false);
     } else {
       console.warn(`No date available for layout: ${layoutKey}`);

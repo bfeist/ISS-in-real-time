@@ -1124,7 +1124,7 @@ const MegaYearOverlay = forwardRef<MegaYearOverlayHandle, MegaYearOverlayProps>(
     const calendarContentRef = useRef<HTMLDivElement>(null);
 
     const { hoveredDate, setHoveredDate } = useStateHover();
-    const { setSelectedDate, setClock } = useStateClock();
+    const { setDateTime } = useStateClock();
     const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
     const isTouchDevice = isTouchLikeInteraction(interactionMode);
@@ -1134,19 +1134,14 @@ const MegaYearOverlay = forwardRef<MegaYearOverlayHandle, MegaYearOverlayProps>(
     // Handle date click using global state with touch device logic
     const handleDateClick = useCallback(
       (dateStr: string) => {
-        setSelectedDate(dateStr);
-
-        // Check if this date has a Notable Moment item with a specific time
         const highlightInfo = highlights.get(dateStr);
-        if (highlightInfo?.notableDatetime) {
-          // Extract the time from the Notable Moment datetime and set the clock
-          const appSeconds = appSecondsFromDateTime(highlightInfo.notableDatetime);
-          if (appSeconds !== null) {
-            setClock(appSeconds);
-          }
-        }
+        const appSeconds = highlightInfo?.notableDatetime
+          ? appSecondsFromDateTime(highlightInfo.notableDatetime)
+          : null;
+
+        setDateTime(dateStr, appSeconds, { includeTimeInUrl: appSeconds !== null });
       },
-      [setSelectedDate, setClock, highlights]
+      [highlights, setDateTime]
     );
 
     useMegaOverlayCanvas({

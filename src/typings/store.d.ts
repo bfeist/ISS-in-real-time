@@ -1,3 +1,7 @@
+type DateSelectionOptions = {
+  includeTimeInUrl?: boolean;
+};
+
 interface ClockState {
   startStopTimestamp: string;
   appSecondsAtStartStop: number;
@@ -7,8 +11,13 @@ interface ClockState {
   // Actions
   startClock: () => void;
   stopClock: () => void;
-  setClock: (seconds: number) => void;
-  setSelectedDate: (date: string | null) => void;
+  setTimeOnly: (seconds: number, options?: DateSelectionOptions) => void;
+  setDateOnly: (date: string | null, options?: DateSelectionOptions) => void;
+  setDateTime: (
+    date: string | null,
+    seconds: number | null,
+    options?: DateSelectionOptions
+  ) => void;
   handleDayRollover: () => void;
 }
 

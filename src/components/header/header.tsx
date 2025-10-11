@@ -10,7 +10,7 @@ import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 
 const Header: FunctionComponent = () => {
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
-  const { selectedDate, setSelectedDate } = useStateClock();
+  const { selectedDate, setDateOnly } = useStateClock();
 
   const [appSeconds, setAppSeconds] = useState(0);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
@@ -61,14 +61,14 @@ const Header: FunctionComponent = () => {
             <div
               className={styles.title}
               onClick={(e) => {
-                setSelectedDate(null);
+                setDateOnly(null);
                 e.stopPropagation();
               }}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
-                  setSelectedDate(null);
+                  setDateOnly(null);
                   e.preventDefault();
                 }
               }}

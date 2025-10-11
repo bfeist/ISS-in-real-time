@@ -9,6 +9,6 @@ export const useStateSelectedDate = (): {
   useAppStore(
     useShallow((state) => ({
       selectedDate: state.selectedDate,
-      setSelectedDate: state.setSelectedDate,
+      setSelectedDate: state.setDateOnly,
     }))
   );

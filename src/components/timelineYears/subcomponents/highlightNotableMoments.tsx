@@ -5,13 +5,14 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { useGeneralNotableMoments } from "api/useGeneralData";
 import HighlightType, { HighlightTypeConfig } from "./highlightType";
 import { useStateToggle } from "store/hooks/useStateToggle";
+import { appSecondsFromDateTime } from "utils/time";
 
 interface HighlightNotableMomentsProps {}
 
 const HighlightNotableMoments: FunctionComponent<HighlightNotableMomentsProps> = () => {
   const { data: notableData } = useGeneralNotableMoments();
   const { selectedNotableMoment, setSelectedNotableMoment } = useStateSearch();
-  const { setSelectedDate } = useStateClock();
+  const { setDateTime } = useStateClock();
   const { setShowTimelineYears } = useStateToggle();
 
   // Generate Notable Moments list for display (sorted by datetime ascending from API)
@@ -42,10 +43,10 @@ const HighlightNotableMoments: FunctionComponent<HighlightNotableMomentsProps> =
   };
 
   const handleGoToMoment = (datetime: string) => {
-    // Extract just the date part (YYYY-MM-DD) from the datetime string
     const dateOnly = datetime.split("T")[0];
-    setSelectedDate(dateOnly);
-    // close the years dropdown
+    const seconds = appSecondsFromDateTime(datetime);
+
+    setDateTime(dateOnly, seconds, { includeTimeInUrl: seconds !== null });
     setShowTimelineYears(false);
   };
 

@@ -19,7 +19,7 @@ import ContentIndicatorsSection from "../subcomponents/contentIndicatorsSection"
 import dayjs from "dayjs";
 
 const ControlsHeader: FunctionComponent = () => {
-  const { isRunning, startClock, stopClock, handleDayRollover, selectedDate, setSelectedDate } =
+  const { isRunning, startClock, stopClock, handleDayRollover, selectedDate, setDateOnly } =
     useStateClock();
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
   const [appSeconds, setAppSeconds] = useState(0);
@@ -43,7 +43,7 @@ const ControlsHeader: FunctionComponent = () => {
       return;
     }
     const newDateStr = newDate.format("YYYY-MM-DD");
-    setSelectedDate(newDateStr);
+    setDateOnly(newDateStr);
   };
 
   useEffect(() => {
@@ -125,7 +125,7 @@ const ControlsHeader: FunctionComponent = () => {
                 <IconButton
                   icon={faClose}
                   className={styles.closeDayButton}
-                  onClick={() => setSelectedDate(null)}
+                  onClick={() => setDateOnly(null)}
                   tooltipContent="Close Day"
                   tooltipPlace="top"
                 />

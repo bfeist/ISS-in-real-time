@@ -13,7 +13,7 @@ import SourceButton from "../common/sourceButton";
 import PhotosThumbs from "./photosThumbs";
 
 const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "short" }) => {
-  const { selectedDate, setClock } = useStateClock();
+  const { selectedDate, setTimeOnly } = useStateClock();
   const { showEarthPhotos, showTimelapsePhotos, showMissionPhotos } = useStateToggle();
 
   const { data: earthPhotographyItems = [], isLoading: earthPhotographyIsLoading } =
@@ -194,11 +194,11 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
     (item: PhotoItem) => {
       const targetTime = appSecondsFromDateTime(item.dateTaken);
       if (targetTime !== null) {
-        setClock(targetTime);
+        setTimeOnly(targetTime);
       }
       setClickedPhotoFilename(item.nasaId);
     },
-    [setClock]
+    [setTimeOnly]
   );
 
   const handleAutoScrollToggle = useCallback((enabled: boolean) => {

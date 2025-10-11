@@ -14,7 +14,7 @@ import { useStateDayNight } from "store/hooks/useStateDayNight";
 import paper from "paper";
 
 const TimelineDayContainer = (): JSX.Element => {
-  const { selectedDate, setClock, appSecondsAtStartStop, isRunning, startStopTimestamp } =
+  const { selectedDate, setTimeOnly, appSecondsAtStartStop, isRunning, startStopTimestamp } =
     useStateClock();
   const { setHoverSeconds } = useStateHover();
   const { showEarthPhotos, showMissionPhotos, showTimelapsePhotos } = useStateToggle();
@@ -220,7 +220,7 @@ const TimelineDayContainer = (): JSX.Element => {
         canvasWidth,
         canvasHeight,
         data: timelineData,
-        onTimelineClick: setClock,
+        onTimelineClick: setTimeOnly,
         hoverSecondsSetter: setHoverSeconds,
         paperScope: scopeRef.current,
         showEarthPhotos,
@@ -316,7 +316,7 @@ const TimelineDayContainer = (): JSX.Element => {
     canvasWidth,
     canvasHeight,
     selectedDate,
-    setClock,
+    setTimeOnly,
     setHoverSeconds,
     isLoadingComm,
     isLoadingPhotography,

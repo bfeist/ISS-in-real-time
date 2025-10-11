@@ -32,7 +32,7 @@ const _unusedClasses = [
 ];
 
 const Comm: FunctionComponent = () => {
-  const { isRunning, setClock, selectedDate, appSecondsAtStartStop } = useStateClock();
+  const { isRunning, setTimeOnly, selectedDate, appSecondsAtStartStop } = useStateClock();
   const { commMute, setCommMute } = useStateToggle();
 
   const { isLoading: isDataAvailabilityLoading } = useDateDataAvailability(selectedDate);
@@ -511,13 +511,13 @@ const Comm: FunctionComponent = () => {
                   tabIndex={0}
                   onClick={() => {
                     setLastScrolledToTimeStr(null);
-                    setClock(appSecondsFromTimeStr(item.utteranceTime));
+                    setTimeOnly(appSecondsFromTimeStr(item.utteranceTime));
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       setLastScrolledToTimeStr(null);
-                      setClock(appSecondsFromTimeStr(item.utteranceTime));
+                      setTimeOnly(appSecondsFromTimeStr(item.utteranceTime));
                     }
                   }}
                   aria-label={`Jump to communication at ${item.utteranceTime}`}

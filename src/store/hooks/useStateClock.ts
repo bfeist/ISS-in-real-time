@@ -8,8 +8,13 @@ export const useStateClock = (): {
   selectedDate: string | null;
   startClock: () => void;
   stopClock: () => void;
-  setClock: (seconds: number) => void;
-  setSelectedDate: (date: string | null) => void;
+  setTimeOnly: (seconds: number, options?: DateSelectionOptions) => void;
+  setDateOnly: (date: string | null, options?: DateSelectionOptions) => void;
+  setDateTime: (
+    date: string | null,
+    seconds: number | null,
+    options?: DateSelectionOptions
+  ) => void;
   handleDayRollover: () => void;
 } =>
   useAppStore(
@@ -20,8 +25,9 @@ export const useStateClock = (): {
       selectedDate: state.selectedDate,
       startClock: state.startClock,
       stopClock: state.stopClock,
-      setClock: state.setClock,
-      setSelectedDate: state.setSelectedDate,
+      setTimeOnly: state.setTimeOnly,
+      setDateOnly: state.setDateOnly,
+      setDateTime: state.setDateTime,
       handleDayRollover: state.handleDayRollover,
     }))
   );

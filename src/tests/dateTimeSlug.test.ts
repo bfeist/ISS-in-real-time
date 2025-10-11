@@ -67,10 +67,13 @@ describe("Date Time Slug Utils", () => {
       });
     });
 
+    it("should handle date-only slugs", () => {
+      expect(parseDateTimeSlug("2023-12-25")).toEqual({ date: "2023-12-25" });
+    });
+
     it("should return null for invalid slugs", () => {
       expect(parseDateTimeSlug("")).toBe(null);
       expect(parseDateTimeSlug("invalid")).toBe(null);
-      expect(parseDateTimeSlug("2023-12-25")).toBe(null); // missing time
       expect(parseDateTimeSlug("2023-12-25T24:00:00")).toBe(null); // invalid hour
       expect(parseDateTimeSlug("2023-13-25/12:00:00")).toBe(null); // invalid month
     });

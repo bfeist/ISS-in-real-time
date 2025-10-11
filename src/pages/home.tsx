@@ -14,7 +14,7 @@ import { isTouchDevice } from "../utils/device";
 
 const HomePage: FunctionComponent = (): JSX.Element => {
   const { dateTimeSlug } = useParams();
-  const { selectedDate, setSelectedDate, setClock } = useStateClock();
+  const { selectedDate, setDateOnly, setDateTime } = useStateClock();
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
   // Determine tooltip close events based on device capabilities
@@ -46,14 +46,21 @@ const HomePage: FunctionComponent = (): JSX.Element => {
 
   // Handle slug parameter to set date and time in Zustand state
   useEffect(() => {
-    if (dateTimeSlug) {
-      const parsed = parseDateTimeSlug(dateTimeSlug);
-      if (parsed) {
-        setSelectedDate(parsed.date);
-        setClock(appSecondsFromTimeStr(parsed.time));
-      }
+    if (!dateTimeSlug) {
+      setDateOnly(null);
+      return;
     }
-  }, [dateTimeSlug, setSelectedDate, setClock]);
+
+    const parsed = parseDateTimeSlug(dateTimeSlug);
+    if (!parsed) {
+      return;
+    }
+    if (parsed.time) {
+      setDateTime(parsed.date, appSecondsFromTimeStr(parsed.time), { includeTimeInUrl: true });
+    } else {
+      setDateTime(parsed.date, null);
+    }
+  }, [dateTimeSlug, setDateOnly, setDateTime]);
 
   // Prevent pull-to-refresh on touch devices
   useEffect(() => {

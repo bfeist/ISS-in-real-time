@@ -153,7 +153,7 @@ const renderColumn = (components: ComponentConfig[], columnClass: string): JSX.E
 };
 
 const DayLayout: FunctionComponent = () => {
-  const { selectedDate, startClock, setClock, appSecondsAtStartStop } = useStateClock();
+  const { selectedDate, startClock, setTimeOnly, appSecondsAtStartStop } = useStateClock();
   const { setDayNight } = useStateDayNight();
   const { selectedNotableMoment } = useStateSearch();
   const { dateTimeSlug } = useParams();
@@ -209,7 +209,7 @@ const DayLayout: FunctionComponent = () => {
     // If the date is a selected notable moment, set clock to that time
     if (selectedNotableMoment && selectedNotableMoment.datetime.startsWith(selectedDate || "")) {
       const timeStr = selectedNotableMoment.datetime.split("T")[1];
-      setClock(appSecondsFromTimeStr(timeStr));
+      setTimeOnly(appSecondsFromTimeStr(timeStr));
       startClock();
       return;
     }
@@ -219,14 +219,14 @@ const DayLayout: FunctionComponent = () => {
     if (videoYtRecording || videoIaRecording) {
       // Set the clock to the start time of the YouTube recording
       const startTimeStr = videoYtRecording?.ytStartTime.split("T")[1] || videoIaRecording?.time;
-      setClock(appSecondsFromTimeStr(startTimeStr));
+      setTimeOnly(appSecondsFromTimeStr(startTimeStr));
     } else if (commItems.length > 0) {
       // If we have comm data and no YouTube, start 10 seconds before first comm
       const firstComm = commItems[0];
-      setClock(appSecondsFromTimeStr(firstComm.utteranceTime) - 10);
+      setTimeOnly(appSecondsFromTimeStr(firstComm.utteranceTime) - 10);
     } else {
       // Default to 12:00:00 (noon)
-      setClock(43200);
+      setTimeOnly(43200);
     }
 
     // Start the clock after setting position (only for non-dateTimeSlug cases)
@@ -256,10 +256,10 @@ const DayLayout: FunctionComponent = () => {
 
       if (e.key === "ArrowLeft") {
         e.preventDefault();
-        setClock(Math.max(0, appSecondsAtStartStop - 10));
+        setTimeOnly(Math.max(0, appSecondsAtStartStop - 10));
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
-        setClock(Math.min(86399, appSecondsAtStartStop + 10)); // Max 23:59:59
+        setTimeOnly(Math.min(86399, appSecondsAtStartStop + 10)); // Max 23:59:59
       }
     };
 
@@ -267,7 +267,7 @@ const DayLayout: FunctionComponent = () => {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [appSecondsAtStartStop, setClock]);
+  }, [appSecondsAtStartStop, setTimeOnly]);
 
   // Resolve the layout based on data availability
   const layout = resolveLayout(dataAvailability);
