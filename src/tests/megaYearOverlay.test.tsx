@@ -84,9 +84,13 @@ describe("MegaYearOverlay", () => {
       arc: vi.fn(),
       fill: vi.fn(),
       setTransform: vi.fn(),
+      fillText: vi.fn(),
       lineWidth: 1,
       strokeStyle: "",
       fillStyle: "",
+      textAlign: "center",
+      textBaseline: "middle",
+      font: "",
     } as unknown as CanvasRenderingContext2D);
   });
 
@@ -128,7 +132,20 @@ describe("MegaYearOverlay", () => {
       />
     );
 
-    fireEvent.click(getByRole("grid"));
+    const grid = getByRole("grid");
+    Object.defineProperty(grid, "getBoundingClientRect", {
+      value: () => ({
+        left: 0,
+        right: 300,
+        top: 0,
+        bottom: 400,
+        width: 300,
+        height: 400,
+      }),
+      configurable: true,
+    });
+
+    fireEvent.click(grid, { clientX: 10, clientY: 50 });
 
     expect(toggleState.setShowTimelineYears).toHaveBeenCalledWith(false);
     expect(clockState.setSelectedDate).toHaveBeenCalled();
