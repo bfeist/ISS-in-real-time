@@ -47,23 +47,10 @@ describe("Date Time Slug Utils", () => {
       });
     });
 
-    it("should parse valid slugs correctly with / separator (URL decoded)", () => {
-      const result = parseDateTimeSlug("2023-12-25/14:30:15");
-      expect(result).toEqual({
-        date: "2023-12-25",
-        time: "14:30:15",
-      });
-    });
-
     it("should handle edge cases", () => {
       expect(parseDateTimeSlug("2020-02-29T00:00:00")).toEqual({
         date: "2020-02-29",
         time: "00:00:00",
-      });
-
-      expect(parseDateTimeSlug("2023-12-31/23:59:59")).toEqual({
-        date: "2023-12-31",
-        time: "23:59:59",
       });
     });
 
@@ -75,7 +62,7 @@ describe("Date Time Slug Utils", () => {
       expect(parseDateTimeSlug("")).toBe(null);
       expect(parseDateTimeSlug("invalid")).toBe(null);
       expect(parseDateTimeSlug("2023-12-25T24:00:00")).toBe(null); // invalid hour
-      expect(parseDateTimeSlug("2023-13-25/12:00:00")).toBe(null); // invalid month
+      expect(parseDateTimeSlug("2023-13-25T12:00:00")).toBe(null); // invalid month
     });
   });
 

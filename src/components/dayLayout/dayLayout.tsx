@@ -9,6 +9,7 @@ import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
 import { useDateCacheManagement } from "api/useDateCacheManagement";
 import { useParams } from "react-router-dom";
 import { appSecondsFromTimeStr } from "utils/time";
+import { parseDateTimeSlug } from "utils/params";
 import { calcDayNight } from "utils/day-night";
 import { findClosestEphemeraItem } from "utils/map";
 import { resolveLayout } from "./layouts";
@@ -23,6 +24,9 @@ import Flights from "components/panes/expCrewFlightWidget/flights";
 import Widget from "components/panes/expCrewFlightWidget/widget";
 import MobileLayout, { TabName } from "./mobileLayout";
 import { GlobeOrMap } from "./globeOrMap";
+
+const SILENT_AUDIO_DATA_URI =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
 
 // Custom hook to detect viewport width
 const useViewport = () => {
@@ -164,6 +168,13 @@ const DayLayout: FunctionComponent = () => {
   const { data: ephemeraItems = [] } = useDateEphemera(selectedDate || "");
   const { width } = useViewport();
   const isMobile = width < 768;
+  const [audioAutoplayAllowed, setAudioAutoplayAllowed] = useState<boolean | null>(null);
+
+  const parsedDateTimeSlug = useMemo(
+    () => (dateTimeSlug ? parseDateTimeSlug(dateTimeSlug) : null),
+    [dateTimeSlug]
+  );
+  const slugIncludesTime = Boolean(parsedDateTimeSlug?.time);
 
   // Calculate dayNight and store in global state
   const dayNight = useMemo(() => {
@@ -194,14 +205,77 @@ const DayLayout: FunctionComponent = () => {
   // Manage cache when date changes
   useDateCacheManagement(selectedDate);
 
+  // Detect whether the browser permits autoplay of unmuted audio
+  useEffect(() => {
+    if (!slugIncludesTime) {
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      setAudioAutoplayAllowed(true);
+      return;
+    }
+
+    let isActive = true;
+    const audioElement = document.createElement("audio");
+    audioElement.src = SILENT_AUDIO_DATA_URI;
+    audioElement.preload = "auto";
+    audioElement.volume = 0.1;
+
+    const checkAutoplay = async () => {
+      try {
+        await audioElement.play();
+        if (!isActive) return;
+        setAudioAutoplayAllowed(true);
+      } catch (error) {
+        if (!isActive) return;
+        if (error instanceof DOMException && error.name === "NotAllowedError") {
+          setAudioAutoplayAllowed(false);
+        } else {
+          setAudioAutoplayAllowed(true);
+        }
+      } finally {
+        audioElement.pause();
+        audioElement.src = "";
+      }
+    };
+
+    checkAutoplay();
+
+    return () => {
+      isActive = false;
+      audioElement.pause();
+      audioElement.src = "";
+    };
+  }, [slugIncludesTime]);
+
+  // Start the clock only if autoplay is allowed when arriving via time-specific slug
+  useEffect(() => {
+    if (!selectedDate || !slugIncludesTime) {
+      return;
+    }
+
+    if (audioAutoplayAllowed === null) {
+      return;
+    }
+
+    if (audioAutoplayAllowed) {
+      startClock();
+    }
+  }, [audioAutoplayAllowed, selectedDate, slugIncludesTime, startClock]);
+
   // Set initial clock position and start the clock when a day loads
   useEffect(() => {
     if (!selectedDate) return;
 
     // Handle dateTimeSlug parameter - takes highest priority
+    if (slugIncludesTime) {
+      // If the slug included a time we defer to the autoplay handling above
+      return;
+    }
+
     if (dateTimeSlug) {
-      // Note: The specific time from dateTimeSlug is already set by index.tsx
-      // We just start the clock since the position is already set
+      // Note: The specific time from dateTimeSlug is already set upstream
       startClock();
       return;
     }
