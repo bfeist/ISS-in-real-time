@@ -119,7 +119,7 @@ const ControlsHeader: FunctionComponent = () => {
                   icon={isRunning ? faPause : faPlay}
                   flash={!isRunning}
                   onClick={() => (isRunning ? stopClock() : startClock())}
-                  tooltipContent={isRunning ? "Pause Time" : "Play Time"}
+                  tooltipContent={isRunning ? "Pause Clock" : "Start Clock"}
                   tooltipPlace="top"
                 />
                 <IconButton

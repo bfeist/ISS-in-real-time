@@ -55,7 +55,7 @@ const AboutModal: FunctionComponent<{
             onboard the International Space Station.
           </p>
           <p>
-            All data here is original historical public mission material sourced from across the
+            All data on this website is original, public mission material sourced from across the
             internet. We have placed the data into mission context so you can experience each day as
             it happened.
           </p>
@@ -69,25 +69,37 @@ const AboutModal: FunctionComponent<{
             <a href="https://archive.org" target="_blank" rel="noopener noreferrer">
               archive.org
             </a>
-            , youtube, and flickr.
+            , youtube, and flickr. Communication transcription and image classification were
+            achieved using AI processing on a massive scale.
           </p>
-          <p>
-            Communication transcription and image classification were achieved using AI processing
-            on a massive scale. There may be some errors in the data, but we&apos;ve done our best
-            to ensure accuracy and will continue to improve the result over time.
-          </p>
-          <IconButton
-            icon={faBook}
-            label="Read More About the Making of This Project"
-            className={styles.readMore}
-            onClick={() => {
-              window.open(
-                "https://benfeist.com/posts/iss-in-real-time/",
-                "_blank",
-                "noopener,noreferrer"
-              );
-            }}
-          />
+          <p>We will continue to release updates as more mission data becomes available.</p>
+          <p></p>
+          <div className={styles.readMoreContainer}>
+            <IconButton
+              icon={faBook}
+              label="Read About the Making of This Project"
+              className={styles.readMore}
+              onClick={() => {
+                window.open(
+                  "https://benfeist.com/posts/iss-in-real-time/",
+                  "_blank",
+                  "noopener,noreferrer"
+                );
+              }}
+            />
+            <IconButton
+              icon={faBook}
+              label="Join the Discussion Forum"
+              className={styles.readMore}
+              onClick={() => {
+                window.open(
+                  "https://forum.apolloinrealtime.org/index.php?board=5.0",
+                  "_blank",
+                  "noopener,noreferrer"
+                );
+              }}
+            />
+          </div>
 
           <h4>Who Made This?</h4>
           <a href="/images/ben-dave1.jpg" target="_blank" rel="noopener noreferrer">
