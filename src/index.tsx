@@ -15,6 +15,7 @@ const router = createBrowserRouter(
     <Route path="/" element={<App />}>
       <Route index element={<Home />} />
       <Route path=":dateTimeSlug" element={<Home />} />
+      <Route path="/threejs" element={<div>Three.js Test Page</div>} />
     </Route>
   )
 );
