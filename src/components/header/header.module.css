@@ -49,7 +49,7 @@
   white-space: nowrap;
 }
 
-@media (width <= 729px) {
+@media (width < 1024px) {
   .titleContainer .blurb {
     display: none;
   }
@@ -67,4 +67,13 @@
   gap: 8px;
   justify-content: flex-end;
   margin: 0 10px 0 0;
+}
+
+.dataWarningButton {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.dataWarningButton:hover {
+  background-color: rgb(255 179 71 / 12%);
 }

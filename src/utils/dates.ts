@@ -25,3 +25,29 @@ export const getNextDay = (dateString: string): string => {
   date.setUTCDate(date.getUTCDate() + 1);
   return date.toISOString().split("T")[0];
 };
+
+const hasAnyAvailabilityContent = (availability: DataAvailability | undefined): boolean => {
+  if (!availability) {
+    return false;
+  }
+
+  const { date: _date, ...rest } = availability;
+  return Object.values(rest).some((value) => Boolean(value));
+};
+
+export const getLastDateWithData = (
+  dataAvailabilities?: DataAvailability[] | null
+): string | null => {
+  if (!dataAvailabilities || dataAvailabilities.length === 0) {
+    return null;
+  }
+
+  for (let index = dataAvailabilities.length - 1; index >= 0; index -= 1) {
+    const candidate = dataAvailabilities[index];
+    if (hasAnyAvailabilityContent(candidate)) {
+      return candidate.date;
+    }
+  }
+
+  return null;
+};

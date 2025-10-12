@@ -1,9 +1,6 @@
-import { FunctionComponent, useEffect, useRef, useState } from "react";
+import { FunctionComponent, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import styles from "./share.module.css";
-import { generateShareUrl } from "utils/params";
-import IconButton from "../common/iconButton";
 import CloseButton from "../common/closeButton";
 const ShareModal: FunctionComponent<{
   isOpen: boolean;
@@ -91,39 +88,4 @@ const ShareModal: FunctionComponent<{
   );
 };
 
-interface ShareButtonProps {
-  selectedDate: string | null;
-  appSeconds: number;
-  windowWidth: number;
-}
-
-const ShareButton: FunctionComponent<ShareButtonProps> = ({
-  selectedDate,
-  appSeconds,
-  windowWidth,
-}) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  return (
-    <div>
-      <IconButton
-        icon={faShareNodes}
-        label={windowWidth > 525 ? "Share" : undefined}
-        style={{ width: windowWidth > 525 ? "100px" : undefined, fontSize: "0.7rem" }}
-        onClick={(e) => {
-          setIsModalOpen(true);
-          e.stopPropagation();
-        }}
-        aria-label="Create shareable link of this moment"
-      />
-      <ShareModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        shareUrl={generateShareUrl(selectedDate, appSeconds)}
-        hasSelectedDate={!!selectedDate}
-      />
-    </div>
-  );
-};
-
-export default ShareButton;
+export default ShareModal;
