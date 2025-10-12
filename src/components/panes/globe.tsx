@@ -27,6 +27,8 @@ import {
   isValidRectangle,
 } from "utils/photoRectangles";
 import GlobeMapToggle from "./globeMapToggle";
+import IconButton from "../common/iconButton";
+import { faPlus, faMinus } from "@fortawesome/free-solid-svg-icons";
 
 // Set Cesium Ion access token
 Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
@@ -192,6 +194,27 @@ const Globe: FunctionComponent = () => {
   const issEntityRef = useRef<CesiumComponentRef<Cesium.Entity>>(null);
   const viewerRef = useRef(null);
 
+  // Detect touch device
+  const isTouchDevice = useMemo(() => "ontouchstart" in window, []);
+
+  // Handle zoom in
+  const handleZoomIn = () => {
+    if (viewerRef.current?.cesiumElement?.scene) {
+      const camera = viewerRef.current.cesiumElement.scene.camera;
+      const defaultAmount = camera.defaultZoomAmount;
+      camera.zoomIn(defaultAmount * 50);
+    }
+  };
+
+  // Handle zoom out
+  const handleZoomOut = () => {
+    if (viewerRef.current?.cesiumElement?.scene) {
+      const camera = viewerRef.current.cesiumElement.scene.camera;
+      const defaultAmount = camera.defaultZoomAmount;
+      camera.zoomOut(defaultAmount * 50);
+    }
+  };
+
   // Component cleanup effect
   useEffect(() => {
     return () => {
@@ -295,6 +318,22 @@ const Globe: FunctionComponent = () => {
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
+      {(isHovering || isTouchDevice) && (
+        <div className={styles.zoomControls}>
+          <IconButton
+            icon={faPlus}
+            onClick={handleZoomIn}
+            tooltipContent="Zoom In"
+            tooltipPlace="right"
+          />
+          <IconButton
+            icon={faMinus}
+            onClick={handleZoomOut}
+            tooltipContent="Zoom Out"
+            tooltipPlace="right"
+          />
+        </div>
+      )}
       <GlobeMapToggle isVisible={isHovering} />
       <Viewer
         style={{ width: "100%", height: "100%" }}

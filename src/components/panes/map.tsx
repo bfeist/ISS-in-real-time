@@ -31,6 +31,8 @@ import { useStateHover } from "store/hooks/useStateHover";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { useDateEphemera, useDateEarthPhotography, useLiveTle } from "api/useDateSpecificData";
 import GlobeMapToggle from "./globeMapToggle";
+import IconButton from "../common/iconButton";
+import { faPlus, faMinus } from "@fortawesome/free-solid-svg-icons";
 
 const MapComponent: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
@@ -68,6 +70,31 @@ const MapComponent: FunctionComponent = () => {
   const orbitLayerRef = useRef<VectorLayer | null>(null);
   const photoRectanglesLayerRef = useRef<VectorLayer | null>(null);
 
+  // Detect touch device
+  const isTouchDevice = useMemo(() => "ontouchstart" in window, []);
+
+  // Handle zoom in
+  const handleZoomIn = () => {
+    if (viewRef.current) {
+      const view = viewRef.current;
+      const currentZoom = view.getZoom();
+      if (currentZoom !== undefined) {
+        view.animate({ zoom: currentZoom + 1, duration: 250 });
+      }
+    }
+  };
+
+  // Handle zoom out
+  const handleZoomOut = () => {
+    if (viewRef.current) {
+      const view = viewRef.current;
+      const currentZoom = view.getZoom();
+      if (currentZoom !== undefined) {
+        view.animate({ zoom: currentZoom - 1, duration: 250 });
+      }
+    }
+  };
+
   useEffect(() => {
     const labelLayer = new TileLayer({
       source: new XYZ({
@@ -99,6 +126,7 @@ const MapComponent: FunctionComponent = () => {
         center: [200, 0], // Keep the default center
         zoom: 2,
       }),
+      controls: [], // Remove default controls including zoom buttons
     });
 
     viewRef.current = olMapRef.current.getView();
@@ -365,6 +393,22 @@ const MapComponent: FunctionComponent = () => {
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
+      {(isHovering || isTouchDevice) && (
+        <div className={styles.zoomControls}>
+          <IconButton
+            icon={faPlus}
+            onClick={handleZoomIn}
+            tooltipContent="Zoom In"
+            tooltipPlace="right"
+          />
+          <IconButton
+            icon={faMinus}
+            onClick={handleZoomOut}
+            tooltipContent="Zoom Out"
+            tooltipPlace="right"
+          />
+        </div>
+      )}
       <GlobeMapToggle isVisible={isHovering} />
       <ClockInterval setAppSeconds={setClockAppSeconds} />
       <div ref={mapRef} className={styles.map}></div>
