@@ -26,6 +26,61 @@ import { isTouchLikeInteraction, type InteractionMode } from "../types";
 
 const MONTH_INITIALS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"] as const;
 
+type TodayParts = {
+  year: number;
+  monthIndex: number;
+  day: number;
+};
+
+const getTodayParts = (): TodayParts => {
+  const now = new Date();
+  return {
+    year: now.getFullYear(),
+    monthIndex: now.getMonth(),
+    day: now.getDate(),
+  };
+};
+
+const isAfterToday = (
+  candidateYear: number,
+  candidateMonthIndex: number,
+  candidateDay: number,
+  today: TodayParts
+): boolean => {
+  if (candidateYear > today.year) {
+    return true;
+  }
+
+  if (candidateYear === today.year) {
+    if (candidateMonthIndex > today.monthIndex) {
+      return true;
+    }
+
+    if (candidateMonthIndex === today.monthIndex && candidateDay > today.day) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const isDateStringInFuture = (dateStr: string, today = getTodayParts()): boolean => {
+  const [yearStr, monthStr, dayStr] = dateStr.split("-");
+  if (!yearStr || !monthStr || !dayStr) {
+    return false;
+  }
+
+  const year = Number.parseInt(yearStr, 10);
+  const monthIndex = Number.parseInt(monthStr, 10) - 1;
+  const day = Number.parseInt(dayStr, 10);
+
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || !Number.isFinite(day)) {
+    return false;
+  }
+
+  return isAfterToday(year, monthIndex, day, today);
+};
+
 interface HighlightInfo {
   fill: string;
   stroke?: string;
@@ -129,6 +184,7 @@ const drawMegaOverlay = ({
   if (!ctx) return;
 
   const devicePixelRatio = window.devicePixelRatio || 1;
+  const today = getTodayParts();
 
   canvas.width = width * devicePixelRatio;
   canvas.height = layout.totalHeight * devicePixelRatio;
@@ -160,6 +216,10 @@ const drawMegaOverlay = ({
     for (let month = startMonth; month <= endMonth; month++) {
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       if (day > daysInMonth) {
+        continue;
+      }
+
+      if (isAfterToday(year, month, day, today)) {
         continue;
       }
 
@@ -469,7 +529,15 @@ const useMegaOverlayInteraction = (
         }
       );
 
-      if (dateStr && hoveredDate !== dateStr) {
+      if (!dateStr || isDateStringInFuture(dateStr)) {
+        if (hoveredDate) {
+          setHoveredDate(null);
+        }
+        setCursorPosition(null);
+        return;
+      }
+
+      if (hoveredDate !== dateStr) {
         setHoveredDate(dateStr);
       }
 
@@ -543,11 +611,14 @@ const useMegaOverlayInteraction = (
         }
       );
 
-      if (dateStr) {
+      if (!dateStr || isDateStringInFuture(dateStr)) {
+        setHoveredDate(null);
+        setCursorPosition(null);
+      } else {
         setHoveredDate(dateStr);
+        setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
       }
 
-      setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
       isDraggingRef.current = false;
       ignoreMouseEventsRef.current = true;
       notifyPointerUpdate({
@@ -631,11 +702,13 @@ const useMegaOverlayInteraction = (
         }
       );
 
-      if (dateStr) {
+      if (!dateStr || isDateStringInFuture(dateStr)) {
+        setHoveredDate(null);
+        setCursorPosition(null);
+      } else {
         setHoveredDate(dateStr);
+        setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
       }
-
-      setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
       notifyPointerUpdate({
         clientX: touch.clientX,
         clientY: touch.clientY,
@@ -717,11 +790,13 @@ const useMegaOverlayInteraction = (
         }
       );
 
-      if (dateStr) {
+      if (!dateStr || isDateStringInFuture(dateStr)) {
+        setHoveredDate(null);
+        setCursorPosition(null);
+      } else {
         setHoveredDate(dateStr);
+        setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
       }
-
-      setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
       ignoreMouseEventsRef.current = true;
       notifyPointerUpdate({
         clientX: touch.clientX,
@@ -760,6 +835,8 @@ const useMegaOverlayInteraction = (
         return;
       }
 
+      let resolvedDate: string | null = null;
+
       const container = containerRef.current;
       if (container) {
         onInteractionModeChange("touch");
@@ -785,11 +862,15 @@ const useMegaOverlayInteraction = (
           }
         );
 
-        if (dateStr) {
+        if (!dateStr || isDateStringInFuture(dateStr)) {
+          setHoveredDate(null);
+          setCursorPosition(null);
+        } else {
+          resolvedDate = dateStr;
           setHoveredDate(dateStr);
+          setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
         }
 
-        setCursorPosition({ x: touch.clientX, y: touch.clientY - touchYOffsetRef.current });
         notifyPointerUpdate({
           clientX: touch.clientX,
           clientY: touch.clientY,
@@ -797,8 +878,8 @@ const useMegaOverlayInteraction = (
         });
       }
 
-      if (!pendingTouchDate && hoveredDate) {
-        setPendingTouchDate(hoveredDate);
+      if (!pendingTouchDate && resolvedDate) {
+        setPendingTouchDate(resolvedDate);
       }
 
       activeTouchId.current = null;
@@ -807,7 +888,6 @@ const useMegaOverlayInteraction = (
     [
       containerRef,
       endMonth,
-      hoveredDate,
       layout.cellGap,
       layout.gridOffsetY,
       layout.maxDaysInMonth,
@@ -856,16 +936,20 @@ const useMegaOverlayInteraction = (
         }
       );
 
-      if (dateStr) {
-        handleDateClick(dateStr);
-      }
+      const isSelectable = dateStr && !isDateStringInFuture(dateStr);
 
-      setShowTimelineYears(false);
       notifyPointerUpdate({
         clientX: event.clientX,
         clientY: event.clientY,
         hasActivePointer: false,
       });
+
+      if (!isSelectable || !dateStr) {
+        return;
+      }
+
+      handleDateClick(dateStr);
+      setShowTimelineYears(false);
     },
     [
       endMonth,
@@ -888,7 +972,7 @@ const useMegaOverlayInteraction = (
     (date?: string | null) => {
       const dateToSelect = date ?? pendingTouchDate ?? hoveredDate;
 
-      if (!dateToSelect) {
+      if (!dateToSelect || isDateStringInFuture(dateToSelect)) {
         return;
       }
 
