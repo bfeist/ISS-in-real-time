@@ -20,7 +20,7 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { hhmmssFromAppSeconds } from "utils/time";
-import { useDateEphemera, useDateEarthPhotography } from "api/useDateSpecificData";
+import { useDateEphemera, useDateEarthPhotography, useLiveTle } from "api/useDateSpecificData";
 import {
   getCurrentAndAdjacentPhotos,
   calculateRectangleBounds,
@@ -35,8 +35,10 @@ const Globe: FunctionComponent = () => {
   const { isRunning, startStopTimestamp, appSecondsAtStartStop, selectedDate } = useStateClock();
   const { hoverSeconds } = useStateHover();
   const { showEarthPhotos, showTimelapsePhotos } = useStateToggle();
-  const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
-  const { data: earthPhotographyItems = [] } = useDateEarthPhotography(selectedDate || "");
+  const selectedDateValue = selectedDate || "";
+  const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDateValue);
+  const { data: liveTle } = useLiveTle(selectedDateValue);
+  const { data: earthPhotographyItems = [] } = useDateEarthPhotography(selectedDateValue);
 
   const [isHovering, setIsHovering] = useState(false);
 
@@ -71,14 +73,22 @@ const Globe: FunctionComponent = () => {
   const originalZoomInRef = useRef<Function | null>(null);
   const originalZoomOutRef = useRef<Function | null>(null);
 
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const ephemeraSource = useMemo(() => {
+    if (selectedDate && liveTle && selectedDate === today) {
+      return [liveTle];
+    }
+    return ephemeraItems;
+  }, [ephemeraItems, liveTle, selectedDate, today]);
+
   useEffect(() => {
-    if (!ephemeraItems || ephemeraItems.length === 0) return;
+    if (!ephemeraSource || ephemeraSource.length === 0 || !selectedDate) return;
 
     // Use a stable reference time for finding ephemera (start of selected date)
     const referenceTime = new Date(`${selectedDate}T00:00:00Z`);
-    const ephemeris = findClosestEphemeraItem(referenceTime, ephemeraItems);
+    const ephemeris = findClosestEphemeraItem(referenceTime, ephemeraSource);
     setTle([ephemeris.tle_line1, ephemeris.tle_line2]);
-  }, [selectedDate, ephemeraItems]);
+  }, [selectedDate, ephemeraSource]);
 
   // poll for cesium to be ready
   useEffect(() => {
@@ -115,7 +125,7 @@ const Globe: FunctionComponent = () => {
     }
 
     // Additional safety check: ensure ephemera is loaded for the current date
-    if (isLoading || !ephemeraItems || ephemeraItems.length === 0) {
+    if ((isLoading && (!ephemeraSource || ephemeraSource.length === 0)) || !ephemeraSource) {
       return null;
     }
 
@@ -159,7 +169,7 @@ const Globe: FunctionComponent = () => {
     }
 
     return positions;
-  }, [tle, startTime, selectedDate, isLoading, ephemeraItems]);
+  }, [tle, startTime, selectedDate, isLoading, ephemeraSource]);
 
   const sampledPositionProperty = computeSampledPositions;
 

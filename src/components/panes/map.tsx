@@ -29,15 +29,17 @@ import styles from "./map.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateToggle } from "store/hooks/useStateToggle";
-import { useDateEphemera, useDateEarthPhotography } from "api/useDateSpecificData";
+import { useDateEphemera, useDateEarthPhotography, useLiveTle } from "api/useDateSpecificData";
 import GlobeMapToggle from "./globeMapToggle";
 
 const MapComponent: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
   const { hoverSeconds } = useStateHover();
   const { showEarthPhotos, showTimelapsePhotos } = useStateToggle();
-  const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDate || "");
-  const { data: earthPhotographyItems = [] } = useDateEarthPhotography(selectedDate || "");
+  const selectedDateValue = selectedDate || "";
+  const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDateValue);
+  const { data: liveTle } = useLiveTle(selectedDateValue);
+  const { data: earthPhotographyItems = [] } = useDateEarthPhotography(selectedDateValue);
 
   const [clockAppSeconds, setClockAppSeconds] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
@@ -160,12 +162,21 @@ const MapComponent: FunctionComponent = () => {
   /**
    * Update the marker position and re-center the map if the marker is out of view
    */
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const ephemeraSource = useMemo(() => {
+    if (selectedDate && liveTle && selectedDate === today) {
+      return [liveTle];
+    }
+    return ephemeraItems;
+  }, [ephemeraItems, liveTle, selectedDate, today]);
+
   useEffect(() => {
-    if (!olMapRef.current || !ephemeraItems || !selectedDate) return;
+    if (!olMapRef.current || !ephemeraSource || ephemeraSource.length === 0 || !selectedDate)
+      return;
 
     const ephemeris = findClosestEphemeraItem(
       new Date(`${selectedDate}T${hhmmssFromAppSeconds(appSeconds)}Z`),
-      ephemeraItems
+      ephemeraSource
     );
     if (ephemeris) {
       const tle = `${ephemeris.tle_line1}
@@ -190,7 +201,7 @@ const MapComponent: FunctionComponent = () => {
         }
       }
     }
-  }, [ephemeraItems, selectedDate, appSeconds]);
+  }, [ephemeraSource, selectedDate, appSeconds]);
 
   /**
    * Add a terminator layer to the map
@@ -232,12 +243,12 @@ const MapComponent: FunctionComponent = () => {
    * Update the orbit line based on the current time
    */
   useEffect(() => {
-    if (!selectedDate || !olMapRef.current || !ephemeraItems.length) return;
+    if (!selectedDate || !olMapRef.current || !ephemeraSource || !ephemeraSource.length) return;
 
     const { coordinates1, coordinates2 } = updateOrbitLine(
       selectedDate,
       hhmmssFromAppSeconds(appSeconds),
-      ephemeraItems
+      ephemeraSource
     );
 
     const orbitSource = orbitLayerRef.current?.getSource();
@@ -258,7 +269,7 @@ const MapComponent: FunctionComponent = () => {
         orbitSource.addFeature(orbitFeature2);
       }
     }
-  }, [selectedDate, ephemeraItems, appSeconds]);
+  }, [selectedDate, ephemeraSource, appSeconds]);
 
   /**
    * Update photo rectangles on the map

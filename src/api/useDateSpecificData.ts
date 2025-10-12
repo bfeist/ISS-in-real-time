@@ -3,6 +3,7 @@ import {
   fetchDataAvailabilities,
   fetchCommTranscript,
   fetchEphemera,
+  fetchLiveTle,
   fetchEarthPhotography,
   fetchPhotosFlickr,
   fetchActivitySummary,
@@ -48,6 +49,19 @@ export function useDateEphemera(date: string): UseQueryResult<EphemeraItem[], Er
     staleTime: 5 * 60 * 1000,
     gcTime: 2 * 60 * 1000,
     enabled: !!date,
+  });
+}
+
+export function useLiveTle(date: string): UseQueryResult<EphemeraItem | null, Error> {
+  const today = new Date().toISOString().slice(0, 10);
+
+  return useQuery({
+    queryKey: ["liveTle", date],
+    queryFn: () => fetchLiveTle(date),
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 1,
+    enabled: !!date && date === today,
   });
 }
 
