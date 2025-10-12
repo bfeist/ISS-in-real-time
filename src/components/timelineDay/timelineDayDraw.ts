@@ -1,5 +1,5 @@
 import paper from "paper";
-import { hhmmssFromAppSeconds, appSecondsFromTimeStr } from "utils/time";
+import { hhmmssFromAppSeconds, appSecondsFromTimeStr, appSecondsFromDateTime } from "utils/time";
 import { extractChannelInfoFromFilename } from "utils/comm";
 
 export const initializePaperCanvas = ({
@@ -65,6 +65,9 @@ export const initializePaperCanvas = ({
     commChannel5: "#ce643b", // Channel 5 primary color
     crewArrival: "#28B463", // Green for crew arrivals
     crewDeparture: "#dc2626", // Red for crew departures
+    futureShade: "#9ca3af", // Light grey for future shading overlay (with transparency applied)
+    futureLine: "#AAAAAA", // Grey indicator line for live time
+    futureText: "#AAAAAA", // Matching text color for live label
   } as const;
 
   // Timeline constants
@@ -495,6 +498,93 @@ export const initializePaperCanvas = ({
         labelOffset,
       });
     });
+
+    return group;
+  };
+
+  const drawFutureOverlay = (): paper.Group => {
+    const group = new paperScope.Group();
+
+    if (!data?.selectedDate) {
+      return group;
+    }
+
+    const todayUtcDate = new Date().toISOString().split("T")[0];
+    if (data.selectedDate !== todayUtcDate) {
+      return group;
+    }
+
+    const secondsIntoToday = appSecondsFromDateTime(new Date().toISOString());
+    if (secondsIntoToday === null) {
+      return group;
+    }
+
+    const clampedSeconds = Math.max(0, Math.min(secondsIntoToday, SECONDS_IN_24_HOURS));
+    const pixelsPerSecond = getPixelsPerSecond();
+    const timelineLeft = LEFT_MARGIN;
+    const timelineRight = LEFT_MARGIN + getTimelineWidth();
+    const timelineTop = TOP_MARGIN;
+    const timelineBottom = TOP_MARGIN + getTotalDataRowsHeight();
+
+    const currentX = timelineLeft + clampedSeconds * pixelsPerSecond;
+    const clampedX = Math.max(timelineLeft, Math.min(currentX, timelineRight));
+
+    if (clampedX >= timelineRight) {
+      return group;
+    }
+
+    const shadeWidth = timelineRight - clampedX;
+    const shadeHeight = timelineBottom - timelineTop;
+
+    // Semi-transparent block to indicate future time
+    const futureRect = new paperScope.Path.Rectangle(
+      new paperScope.Point(clampedX, timelineTop),
+      new paperScope.Size(shadeWidth, shadeHeight)
+    );
+    const shadeColor = new paperScope.Color(COLORS.futureShade);
+    shadeColor.alpha = 0.18;
+    futureRect.fillColor = shadeColor;
+    futureRect.strokeColor = null;
+    group.addChild(futureRect);
+
+    if (shadeWidth > 2) {
+      const hatchLine = new paperScope.Path.Line(
+        new paperScope.Point(clampedX, timelineTop + shadeHeight / 2),
+        new paperScope.Point(timelineRight, timelineTop + shadeHeight / 2)
+      );
+      const hatchColor = new paperScope.Color(COLORS.futureShade);
+      hatchColor.alpha = 0.22;
+      hatchLine.strokeColor = hatchColor;
+      hatchLine.strokeWidth = shadeHeight;
+      hatchLine.dashArray = [12, 10];
+      group.addChild(hatchLine);
+    }
+
+    // Live indicator line
+    const liveLine = new paperScope.Path.Line(
+      new paperScope.Point(clampedX, timelineTop),
+      new paperScope.Point(clampedX, timelineBottom)
+    );
+    liveLine.strokeColor = new paperScope.Color(COLORS.futureLine);
+    liveLine.strokeWidth = 1;
+    group.addChild(liveLine);
+
+    // Label to clarify the live edge
+    const shadeIsTall = shadeHeight >= 32;
+    const labelFontSize = shadeIsTall ? 12 : 9;
+    const labelPivotX = Math.max(clampedX - 4, timelineLeft + 4);
+    const labelPivotY = timelineBottom - 6;
+    const liveLabel = new paperScope.PointText({
+      point: new paperScope.Point(labelPivotX, labelPivotY),
+      content: "Now",
+      fillColor: COLORS.futureText,
+      fontSize: labelFontSize,
+      fontFamily: "Inter, Arial, sans-serif",
+      fontWeight: "600",
+      justification: "left",
+    });
+    liveLabel.rotate(-90, new paperScope.Point(labelPivotX, labelPivotY));
+    group.addChild(liveLabel);
 
     return group;
   };
@@ -996,6 +1086,9 @@ export const initializePaperCanvas = ({
 
             timelineGroup.addChild(drawDataRow(index, rowConfig, items || []));
           });
+
+          // Shade future time and mark the live edge when viewing today
+          timelineGroup.addChild(drawFutureOverlay());
 
           // Draw time ticks on top of data rows
           timelineGroup.addChild(drawTimeTicks());
