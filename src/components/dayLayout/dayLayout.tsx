@@ -274,12 +274,6 @@ const DayLayout: FunctionComponent = () => {
       return;
     }
 
-    if (dateTimeSlug) {
-      // Note: The specific time from dateTimeSlug is already set upstream
-      startClock();
-      return;
-    }
-
     // If the date is a selected notable moment, set clock to that time
     if (selectedNotableMoment && selectedNotableMoment.datetime.startsWith(selectedDate || "")) {
       const timeStr = selectedNotableMoment.datetime.split("T")[1];
@@ -288,7 +282,7 @@ const DayLayout: FunctionComponent = () => {
       return;
     }
 
-    // Only set automatic clock position if no dateTimeSlug parameter was provided
+    // Set automatic clock position based on available data
     // YouTube takes priority over comm data
     if (videoYtRecording || videoIaRecording) {
       // Set the clock to the start time of the YouTube recording
@@ -299,11 +293,20 @@ const DayLayout: FunctionComponent = () => {
       const firstComm = commItems[0];
       setTimeOnly(appSecondsFromTimeStr(firstComm.utteranceTime) - 10);
     } else {
-      // Default to 12:00:00 (noon)
-      setTimeOnly(43200);
+      // Default to current time if today, otherwise 12:00:00 (noon)
+      const today = new Date().toISOString().split("T")[0];
+      if (selectedDate === today) {
+        const now = new Date();
+        const currentSeconds =
+          now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
+        setTimeOnly(currentSeconds);
+      } else {
+        // Default to noon if not today
+        setTimeOnly(43200);
+      }
     }
 
-    // Start the clock after setting position (only for non-dateTimeSlug cases)
+    // Start the clock after setting position
     startClock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, dateTimeSlug, videoYtRecording, dataAvailability, selectedNotableMoment]);
