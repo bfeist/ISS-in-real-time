@@ -25,7 +25,9 @@ LOGGER = logging.getLogger("youtube-transcription-v2")
 # Configuration
 # ---------------------------------------------------------------------------
 
-DEFAULT_DOWNLOAD_FOLDER = Path(os.getenv("YT_DOWNLOAD_FOLDER", "D:/ISSiRT_youtube_videos"))
+DEFAULT_DOWNLOAD_FOLDER = Path(
+    os.getenv("YT_DOWNLOAD_FOLDER", "D:/ISSiRT_youtube_videos")
+)
 DEFAULT_OUTPUT_FOLDER = Path(
     os.getenv("YT_TRANSCRIPT_OUTPUT", "F:/tempF/iss_working/youtube_transcripts")
 )
@@ -42,12 +44,19 @@ TRANSCRIPT_FILENAME_SUFFIX = "_transcript.csv"
 # Dynamic import of corpus utilities
 # ---------------------------------------------------------------------------
 
+
 def load_corpus_module():
     """Dynamically load the COM transcription script as a module."""
 
-    script_path = Path(__file__).resolve().parent.parent / "1_comm" / "6_transcribe_using_corpus.py"
+    script_path = (
+        Path(__file__).resolve().parent.parent
+        / "1_comm"
+        / "6_transcribe_using_corpus.py"
+    )
     if not script_path.exists():
-        raise FileNotFoundError(f"Unable to locate COM transcription script at {script_path}")
+        raise FileNotFoundError(
+            f"Unable to locate COM transcription script at {script_path}"
+        )
 
     module_name = "transcription_corpus"
     if module_name in sys.modules:
@@ -95,7 +104,9 @@ def is_numeric(value: str) -> bool:
         return False
 
 
-def parse_video_filename(filename: str) -> tuple[Optional[datetime], Optional[str], Optional[str], Optional[str]]:
+def parse_video_filename(
+    filename: str,
+) -> tuple[Optional[datetime], Optional[str], Optional[str], Optional[str]]:
     """Extract YouTube metadata embedded in the download filename."""
 
     stem = Path(filename).stem
@@ -155,7 +166,11 @@ def convert_video_to_wav(video_path: Path, output_root: Path) -> Optional[Path]:
         LOGGER.error("ffmpeg executable not found on PATH")
         return None
     except subprocess.CalledProcessError as exc:
-        LOGGER.error("ffmpeg failed for %s: %s", video_path.name, exc.stderr.decode("utf-8", "ignore"))
+        LOGGER.error(
+            "ffmpeg failed for %s: %s",
+            video_path.name,
+            exc.stderr.decode("utf-8", "ignore"),
+        )
         return None
 
     return wav_path
@@ -321,7 +336,9 @@ def process_video(
 ) -> bool:
     LOGGER.info("Processing %s", video_path.name)
 
-    start_time, video_id, title_fragment, _height = parse_video_filename(video_path.name)
+    start_time, video_id, title_fragment, _height = parse_video_filename(
+        video_path.name
+    )
     if not video_id or start_time is None:
         LOGGER.error("Skipping %s due to unparseable filename", video_path.name)
         return False
@@ -377,7 +394,9 @@ def process_video(
             LOGGER.warning("No speech detected for %s", video_path.name)
             return False
 
-        rows = build_transcript_rows(corpus, transcription, intervals, start_time, video_id)
+        rows = build_transcript_rows(
+            corpus, transcription, intervals, start_time, video_id
+        )
         if not rows:
             LOGGER.warning("No transcript rows emitted for %s", video_path.name)
             return False
@@ -430,7 +449,9 @@ def filter_videos(
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Transcribe YouTube videos with WhisperX corpus workflow")
+    parser = argparse.ArgumentParser(
+        description="Transcribe YouTube videos with WhisperX corpus workflow"
+    )
     parser.add_argument("--download-folder", type=Path, default=DEFAULT_DOWNLOAD_FOLDER)
     parser.add_argument("--output-folder", type=Path, default=DEFAULT_OUTPUT_FOLDER)
     parser.add_argument(
@@ -439,9 +460,13 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         default=DEFAULT_CACHE_SUBDIR,
         help="Subdirectory (inside output folder) for Whisper cache files",
     )
-    parser.add_argument("--video-id", type=str, help="Process only the specified YouTube video ID")
+    parser.add_argument(
+        "--video-id", type=str, help="Process only the specified YouTube video ID"
+    )
     parser.add_argument("--limit", type=int, help="Maximum number of videos to process")
-    parser.add_argument("--force", action="store_true", help="Force regeneration of cache entries")
+    parser.add_argument(
+        "--force", action="store_true", help="Force regeneration of cache entries"
+    )
     parser.add_argument("--debug", action="store_true", help="Enable verbose logging")
     return parser.parse_args(argv)
 
@@ -488,13 +513,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     for video_path in video_files:
         prompt_text = ""
-        _start_time, video_id, _title_fragment, _height = parse_video_filename(video_path.name)
+        _start_time, video_id, _title_fragment, _height = parse_video_filename(
+            video_path.name
+        )
         if video_id and video_id in metadata:
             title = metadata[video_id].get("title") or metadata[video_id].get("name")
             if title:
                 prompt_text = f"YouTube video title: {title}"[:200]
 
-        transcript_path = output_folder / f"{video_path.stem}{TRANSCRIPT_FILENAME_SUFFIX}"
+        transcript_path = (
+            output_folder / f"{video_path.stem}{TRANSCRIPT_FILENAME_SUFFIX}"
+        )
         if transcript_path.exists() and not args.force:
             LOGGER.info("Transcript already exists for %s; skipping", video_path.name)
             skipped_existing += 1
@@ -512,7 +541,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 force=args.force,
             )
         except Exception as exc:  # pylint: disable=broad-except
-            LOGGER.exception("Unexpected failure processing %s: %s", video_path.name, exc)
+            LOGGER.exception(
+                "Unexpected failure processing %s: %s", video_path.name, exc
+            )
             succeeded = False
 
         if succeeded:
