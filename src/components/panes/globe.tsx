@@ -202,7 +202,7 @@ const Globe: FunctionComponent = () => {
     if (viewerRef.current?.cesiumElement?.scene) {
       const camera = viewerRef.current.cesiumElement.scene.camera;
       const defaultAmount = camera.defaultZoomAmount;
-      camera.zoomIn(defaultAmount * 50);
+      camera.zoomIn(defaultAmount * 30);
     }
   };
 
@@ -211,7 +211,7 @@ const Globe: FunctionComponent = () => {
     if (viewerRef.current?.cesiumElement?.scene) {
       const camera = viewerRef.current.cesiumElement.scene.camera;
       const defaultAmount = camera.defaultZoomAmount;
-      camera.zoomOut(defaultAmount * 50);
+      camera.zoomOut(defaultAmount * 30);
     }
   };
 
