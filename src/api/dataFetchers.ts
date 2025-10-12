@@ -112,6 +112,26 @@ export async function fetchCommTranscript(date: string): Promise<CommItem[]> {
 }
 
 export async function fetchEphemera(date: string): Promise<EphemeraItem[]> {
+  // For the current date, attempt to fetch live TLE data from Celestrak
+  const today = new Date().toISOString().slice(0, 10);
+  if (date === today) {
+    try {
+      const response = await fetch("https://celestrak.org/NORAD/elements/gp.php?CATNR=25544");
+      if (response.ok) {
+        const text = await response.text();
+        const lines = text.trim().split("\n");
+        if (lines.length >= 3) {
+          const tle_line1 = lines[1].trim();
+          const tle_line2 = lines[2].trim();
+          const epoch = date + "T00:00:00Z";
+          return [{ epoch, tle_line1, tle_line2 }];
+        }
+      }
+    } catch (error) {
+      // Fall back to static data if Celestrak fails
+    }
+  }
+
   const baseStaticUrl = getBaseStaticUrl();
   const [year, month] = date.split("-");
 
