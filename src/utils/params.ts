@@ -37,8 +37,8 @@ export interface ParsedDateTimeSlug {
 export const parseDateTimeSlug = (slug: string): ParsedDateTimeSlug | null => {
   if (!slug) return null;
 
-  // Expected format: YYYY-MM-DD/HH:MM:SS but encoded as YYYY-MM-DD%2FHH%3AMM%3ASS
-  // or YYYY-MM-DDTHH:MM:SS (using T as separator to avoid URL encoding issues)
+  // Expected format: YYYY-MM-DDTHH:MM:SS (using T as separator to avoid React Router issues)
+  // Also supports date-only format: YYYY-MM-DD
   let datePart: string | undefined;
   let timePart: string | undefined;
 
@@ -50,21 +50,15 @@ export const parseDateTimeSlug = (slug: string): ParsedDateTimeSlug | null => {
     decoded = slug;
   }
 
-  // Try URL decoded format first (YYYY-MM-DD/HH:MM:SS)
-  const slashParts = decoded.split("/");
-  if (slashParts.length === 2) {
-    [datePart, timePart] = slashParts;
+  // Primary format: T separator (YYYY-MM-DDTHH:MM:SS)
+  const tParts = decoded.split("T");
+  if (tParts.length === 2) {
+    [datePart, timePart] = tParts;
+  } else if (tParts.length === 1) {
+    // Handle date-only slug (YYYY-MM-DD)
+    [datePart] = tParts;
   } else {
-    // Try alternative format with T separator (YYYY-MM-DDTHH:MM:SS)
-    const tParts = decoded.split("T");
-    if (tParts.length === 2) {
-      [datePart, timePart] = tParts;
-    } else if (tParts.length === 1) {
-      // Handle date-only slug (YYYY-MM-DD)
-      [datePart] = tParts;
-    } else {
-      return null;
-    }
+    return null;
   }
 
   if (!datePart || !isValidDateString(datePart)) {
