@@ -124,7 +124,7 @@ def generate_daily_orbits():
     print(f"Loaded {len(tles)} TLE entries")
 
     start_date = tles[0]["epoch"].date()
-    end_date = tles[-1]["epoch"].date()
+    end_date = max(tles[-1]["epoch"].date(), datetime.now().date())
     total_days = (end_date - start_date).days + 1
 
     print(f"Calculating orbits from {start_date} to {end_date}")
