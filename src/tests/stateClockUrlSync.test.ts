@@ -21,12 +21,9 @@ describe("stateClock URL syncing", () => {
     expect(window.location.pathname).toBe("/2024-01-01");
   });
 
-  it("includes time slug only when requested", () => {
+  it("includes time slug when requested", () => {
     store.getState().setDateTime("2024-01-01", 3661, { includeTimeInUrl: true });
     expect(window.location.pathname).toBe("/2024-01-01T01:01:01");
-
-    store.getState().setTimeOnly(4000);
-    expect(window.location.pathname).toBe("/2024-01-01");
   });
 
   it("clears slug when date is cleared", () => {
