@@ -5,7 +5,6 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faVolumeHigh,
   faVolumeMute,
@@ -14,6 +13,7 @@ import {
   faShare,
 } from "@fortawesome/free-solid-svg-icons";
 import VideoNone from "./videoNone";
+import IconButton from "../common/iconButton";
 
 interface YtVideoComponentProps {
   videoId: string;
@@ -413,30 +413,30 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
             }}
           />
           <div className={styles.controlsOverlay}>
-            <button
-              className={styles.controlButton}
-              onClick={handleMuteToggle}
-              type="button"
-              aria-label={isMuted ? "Unmute video" : "Mute video"}
-            >
-              <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeHigh} />
-            </button>
-            <button
-              className={styles.controlButton}
-              onClick={handleFullscreenToggle}
-              type="button"
-              aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-            >
-              <FontAwesomeIcon icon={isFullscreen ? faCompress : faExpand} />
-            </button>
-            <button
-              className={styles.controlButton}
-              onClick={handleShare}
-              type="button"
-              aria-label="Open video on YouTube"
-            >
-              <FontAwesomeIcon icon={faShare} />
-            </button>
+            <div className={styles.iconButtonWrapper}>
+              <IconButton
+                icon={isMuted ? faVolumeMute : faVolumeHigh}
+                onClick={handleMuteToggle}
+                tooltipContent="Toggle Mute"
+                // label={isMuted ? "Unmute" : "Mute"}
+              />
+            </div>
+            <div className={styles.iconButtonWrapper}>
+              <IconButton
+                icon={isFullscreen ? faCompress : faExpand}
+                tooltipContent="Toggle Fullscreen"
+                onClick={handleFullscreenToggle}
+                // label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              />
+            </div>
+            <div className={styles.iconButtonWrapper}>
+              <IconButton
+                icon={faShare}
+                tooltipContent="Open video on YouTube"
+                onClick={handleShare}
+                // label="Open video on YouTube"
+              />
+            </div>
           </div>
         </div>
       ) : (

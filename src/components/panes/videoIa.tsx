@@ -5,13 +5,13 @@ import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromTimeStr } from "utils/time";
 import ClockInterval from "./clockInterval";
 import { getBaseStaticUrl } from "utils/api";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faVolumeHigh,
   faVolumeMute,
   faExpand,
   faCompress,
 } from "@fortawesome/free-solid-svg-icons";
+import IconButton from "../common/iconButton";
 import VideoNone from "./videoNone";
 
 interface VideoIaComponentProps {
@@ -282,22 +282,20 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
           Your browser does not support the video tag.
         </video>
         <div className={styles.controlsOverlay}>
-          <button
-            className={styles.controlButton}
-            onClick={handleMuteToggle}
-            type="button"
-            aria-label={isMuted ? "Unmute video" : "Mute video"}
-          >
-            <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeHigh} />
-          </button>
-          <button
-            className={styles.controlButton}
-            onClick={handleFullscreenToggle}
-            type="button"
-            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-          >
-            <FontAwesomeIcon icon={isFullscreen ? faCompress : faExpand} />
-          </button>
+          <div className={styles.iconButtonWrapper}>
+            <IconButton
+              icon={isMuted ? faVolumeMute : faVolumeHigh}
+              onClick={handleMuteToggle}
+              // label={isMuted ? "Unmute" : "Mute"}
+            />
+          </div>
+          <div className={styles.iconButtonWrapper}>
+            <IconButton
+              icon={isFullscreen ? faCompress : faExpand}
+              onClick={handleFullscreenToggle}
+              // label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            />
+          </div>
         </div>
       </div>
     </>

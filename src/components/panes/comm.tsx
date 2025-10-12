@@ -429,7 +429,6 @@ const Comm: FunctionComponent = () => {
               }`}
               data-tooltip-id="issirt-tooltip"
               data-tooltip-content={channelToggleTooltip}
-              data-tooltip-place="bottom"
             >
               {channelDisplayName}
             </div>
@@ -544,7 +543,6 @@ const Comm: FunctionComponent = () => {
           type="button"
           data-tooltip-id="issirt-tooltip"
           data-tooltip-content={"Re-enable automatic scrolling"}
-          data-tooltip-place="left"
         >
           <FontAwesomeIcon icon={faArrowsSpin} />
         </button>

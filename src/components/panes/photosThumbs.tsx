@@ -711,7 +711,6 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
           type="button"
           data-tooltip-id="issirt-tooltip"
           data-tooltip-content="Re-enable automatic scrolling"
-          data-tooltip-place="left"
         >
           <FontAwesomeIcon icon={faArrowsSpin} />
         </button>

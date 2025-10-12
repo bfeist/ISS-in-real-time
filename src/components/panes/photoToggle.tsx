@@ -37,7 +37,6 @@ const PhotoToggle: FunctionComponent<{
                 : "Show Earth Photos"
               : "Earth Photos Unavailable"
           }
-          tooltipPlace="left"
         />
       </div>
       <div className={styles.toggleButton}>
@@ -56,7 +55,6 @@ const PhotoToggle: FunctionComponent<{
                 : "Show Timelapse Photos"
               : "Timelapse Photos Unavailable"
           }
-          tooltipPlace="left"
         />
       </div>
       <div className={styles.toggleButton}>
@@ -75,7 +73,6 @@ const PhotoToggle: FunctionComponent<{
                 : "Show Mission Photos"
               : "Mission Photos Unavailable"
           }
-          tooltipPlace="left"
         />
       </div>
     </div>

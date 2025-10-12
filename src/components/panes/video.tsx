@@ -1,4 +1,4 @@
-import { FunctionComponent, useState, useMemo } from "react";
+import { FunctionComponent, useState, useMemo, useEffect } from "react";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useGeneralVideoYt, useGeneralVideoIa } from "api/useGeneralData";
 import { appSecondsFromTimeStr } from "utils/time";
@@ -19,6 +19,18 @@ const VideoComponent: FunctionComponent = () => {
   const { data: videoIa = [], isLoading: isloadingIa } = useGeneralVideoIa();
 
   const isLoading = isloadingYt || isloadingIa;
+
+  useEffect(() => {
+    const parsedTimestamp = Date.parse(startStopTimestamp);
+    if (Number.isNaN(parsedTimestamp)) {
+      setAppSeconds(Math.min(Math.floor(appSecondsAtStartStop), 86401));
+      return;
+    }
+
+    const secondsSinceStarted = (Date.now() - parsedTimestamp) / 1000;
+    const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);
+    setAppSeconds(Math.min(newAppSeconds, 86401));
+  }, [appSecondsAtStartStop, startStopTimestamp, selectedDate]);
 
   // Get all videos for the selected date
   const videoYtRecording = videoYt?.find(
