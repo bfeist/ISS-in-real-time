@@ -51,7 +51,7 @@ const AboutModal: FunctionComponent<{
         </div>
         <div className={styles.content}>
           <p>
-            ISS in real time is an interactive experience that lets you explore the past 25 years
+            ISS in Real Time is an interactive experience that lets you explore the past 25 years
             onboard the International Space Station.
           </p>
           <p>
