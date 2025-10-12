@@ -13,7 +13,7 @@ import TimelineYears2Container from "components/timelineYears/timelineYearsConta
 
 const HomePage: FunctionComponent = (): JSX.Element => {
   const { dateTimeSlug } = useParams();
-  const { selectedDate, setDateOnly, setDateTime } = useStateClock();
+  const { selectedDate, setDateOnly, setDateTime, stopClock } = useStateClock();
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
   const tooltipRef = useRef<TooltipRefProps | null>(null);
@@ -51,10 +51,11 @@ const HomePage: FunctionComponent = (): JSX.Element => {
     }
     if (parsed.time) {
       setDateTime(parsed.date, appSecondsFromTimeStr(parsed.time), { includeTimeInUrl: true });
+      stopClock(); // Start paused when a specific time is provided in the URL
     } else {
       setDateTime(parsed.date, null);
     }
-  }, [dateTimeSlug, setDateOnly, setDateTime]);
+  }, [dateTimeSlug, setDateOnly, setDateTime, stopClock]);
 
   // Prevent pull-to-refresh on touch devices
   useEffect(() => {
