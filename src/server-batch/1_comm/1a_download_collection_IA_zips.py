@@ -49,6 +49,7 @@ collections_xml = [
     # "Expedition25", # doesn't exist
     # "Expedition26", # doesn't have zips
     # "Expedition27", # doesn't have zips
+    "Expedition26Audio",
     "Expedition28",
     "Expedition29",
     "Expedition30",

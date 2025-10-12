@@ -71,23 +71,15 @@ export const createStateClock: StateCreator<AppState, [], [], ClockState> = (set
         isRunning: false,
       };
 
-      queueMicrotask(() => {
-        const { selectedDate } = get();
-        syncUrl(selectedDate, appSeconds, false);
-      });
-
       return nextState;
     }),
 
   /** Sets only the time portion of the selection, leaving the date untouched. */
-  setTimeOnly: (seconds: number, options?: SelectionOptions) => {
+  setTimeOnly: (seconds: number, _options?: SelectionOptions) => {
     set(() => ({
       appSecondsAtStartStop: seconds,
       startStopTimestamp: new Date().toISOString(),
     }));
-
-    const { selectedDate } = get();
-    syncUrl(selectedDate, seconds, options?.includeTimeInUrl ?? false);
   },
 
   /** Sets only the date portion of the selection, optionally syncing the URL. */

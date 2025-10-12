@@ -62,13 +62,17 @@ def normalize_filename(name: str) -> str:
 creators = [
     "creator:(Houston Audio Control Room)",
     "creator:(john.l.stoll@nasa.gov)",
+    "creator:(John Stoll)",
     "creator:(Expedition 62 ACR Collection)",
     "creator:(Johnson Space Center)",
     "creator:(Beth Weissinger)",
+    "creator:(NASA/Bill Ingalls)",
+    # "creator:(NASA)",
 ]
 
 all_results = []
 for creator in creators:
+    print(f"Searching creator: {creator}")
     search = search_items(creator)
     all_results.extend(list(search))
 
