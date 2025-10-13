@@ -96,4 +96,5 @@ pre,
 
 ::-webkit-scrollbar-thumb:hover {
   background: #f0f0f0;
+  cursor: pointer;
 }

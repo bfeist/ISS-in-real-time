@@ -249,6 +249,8 @@ type Stats = {
   comm: {
     total_days_with_transcripts: number;
     total_days_with_vv_transcripts: number;
+    comm_coverage_percentage: number;
+    vv_comm_coverage_percentage: number;
     total_utterances: number;
     avg_utterances_per_day: number;
     total_words: number;

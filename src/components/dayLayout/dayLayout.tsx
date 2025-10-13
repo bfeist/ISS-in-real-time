@@ -249,7 +249,7 @@ const DayLayout: FunctionComponent = () => {
     };
   }, [slugIncludesTime]);
 
-  // Start the clock only if autoplay is allowed when arriving via time-specific slug
+  // Start the clock only if autoplay is allowed when arriving via time-specific slug, or if there's no comm data
   useEffect(() => {
     if (!selectedDate || !slugIncludesTime) {
       return;
@@ -259,10 +259,10 @@ const DayLayout: FunctionComponent = () => {
       return;
     }
 
-    if (audioAutoplayAllowed) {
+    if (audioAutoplayAllowed || commItems.length === 0) {
       startClock();
     }
-  }, [audioAutoplayAllowed, selectedDate, slugIncludesTime, startClock]);
+  }, [audioAutoplayAllowed, selectedDate, slugIncludesTime, startClock, commItems]);
 
   // Set initial clock position and start the clock when a day loads
   useEffect(() => {

@@ -41,7 +41,7 @@ const StatsModal: FunctionComponent<{
     <div className={styles.overlay}>
       <div className={styles.modal} ref={modalRef}>
         <div className={styles.header}>
-          <h3>ISS Data Overview</h3>
+          <h3>ISS in Real Time Content Stats</h3>
           <CloseButton onClick={onClose} />
         </div>
         <div className={styles.content}>
@@ -112,7 +112,7 @@ const StatsModal: FunctionComponent<{
                     <span>{stats.photos.combined.max_photos_per_day.toLocaleString()}</span>
                   </div>
                   <div className={styles.statRow}>
-                    <span>Coverage:</span>
+                    <span>Days Coverage:</span>
                     <span>{stats.photos.combined.coverage_percentage.toFixed(1)}%</span>
                   </div>
                 </div>
@@ -125,7 +125,7 @@ const StatsModal: FunctionComponent<{
                       <span>{stats.photos.sources.photos_earth.total_photos.toLocaleString()}</span>
                     </div>
                     <div className={styles.statRow}>
-                      <span>Earth Coverage:</span>
+                      <span>Earth Photos Days Coverage:</span>
                       <span>
                         {stats.photos.sources.photos_earth.coverage_percentage.toFixed(1)}%
                       </span>
@@ -137,7 +137,7 @@ const StatsModal: FunctionComponent<{
                       </span>
                     </div>
                     <div className={styles.statRow}>
-                      <span>Mission Coverage:</span>
+                      <span>Mission Photos Days Coverage:</span>
                       <span>
                         {stats.photos.sources.photos_flickr.coverage_percentage.toFixed(1)}%
                       </span>
@@ -180,8 +180,16 @@ const StatsModal: FunctionComponent<{
                     <span>{stats.comm.total_days_with_transcripts.toLocaleString()}</span>
                   </div>
                   <div className={styles.statRow}>
-                    <span>Days with VV Comm:</span>
+                    <span>S/G Comm Days Coverage:</span>
+                    <span>{stats.comm.comm_coverage_percentage.toFixed(1)}%</span>
+                  </div>
+                  <div className={styles.statRow}>
+                    <span>Days with Vehicle Comm:</span>
                     <span>{stats.comm.total_days_with_vv_transcripts.toLocaleString()}</span>
+                  </div>
+                  <div className={styles.statRow}>
+                    <span>Vehicle Comm Days Coverage:</span>
+                    <span>{stats.comm.vv_comm_coverage_percentage.toFixed(1)}%</span>
                   </div>
                   <div className={styles.statRow}>
                     <span>Total Utterances:</span>

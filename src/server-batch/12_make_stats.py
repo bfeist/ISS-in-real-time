@@ -131,9 +131,21 @@ def analyze_comm():
         full_lang = lang_obj.name if lang_obj else lang
         languages_dict[full_lang] = count
 
+    total_days_since_epoch = calculate_total_days_since_epoch()
+
     return {
         "total_days_with_transcripts": comm_days_from_csv,
         "total_days_with_vv_transcripts": vv_comm_days_from_csv,
+        "comm_coverage_percentage": (
+            round((comm_days_from_csv / total_days_since_epoch) * 100, 2)
+            if total_days_since_epoch > 0
+            else 0
+        ),
+        "vv_comm_coverage_percentage": (
+            round((vv_comm_days_from_csv / total_days_since_epoch) * 100, 2)
+            if total_days_since_epoch > 0
+            else 0
+        ),
         "total_utterances": total_utterances,
         "avg_utterances_per_day": round(avg_utterances_per_day, 2),
         "total_words": total_words,

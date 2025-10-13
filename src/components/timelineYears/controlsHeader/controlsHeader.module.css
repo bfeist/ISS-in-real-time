@@ -140,9 +140,9 @@
 
 .closeDayButton {
   background: transparent;
-  border: 1px solid var(--grey5);
+  border: 1px solid var(--warning);
   cursor: pointer;
-  color: var(--grey5);
+  color: var(--warning);
   padding: 4px;
   display: flex;
   align-items: center;

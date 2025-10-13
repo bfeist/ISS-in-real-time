@@ -35,8 +35,8 @@
 
 .header h3 {
   margin: 0;
-  color: var(--grey5);
-  font-size: 1.1rem;
+  color: var(--highlight);
+  font-size: 1.2rem;
   font-weight: 600;
 }
 
@@ -69,12 +69,6 @@
   gap: 8px;
 }
 
-.stackedSection {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
 @media (width <= 768px) {
   .statsGrid {
     grid-template-columns: 1fr 1fr;
@@ -87,6 +81,12 @@
   }
 }
 
+.stackedSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .statsSection {
   /* background: rgb(41 43 58 / 70%); */
   border: 1px solid var(--grey3);
@@ -97,9 +97,9 @@
 .statsSection h4 {
   margin: 0 0 6px 0;
   color: var(--grey5);
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 600;
-  text-align: center;
+  text-align: left;
   padding-bottom: 4px;
   border-bottom: 1px solid var(--grey3);
 }
