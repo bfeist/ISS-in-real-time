@@ -394,6 +394,9 @@ class WhisperResources:
                 self._align_usage[key] = time.monotonic()
                 return align_model, metadata
 
+            # Evict old models before loading a new one to prevent exceeding cache limit
+            self._evict_alignment_cache_before_loading()
+
             console.log(
                 f"Loading alignment model for language '{key}' on {self.device}"
             )
@@ -413,7 +416,6 @@ class WhisperResources:
             self.align_models[key] = (align_model, metadata)
             self.align_models.move_to_end(key)
             self._align_usage[key] = time.monotonic()
-            self._evict_alignment_cache_if_needed()
             return align_model, metadata
 
     def _resident_alignment_model_keys(self) -> List[str]:
@@ -422,6 +424,35 @@ class WhisperResources:
             for key, (align_model, _metadata) in self.align_models.items()
             if align_model is not None
         ]
+
+    def _evict_alignment_cache_before_loading(self) -> None:
+        """Evict alignment models before loading a new one to prevent exceeding cache limit."""
+        target_limit = max(0, MAX_ALIGNMENT_MODELS_CACHED)
+        resident_keys = self._resident_alignment_model_keys()
+
+        # We need to make room for one more model, so evict if at or above limit
+        models_to_evict = max(0, len(resident_keys) - target_limit + 1)
+        if models_to_evict <= 0:
+            return
+
+        evicted_count = 0
+        for key in list(self.align_models.keys()):
+            if evicted_count >= models_to_evict:
+                break
+            align_model, _metadata = self.align_models[key]
+            if align_model is None:
+                continue
+            self._dispose_alignment_model(key, align_model)
+            del self.align_models[key]
+            self._align_usage.pop(key, None)
+            evicted_count += 1
+            logger.info(
+                "Evicted alignment model '%s' before loading new model to respect cache limit",
+                key,
+            )
+
+        if evicted_count > 0:
+            release_cuda_memory()
 
     def _evict_alignment_cache_if_needed(self) -> None:
         target_limit = max(0, MAX_ALIGNMENT_MODELS_CACHED)
