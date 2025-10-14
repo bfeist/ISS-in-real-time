@@ -51,7 +51,6 @@ from log_db import (  # noqa: E402  - local module import after path injection
     LOG_STATUS_SKIPPED,
     parse_zip_metadata,
 )
-from log_migration import migrate_legacy_tracking_files  # noqa: E402
 
 
 def _parse_positive_int(value: Optional[str], default: int, *, minimum: int = 1) -> int:
@@ -2782,7 +2781,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     selected_names = set(args.zips) if args.zips else None
 
     with CommTranscriptionLog(TRACKING_DIR) as transcription_log:
-        migrate_legacy_tracking_files(transcription_log, TRACKING_DIR)
         reset_in_progress_entries(transcription_log, version=TRANSCRIPTION_VERSION)
 
         manual_skip_entries = set(read_skip_list(IA_SKIP_ZIPS_TRACKING_FILE))

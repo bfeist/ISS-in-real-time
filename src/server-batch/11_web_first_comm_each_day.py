@@ -6,7 +6,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv(dotenv_path="../../../.env")
+load_dotenv(dotenv_path="../../.env")
 
 # This script processes the CSV transcript files created by 3_web_comm.py and creates
 # a single JSON file with the first communication entry for each date.

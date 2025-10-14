@@ -80,13 +80,15 @@ pre,
 
 /* Works in Chrome, Edge, Safari */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--grey5);
   border-radius: 2px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
   transition: all 0.2s ease;
 }
 
@@ -96,5 +98,6 @@ pre,
 
 ::-webkit-scrollbar-thumb:hover {
   background: #f0f0f0;
+  border: 0;
   cursor: pointer;
 }
