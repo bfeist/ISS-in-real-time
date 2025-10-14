@@ -50,7 +50,7 @@
 }
 
 .columnNotable {
-  flex: 0 0 260px;
+  flex: 0 0 275px;
 }
 
 .columnHeader {
@@ -182,7 +182,7 @@
 }
 
 /* Responsive Styles */
-@media (width < 930px) {
+@media (width < 935px) {
   .highlightItems {
     flex-direction: column;
     align-items: stretch;
