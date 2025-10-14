@@ -19,9 +19,9 @@ const HighlightExpeditions: FunctionComponent<HighlightExpeditionsProps> = () =>
     return expeditionInfo.slice().sort((a, b) => b.expedition - a.expedition);
   }, [expeditionInfo]);
 
-  const formatDateRange = (start: string, end: string) => {
+  const formatDateRange = (start: string, end: string | null) => {
     const startDate = new Date(start);
-    const endDate = new Date(end);
+    const endDate = end ? new Date(end) : null;
 
     const formatOptions: Intl.DateTimeFormatOptions = {
       year: "numeric",
@@ -29,7 +29,12 @@ const HighlightExpeditions: FunctionComponent<HighlightExpeditionsProps> = () =>
       day: "numeric",
     };
 
-    return `${startDate.toLocaleDateString("en-US", formatOptions)} - ${endDate.toLocaleDateString("en-US", formatOptions)}`;
+    const endFormatted =
+      !end || !endDate || isNaN(endDate.getTime())
+        ? "TBD"
+        : endDate.toLocaleDateString("en-US", formatOptions);
+
+    return `${startDate.toLocaleDateString("en-US", formatOptions)} - ${endFormatted}`;
   };
 
   // Configuration for the generic HighlightType component

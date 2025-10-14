@@ -35,6 +35,78 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path="../../../.env")
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
+# Canonical first-name forms used when we output crew records so that
+# each astronaut/cosmonaut appears with a single consistent name.
+NICKNAME_CANONICAL_MAP = {
+    "bob": "Robert",
+    "chris": "Christopher",
+    "dan": "Daniel",
+    "dave": "David",
+    "doug": "Douglas",
+    "jim": "James",
+    "joe": "Joseph",
+    "matt": "Matthew",
+    "mike": "Michael",
+    "suni": "Sunita",
+    "steve": "Steven",
+    "tom": "Thomas",
+    "tony": "Anthony",
+    "bill": "William",
+    "randy": "Randolph",
+}
+
+# Groups of first-name spellings that represent the same person but are not
+# traditional nicknames (mainly transliteration variants). Used only for
+# matching arrivals/departures; we do not override the displayed name with
+# these canonical forms.
+FIRST_NAME_EQUIVALENCE_GROUPS = [
+    {"aleksandr", "alexander"},
+    {"sergei", "sergey"},
+    {"valeri", "valery"},
+    {"yuri", "yury"},
+    {"dmitri", "dmitry"},
+    {"mikhail", "michael"},
+    {"francisco", "frank"},
+    {"dominic", "anthony"},
+]
+
+
+def canonicalize_first_name(name_first):
+    """Return the canonical display form for a first name."""
+
+    if not name_first:
+        return ""
+
+    lookup_key = name_first.lower()
+    canonical = NICKNAME_CANONICAL_MAP.get(lookup_key)
+
+    if canonical:
+        return canonical
+
+    # Title-case the name to guard against stray lowercase inputs while
+    # preserving mixed-case spellings (e.g., McArthur -> Mcarthur would be wrong).
+    # We only normalize when the input is all lowercase.
+    if name_first.islower():
+        return name_first.capitalize()
+
+    return name_first
+
+
+def first_names_equivalent(name_a, name_b):
+    """Check if two first-name spellings should be treated as equivalent."""
+
+    name_a_lower = name_a.lower()
+    name_b_lower = name_b.lower()
+
+    if name_a_lower == name_b_lower:
+        return True
+
+    for group in FIRST_NAME_EQUIVALENCE_GROUPS:
+        if name_a_lower in group and name_b_lower in group:
+            return True
+
+    return False
+
 
 def iso_to_datetime(iso_str):
     """Convert an ISO string (e.g. '2000-10-31T07:52:47Z') into a datetime object."""
@@ -56,6 +128,7 @@ def parse_crew_name(name):
     - "John 'Jack' Smith" -> ("John", "", "Smith", "")
     - "Sunita 'Suni' Williams" -> ("Sunita", "", "Williams", "")
     - "Jean-François Clervoy" -> ("Jean-François", "", "Clervoy", "")
+    - "Doug Hurley" -> ("Douglas", "", "Hurley", "") - nickname normalized to full name
 
     Returns:
         tuple: (name_first, name_middle, name_last, name_suffix)
@@ -90,14 +163,21 @@ def parse_crew_name(name):
     # Split remaining name into parts
     parts = name.split()
 
+    # Determine name components based on number of parts
     if len(parts) == 0:
-        return ("", "", "", name_suffix)
+        name_first = ""
+        name_middle = ""
+        name_last = ""
     elif len(parts) == 1:
         # Only one name part (unusual, but handle it)
-        return (parts[0], "", "", name_suffix)
+        name_first = parts[0]
+        name_middle = ""
+        name_last = ""
     elif len(parts) == 2:
         # First and last name only
-        return (parts[0], "", parts[1], name_suffix)
+        name_first = parts[0]
+        name_middle = ""
+        name_last = parts[1]
     else:
         # Three or more parts: first, middle(s), last
         name_first = parts[0]
@@ -107,7 +187,10 @@ def parse_crew_name(name):
         middle_parts = parts[1:-1]
         name_middle = " ".join(middle_parts)
 
-        return (name_first, name_middle, name_last, name_suffix)
+    # Apply canonicalization so the display name stays consistent
+    name_first = canonicalize_first_name(name_first)
+
+    return (name_first, name_middle, name_last, name_suffix)
 
 
 def normalize_crew_name(name):
@@ -156,43 +239,6 @@ def names_match(name1, name2, threshold=0.85):
     Returns:
         bool: True if names are similar enough to be considered a match
     """
-    # Nickname dictionary based on actual data analysis
-    # Maps common nicknames to full names and vice versa
-    nickname_map = {
-        # Russian transliteration variants
-        "aleksandr": "alexander",
-        "alexander": "aleksandr",
-        "sergei": "sergey",
-        "sergey": "sergei",
-        "valeri": "valery",
-        "valery": "valeri",
-        "yuri": "yury",
-        "yury": "yuri",
-        "mikhail": "michael",
-        "michael": "mikhail",
-        "dmitri": "dmitry",
-        "dmitry": "dmitri",
-        "oleg": "oleg",  # Keep consistent
-        # English nicknames
-        "bob": "robert",
-        "robert": "bob",
-        "doug": "douglas",
-        "douglas": "doug",
-        "jim": "james",
-        "james": "jim",
-        "randy": "randolph",
-        "randolph": "randy",
-        "barry": "barry",  # Keep consistent
-        "tony": "anthony",
-        "anthony": "tony",
-        "dominic": "tony",  # Special case: Dominic "Tony" Antonelli
-        "thomas": "tom",
-        "tom": "thomas",
-        "francisco": "frank",
-        "frank": "francisco",
-        "sandra": "sandra",  # Keep consistent
-    }
-
     # Exact match
     if name1 == name2:
         return True
@@ -227,25 +273,28 @@ def names_match(name1, name2, threshold=0.85):
     first1 = parts1[0]
     first2 = parts2[0]
 
-    # Check nickname dictionary
-    if first1 in nickname_map and nickname_map[first1] == first2:
-        return True
-    if first2 in nickname_map and nickname_map[first2] == first1:
+    canonical_first1 = canonicalize_first_name(first1)
+    canonical_first2 = canonicalize_first_name(first2)
+
+    if first_names_equivalent(canonical_first1, canonical_first2):
         return True
 
     # Check if one first name is a substring of the other (nickname case)
     # e.g., "suni" in "sunita", "tom" in "thomas"
-    if first1 in first2 or first2 in first1:
+    first1_lower = canonical_first1.lower()
+    first2_lower = canonical_first2.lower()
+
+    if first1_lower in first2_lower or first2_lower in first1_lower:
         return True
 
     # Check if first names start with same 3+ characters
     # Handles cases like Tom/Thomas, Bill/William, Steve/Steven
-    if len(first1) >= 3 and len(first2) >= 3:
-        if first1[:3] == first2[:3]:
+    if len(first1_lower) >= 3 and len(first2_lower) >= 3:
+        if first1_lower[:3] == first2_lower[:3]:
             return True
 
     # Use sequence matching for similarity (handles minor spelling differences)
-    similarity = SequenceMatcher(None, first1, first2).ratio()
+    similarity = SequenceMatcher(None, first1_lower, first2_lower).ratio()
 
     return similarity >= threshold
 
