@@ -25,6 +25,14 @@
   cursor: grabbing;
 }
 
+.yearHeader.noScroll {
+  cursor: pointer;
+}
+
+.yearHeader.noScroll:active {
+  cursor: pointer;
+}
+
 .yearTitle {
   line-height: 1;
   font-size: 13px;

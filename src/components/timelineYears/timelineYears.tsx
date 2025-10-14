@@ -1085,6 +1085,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
                   onHeaderPointerMove={handleHeaderPointerMove}
                   onHeaderPointerUp={handleHeaderPointerUp}
                   onHeaderPointerCancel={handleHeaderPointerCancel}
+                  isScrollable={scrollIndicators.isScrollable}
                 />
               );
             })}

@@ -41,6 +41,7 @@ interface YearCanvasProps {
   onHeaderPointerMove?: (event: React.PointerEvent<HTMLDivElement>, yearIndex: number) => void;
   onHeaderPointerUp?: (event: React.PointerEvent<HTMLDivElement>, yearIndex: number) => void;
   onHeaderPointerCancel?: (event: React.PointerEvent<HTMLDivElement>, yearIndex: number) => void;
+  isScrollable?: boolean;
 }
 
 // Individual year canvas component
@@ -62,6 +63,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
   onHeaderPointerMove,
   onHeaderPointerUp,
   onHeaderPointerCancel,
+  isScrollable = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -252,7 +254,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
       data-year-index={index}
     >
       <div
-        className={styles.yearHeader}
+        className={`${styles.yearHeader} ${!isScrollable ? styles.noScroll : ""}`}
         role="button"
         tabIndex={0}
         data-year-header="true"
