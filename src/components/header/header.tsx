@@ -72,6 +72,12 @@ const Header: FunctionComponent = () => {
     return comparisonDate.isAfter(lastDay);
   }, [lastDateWithData, selectedDate]);
 
+  useEffect(() => {
+    if (showWarningButton) {
+      setIsNoDataModalOpen(true);
+    }
+  }, [showWarningButton, selectedDate]);
+
   const shareUrl = useMemo(
     () => generateShareUrl(selectedDate, appSeconds),
     [selectedDate, appSeconds]
