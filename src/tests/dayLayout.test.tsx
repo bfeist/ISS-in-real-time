@@ -157,7 +157,13 @@ describe("DayLayout autoplay handling", () => {
     >);
     mockedEphemera.mockReturnValue({ data: [] } as unknown as ReturnType<typeof useDateEphemera>);
     mockedComm.mockReturnValue({
-      data: [],
+      data: [
+        {
+          utteranceTime: "12:00:00",
+          speaker: "Test",
+          text: "Test comm",
+        },
+      ],
       isLoading: false,
       error: null,
     } as unknown as ReturnType<typeof useDateCommTranscript>);
