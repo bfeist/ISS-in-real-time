@@ -2294,9 +2294,17 @@ def export_utterances_with_ffmpeg(
     if not jobs:
         return True
 
+    # Check if ffmpeg is available on PATH
+    ffmpeg_exe = shutil.which("ffmpeg")
+    if not ffmpeg_exe:
+        logger.error(
+            "ffmpeg executable not found on PATH; falling back to pydub export"
+        )
+        return False
+
     filter_parts: List[str] = []
     cmd: List[str] = [
-        "ffmpeg",
+        ffmpeg_exe,
         "-hide_banner",
         "-loglevel",
         "error",
@@ -2329,10 +2337,12 @@ def export_utterances_with_ffmpeg(
         )
 
     try:
-        subprocess.run(cmd, check=True)
+        # On Windows, shell=True can help with PATH resolution
+        is_windows = sys.platform.startswith("win")
+        subprocess.run(cmd, check=True, shell=is_windows)
     except FileNotFoundError:
         logger.error(
-            "ffmpeg executable not found on PATH; falling back to pydub export"
+            "ffmpeg executable not found during execution; falling back to pydub export"
         )
         return False
     except subprocess.CalledProcessError as exc:
