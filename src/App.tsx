@@ -4,6 +4,7 @@ import { JSX, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./utils/cacheManagement"; // Initialize global cache utils
 import { initGA, trackPageView } from "./utils/analytics";
+import ErrorBoundary from "./components/common/errorBoundary";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,10 +27,12 @@ function App(): JSX.Element {
   }, [location]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {/* Add shared layout components like header, footer, etc. */}
-      <Outlet />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        {/* Add shared layout components like header, footer, etc. */}
+        <Outlet />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

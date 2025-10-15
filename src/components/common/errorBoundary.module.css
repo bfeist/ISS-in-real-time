@@ -1,0 +1,85 @@
+.container {
+  width: 100vw;
+  height: 100vh;
+  background-image: url("/images/backgrounds/ISS072-E-577880.jpeg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2rem;
+  text-align: left;
+  color: var(--grey5);
+  width: 60rem;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: rgb(41 43 58 / 70%);
+  backdrop-filter: blur(15px);
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+}
+
+.title {
+  margin: 0;
+  font-size: 2rem;
+  color: var(--highlight);
+}
+
+.description {
+  line-height: 1.5;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.reloadButton {
+  border-radius: var(--radius);
+  padding: 0.75rem 1.5rem;
+  border: 1px solid var(--highlight);
+  background-color: var(--grey1);
+  color: var(--grey5);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.reloadButton:hover,
+.reloadButton:focus {
+  background-color: var(--grey3);
+  outline: none;
+}
+
+.details {
+  background-color: var(--grey2);
+  border-radius: var(--panel-radius);
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--grey3);
+  text-align: left;
+  color: var(--grey5);
+}
+
+.summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.stackTrace {
+  margin-top: 0.75rem;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  background-color: var(--grey1);
+  padding: 0.75rem;
+  border-radius: var(--radius);
+}
