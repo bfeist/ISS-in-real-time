@@ -1,6 +1,6 @@
 import SunCalc from "./suncalc";
 import { getSatelliteInfo } from "tle.js";
-import { hhmmssFromAppSeconds } from "./time";
+import { hhmmssFromAppSeconds } from "./dateTime";
 
 /**
  * Calculate day night information from a given ephemera for a desired date

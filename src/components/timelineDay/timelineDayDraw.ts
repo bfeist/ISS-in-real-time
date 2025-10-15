@@ -1,5 +1,9 @@
 import paper from "paper";
-import { hhmmssFromAppSeconds, appSecondsFromTimeStr, appSecondsFromDateTime } from "utils/time";
+import {
+  hhmmssFromAppSeconds,
+  appSecondsFromTimeStr,
+  appSecondsFromDateTime,
+} from "utils/dateTime";
 import { extractChannelInfoFromFilename } from "utils/comm";
 
 export const initializePaperCanvas = ({

@@ -1,7 +1,7 @@
 import { FunctionComponent, useState, useMemo, useEffect } from "react";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useGeneralVideoYt, useGeneralVideoIa } from "api/useGeneralData";
-import { appSecondsFromTimeStr } from "utils/time";
+import { appSecondsFromTimeStr } from "utils/dateTime";
 import YtVideoComponent from "./videoYt";
 import VideoIaComponent from "./videoIa";
 import ClockInterval from "./clockInterval";

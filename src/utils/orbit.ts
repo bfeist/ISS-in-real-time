@@ -8,7 +8,7 @@
  */
 
 import { findClosestEphemeraItem } from "./map";
-import { hhmmssFromAppSeconds } from "./time";
+import { hhmmssFromAppSeconds } from "./dateTime";
 
 /**
  * Parse TLE line 2 to extract mean motion (orbits per day)

@@ -1,6 +1,6 @@
 import { FunctionComponent, useState, useMemo } from "react";
 import styles from "./crewOnboard.module.css"; // ensure this CSS file exists or adjust accordingly
-import { ddhhmmssBetweenDateStrings, dateTimeStrFromDateAppSeconds } from "utils/time";
+import { ddhhmmssBetweenDateStrings, dateTimeStrFromDateAppSeconds } from "utils/dateTime";
 import ClockInterval from "../clockInterval";
 import { flagUrlByCountryName } from "utils/countries";
 import { useStateClock } from "store/hooks/useStateClock";

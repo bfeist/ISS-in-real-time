@@ -3,7 +3,7 @@
  * Extracted from photosThumbs component for testability.
  */
 
-import { appSecondsFromDateTime } from "./time";
+import { appSecondsFromDateTime } from "./dateTime";
 
 export interface WindowIndices {
   start: number;

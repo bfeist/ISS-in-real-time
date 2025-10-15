@@ -10,11 +10,17 @@ import { useStateClock } from "../../store/hooks/useStateClock";
 import { useStateContentHighlights } from "../../store/hooks/useStateContentHighlights";
 import { useStateSearch } from "../../store/hooks/useStateSearch";
 import { getCrewNormalizedName } from "utils/crew";
+import { dateComponentFromDateTime } from "utils/dateTime";
 import ControlsHeader from "./controlsHeader/controlsHeader";
 
 // Constants for year range and colors (from testtimeline.tsx)
 const START_YEAR = 2000;
 const END_YEAR = 2025;
+
+interface CrewStayRange {
+  arrivalDate: string | null;
+  departureDate: string | null;
+}
 
 const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
   // Global state hooks
@@ -32,11 +38,17 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
 
   // Compute selected crew stays
   // Use normalized names to match crew members across different name format variations
-  const selectedCrewStays = useMemo(() => {
-    if (!crewArrDep || crewArrDep.length === 0 || !selectedCrewMember) return [];
-    return crewArrDep.filter(
-      (item: CrewArrDepItem) => getCrewNormalizedName(item) === selectedCrewMember.name
-    );
+  const selectedCrewStays = useMemo<CrewStayRange[]>(() => {
+    if (!crewArrDep || crewArrDep.length === 0 || !selectedCrewMember) {
+      return [];
+    }
+
+    return crewArrDep
+      .filter((item: CrewArrDepItem) => getCrewNormalizedName(item) === selectedCrewMember.name)
+      .map((stay) => ({
+        arrivalDate: dateComponentFromDateTime(stay.arrivalDate),
+        departureDate: dateComponentFromDateTime(stay.departureDate),
+      }));
   }, [crewArrDep, selectedCrewMember]);
 
   // Check if a date falls within the selected expedition
@@ -86,11 +98,20 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
           }
 
           // Check if crew member was onboard this date
-          const checkDate = new Date(dateStr);
-          const isCrewOnboard = selectedCrewStays.some((stay) => {
-            const arrivalDate = new Date(stay.arrivalDate);
-            const departureDate = new Date(stay.departureDate);
-            return checkDate >= arrivalDate && checkDate <= departureDate;
+          const isCrewOnboard = selectedCrewStays.some(({ arrivalDate, departureDate }) => {
+            if (!arrivalDate && !departureDate) {
+              return false;
+            }
+
+            if (arrivalDate && dateStr < arrivalDate) {
+              return false;
+            }
+
+            if (departureDate && dateStr > departureDate) {
+              return false;
+            }
+
+            return true;
           });
 
           if (isCrewOnboard) {
@@ -180,11 +201,8 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
         });
       }
     }
-
     return combined;
   }, [dataAvailabilityHighlights, contentHighlights, dataAvailabilityItems, selectedNotableMoment]);
-
-  // Handle loading state
   if (isLoadingCombined) {
     return (
       <div className={styles.container}>

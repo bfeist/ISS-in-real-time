@@ -1,4 +1,4 @@
-import { hhmmssFromAppSeconds } from "./time";
+import { hhmmssFromAppSeconds } from "./dateTime";
 
 export const isValidTimestring = (t: string): boolean => {
   if (!t) return false;

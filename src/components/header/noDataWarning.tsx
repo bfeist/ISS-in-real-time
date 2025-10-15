@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import styles from "./noDataWarning.module.css";
 import CloseButton from "../common/closeButton";
 import { useGeneralDataAvailabilities } from "api/useGeneralData";
-import { getLastDateWithData } from "utils/dates";
+import { getLastDateWithData } from "utils/dateTime";
 
 interface NoDataWarningModalProps {
   isOpen: boolean;

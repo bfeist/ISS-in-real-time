@@ -8,7 +8,7 @@ import { useDateCommTranscript } from "api/useDateSpecificData";
 import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
 import { useDateCacheManagement } from "api/useDateCacheManagement";
 import { useParams } from "react-router-dom";
-import { appSecondsFromTimeStr } from "utils/time";
+import { appSecondsFromTimeStr } from "utils/dateTime";
 import { parseDateTimeSlug } from "utils/params";
 import { calcDayNight } from "utils/day-night";
 import { findClosestEphemeraItem } from "utils/map";

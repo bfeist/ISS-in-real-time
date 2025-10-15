@@ -2,7 +2,7 @@ import { FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowsSpin } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photosThumbs.module.css";
-import { appSecondsFromDateTime, timeComponentFromDateTime } from "utils/time";
+import { appSecondsFromDateTime, timeComponentFromDateTime } from "utils/dateTime";
 import { useStateClock } from "store/hooks/useStateClock";
 import { isIosSafari } from "utils/device";
 

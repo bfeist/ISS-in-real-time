@@ -4,7 +4,7 @@ import { faExternalLinkAlt, faExpand, faCamera } from "@fortawesome/free-solid-s
 import styles from "./photos.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
-import { appSecondsFromDateTime } from "utils/time";
+import { appSecondsFromDateTime } from "utils/dateTime";
 import { generateEarthPhotoSourceUrl } from "utils/photosEarth";
 import ClockInterval from "./clockInterval";
 import PhotoToggle from "./photoToggle";

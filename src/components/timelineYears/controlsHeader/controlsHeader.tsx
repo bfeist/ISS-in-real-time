@@ -2,7 +2,7 @@ import { FunctionComponent, useState, useEffect, useRef } from "react";
 import styles from "./controlsHeader.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
-import { hhmmssFromAppSeconds } from "utils/time";
+import { hhmmssFromAppSeconds } from "utils/dateTime";
 import {
   faPlay,
   faPause,

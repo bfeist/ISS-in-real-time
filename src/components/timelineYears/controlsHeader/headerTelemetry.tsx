@@ -3,7 +3,7 @@ import styles from "./headerTelemetry.module.css";
 import * as satellite from "satellite.js";
 import { findClosestEphemeraItem } from "utils/map";
 import { calculateCurrentOrbitNumber, formatOrbitNumber } from "utils/orbit";
-import { hhmmssFromAppSeconds } from "utils/time";
+import { hhmmssFromAppSeconds } from "utils/dateTime";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useDateEphemera } from "api/useDateSpecificData";

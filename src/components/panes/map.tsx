@@ -18,7 +18,7 @@ import VectorSourceOL from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import Terminator from "utils/terminator";
 import { containsCoordinate } from "ol/extent";
-import { hhmmssFromAppSeconds } from "utils/time";
+import { hhmmssFromAppSeconds } from "utils/dateTime";
 import {
   getCurrentAndAdjacentPhotos,
   calculateRectangleBounds,

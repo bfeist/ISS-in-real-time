@@ -1,5 +1,5 @@
 import { createDateTimeSlug } from "./params";
-import { hhmmssFromAppSeconds } from "./time";
+import { hhmmssFromAppSeconds } from "./dateTime";
 
 /**
  * Generates a shareable URL for the current ISS view

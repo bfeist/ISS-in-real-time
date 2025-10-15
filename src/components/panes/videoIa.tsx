@@ -2,7 +2,7 @@ import { FunctionComponent, useEffect, useRef, useState, useMemo } from "react";
 import styles from "./videoIa.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
-import { appSecondsFromTimeStr } from "utils/time";
+import { appSecondsFromTimeStr } from "utils/dateTime";
 import ClockInterval from "./clockInterval";
 import { getBaseStaticUrl } from "utils/api";
 import {

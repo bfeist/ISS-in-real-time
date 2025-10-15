@@ -5,7 +5,7 @@ import styles from "./videoNone.module.css";
 import IconButton from "components/common/iconButton";
 import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
 import { useStateClock } from "store/hooks/useStateClock";
-import { appSecondsFromTimeStr } from "utils/time";
+import { appSecondsFromTimeStr } from "utils/dateTime";
 
 // Type for combined video items with start time
 type CombinedVideo = {

@@ -15,7 +15,7 @@ import { useStateToggle } from "../../../store/hooks/useStateToggle";
 import { useStateClock } from "../../../store/hooks/useStateClock";
 import { useStateHover } from "../../../store/hooks/useStateHover";
 import DateTooltip from "../dateTooltip/dateTooltip";
-import { appSecondsFromDateTime } from "../../../utils/time";
+import { appSecondsFromDateTime } from "../../../utils/dateTime";
 import { COLORS } from "./yearCanvas";
 import {
   MEGA_OVERLAY_CELL_GAP,

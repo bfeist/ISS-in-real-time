@@ -12,7 +12,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import NoDataWarningModal from "components/header/noDataWarning";
 import { useGeneralDataAvailabilities } from "api/useGeneralData";
-import { getLastDateWithData } from "utils/dates";
+import { getLastDateWithData } from "utils/dateTime";
 import { generateShareUrl } from "utils/params";
 import dayjs from "dayjs";
 import ShareModal from "./share";

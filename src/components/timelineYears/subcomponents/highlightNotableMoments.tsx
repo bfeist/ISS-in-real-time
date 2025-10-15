@@ -5,7 +5,7 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { useGeneralNotableMoments } from "api/useGeneralData";
 import HighlightType, { HighlightTypeConfig } from "./highlightType";
 import { useStateToggle } from "store/hooks/useStateToggle";
-import { appSecondsFromDateTime } from "utils/time";
+import { appSecondsFromDateTime } from "utils/dateTime";
 
 interface HighlightNotableMomentsProps {}
 

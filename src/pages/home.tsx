@@ -8,7 +8,7 @@ import { useStateToggle } from "../store/hooks/useStateToggle";
 import Header from "components/header/header";
 import NoDateSelected from "../components/dayLayout/noDateSelected";
 import { parseDateTimeSlug } from "../utils/params";
-import { appSecondsFromTimeStr } from "../utils/time";
+import { appSecondsFromTimeStr } from "../utils/dateTime";
 import TimelineYears2Container from "components/timelineYears/timelineYearsContainer";
 
 const HomePage: FunctionComponent = (): JSX.Element => {

@@ -1,4 +1,4 @@
-import { appSecondsFromDateTime } from "./time";
+import { appSecondsFromDateTime } from "./dateTime";
 
 export interface PhotoRectangleBounds {
   west: number;

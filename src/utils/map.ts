@@ -1,4 +1,4 @@
-import { findClosestDate } from "./time";
+import { findClosestDate } from "./dateTime";
 import { getLatLngObj } from "tle.js";
 
 export const findClosestEphemeraItem = (

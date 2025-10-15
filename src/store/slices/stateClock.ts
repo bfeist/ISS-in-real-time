@@ -1,6 +1,5 @@
 import { StateCreator } from "zustand";
-import { getNextDay } from "../../utils/dates";
-import { hhmmssFromAppSeconds } from "../../utils/time";
+import { getNextDay, hhmmssFromAppSeconds } from "../../utils/dateTime";
 import { createDateTimeSlug } from "../../utils/params";
 
 /** Options controlling URL update behaviour when adjusting clock selections. */

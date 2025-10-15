@@ -19,7 +19,7 @@ import * as satellite from "satellite.js";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateToggle } from "store/hooks/useStateToggle";
-import { hhmmssFromAppSeconds } from "utils/time";
+import { hhmmssFromAppSeconds } from "utils/dateTime";
 import { useDateEphemera, useDateEarthPhotography, useLiveTle } from "api/useDateSpecificData";
 import {
   getCurrentAndAdjacentPhotos,
