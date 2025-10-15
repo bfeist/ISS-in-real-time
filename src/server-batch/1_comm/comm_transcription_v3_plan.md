@@ -14,33 +14,47 @@
 ## V3 High-Level Workflow
 
 ```
-ZIP archive → Stage 1 (Transcribe) → Stage 2 (Utterance builder) → Stage 3 (Web packaging)
+ZIP archive → Stage 1 (Extract & Normalize) → Stage 2 (Transcribe) → Stage 3 (Utterance builder) → Stage 4 (Web packaging)
 ```
 
 Each stage should be resumable and cache its artifact outputs so the pipeline can be restarted without recomputing upstream work.
 
-### Stage 1 – Transcribe Only
+### Stage 1 – Extract & Normalize Audio
 
 **Input**: IA zip (Space-to-Ground or Air/Downlink-Ground).  
 **Output (per WAV inside the zip)**:
 
 - Mono AAC (ADTS) file stored in staging (e.g., `current_ia_zip_wavs/<zip_date>/raw/`).
+- Optional manifest (YAML/JSON) summarizing extracted files (channel, original duration, checksum) for Stage 2 hand-off.
+
+**Key notes**:
+
+- Unzip and transcode using a CPU/IO-bound worker pool so the GPU can remain dedicated to downstream transcription.
+- Convert audio to mono 32 kHz AAC once at a high constant bitrate (e.g., 160–192 kbps) to avoid bloating storage while remaining perceptually lossless for downstream segmenting. Retain original filenames to preserve linkage back to IA sources.
+- Store outputs under `1_comm_raw_aacs/<YYYY>/<MM>/<DD>/<zip_basename>/` so individual IA archives retain their grouping while Stage 2 can glob by date.
+- Emit `_stage1_extract.in-progress` markers at start and `_stage1_extract.done` with a manifest when every WAV in the archive is extracted. Stage 2 only runs when the `.done` marker is present and no `.in-progress` marker exists.
+
+### Stage 2 – Transcribe Only
+
+**Input**: Stage 1 AAC artifacts.  
+**Output (per AAC inside the zip)**:
+
 - WhisperX JSON containing:
   - Full segments, word-level timestamps (`segments[].words[]`) in source language.
   - Alignment metadata (speaker/channel descriptor, CT start time, UTC conversion).
   - Translation segments (if non-English) kept separate from source segments.
-- Optional manifest (YAML/JSON) summarizing file-level metadata for Stage 2.
+- Optional manifest (YAML/JSON) summarizing file-level metadata for Stage 3.
 
 **Key notes**:
 
-- Convert audio to mono 32 kHz AAC once at a high constant bitrate (e.g., 160–192 kbps) to avoid bloating storage while remaining perceptually lossless for downstream segmenting. Retain original filenames to preserve linkage back to IA sources.
 - Fix CT→UTC conversion: treat source timestamps as Central Time (America/Chicago), convert via `pendulum`/`zoneinfo`, and allow day rollover before serializing ISO Z timestamps.
-- Replace the logging database dependency with file-based markers: write a `_stage1.in-progress` file while processing a zip, emit `_stage1.done` plus a manifest (YAML/JSON) describing emitted AAC/JSON artifacts once all channels succeed. Downstream stages consult these markers and the manifest instead of SQLite status.
-- Keep Stage 1 GPU-bound work efficient by batching via WhisperX with configurable `batch_size` and `chunk_length`. Profile `large-v3` and confirm GPU memory budgets.
+- Replace the logging database dependency with file-based markers: write a `_stage2_transcribe.in-progress` file while processing a zip, emit `_stage2_transcribe.done` plus a manifest describing emitted JSON artifacts once all channels succeed. Downstream stages consult these markers and the manifest instead of SQLite status.
+- Keep Stage 2 GPU-bound work efficient by batching via WhisperX with configurable `batch_size` and `chunk_length`. Profile `large-v3` and confirm GPU memory budgets. With extraction decoupled, the GPU should stay saturated while CPU workers prep the next batch of AAC assets.
+- Persist transcription artifacts in `2_comm_transcribe/<YYYY>/<MM>/<DD>/<zip_basename>/`, keeping JSON aligned with the source AAC filenames for straightforward Stage 3 lookup.
 
-### Stage 2 – Transcript → Utterances
+### Stage 3 – Transcript → Utterances
 
-**Input**: Stage 1 artifacts (AAC + JSON).  
+**Input**: Stage 2 artifacts (AAC + JSON).  
 **Output**: Per-utterance AAC clips (web bitrate) and JSON payloads with aligned text/metadata.
 
 Steps:
@@ -79,9 +93,11 @@ Steps:
    ```
    Include offsets relative to the clip and relative to the original file for traceability.
 
-### Stage 3 – Utterances → Web Package
+- Write Stage 3 outputs into `3_transcripts_aacs/<YYYY>/<MM>/<DD>/`, mirroring the daily layout expected by Stage 4 while keeping utterance AAC and JSON pairs side-by-side.
 
-**Input**: Utterance AAC + JSON from Stage 2.  
+### Stage 4 – Utterances → Web Package
+
+**Input**: Utterance AAC + JSON from Stage 3.  
 **Output**: Per-day CSV (web schema), consolidated manifest, copied AAC assets.
 
 -Recommended steps (largely satisfied by the existing `3_web_comm.py` implementation):
@@ -93,7 +109,7 @@ Steps:
 
 `3_web_comm.py` already performs these responsibilities reliably. For V3 we only need to ensure:
 
-- Stage 2 emits utterance JSON fields that map cleanly to the expectations in `create_daily_transcript` (e.g., `utteranceTime`, `segments`, `origLangSegments`, AAC filename parity).
+- Stage 3 emits utterance JSON fields that map cleanly to the expectations in `create_daily_transcript` (e.g., `utteranceTime`, `segments`, `origLangSegments`, AAC filename parity).
 - Any new per-utterance metadata we introduce is either ignored safely or added to the CSV schema intentionally.
 - If Clip filenames move to UTC naming, update the script’s invalid-utterance filter or filename construction if required (currently assumes `.json` → `.aac` suffix swap).
 - Consider logging or manifest output summarizing skipped invalid utterances as a lightweight QC signal when rerunning historical ranges.
@@ -109,33 +125,39 @@ Steps:
 
 ## Data Management & Naming
 
-- Preserve original IA filenames in Stage 1 outputs (`<basename>.aac`/`.json`).
-- Generate UTC-based filenames for Stage 2 clips: `<YYYY-MM-DDTHH-MM-SSZ>-<descriptor>-utc.aac`.
-- Maintain manifest files (`manifest.json`) per Stage 1 zip (and optionally per date), listing derived files and status.
-- Use lightweight marker files to indicate lifecycle state (`_stage1.in-progress`, `_stage1.done`, `_stage2.in-progress`, `_stage2.done`). Each stage scans the previous stage’s directory tree and only picks up folders where the required `*.done` marker is present and the sibling `*.in-progress` marker is absent.
+- Preserve original IA filenames in Stage 1 AAC outputs (`<basename>.aac`) and Stage 2 JSON outputs (`<basename>.json`).
+- Generate UTC-based filenames for Stage 3 clips: `<YYYY-MM-DDTHH-MM-SSZ>-<descriptor>-utc.aac`.
+- Maintain manifest files (`manifest.json`) per Stage 1 zip (and optionally per date), listing derived files and status, plus stage-specific manifests when Stage 2 and Stage 3 complete.
+- Adopt date-partitioned roots ahead of the web assets stage:
+  - Stage 1 → `1_comm_raw_aacs/<YYYY>/<MM>/<DD>/<zip_basename>/`
+  - Stage 2 → `2_comm_transcribe/<YYYY>/<MM>/<DD>/<zip_basename>/`
+  - Stage 3 → `3_transcripts_aacs/<YYYY>/<MM>/<DD>/`
+    These mirror the downstream `comm_transcripts_aacs/<YYYY>/<MM>/<DD>/` layout, easing Stage 4 copy/link operations.
+- Use lightweight marker files to indicate lifecycle state (`_stage1_extract.*`, `_stage2_transcribe.*`, `_stage3_chunk.*`). Each stage scans the previous stage’s directory tree and only picks up folders where the required `.done` marker is present and the sibling `.in-progress` marker is absent.
 - Continue using the shared tracking text files for historical parity if needed, but primary resume logic should come from the manifest/marker files so operators can inspect progress without querying the SQLite log.
 
 ## Performance & Reliability Considerations
 
-- Batch unzip + convert: run in worker pool to keep CPU busy while GPU transcribes.
+- Batch unzip + convert: run in a CPU/IO worker pool while Stage 2 saturates the GPU on already-normalized AAC files.
 - GPU watchdog: refresh WhisperX model when memory usage exceeds threshold (reuse v2 logic with `GPU_MEMORY_WARN_RATIO`/`GPU_MEMORY_RELOAD_RATIO`).
-- Resume capability: Stage 1 and Stage 2 scan for manifest/marker files and skip work unless a re-run is requested (`--force`). Stage 2 verifies each utterance JSON/AAC pair before marking its `_stage2.done` file.
-- Concurrency: allow Stage 2 to operate on any folder where `_stage1.done` exists and `_stage1.in-progress` does not; Stage 3 waits for `_stage2.done`. Writers should create the `.in-progress` marker before work begins and remove it atomically after writing `.done`.
+- Resume capability: Stages 1–3 scan for manifest/marker files and skip work unless a re-run is requested (`--force`). Stage 3 verifies each utterance JSON/AAC pair before marking its `_stage3_chunk.done` file.
+- Concurrency: allow Stage 2 to operate on any folder where `_stage1_extract.done` exists and `_stage1_extract.in-progress` does not; Stage 3 waits for `_stage2_transcribe.done`. Writers should create the `.in-progress` marker before work begins and remove it atomically after writing `.done`.
 - Diagnostics: include per-stage logging (Rich handler) and summary stats for each zip/date group.
 - Testing: create integration tests using a small fixture zip to validate CT→UTC rollover and translation chunking logic.
 
 ## Reprocessing Strategy
 
-1. Run Stage 1 across historical archives, storing outputs in a new root (e.g., `comm_transcripts_aacs_v3/raw_full/`).
-2. Stage 2 iterates over Stage 1 manifest inventory, producing utterances into `comm_transcripts_aacs_v3/utterances/`.
-3. Stage 3 builds CSVs and copies audio into the structure expected by the web app.
-4. Verify by comparing sample days against v1/v2 outputs (check chronology, text parity, translation coverage).
+1. Run Stage 1 across historical archives, storing normalized AAC outputs in `1_comm_raw_aacs/<YYYY>/<MM>/<DD>/<zip_basename>/`.
+2. Stage 2 consumes the Stage 1 manifest inventory, emitting WhisperX JSON (and updated manifests) into `2_comm_transcribe/<YYYY>/<MM>/<DD>/<zip_basename>/`.
+3. Stage 3 iterates over Stage 2 artifacts, producing utterance clips and JSON into `3_transcripts_aacs/<YYYY>/<MM>/<DD>/`.
+4. Stage 4 builds CSVs and copies audio into the existing web asset layout `comm_transcripts_aacs/<YYYY>/<MM>/<DD>/`.
+5. Verify by comparing sample days against v1/v2 outputs (check chronology, text parity, translation coverage).
 
 ## Outstanding Questions / Next Steps
 
 1. Finalize silence threshold and maximum-duration rules (consider channel-specific overrides if needed).
-2. Determine storage location and retention policy for Stage 1 AAC/JSON artifacts (long-term cache vs temporary workspace pruning).
+2. Determine storage location and retention policy for Stage 1 AAC and Stage 2 JSON artifacts (long-term cache vs temporary workspace pruning).
 3. Validate that the TalkyBot API (or other downstream consumers) can ingest the new schema without change.
 4. Evaluate if alignment fallback (when alignment model missing) should revert to segment-level timestamps or re-run on CPU.
 
-Once these decisions are finalized, we can translate this plan into code modules (`stage1_transcribe.py`, `stage2_chunk.py`, `stage3_package.py`) and iterate.
+Once these decisions are finalized, we can translate this plan into code modules (`stage1_extract.py`, `stage2_transcribe.py`, `stage3_chunk.py`, `stage4_package.py`) and iterate.
