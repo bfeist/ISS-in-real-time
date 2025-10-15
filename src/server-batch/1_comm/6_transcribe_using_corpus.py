@@ -2294,7 +2294,6 @@ def export_utterances_with_ffmpeg(
     if not jobs:
         return True
 
-    # Check if ffmpeg is available on PATH
     ffmpeg_exe = shutil.which("ffmpeg")
     if not ffmpeg_exe:
         logger.error(
@@ -2302,6 +2301,64 @@ def export_utterances_with_ffmpeg(
         )
         return False
 
+    job_list = list(jobs)
+    batches, over_limit = _chunk_ffmpeg_jobs(ffmpeg_exe, source_wav_path, job_list)
+    if over_limit:
+        logger.warning("ffmpeg command length still exceeds limit; using fallback")
+        return False
+    if len(batches) > 1:
+        logger.debug(
+            "Split ffmpeg export into %d batch(es) for %s",
+            len(batches),
+            source_wav_path.name,
+        )
+        batch_sizes = ", ".join(str(len(batch)) for batch in batches)
+        console.print(
+            f"[cyan]Batching ffmpeg export for {source_wav_path.name}: {len(batches)} batches ({batch_sizes})[/]"
+        )
+
+    is_windows = sys.platform.startswith("win")
+    for batch_index, batch in enumerate(batches, start=1):
+        if len(batches) > 1:
+            console.print(
+                f"[cyan]Running ffmpeg batch {batch_index}/{len(batches)} with {len(batch)} job(s)[/]"
+            )
+        cmd = _build_ffmpeg_command(ffmpeg_exe, source_wav_path, batch)
+        if _command_length_exceeds_limit(cmd):
+            logger.warning(
+                "ffmpeg command length exceeded limit after batching; using fallback"
+            )
+            return False
+        try:
+            subprocess.run(cmd, check=True, shell=is_windows)
+        except FileNotFoundError:
+            logger.error(
+                "ffmpeg executable not found during execution; falling back to pydub export"
+            )
+            return False
+        except subprocess.CalledProcessError as exc:
+            logger.error(
+                "ffmpeg export failed for %s (code %s)",
+                source_wav_path.name,
+                exc.returncode,
+            )
+            return False
+
+        missing_outputs = [job for job in batch if not job["aac_path"].exists()]
+        if missing_outputs:
+            logger.error(
+                "ffmpeg completed but %d AAC file(s) missing: %s",
+                len(missing_outputs),
+                ", ".join(job["aac_path"].name for job in missing_outputs),
+            )
+            return False
+
+    return True
+
+
+def _build_ffmpeg_command(
+    ffmpeg_exe: str, source_wav_path: Path, jobs: Sequence[dict]
+) -> List[str]:
     filter_parts: List[str] = []
     cmd: List[str] = [
         ffmpeg_exe,
@@ -2321,7 +2378,8 @@ def export_utterances_with_ffmpeg(
             f"[0:a]atrim=start={start:.6f}:end={end:.6f},asetpts=PTS-STARTPTS[a{idx}]"
         )
 
-    cmd.extend(["-filter_complex", ";".join(filter_parts)])
+    if filter_parts:
+        cmd.extend(["-filter_complex", ";".join(filter_parts)])
 
     for idx, job in enumerate(jobs):
         cmd.extend(
@@ -2336,33 +2394,66 @@ def export_utterances_with_ffmpeg(
             ]
         )
 
-    try:
-        # On Windows, shell=True can help with PATH resolution
-        is_windows = sys.platform.startswith("win")
-        subprocess.run(cmd, check=True, shell=is_windows)
-    except FileNotFoundError:
-        logger.error(
-            "ffmpeg executable not found during execution; falling back to pydub export"
-        )
-        return False
-    except subprocess.CalledProcessError as exc:
-        logger.error(
-            "ffmpeg export failed for %s (code %s)",
-            source_wav_path.name,
-            exc.returncode,
-        )
-        return False
+    return cmd
 
-    missing_outputs = [job for job in jobs if not job["aac_path"].exists()]
-    if missing_outputs:
-        logger.error(
-            "ffmpeg completed but %d AAC file(s) missing: %s",
-            len(missing_outputs),
-            ", ".join(job["aac_path"].name for job in missing_outputs),
-        )
-        return False
 
-    return True
+def _chunk_ffmpeg_jobs(
+    ffmpeg_exe: str,
+    source_wav_path: Path,
+    jobs: Sequence[dict],
+) -> Tuple[List[List[dict]], bool]:
+    max_len = _ffmpeg_command_length_limit()
+    batches: List[List[dict]] = []
+    current: List[dict] = []
+    force_fallback = False
+
+    for job in jobs:
+        tentative = current + [job]
+        if max_len:
+            tentative_cmd = _build_ffmpeg_command(
+                ffmpeg_exe, source_wav_path, tentative
+            )
+            if _estimate_command_length(tentative_cmd) > max_len:
+                if current:
+                    batches.append(current)
+                    current = [job]
+                    single_cmd = _build_ffmpeg_command(
+                        ffmpeg_exe, source_wav_path, current
+                    )
+                    if _estimate_command_length(single_cmd) > max_len:
+                        batches.append(current)
+                        current = []
+                        force_fallback = True
+                    continue
+                batches.append([job])
+                current = []
+                force_fallback = True
+                continue
+        current = tentative
+
+    if current:
+        batches.append(current)
+
+    return batches, force_fallback
+
+
+def _ffmpeg_command_length_limit() -> Optional[int]:
+    if os.name == "nt":
+        return 30000
+    return None
+
+
+def _estimate_command_length(cmd: Sequence[str]) -> int:
+    if os.name == "nt":
+        return len(subprocess.list2cmdline(cmd))
+    return sum(len(part) + 1 for part in cmd)
+
+
+def _command_length_exceeds_limit(cmd: Sequence[str]) -> bool:
+    max_len = _ffmpeg_command_length_limit()
+    if not max_len:
+        return False
+    return _estimate_command_length(cmd) > max_len
 
 
 def extract_zip_date(zip_name: str) -> dt.datetime:
