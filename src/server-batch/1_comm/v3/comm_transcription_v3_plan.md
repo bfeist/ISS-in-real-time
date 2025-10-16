@@ -55,12 +55,11 @@ Each stage should be resumable and cache its artifact outputs so the pipeline ca
   - Alignment segments with word-level timestamps (`segments[].words[]`).
   - Diarization turns (`diarization[].{speaker,start,end}`) mapped to the same timeline.
   - Metadata for downstream stages (speaker/channel descriptor, CT start time, UTC conversion, audio duration, prompt context used).
-- Optional manifest (YAML/JSON) summarizing file-level metadata for downstream stages.
 
 **Key notes**:
 
 - Fix CT→UTC conversion: treat source timestamps as Central Time (America/Chicago), convert via `pendulum`/`zoneinfo`, and allow day rollover before serializing ISO Z timestamps.
-- Replace the logging database dependency with file-based markers: write a `_stage2_transcribe.in-progress` file while processing a zip, emit `_stage2_transcribe.done` plus a manifest describing emitted JSON artifacts once all channels succeed. Downstream stages consult these markers and the manifest instead of SQLite status.
+- Replace the logging database dependency with file-based markers: write a `_stage2_transcribe.in-progress` file while processing a zip, emit `_stage2_transcribe.done` once all channels succeed. Downstream stages look for the done marker.
 - Keep Stage 2 GPU-bound work efficient by batching via WhisperX with configurable `batch_size` and `chunk_length`. Profile `large-v3` and confirm GPU memory budgets. With extraction decoupled, the GPU should stay saturated while CPU workers prep the next batch of audio assets.
 - After transcription (and translation when needed) completes on GPU, immediately hand off alignment to CPU (or reduced-precision GPU if profiling justifies it) while the GPU fetches the next M4A. Reuse the loaded audio tensor to avoid extra I/O.
 - Run the WhisperX diarization pipeline inside Stage 2 while audio is resident; diarization can share the alignment outputs so we avoid a second WhisperX invocation.
@@ -128,7 +127,7 @@ Steps:
 
 - Preserve original IA filenames in Stage 1 M4A outputs (`<basename>.m4a`) and Stage 2 JSON outputs (`<basename>.json`).
 - Generate UTC-based filenames for Stage 3 clips: `<YYYY-MM-DDTHH-MM-SSZ>-<descriptor>-utc.aac`.
-- Maintain stage-specific manifests for Stage 2 and Stage 3 as needed; Stage 1 relies solely on marker files to advertise readiness.
+- All stages rely solely on marker files to advertise readiness to subsequent stages.
 - Adopt date-partitioned roots ahead of the web assets stage:
   - Stage 1 → `1_comm_raw_m4a/<YYYY>/<MM>/<DD>/`
   - Stage 2 → `2_comm_raw_transcripts/<YYYY>/<MM>/<DD>/`
@@ -140,7 +139,7 @@ Steps:
 
 - Batch unzip + convert: run in a CPU/IO worker pool while Stage 2 saturates the GPU on already-normalized M4A files.
 - GPU watchdog: refresh WhisperX model when memory usage exceeds threshold (reuse v2 logic with `GPU_MEMORY_WARN_RATIO`/`GPU_MEMORY_RELOAD_RATIO`).
-- Resume capability: Stages 1–3 scan for manifest/marker files and skip work unless a re-run is requested (`--force`). Stage 3 verifies each utterance JSON/AAC pair before marking its `_stage3_chunk.done` file.
+- Resume capability: Stages 1–3 scan for marker files and skip work unless a re-run is requested (`--force`). Stage 3 verifies each utterance JSON/AAC pair before marking its `_stage3_chunk.done` file.
 - Concurrency: allow Stage 2 to operate on any folder where `_stage1_extract.done` exists and `_stage1_extract.in-progress` does not. Within Stage 2, dedicate CPU alignment/diarization workers that pull finished GPU decodes so the GPU remains busy. Stage 3 waits for `_stage2_transcribe.done`.
 - Diagnostics: include per-stage logging (Rich handler) and summary stats for each zip/date group.
 - Testing: create integration tests using a small fixture zip to validate CT→UTC rollover and translation chunking logic.
@@ -148,7 +147,7 @@ Steps:
 ## Reprocessing Strategy
 
 1. Run Stage 1 across historical archives, storing normalized M4A outputs in `1_comm_raw_m4a/<YYYY>/<MM>/<DD>/`.
-2. Stage 2 consumes the Stage 1 marker inventory, emitting WhisperX transcription JSON (and updated manifests) into `2_comm_raw_transcripts_raw/<YYYY>/<MM>/<DD>/`.
+2. Stage 2 consumes the Stage 1 marker inventory, emitting WhisperX transcription JSON into `2_comm_raw_transcripts_raw/<YYYY>/<MM>/<DD>/`.
 3. Stage 3 iterates over Stage 2 artifacts, producing utterance clips and JSON into `3_utt_transcripts_aacs/<YYYY>/<MM>/<DD>/`.
 4. Verify by comparing sample days against v1/v2 outputs (check chronology, text parity, translation coverage, speaker labeling).
 
