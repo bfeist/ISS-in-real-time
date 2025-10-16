@@ -24,22 +24,30 @@ Each stage should be resumable and cache its artifact outputs so the pipeline ca
 **Input**: IA zip (Space-to-Ground or Air/Downlink-Ground).  
 **Output (per WAV inside the zip)**:
 
-- Mono AAC (ADTS) file stored in `1_comm_raw_aacs/<YYYY>/<MM>/<DD>/` using the original IA basename.
-- Optional manifest (YAML/JSON) summarizing extracted files (channel, original duration, checksum) for Stage 2 hand-off.
+- Mono M4A (AAC-LC in MP4 container with faststart) stored in `1_comm_raw_m4a/<YYYY>/<MM>/<DD>/` using the original IA basename.
 
 **Key notes**:
 
-- Unzip each archive into a temporary working directory (following the `CURRENT_IA_ZIP_WAVS_WORKING/<date>_wavs` pattern documented in `6_transcribe_using_corpus.py` for reference), then transcode and copy results into the Stage 1 output tree so transient WAVs never co-mingle with the persisted AAC cache.
+- Unzip each archive into a temporary working directory (following the `CURRENT_IA_ZIP_WAVS_WORKING/<date>_wavs` pattern documented in `6_transcribe_using_corpus.py` for reference), then transcode and copy results into the Stage 1 output tree so transient WAVs never co-mingle with the persisted M4A cache.
 - Unzip and transcode using a CPU/IO-bound worker pool so the GPU can remain dedicated to downstream transcription.
-- Convert audio to mono 32 kHz AAC once at a high constant bitrate (e.g., 160–192 kbps) to avoid bloating storage while remaining perceptually lossless for downstream segmenting. Retain original filenames to preserve linkage back to IA sources.
-- Store outputs under `1_comm_raw_aacs/<YYYY>/<MM>/<DD>/`. IA zips almost always map 1:1 with a date, and the preserved basenames prevent collisions when multiple zips share that day.
+- Convert audio to mono 32 kHz AAC-LC once (wrapped in an M4A container) at a high constant bitrate (e.g., 160–192 kbps) to avoid bloating storage while remaining perceptually lossless for downstream segmenting. Retain original filenames to preserve linkage back to IA sources.
+- Store outputs under `1_comm_raw_m4a/<YYYY>/<MM>/<DD>/`. IA zips almost always map 1:1 with a date, and the preserved basenames prevent collisions when multiple zips share that day.
+- Remux with `-movflags +faststart` so the `moov` atom is written at the head of each file, enabling HTTP range-based playback without generating per-utterance clips during extraction.
 - Normalize filenames with the regex-driven rules enumerated in `6_transcribe_using_corpus.py` (e.g., the `parse_wav_filename` pattern set) so Stage 1 emits consistently structured basenames before transcoding; we will re-implement those patterns in v3 rather than importing the existing script, preserving downstream timestamp extraction even when IA zips include legacy naming variants.
-- Emit `_stage1_extract.in-progress` markers at start and `_stage1_extract.done` with a manifest when every WAV in the archive is extracted. Stage 2 only runs when the `.done` marker is present and no `.in-progress` marker exists.
+- When a zip fails (invalid archive, undecodable WAV, regex mismatch, etc.), append a record to a pipe-delimited CSV log (e.g., `stage1_bad_zips.csv`) with fields `zip_iso_date|zip_filename|error_message|logged_at_iso`. This keeps a lightweight audit trail for retries without depending on a database.
+- Emit `_stage1_extract.<zip-stem>.in-progress` markers at start and `_stage1_extract.<zip-stem>.done` markers when every WAV in the archive is extracted. Stage 2 only runs when the `.done` marker is present and no `.in-progress` marker exists.
+
+#### Stage 1 Prototype Notes
+
+- Initial extractor lives in `src/server-batch/1_comm/v3/stage1_extract.py`; invoke it with the same arguments supported by `6_transcribe_using_corpus.py`.
+- Stage 1 looks for zips in the same IA source directories as v2. Use `python stage1_extract.py --date 2015-01-02` for quick smoke tests; that zip exercises the parser well and keeps runtime reasonable.
+- Marker files live directly inside `1_comm_raw_m4a/<YYYY>/<MM>/<DD>/` next to the converted audio, using the `<zip-stem>` suffix for disambiguation when multiple zips feed the same day.
+- Conversion runs concurrently via `STAGE1_MAX_WORKERS` (defaults to a handful of CPU threads). Adjust `STAGE1_AAC_BITRATE` (defaults to `160k`) if tighter encoding budgets are acceptable.
 
 ### Stage 2 – Transcribe, Align, Diarize
 
-**Input**: Stage 1 AAC artifacts.  
-**Output (per AAC inside the zip)**:
+**Input**: Stage 1 M4A artifacts.  
+**Output (per M4A inside the zip)**:
 
 - WhisperX JSON bundle containing:
   - Full decoded segments (`segments[]`) in source language.
@@ -53,19 +61,19 @@ Each stage should be resumable and cache its artifact outputs so the pipeline ca
 
 - Fix CT→UTC conversion: treat source timestamps as Central Time (America/Chicago), convert via `pendulum`/`zoneinfo`, and allow day rollover before serializing ISO Z timestamps.
 - Replace the logging database dependency with file-based markers: write a `_stage2_transcribe.in-progress` file while processing a zip, emit `_stage2_transcribe.done` plus a manifest describing emitted JSON artifacts once all channels succeed. Downstream stages consult these markers and the manifest instead of SQLite status.
-- Keep Stage 2 GPU-bound work efficient by batching via WhisperX with configurable `batch_size` and `chunk_length`. Profile `large-v3` and confirm GPU memory budgets. With extraction decoupled, the GPU should stay saturated while CPU workers prep the next batch of AAC assets.
-- After transcription (and translation when needed) completes on GPU, immediately hand off alignment to CPU (or reduced-precision GPU if profiling justifies it) while the GPU fetches the next AAC. Reuse the loaded audio tensor to avoid extra I/O.
+- Keep Stage 2 GPU-bound work efficient by batching via WhisperX with configurable `batch_size` and `chunk_length`. Profile `large-v3` and confirm GPU memory budgets. With extraction decoupled, the GPU should stay saturated while CPU workers prep the next batch of audio assets.
+- After transcription (and translation when needed) completes on GPU, immediately hand off alignment to CPU (or reduced-precision GPU if profiling justifies it) while the GPU fetches the next M4A. Reuse the loaded audio tensor to avoid extra I/O.
 - Run the WhisperX diarization pipeline inside Stage 2 while audio is resident; diarization can share the alignment outputs so we avoid a second WhisperX invocation.
-- Persist artifacts in `2_comm_raw_transcripts_raw/<YYYY>/<MM>/<DD>/<zip_basename>/`, storing a consolidated JSON per AAC that includes transcription, alignment, and diarization payloads.
+- Persist artifacts in `2_comm_raw_transcripts_raw/<YYYY>/<MM>/<DD>/<zip_basename>/`, storing a consolidated JSON per audio file that includes transcription, alignment, and diarization payloads.
 
 ### Stage 3 – Transcript → Utterances
 
-**Input**: Stage 2 transcription/alignment/diarization JSON and AAC.
+**Input**: Stage 2 transcription/alignment/diarization JSON and Stage 1 M4A audio.
 **Output**: Per-utterance AAC clips (web bitrate) and JSON payloads with aligned text/metadata.
 
 Steps:
 
-1. Load the Stage 2 JSON bundle, build a unified word timeline using `segments[].words[]` for the source language, and overlay diarization turns. Audio durations come from AAC metadata.
+1. Load the Stage 2 JSON bundle, build a unified word timeline using `segments[].words[]` for the source language, and overlay diarization turns. Audio durations come from M4A metadata (AAC-LC track).
 2. Derive pause-aware intervals:
 
 - Rely on WhisperX word-level timestamps (already VAD-filtered) to infer gaps. Proposed rules, inspired by v1 tolerances: break an utterance when the gap between consecutive words is ≥ 1.0 s, or ≥ 0.6 s when the preceding word ends with sentence punctuation (`.?!`). Hard-cap utterance duration at 60 s—if exceeded, force a split at the nearest punctuation boundary or the midpoint between words.
@@ -118,19 +126,19 @@ Steps:
 
 ## Data Management & Naming
 
-- Preserve original IA filenames in Stage 1 AAC outputs (`<basename>.aac`) and Stage 2 JSON outputs (`<basename>.json`).
+- Preserve original IA filenames in Stage 1 M4A outputs (`<basename>.m4a`) and Stage 2 JSON outputs (`<basename>.json`).
 - Generate UTC-based filenames for Stage 3 clips: `<YYYY-MM-DDTHH-MM-SSZ>-<descriptor>-utc.aac`.
-- Maintain manifest files (`manifest.json`) per Stage 1 zip (and optionally per date), listing derived files and status, plus stage-specific manifests when Stage 2 and Stage 3 complete.
+- Maintain stage-specific manifests for Stage 2 and Stage 3 as needed; Stage 1 relies solely on marker files to advertise readiness.
 - Adopt date-partitioned roots ahead of the web assets stage:
-  - Stage 1 → `1_comm_raw_aacs/<YYYY>/<MM>/<DD>/`
+  - Stage 1 → `1_comm_raw_m4a/<YYYY>/<MM>/<DD>/`
   - Stage 2 → `2_comm_raw_transcripts/<YYYY>/<MM>/<DD>/`
   - Stage 3 → `3_utt_transcripts_aacs/<YYYY>/<MM>/<DD>/`
 - Use lightweight marker files to indicate lifecycle state (`_stage1_extract.*`, `_stage2_transcribe.*`, `_stage3_chunk.*`). Each stage scans the previous stage’s directory tree and only picks up folders where the required `.done` marker is present and the sibling `.in-progress` marker is absent.
-- Continue using the shared tracking text files for historical parity if needed, but primary resume logic should come from the manifest/marker files so operators can inspect progress without querying the SQLite log.
+- Continue using the shared tracking text files for historical parity if needed, but primary resume logic should come from the marker files (and Stage 2/3 manifests) so operators can inspect progress without querying the SQLite log.
 
 ## Performance & Reliability Considerations
 
-- Batch unzip + convert: run in a CPU/IO worker pool while Stage 2 saturates the GPU on already-normalized AAC files.
+- Batch unzip + convert: run in a CPU/IO worker pool while Stage 2 saturates the GPU on already-normalized M4A files.
 - GPU watchdog: refresh WhisperX model when memory usage exceeds threshold (reuse v2 logic with `GPU_MEMORY_WARN_RATIO`/`GPU_MEMORY_RELOAD_RATIO`).
 - Resume capability: Stages 1–3 scan for manifest/marker files and skip work unless a re-run is requested (`--force`). Stage 3 verifies each utterance JSON/AAC pair before marking its `_stage3_chunk.done` file.
 - Concurrency: allow Stage 2 to operate on any folder where `_stage1_extract.done` exists and `_stage1_extract.in-progress` does not. Within Stage 2, dedicate CPU alignment/diarization workers that pull finished GPU decodes so the GPU remains busy. Stage 3 waits for `_stage2_transcribe.done`.
@@ -139,15 +147,15 @@ Steps:
 
 ## Reprocessing Strategy
 
-1. Run Stage 1 across historical archives, storing normalized AAC outputs in `1_comm_raw_aacs/<YYYY>/<MM>/<DD>/`.
-2. Stage 2 consumes the Stage 1 manifest inventory, emitting WhisperX transcription JSON (and updated manifests) into `2_comm_raw_transcripts_raw/<YYYY>/<MM>/<DD>/`.
+1. Run Stage 1 across historical archives, storing normalized M4A outputs in `1_comm_raw_m4a/<YYYY>/<MM>/<DD>/`.
+2. Stage 2 consumes the Stage 1 marker inventory, emitting WhisperX transcription JSON (and updated manifests) into `2_comm_raw_transcripts_raw/<YYYY>/<MM>/<DD>/`.
 3. Stage 3 iterates over Stage 2 artifacts, producing utterance clips and JSON into `3_utt_transcripts_aacs/<YYYY>/<MM>/<DD>/`.
 4. Verify by comparing sample days against v1/v2 outputs (check chronology, text parity, translation coverage, speaker labeling).
 
 ## Outstanding Questions / Next Steps
 
 1. Finalize silence threshold and maximum-duration rules (consider channel-specific overrides if needed).
-2. Determine storage location and retention policy for Stage 1 AAC and Stage 2 JSON artifacts (long-term cache vs temporary workspace pruning).
+2. Determine storage location and retention policy for Stage 1 M4A and Stage 2 JSON artifacts (long-term cache vs temporary workspace pruning).
 3. Validate that the TalkyBot API (or other downstream consumers) can ingest the new schema without change.
 4. Evaluate if alignment fallback (when alignment model missing) should revert to segment-level timestamps or re-run on CPU.
 
