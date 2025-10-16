@@ -310,6 +310,7 @@ class WhisperResources:
             model_type,
             device,
             compute_type=compute_type,
+            vad_options={"vad_type": "silero"},
         )
         return cls(
             base_model=base_model,
@@ -354,6 +355,7 @@ class WhisperResources:
             self.model_type,
             device,
             compute_type=compute_type,
+            vad_options={"vad_type": "silero"},
         )
         self.base_model = base_model
         self.align_models.clear()
@@ -689,6 +691,9 @@ def configure_logging(debug: bool = False) -> None:
     # Suppress noisy torio/torchaudio FFmpeg extension warnings on Windows
     logging.getLogger("torio._extension.utils").setLevel(logging.ERROR)
     logging.getLogger("torchaudio._extension.utils").setLevel(logging.ERROR)
+
+    # Suppress WhisperX language detection messages
+    logging.getLogger("whisperx.asr").setLevel(logging.ERROR)
 
 
 def load_environment(env_path: Path | None = None) -> None:

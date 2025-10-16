@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import inspect
 import json
 import logging
 import os
@@ -13,6 +14,7 @@ import shutil
 import sys
 import zipfile
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -376,6 +378,46 @@ def derive_prompt_root(raw_folder: str | None) -> Path:
 # ---------------------------------------------------------------------------
 
 
+@lru_cache(maxsize=None)
+def _pipeline_supported_transcribe_params(pipeline_cls: type) -> set[str]:
+    """Introspect pipeline's transcribe method to determine supported parameters."""
+    transcribe_fn = getattr(pipeline_cls, "transcribe", None)
+    if not callable(transcribe_fn):
+        return set()
+    try:
+        signature = inspect.signature(transcribe_fn)
+    except (TypeError, ValueError):
+        return set()
+
+    params = set(signature.parameters.keys())
+    params.discard("self")
+    params.discard("args")
+    params.discard("kwargs")
+    return params
+
+
+def transcribe_with_model(pipeline: object, audio, **kwargs):
+    """Call pipeline.transcribe() with only the parameters it actually supports."""
+    transcribe_fn = getattr(pipeline, "transcribe", None)
+    if not callable(transcribe_fn):
+        raise AttributeError(
+            f"Pipeline '{type(pipeline).__name__}' does not expose a callable transcribe() method"
+        )
+
+    supported_params = _pipeline_supported_transcribe_params(type(pipeline))
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k in supported_params}
+
+    dropped_params = sorted(set(kwargs.keys()) - set(filtered_kwargs.keys()))
+    if dropped_params:
+        logger.debug(
+            "Skipping unsupported transcribe kwargs for %s: %s",
+            type(pipeline).__name__,
+            ", ".join(dropped_params),
+        )
+
+    return transcribe_fn(audio, **filtered_kwargs)
+
+
 class AlignmentModelUnavailableError(RuntimeError):
     """Raised when no alignment model exists for a language."""
 
@@ -428,16 +470,10 @@ class WhisperResources:
         self.ensure_model()
         kwargs = {
             "batch_size": self.batch_size,
-            "chunk_length": self.chunk_length,
-            "condition_on_previous_text": False,
-            "beam_size": 2,
-            "best_of": 2,
-            "temperature": 0,
-            "word_timestamps": True,
         }
         if initial_prompt:
             kwargs["initial_prompt"] = initial_prompt
-        return self._model.transcribe(audio, **kwargs)
+        return transcribe_with_model(self._model, audio, **kwargs)
 
     def get_alignment_model(self, language_code: str) -> Tuple[object, dict]:
         key = language_code or "en"
@@ -484,11 +520,26 @@ class WhisperResources:
 
     def diarize(self, audio_path: Path) -> Dict[str, object] | List[dict]:
         if self._diarization_pipeline is None:
+            if not self.hf_token:
+                raise RuntimeError(
+                    "HF_TOKEN or HUGGINGFACEHUB_API_TOKEN environment variable is required for diarization. "
+                    "Visit https://hf.co/settings/tokens to create your access token, "
+                    "then accept the terms at https://hf.co/pyannote/speaker-diarization-3.1"
+                )
             logger.debug("Loading diarization pipeline on %s", self.diarization_device)
-            self._diarization_pipeline = whisperx.DiarizationPipeline(
-                device=self.diarization_device,
-                use_auth_token=self.hf_token,
-            )
+            try:
+                self._diarization_pipeline = whisperx.diarize.DiarizationPipeline(
+                    device=self.diarization_device,
+                    use_auth_token=self.hf_token,
+                )
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Failed to load diarization pipeline. Make sure you have:\n"
+                    f"1. Set HF_TOKEN environment variable\n"
+                    f"2. Accepted terms at https://hf.co/pyannote/speaker-diarization-3.1\n"
+                    f"3. Accepted terms at https://hf.co/pyannote/segmentation-3.0\n"
+                    f"Original error: {exc}"
+                ) from exc
         kwargs: dict[str, object] = {}
         if self.diarization_min_speakers is not None:
             kwargs["min_speakers"] = self.diarization_min_speakers
@@ -552,7 +603,7 @@ def collect_jobs(
         stage2_date_dir = (
             config.stage2_root / iso_date[:4] / iso_date[5:7] / iso_date[8:10]
         )
-        stage2_output_dir = stage2_date_dir / zip_stem
+        stage2_output_dir = stage2_date_dir
 
         job = Stage2Job(
             zip_name=zip_name,
@@ -624,6 +675,70 @@ def parse_date_arg(value: str) -> dt.date:
 def load_audio(audio_path: Path):
     audio = whisperx.load_audio(str(audio_path))
     return audio
+
+
+def display_transcription_summary(
+    audio_path: Path,
+    payload: Dict[str, object],
+) -> None:
+    """Display a summary of transcription results."""
+    console.print(f"\n[bold cyan]Transcription Summary: {audio_path.name}[/bold cyan]")
+
+    timing = payload.get("timing", {})
+    language_info = payload.get("language", {})
+
+    console.print(f"  Duration: {timing.get('duration', 0):.2f}s")
+    console.print(f"  Language: {language_info.get('detected', 'unknown')}")
+
+    segments = payload.get("segments", [])
+    translation_segments = payload.get("translationSegments") or []
+    console.print(f"  Segments: {len(segments)}")
+    if translation_segments:
+        console.print(f"  Translation Segments: {len(translation_segments)}")
+
+    # Show alignment info
+    alignment = payload.get("alignment", {})
+    alignment_meta = alignment.get("metadata", {})
+    if alignment_meta.get("fallback"):
+        console.print(f"  Alignment: [yellow]{alignment_meta['fallback']}[/yellow]")
+    else:
+        console.print("  Alignment: [green]✓[/green]")
+
+    # Show diarization info
+    diarization = payload.get("diarization", {})
+    diarization_segments = diarization.get("segments", [])
+    diarization_meta = diarization.get("metadata", {})
+    if diarization_meta.get("fallback"):
+        console.print(f"  Diarization: [yellow]{diarization_meta['fallback']}[/yellow]")
+    elif diarization_segments:
+        speakers = set()
+        for seg in diarization_segments:
+            if isinstance(seg, dict) and "speaker" in seg:
+                speakers.add(seg["speaker"])
+        console.print(f"  Diarization: [green]✓ ({len(speakers)} speakers)[/green]")
+    else:
+        console.print("  Diarization: [dim]none[/dim]")
+
+    # Display transcript text
+    if segments:
+        console.print("\n[bold]Transcript:[/bold]")
+        for seg in segments:
+            if isinstance(seg, dict):
+                text = seg.get("text", "").strip()
+                if text:
+                    start = seg.get("start", 0)
+                    console.print(f"  [{start:7.2f}s] {text}")
+
+    if translation_segments:
+        console.print("\n[bold]Translation:[/bold]")
+        for seg in translation_segments:
+            if isinstance(seg, dict):
+                text = seg.get("text", "").strip()
+                if text:
+                    start = seg.get("start", 0)
+                    console.print(f"  [{start:7.2f}s] {text}")
+
+    console.print()
 
 
 def process_audio_file(
@@ -748,6 +863,7 @@ def process_job(
     resources: WhisperResources,
     force: bool,
     erase: bool,
+    see_transcriptions: bool = False,
 ) -> bool:
     if job.stage1_in_progress_marker.exists():
         logger.info("Skipping %s; Stage 1 still shows as in progress", job.zip_name)
@@ -813,6 +929,9 @@ def process_job(
             )
             processed_count += 1
 
+            if see_transcriptions:
+                display_transcription_summary(audio_path, payload)
+
         clear_marker(job.stage2_error_marker)
         write_marker(job.stage2_done_marker, iso_utc_now())
         logger.info(
@@ -877,6 +996,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "--newest-first",
         action="store_true",
         help="Process in reverse chronological order (newest first)",
+    )
+    parser.add_argument(
+        "--see-transcriptions",
+        action="store_true",
+        help="Display transcription results after processing each audio file",
     )
     return parser.parse_args(argv)
 
@@ -950,6 +1074,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             resources=resources,
             force=args.force,
             erase=args.erase,
+            see_transcriptions=args.see_transcriptions,
         )
         overall_success = overall_success and job_success
 
