@@ -1,4 +1,4 @@
-import { FunctionComponent, useState, useMemo, useEffect } from "react";
+import { FunctionComponent, useState } from "react";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useGeneralVideoYt, useGeneralVideoIa } from "api/useGeneralData";
 import { appSecondsFromTimeStr } from "utils/dateTime";
@@ -20,19 +20,7 @@ const VideoComponent: FunctionComponent = () => {
 
   const isLoading = isloadingYt || isloadingIa;
 
-  useEffect(() => {
-    const parsedTimestamp = Date.parse(startStopTimestamp);
-    if (Number.isNaN(parsedTimestamp)) {
-      setAppSeconds(Math.min(Math.floor(appSecondsAtStartStop), 86401));
-      return;
-    }
-
-    const secondsSinceStarted = (Date.now() - parsedTimestamp) / 1000;
-    const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);
-    setAppSeconds(Math.min(newAppSeconds, 86401));
-  }, [appSecondsAtStartStop, startStopTimestamp, selectedDate]);
-
-  // Get all videos for the selected date
+  // Get all videos for the selected date - no longer need useMemo since we're passing as props
   const videoYtRecording = videoYt?.find(
     (recording: VideoYtItem) =>
       recording?.ytStartTime.startsWith(selectedDate || "") && recording.duration > 0
@@ -43,11 +31,12 @@ const VideoComponent: FunctionComponent = () => {
   );
 
   // Determine which video should be active based on current appSeconds
-  const activeVideo = useMemo(() => {
-    if (isLoading) return { type: "loading" as const };
+  // No useMemo needed - we recalculate on every render which is fine since appSeconds changes frequently
+  let activeVideo: { type: string; data?: VideoYtItem | VideoIaItem } = { type: "loading" };
 
-    let ytVideoActive = false;
-    let iaVideoActive = false;
+  if (!isLoading) {
+    let activeYtVideo: VideoYtItem | null = null;
+    let activeIaVideo: VideoIaItem | null = null;
 
     // Check if YouTube video should be active
     if (videoYtRecording) {
@@ -56,74 +45,81 @@ const VideoComponent: FunctionComponent = () => {
       const ytEndSeconds = ytStartSeconds + videoYtRecording.duration;
 
       if (appSeconds >= ytStartSeconds && appSeconds <= ytEndSeconds) {
-        ytVideoActive = true;
+        activeYtVideo = videoYtRecording;
       }
     }
 
-    // Check if any IA video should be active
+    // Check if any IA video should be active - find THE specific video
     if (videoIaRecordings && videoIaRecordings.length > 0) {
       for (const video of videoIaRecordings) {
+        // Ensure video has required properties
+        if (!video || !video.time || !video.duration || !video.filename) {
+          console.warn("Invalid IA video item:", video);
+          continue;
+        }
+
         const iaStartSeconds = appSecondsFromTimeStr(video.time);
         const iaEndSeconds = iaStartSeconds + video.duration;
 
         if (appSeconds >= iaStartSeconds && appSeconds <= iaEndSeconds) {
-          iaVideoActive = true;
+          activeIaVideo = video;
           break;
         }
       }
     }
 
     // If both are active at the same time, prefer YouTube (as per original logic)
-    if (ytVideoActive) {
-      return {
-        type: "youtube" as const,
-        data: videoYtRecording,
+    if (activeYtVideo) {
+      activeVideo = {
+        type: "youtube",
+        data: activeYtVideo,
       };
-    }
-
-    if (iaVideoActive) {
-      return {
-        type: "ia" as const,
-        data: videoIaRecordings,
+    } else if (activeIaVideo) {
+      activeVideo = {
+        type: "ia",
+        data: activeIaVideo,
       };
+    } else if (videoYtRecording || (videoIaRecordings && videoIaRecordings.length > 0)) {
+      // If no video is currently active but we have videos for this date
+      activeVideo = { type: "none-available-for-time" };
+    } else {
+      // No videos available for this date at all
+      activeVideo = { type: "none-available" };
     }
-
-    // If no video is currently active but we have videos for this date, show "no video for current time"
-    if (videoYtRecording || (videoIaRecordings && videoIaRecordings.length > 0)) {
-      return { type: "none-available-for-time" as const };
-    }
-
-    // No videos available for this date at all
-    return { type: "none-available" as const };
-  }, [isLoading, videoYtRecording, videoIaRecordings, appSeconds]);
-
-  if (activeVideo.type === "loading") {
-    return <div>Loading video data...</div>;
-  }
-
-  if (activeVideo.type === "youtube" && activeVideo.data) {
-    return (
-      <YtVideoComponent videoId={activeVideo.data.videoId} videoYtRecording={activeVideo.data} />
-    );
-  }
-
-  if (activeVideo.type === "ia" && activeVideo.data) {
-    return <VideoIaComponent videoIaRecordings={activeVideo.data} />;
-  }
-
-  if (activeVideo.type === "none-available-for-time") {
-    return (
-      <>
-        <ClockInterval setAppSeconds={setAppSeconds} />
-        <VideoNone appSeconds={appSeconds} />
-      </>
-    );
   }
 
   return (
     <>
       <ClockInterval setAppSeconds={setAppSeconds} />
-      <VideoNone appSeconds={appSeconds} />
+      {(() => {
+        if (activeVideo.type === "loading") {
+          return <div>Loading video data...</div>;
+        }
+
+        if (activeVideo.type === "youtube" && activeVideo.data) {
+          const ytData = activeVideo.data as VideoYtItem;
+          return (
+            <YtVideoComponent
+              videoId={ytData.videoId}
+              videoYtRecording={ytData}
+              appSeconds={appSeconds}
+            />
+          );
+        }
+
+        if (activeVideo.type === "ia" && activeVideo.data) {
+          const iaData = activeVideo.data as VideoIaItem;
+          return <VideoIaComponent currentVideo={iaData} appSeconds={appSeconds} />;
+        }
+
+        return (
+          <VideoNone
+            appSeconds={appSeconds}
+            videoYtRecording={videoYtRecording}
+            videoIaRecordings={videoIaRecordings}
+          />
+        );
+      })()}
     </>
   );
 };

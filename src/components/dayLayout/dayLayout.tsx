@@ -1,4 +1,4 @@
-import { FunctionComponent, useEffect, useState, useMemo } from "react";
+import { FunctionComponent, useEffect, useState, useMemo, useRef } from "react";
 import styles from "./dayLayout.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateDayNight } from "store/hooks/useStateDayNight";
@@ -169,6 +169,7 @@ const DayLayout: FunctionComponent = () => {
   const { width } = useViewport();
   const isMobile = width < 768;
   const [audioAutoplayAllowed, setAudioAutoplayAllowed] = useState<boolean | null>(null);
+  const initializedDateRef = useRef<string | null>(null);
 
   const parsedDateTimeSlug = useMemo(
     () => (dateTimeSlug ? parseDateTimeSlug(dateTimeSlug) : null),
@@ -262,7 +263,7 @@ const DayLayout: FunctionComponent = () => {
     if (audioAutoplayAllowed || commItems.length === 0) {
       startClock();
     }
-  }, [audioAutoplayAllowed, selectedDate, slugIncludesTime, startClock, commItems]);
+  }, [audioAutoplayAllowed, selectedDate, slugIncludesTime, startClock, commItems.length]);
 
   // Set initial clock position and start the clock when a day loads
   useEffect(() => {
@@ -273,6 +274,17 @@ const DayLayout: FunctionComponent = () => {
       // If the slug included a time we defer to the autoplay handling above
       return;
     }
+
+    // Only initialize the clock position once per date to avoid infinite loops
+    // Allow re-initialization if the notable moment changes
+    const initKey = selectedNotableMoment
+      ? `${selectedDate}-${selectedNotableMoment.datetime}`
+      : selectedDate;
+
+    if (initializedDateRef.current === initKey) {
+      return;
+    }
+    initializedDateRef.current = initKey;
 
     // If the date is a selected notable moment, set clock to that time
     if (selectedNotableMoment && selectedNotableMoment.datetime.startsWith(selectedDate || "")) {
@@ -309,7 +321,7 @@ const DayLayout: FunctionComponent = () => {
     // Start the clock after setting position
     startClock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, dateTimeSlug, videoYtRecording, dataAvailability, selectedNotableMoment]);
+  }, [selectedDate, dateTimeSlug, videoYtRecording, videoIaRecording, selectedNotableMoment]);
 
   // Handle left/right arrow keys to adjust clock by 10 seconds
   useEffect(() => {

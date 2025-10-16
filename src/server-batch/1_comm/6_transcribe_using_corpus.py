@@ -996,6 +996,8 @@ def unzip_ia_zip_wavs(
     parts = [filename[0:2], filename[3:5], filename[6:8]]
     zip_date = f"20{parts[2]}-{parts[0].zfill(2)}-{parts[1].zfill(2)}"
 
+    failed_entries: List[str] = []
+
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         for file_info in zip_ref.infolist():
             if not file_info.filename.lower().endswith(".wav"):
@@ -1056,9 +1058,38 @@ def unzip_ia_zip_wavs(
                     )
                     counter += 1
 
-            with zip_ref.open(file_info) as source_file:
-                with open(destination_file_path, "wb") as target_file:
-                    shutil.copyfileobj(source_file, target_file)
+            try:
+                with zip_ref.open(file_info) as source_file:
+                    with open(destination_file_path, "wb") as target_file:
+                        shutil.copyfileobj(source_file, target_file)
+            except zipfile.BadZipFile as exc:
+                failed_entries.append(original_name)
+                destination_file_path.unlink(missing_ok=True)
+                logger.error(
+                    "CRC error extracting %s from %s: %s; skipping entry",
+                    original_name,
+                    zip_path.name,
+                    exc,
+                )
+                continue
+            except Exception as exc:  # pylint: disable=broad-except
+                failed_entries.append(original_name)
+                destination_file_path.unlink(missing_ok=True)
+                logger.error(
+                    "Failed to extract %s from %s: %s; skipping entry",
+                    original_name,
+                    zip_path.name,
+                    exc,
+                )
+                continue
+
+    if failed_entries:
+        logger.warning(
+            "Skipped %d corrupt or unreadable file(s) from %s: %s",
+            len(failed_entries),
+            zip_path.name,
+            ", ".join(sorted(set(failed_entries))),
+        )
 
 
 def ensure_mono_wav(input_wav_path: Path) -> Optional[Path]:

@@ -359,6 +359,7 @@ def process_zip_archive(
     ensure_directory(output_dir)
     _prepare_working_dir(working_dir)
     extracted_items: list[ExtractedWav] = []
+    skipped_members: list[str] = []
     try:
         with zipfile.ZipFile(zip_path, "r") as archive:
             for member in archive.infolist():
@@ -371,17 +372,57 @@ def process_zip_archive(
                 base_name = os.path.basename(member.filename)
                 target_path = _dedupe_target_path(working_dir, base_name)
 
-                with archive.open(member, "r") as source, target_path.open(
-                    "wb"
-                ) as target:
-                    shutil.copyfileobj(source, target)
+                try:
+                    with archive.open(member, "r") as source, target_path.open(
+                        "wb"
+                    ) as target:
+                        shutil.copyfileobj(source, target)
+                except zipfile.BadZipFile as exc:
+                    skipped_members.append(member.filename)
+                    target_path.unlink(missing_ok=True)
+                    logger.error(
+                        "CRC error extracting %s from %s: %s; skipping entry",
+                        member.filename,
+                        zip_path.name,
+                        exc,
+                    )
+                    continue
+                except Exception as exc:  # pragma: no cover - defensive catch-all
+                    skipped_members.append(member.filename)
+                    target_path.unlink(missing_ok=True)
+                    logger.error(
+                        "Failed to extract %s from %s: %s; skipping entry",
+                        member.filename,
+                        zip_path.name,
+                        exc,
+                    )
+                    continue
 
                 extracted_items.append(
                     ExtractedWav(path=target_path, zip_relative_path=member.filename)
                 )
 
         if not extracted_items:
+            if skipped_members:
+                skipped_unique = sorted(set(skipped_members))
+                raise RuntimeError(
+                    "No WAV files extracted from %s; %d entrie(s) failed integrity checks: %s"
+                    % (
+                        zip_path.name,
+                        len(skipped_unique),
+                        ", ".join(skipped_unique),
+                    )
+                )
             raise RuntimeError(f"No WAV files found in {zip_path.name}")
+
+        if skipped_members:
+            skipped_unique = sorted(set(skipped_members))
+            logger.warning(
+                "Skipped %d corrupt or unreadable WAV entrie(s) from %s: %s",
+                len(skipped_unique),
+                zip_path.name,
+                ", ".join(skipped_unique),
+            )
 
         worker_count = min(max_workers, len(extracted_items)) or 1
         logger.debug(

@@ -1,9 +1,8 @@
-import { FunctionComponent, useEffect, useRef, useState, useMemo } from "react";
+import { FunctionComponent, useEffect, useRef, useState } from "react";
 import styles from "./videoIa.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromTimeStr } from "utils/dateTime";
-import ClockInterval from "./clockInterval";
 import { getBaseStaticUrl } from "utils/api";
 import {
   faVolumeHigh,
@@ -12,23 +11,26 @@ import {
   faCompress,
 } from "@fortawesome/free-solid-svg-icons";
 import IconButton from "../common/iconButton";
-import VideoNone from "./videoNone";
 
 interface VideoIaComponentProps {
-  videoIaRecordings: VideoIaItem[];
+  currentVideo: VideoIaItem;
+  appSeconds: number;
 }
 
-const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRecordings }) => {
+const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({
+  currentVideo,
+  appSeconds,
+}) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const lastSyncTimeRef = useRef<number>(0);
   const lastPlaybackCheckRef = useRef<number>(0);
-  const [appSeconds, setAppSeconds] = useState(0);
+  const isUnmountingRef = useRef<boolean>(false);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [hasWindowFocus, setHasWindowFocus] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
+  const { isRunning } = useStateClock();
   const { videoMute, setVideoMute } = useStateToggle();
   const isMuted = videoMute;
 
@@ -51,45 +53,15 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
     };
   }, []);
 
-  // Initialize appSeconds with the current clock time immediately
+  // No longer need to search for currentVideo - it's passed as a prop!
+  // Removed useMemo
+
+  // Reset error and ready state when video changes (when filename changes)
   useEffect(() => {
-    const calculateCurrentAppSeconds = () => {
-      const secondsSinceStarted = (Date.now() - Date.parse(startStopTimestamp)) / 1000;
-      const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);
-      return Math.min(newAppSeconds, 86401);
-    };
-
-    setAppSeconds(calculateCurrentAppSeconds());
-  }, [appSecondsAtStartStop, startStopTimestamp]);
-
-  // Find the current video based on appSeconds
-  const currentVideo = useMemo(() => {
-    if (!videoIaRecordings.length) return null;
-
-    // Sort by start time
-    const sorted = [...videoIaRecordings].sort(
-      (a, b) => appSecondsFromTimeStr(a.time) - appSecondsFromTimeStr(b.time)
-    );
-
-    // Find a video where start <= appSeconds <= start + duration
-    for (const video of sorted) {
-      const start = appSecondsFromTimeStr(video.time);
-      const end = start + video.duration;
-
-      if (appSeconds >= start && appSeconds <= end) {
-        return video;
-      }
-    }
-
-    // If none found within duration ranges, return null
-    return null;
-  }, [videoIaRecordings, appSeconds]);
-
-  // Reset error and ready state when video changes
-  useEffect(() => {
+    isUnmountingRef.current = false; // Reset unmounting flag for new video
     setVideoError(null);
     setIsReady(false);
-  }, [currentVideo]);
+  }, [currentVideo.filename]);
 
   // Handle mute toggle
   const handleMuteToggle = (event: React.MouseEvent) => {
@@ -134,12 +106,12 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
   useEffect(() => {
     const video = videoRef.current;
     return () => {
+      // Mark that we're unmounting to prevent error handlers from firing
+      isUnmountingRef.current = true;
       if (video) {
         video.pause();
-        video.src = "";
-        video.load(); // This helps ensure the video is fully stopped and resources are freed
-        // Clear any cached reference to prevent memory leaks
-        videoRef.current = null;
+        // Don't clear src - it can cause spurious error events
+        // Just pause and let the element be garbage collected
       }
     };
   }, []);
@@ -245,17 +217,25 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
     syncTime();
   }, [currentVideo, appSeconds, isReady, hasWindowFocus]);
 
-  if (!currentVideo) {
+  if (videoError) {
     return (
-      <>
-        <ClockInterval setAppSeconds={setAppSeconds} />
-        <VideoNone />
-      </>
+      <div style={{ padding: "20px", color: "red" }}>
+        <div>Error loading video: {videoError}</div>
+        <div style={{ fontSize: "12px", marginTop: "10px" }}>
+          Video: {currentVideo?.filename || "unknown"}
+          <br />
+          Date: {currentVideo?.date || "unknown"}
+          <br />
+          Time: {currentVideo?.time || "unknown"}
+        </div>
+      </div>
     );
   }
 
-  if (videoError) {
-    return <div>Error loading video: {videoError}</div>;
+  // Validate currentVideo has required properties
+  if (!currentVideo || !currentVideo.filename) {
+    console.error("Invalid currentVideo passed to VideoIaComponent:", currentVideo);
+    return <div>Invalid video data</div>;
   }
 
   // Construct the video URL using the base static URL
@@ -263,42 +243,64 @@ const VideoIaComponent: FunctionComponent<VideoIaComponentProps> = ({ videoIaRec
   const videoUrl = `${baseStaticUrl}/videoIa/${currentVideo.filename}`;
 
   return (
-    <>
-      <ClockInterval setAppSeconds={setAppSeconds} />
-      <div className={styles.videoContainer}>
-        <video
-          key={currentVideo.filename}
-          ref={videoRef}
-          className={styles.yt} // Reuse the same CSS class for consistent styling
-          controls={false}
-          muted={isMuted}
-          playsInline
-          style={{ width: "100%", height: "100%" }}
-          onError={() => setVideoError(`Failed to load video: ${currentVideo.filename}`)}
-          onCanPlay={() => setIsReady(true)}
-        >
-          <source src={videoUrl} type="video/mp4" />
-          <track kind="captions" srcLang="en" label="No captions available" />
-          Your browser does not support the video tag.
-        </video>
-        <div className={styles.controlsOverlay}>
-          <div className={styles.iconButtonWrapper}>
-            <IconButton
-              icon={isMuted ? faVolumeMute : faVolumeHigh}
-              onClick={handleMuteToggle}
-              // label={isMuted ? "Unmute" : "Mute"}
-            />
-          </div>
-          <div className={styles.iconButtonWrapper}>
-            <IconButton
-              icon={isFullscreen ? faCompress : faExpand}
-              onClick={handleFullscreenToggle}
-              // label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-            />
-          </div>
+    <div className={styles.videoContainer}>
+      <video
+        key={currentVideo.filename}
+        ref={videoRef}
+        className={styles.yt} // Reuse the same CSS class for consistent styling
+        controls={false}
+        muted={isMuted}
+        playsInline
+        style={{ width: "100%", height: "100%" }}
+        onError={(e) => {
+          // Ignore errors if we're unmounting or transitioning
+          if (isUnmountingRef.current) {
+            return;
+          }
+
+          const target = e.target as HTMLVideoElement;
+          const errorDetails = target.error
+            ? `Code: ${target.error.code}, Message: ${target.error.message}`
+            : "Unknown error";
+
+          // Ignore "Empty src" errors - these happen during transitions
+          if (errorDetails.includes("Empty src")) {
+            console.warn("Ignoring empty src error during transition");
+            return;
+          }
+
+          console.error("Video load error:", {
+            filename: currentVideo.filename,
+            url: videoUrl,
+            error: errorDetails,
+            networkState: target.networkState,
+            readyState: target.readyState,
+          });
+          setVideoError(`${currentVideo.filename} - ${errorDetails}`);
+        }}
+        onCanPlay={() => setIsReady(true)}
+      >
+        <source src={videoUrl} type="video/mp4" />
+        <track kind="captions" srcLang="en" label="No captions available" />
+        Your browser does not support the video tag.
+      </video>
+      <div className={styles.controlsOverlay}>
+        <div className={styles.iconButtonWrapper}>
+          <IconButton
+            icon={isMuted ? faVolumeMute : faVolumeHigh}
+            onClick={handleMuteToggle}
+            // label={isMuted ? "Unmute" : "Mute"}
+          />
+        </div>
+        <div className={styles.iconButtonWrapper}>
+          <IconButton
+            icon={isFullscreen ? faCompress : faExpand}
+            onClick={handleFullscreenToggle}
+            // label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          />
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

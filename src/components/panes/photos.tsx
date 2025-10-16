@@ -1,4 +1,4 @@
-import { FunctionComponent, useCallback, useEffect, useMemo, useState } from "react";
+import { FunctionComponent, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faExternalLinkAlt, faExpand, faCamera } from "@fortawesome/free-solid-svg-icons";
 import styles from "./photos.module.css";
@@ -30,6 +30,7 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
   const [clickedPhotoFilename, setClickedPhotoFilename] = useState<string | null>(null);
   const [lastAppSeconds, setLastAppSeconds] = useState<number | null>(null);
   const [showCaption, setShowCaption] = useState(false);
+  const mostRecentImageRef = useRef<string | null>(null);
 
   // Detect touch device
   const isTouchDevice = useMemo(() => "ontouchstart" in window, []);
@@ -147,7 +148,8 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       : null;
 
     if (photoEntries.length === 0) {
-      if (invalidPhotoFallback && invalidPhotoFallback.nasaId !== mostRecentImage?.nasaId) {
+      if (invalidPhotoFallback && mostRecentImageRef.current !== invalidPhotoFallback.nasaId) {
+        mostRecentImageRef.current = invalidPhotoFallback.nasaId;
         setMostRecentImage(invalidPhotoFallback);
       }
       return;
@@ -185,10 +187,11 @@ const Photos: FunctionComponent<{ height?: "tall" | "short" }> = ({ height = "sh
       }
     }
 
-    if (closestImageItem && closestImageItem.nasaId !== mostRecentImage?.nasaId) {
+    if (closestImageItem && mostRecentImageRef.current !== closestImageItem.nasaId) {
+      mostRecentImageRef.current = closestImageItem.nasaId;
       setMostRecentImage(closestImageItem);
     }
-  }, [appSeconds, photoItemsCombined, mostRecentImage, clickedPhotoFilename]);
+  }, [appSeconds, photoItemsCombined, clickedPhotoFilename]);
 
   const handleThumbnailClick = useCallback(
     (item: PhotoItem) => {

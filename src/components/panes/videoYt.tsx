@@ -4,7 +4,6 @@ import styles from "./videoYt.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { appSecondsFromTimeStr } from "utils/dateTime";
-import ClockInterval from "./clockInterval";
 import {
   faVolumeHigh,
   faVolumeMute,
@@ -12,27 +11,27 @@ import {
   faCompress,
   faShare,
 } from "@fortawesome/free-solid-svg-icons";
-import VideoNone from "./videoNone";
 import IconButton from "../common/iconButton";
 
 interface YtVideoComponentProps {
   videoId: string;
   videoYtRecording: VideoYtItem;
+  appSeconds: number;
 }
 
 const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
   videoId,
   videoYtRecording,
+  appSeconds,
 }) => {
   const playerRef = useRef<YouTubePlayer | null>(null);
   const lastSyncTimeRef = useRef<number>(0);
   const lastPlaybackCheckRef = useRef<number>(0);
-  const [appSeconds, setAppSeconds] = useState(0);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [hasWindowFocus, setHasWindowFocus] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const { isRunning, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
+  const { isRunning } = useStateClock();
   const { videoMute, setVideoMute } = useStateToggle();
   const isMuted = videoMute;
 
@@ -71,17 +70,6 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
-
-  // Initialize appSeconds with the current clock time immediately
-  useEffect(() => {
-    const calculateCurrentAppSeconds = () => {
-      const secondsSinceStarted = (Date.now() - Date.parse(startStopTimestamp)) / 1000;
-      const newAppSeconds = Math.floor(appSecondsAtStartStop + secondsSinceStarted);
-      return Math.min(newAppSeconds, 86401);
-    };
-
-    setAppSeconds(calculateCurrentAppSeconds());
-  }, [appSecondsAtStartStop, startStopTimestamp]);
 
   const onPlayerReady = (event: YouTubeEvent) => {
     try {
@@ -380,69 +368,54 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
     };
   }, []);
 
-  const startTimeToUse = videoYtRecording?.derivedStartTime || videoYtRecording.ytStartTime;
-  const ytStartSeconds = startTimeToUse ? appSecondsFromTimeStr(startTimeToUse.split("T")[1]) : 0;
-  // Use the API duration from videoYtRecording instead of the player duration
-  const videoDuration = videoYtRecording?.duration || 0;
-  const isInRange =
-    appSeconds >= ytStartSeconds && // Must be at or after video start time
-    appSeconds <= ytStartSeconds + videoDuration; // Within video duration
-
   return (
-    <>
-      <ClockInterval setAppSeconds={setAppSeconds} />
-      {isInRange ? (
-        <div className={styles.videoContainer}>
-          <YouTube
-            className={`${styles.yt} ${styles.ytNoPointer}`}
-            videoId={videoId}
-            onReady={onPlayerReady}
-            onError={onPlayerError}
-            onStateChange={onPlayerStateChange}
-            opts={{
-              playerVars: {
-                autoplay: 0,
-                controls: 0,
-                rel: 0,
-                showinfo: 0,
-                modestbranding: 1,
-                iv_load_policy: 3,
-              },
-              height: "100%",
-              width: "100%",
-            }}
+    <div className={styles.videoContainer}>
+      <YouTube
+        className={`${styles.yt} ${styles.ytNoPointer}`}
+        videoId={videoId}
+        onReady={onPlayerReady}
+        onError={onPlayerError}
+        onStateChange={onPlayerStateChange}
+        opts={{
+          playerVars: {
+            autoplay: 0,
+            controls: 0,
+            rel: 0,
+            showinfo: 0,
+            modestbranding: 1,
+            iv_load_policy: 3,
+          },
+          height: "100%",
+          width: "100%",
+        }}
+      />
+      <div className={styles.controlsOverlay}>
+        <div className={styles.iconButtonWrapper}>
+          <IconButton
+            icon={isMuted ? faVolumeMute : faVolumeHigh}
+            onClick={handleMuteToggle}
+            tooltipContent="Toggle Mute"
+            // label={isMuted ? "Unmute" : "Mute"}
           />
-          <div className={styles.controlsOverlay}>
-            <div className={styles.iconButtonWrapper}>
-              <IconButton
-                icon={isMuted ? faVolumeMute : faVolumeHigh}
-                onClick={handleMuteToggle}
-                tooltipContent="Toggle Mute"
-                // label={isMuted ? "Unmute" : "Mute"}
-              />
-            </div>
-            <div className={styles.iconButtonWrapper}>
-              <IconButton
-                icon={isFullscreen ? faCompress : faExpand}
-                tooltipContent="Toggle Fullscreen"
-                onClick={handleFullscreenToggle}
-                // label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-              />
-            </div>
-            <div className={styles.iconButtonWrapper}>
-              <IconButton
-                icon={faShare}
-                tooltipContent="Open video on YouTube"
-                onClick={handleShare}
-                // label="Open video on YouTube"
-              />
-            </div>
-          </div>
         </div>
-      ) : (
-        <VideoNone />
-      )}
-    </>
+        <div className={styles.iconButtonWrapper}>
+          <IconButton
+            icon={isFullscreen ? faCompress : faExpand}
+            tooltipContent="Toggle Fullscreen"
+            onClick={handleFullscreenToggle}
+            // label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          />
+        </div>
+        <div className={styles.iconButtonWrapper}>
+          <IconButton
+            icon={faShare}
+            tooltipContent="Open video on YouTube"
+            onClick={handleShare}
+            // label="Open video on YouTube"
+          />
+        </div>
+      </div>
+    </div>
   );
 };
 

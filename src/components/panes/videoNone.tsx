@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faArrowRight, faVideoSlash } from "@fortawesome/free-solid-svg-icons";
 import styles from "./videoNone.module.css";
 import IconButton from "components/common/iconButton";
-import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
 import { useStateClock } from "store/hooks/useStateClock";
 import { appSecondsFromTimeStr } from "utils/dateTime";
 
@@ -16,45 +15,36 @@ type CombinedVideo = {
 
 interface NoVideoProps {
   message?: string;
-  appSeconds?: number;
+  appSeconds: number;
+  videoYtRecording?: VideoYtItem;
+  videoIaRecordings?: VideoIaItem[];
 }
 const VideoNone: FunctionComponent<NoVideoProps> = ({
   message = "Video unavailable at this time",
-  appSeconds: appSecondsProp,
+  appSeconds,
+  videoYtRecording,
+  videoIaRecordings = [],
 }) => {
-  const { data: videoYt = [], isLoading: isloadingYt } = useGeneralVideoYt();
-  const { data: videoIa = [], isLoading: isloadingIa } = useGeneralVideoIa();
-  const { selectedDate, setTimeOnly, appSecondsAtStartStop, startStopTimestamp } = useStateClock();
+  const { setTimeOnly } = useStateClock();
 
-  const isLoading = isloadingYt || isloadingIa;
-
-  // Get all videos for the selected date and combine them
+  // Build combined videos list from props - much simpler now!
   const videosForDate = useMemo<CombinedVideo[]>(() => {
-    if (!selectedDate) return [];
-
     const combined: CombinedVideo[] = [];
 
-    // Add YouTube video if available for this date
-    const ytVideo = videoYt?.find(
-      (recording: VideoYtItem) =>
-        recording?.ytStartTime.startsWith(selectedDate) && recording.duration > 0
-    );
-
-    if (ytVideo) {
-      const startTimeToUse = ytVideo.derivedStartTime || ytVideo.ytStartTime;
+    // Add YouTube video if available
+    if (videoYtRecording) {
+      const startTimeToUse = videoYtRecording.derivedStartTime || videoYtRecording.ytStartTime;
       const startSeconds = appSecondsFromTimeStr(startTimeToUse.split("T")[1]);
       combined.push({
         startSeconds,
-        endSeconds: startSeconds + ytVideo.duration,
+        endSeconds: startSeconds + videoYtRecording.duration,
         type: "youtube",
       });
     }
 
-    // Add all IA videos for this date
-    const iaVideos = videoIa?.filter((recording: VideoIaItem) => recording?.date === selectedDate);
-
-    if (iaVideos) {
-      iaVideos.forEach((video: VideoIaItem) => {
+    // Add all IA videos
+    if (videoIaRecordings) {
+      videoIaRecordings.forEach((video: VideoIaItem) => {
         const startSeconds = appSecondsFromTimeStr(video.time);
         combined.push({
           startSeconds,
@@ -66,19 +56,10 @@ const VideoNone: FunctionComponent<NoVideoProps> = ({
 
     // Sort by start time
     return combined.sort((a, b) => a.startSeconds - b.startSeconds);
-  }, [selectedDate, videoYt, videoIa]);
+  }, [videoYtRecording, videoIaRecordings]);
 
   // Find current video index and position based on current time
   const { currentVideoIndex, isAfterLastVideo } = useMemo(() => {
-    // Get current appSeconds - use prop if provided, otherwise calculate
-    const appSeconds =
-      appSecondsProp !== undefined
-        ? appSecondsProp
-        : (() => {
-            const secondsSinceStarted = (Date.now() - Date.parse(startStopTimestamp)) / 1000;
-            return Math.floor(appSecondsAtStartStop + secondsSinceStarted);
-          })();
-
     // Find which video we're currently in (or would be in)
     let index = -1;
     let afterLast = false;
@@ -106,7 +87,7 @@ const VideoNone: FunctionComponent<NoVideoProps> = ({
     }
 
     return { currentVideoIndex: index, isAfterLastVideo: afterLast };
-  }, [videosForDate, appSecondsAtStartStop, startStopTimestamp, appSecondsProp]);
+  }, [videosForDate, appSeconds]);
 
   // Determine if previous/next videos exist
   const hasPreviousVideo = currentVideoIndex > 0 || (isAfterLastVideo && videosForDate.length > 0);
@@ -157,16 +138,18 @@ const VideoNone: FunctionComponent<NoVideoProps> = ({
         <div className={styles.buttons}>
           <IconButton
             icon={faArrowLeft}
+            style={{ width: "145px" }}
             onClick={() => jumpToVideo("previous")}
             label="Jump to Prev Video"
-            enabled={hasPreviousVideo && !isLoading}
+            enabled={hasPreviousVideo}
           />
           <IconButton
             icon={faArrowRight}
+            style={{ width: "145px" }}
             onClick={() => jumpToVideo("next")}
             label="Jump to Next Video"
             iconRight={true}
-            enabled={hasNextVideo && !isLoading}
+            enabled={hasNextVideo}
           />
         </div>
       )}
