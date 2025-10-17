@@ -51,7 +51,13 @@ def parse_arguments():
         type=str,
         nargs="?",
         default=None,
-        help="Optional: specific date in YYYY-MM-DD format. If not provided, processes from today backwards to START_DATE.",
+        help="Optional: specific date in YYYY-MM-DD format. If not provided, processes from today (or --start-date if specified) backwards to START_DATE.",
+    )
+    parser.add_argument(
+        "--start-date",
+        type=str,
+        default=None,
+        help="Start date in YYYY-MM-DD format. Script will process from this date backwards to START_DATE. Ignored if a specific date is provided.",
     )
     parser.add_argument(
         "--output",
@@ -68,6 +74,11 @@ def parse_arguments():
         "--overwrite-legacy",
         action="store_true",
         help="Reprocess existing manifest files that only have legacy fields (ID and dateTaken). Files with additional metadata will be skipped.",
+    )
+    parser.add_argument(
+        "--overwrite-noncorner",
+        action="store_true",
+        help="Overwrite existing manifest files that don't have corner coordinate data. Files with corner coordinates will be skipped.",
     )
     return parser.parse_args()
 
@@ -558,6 +569,28 @@ def is_legacy_manifest(manifest_file):
         return False
 
 
+def has_corner_coordinates(manifest_file):
+    """
+    Check if a manifest file has corner coordinate data for ALL entries.
+    Returns True if ALL entries have the 'corners' field, False otherwise.
+    """
+    try:
+        with open(manifest_file, "r") as f:
+            data = json.load(f)
+
+        if not isinstance(data, list) or len(data) == 0:
+            return False
+
+        # Check if ALL entries have corner coordinates
+        for entry in data:
+            if "corners" not in entry:
+                return False
+
+        return True
+    except (IOError, json.JSONDecodeError, KeyError):
+        return False
+
+
 def save_manifest(manifest, output_filename):
     try:
         with open(output_filename, "w") as f:
@@ -588,18 +621,32 @@ def main():
             )
             sys.exit(1)
     else:
-        # Process range of dates from today backwards to START_DATE
+        # Process range of dates from start_date backwards to START_DATE
         start_date = datetime.strptime(START_DATE, "%Y-%m-%d")
-        end_date = datetime.strptime(END_DATE, "%Y-%m-%d")
+
+        # Use --start-date if provided, otherwise use today
+        if args.start_date:
+            try:
+                end_date = datetime.strptime(args.start_date, "%Y-%m-%d")
+                console.print(
+                    f"[bold green]Processing dates from {args.start_date} backwards to {START_DATE}[/bold green]"
+                )
+            except ValueError:
+                console.print(
+                    f"[bold red]Error: Invalid --start-date format '{args.start_date}'. Use YYYY-MM-DD format.[/bold red]"
+                )
+                sys.exit(1)
+        else:
+            end_date = datetime.strptime(END_DATE, "%Y-%m-%d")
+            console.print(
+                f"[bold green]Processing dates from {END_DATE} backwards to {START_DATE}[/bold green]"
+            )
 
         dates_to_process = []
         current_date = end_date
         while current_date >= start_date:
             dates_to_process.append(current_date)
             current_date -= timedelta(days=1)
-        console.print(
-            f"[bold green]Processing dates from {END_DATE} backwards to {START_DATE}[/bold green]"
-        )
 
     # Statistics tracking
     stats = {"processed": 0, "skipped": 0, "no_data": 0, "total_photos": 0}
@@ -663,10 +710,23 @@ def main():
                         console.print(
                             f"[cyan]↻ Manifest for {available_date} is legacy (ID+dateTaken only). Reprocessing...[/cyan]"
                         )
+                elif args.overwrite_noncorner:
+                    # Only skip if file has corner coordinate data
+                    if has_corner_coordinates(output_file):
+                        console.print(
+                            f"[yellow]✓ Manifest for {available_date} already has corner coordinates. Skipping.[/yellow]"
+                        )
+                        stats["skipped"] += 1
+                        progress.update(overall_task, advance=1)
+                        continue
+                    else:
+                        console.print(
+                            f"[cyan]↻ Manifest for {available_date} has no corner coordinates. Reprocessing...[/cyan]"
+                        )
                 else:
                     # Skip existing files by default
                     console.print(
-                        f"[yellow]✓ Manifest for {available_date} already exists. Skipping. (Use --overwrite or --overwrite-legacy)[/yellow]"
+                        f"[yellow]✓ Manifest for {available_date} already exists. Skipping. (Use --overwrite, --overwrite-legacy, or --overwrite-noncorner)[/yellow]"
                     )
                     stats["skipped"] += 1
                     progress.update(overall_task, advance=1)
