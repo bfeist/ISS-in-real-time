@@ -78,15 +78,53 @@ To generate all of the data this website needs, run the server_batch scripts in 
 
 This is a very large amount of data and the source systems are constantly changing. Depending how far in the future you are reading this, your mileage may vary.
 
-### Transcription-first pipeline (experimental)
+### Processing Order
 
-- `src/server-batch/1_comm/6_transcribe_using_corpus.py` contains a GPU-oriented transcription-first workflow that reuses daily prompt context. It scans Internet Archive zips from oldest to newest, transcribes each WAV end-to-end with WhisperX once, derives utterance boundaries from alignment, and saves AAC + JSON outputs that match the legacy contract.
-- Usage (after configuring `.env` with the required folder paths):
+The table below captures the current run order for `src/server-batch` scripts that build the public dataset. Script prefixes match their folder numbering. Optional steps are marked inline. Experimental content under `v3`, `ai`, or `wikigrab_v2` is intentionally excluded.
 
-  ```bash
-  C:/Users/Feist/.pyenv/pyenv-win/versions/3.10.11/python.exe src/server-batch/1_comm/6_transcribe_using_corpus.py --include-ag --limit 5
-  ```
-
-  The example above processes the five oldest SG and AG zips. Omit `--include-ag` to limit runs to SG channels.
-
-- The script caches full-file transcription metadata under `F:/tempF/iss_working/current_ia_zip_wavs/<zip>_wavs/cache`, allowing you to tweak segmentation thresholds without re-running WhisperX.
+| Step | Script                                                                  | Purpose                                                                 |
+| ---- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 1    | src/server-batch/1_comm/1_download_individual_IA_zips.py                | Pull individual Internet Archive comm zips into `RAW_AUDIO_FOLDER`.     |
+| 2    | src/server-batch/1_comm/1a_download_collection_IA_zips.py               | Fetch curated collection zips to complement individual downloads.       |
+| 3    | src/server-batch/1_comm/1b_download_via_torrents.py                     | Optional torrent-based downloader for large backfills.                  |
+| 4    | src/server-batch/1_comm/check_zips_against_rawfolders.py                | Verify downloaded comm zips match expected folders before processing.   |
+| 5    | src/server-batch/1_comm/5_corpus_initial_prompt_ai_gen.py               | Generate daily prompt context for transcription runs.                   |
+| 6    | src/server-batch/1_comm/6_transcribe_using_corpus.py                    | Transcribe Internet Archive audio to AAC + JSON using WhisperX.         |
+| 7    | src/server-batch/1_comm/cleanup_existing_translations.py                | Remove stale comm transcripts so regenerated output stays clean.        |
+| 8    | src/server-batch/1_comm/3_web_comm.py                                   | Package transcripts and AAC files into the web-ready `comm/` structure. |
+| 9    | src/server-batch/2_articles/6b_web_activity_summaries.py                | Scrape NASA activity summaries and normalize them to JSON.              |
+| 10   | src/server-batch/2_articles/6c_raw_blog_urls.py                         | Enumerate historical ISS blog URLs to seed downstream fetches.          |
+| 11   | src/server-batch/2_articles/6d_raw_blog_articles.py                     | Download blog article bodies for archival processing.                   |
+| 12   | src/server-batch/2_articles/6f_raw_early_status_urls.py                 | Capture early station status update URLs prior to modern blogs.         |
+| 13   | src/server-batch/2_articles/6g_raw_wayback_url_patterns.py              | Build Wayback Machine patterns for legacy status content.               |
+| 14   | src/server-batch/2_articles/6h_raw_wayback_status_reports.py            | Download status reports from Wayback snapshots.                         |
+| 15   | src/server-batch/2_articles/6i_raw_wayback_to_blogarticles.py           | Map Wayback reports onto canonical blog article records.                |
+| 16   | src/server-batch/2_articles/6j_web_consolidate_blog_articles.py         | Merge raw article sources into web-serving JSON manifests.              |
+| 17   | src/server-batch/2_articles/6k_cdx_wayback_station_timelines_pre2005.py | Build pre-2005 station timeline data from Wayback CDX indexes.          |
+| 18   | src/server-batch/2_articles/6l_cdx_wayback_station_timeline_post2005.py | Extend station timeline aggregation for 2005 onward.                    |
+| 19   | src/server-batch/2_articles/6m_web_station_timelines_from_raw.py        | Emit unified station timeline bundles for the frontend.                 |
+| 20   | src/server-batch/3_flights/5a_web_flights.py                            | Generate primary flight manifest JSON from crew transits.               |
+| 21   | src/server-batch/3_flights/5c_web_flights_supply.py                     | Produce cargo and supply flight manifests.                              |
+| 22   | src/server-batch/3_flights/6_web_crew_arrive_dep_from_flights.py        | Derive crew arrival and departure events from flight data.              |
+| 23   | src/server-batch/3_flights/11_web_expeditions.py                        | Aggregate flight-derived crew information into expedition summaries.    |
+| 24   | src/server-batch/4_photos/9_web_earth_photography.py                    | Query NASA EOL APIs and build daily Earth photography manifests.        |
+| 25   | src/server-batch/4_photos/9b_make_photos_manual_web.py                  | Transform manually curated photo selections into web output.            |
+| 26   | src/server-batch/4_photos/9e_get_jsc_flickr_albums.py                   | List JSC Flickr albums that contain ISS photography.                    |
+| 27   | src/server-batch/4_photos/9f_get_flickr_photos_metadata.py              | Pull Flickr metadata for the album list.                                |
+| 28   | src/server-batch/4_photos/9g_filter_flickr_against_existing_photos.py   | Remove Flickr photos already represented in the NASA catalog.           |
+| 29   | src/server-batch/4_photos/9h_make_flickr_flight_photos_list_using_ai.py | Build flight photo manifests from curated Flickr metadata.              |
+| 30   | src/server-batch/4_photos/9i_web_flickr_flight_photos.py                | Emit web-facing JSON for curated Flickr flight photos.                  |
+| 31   | src/server-batch/4_photos/count_day_most_photos.py                      | Summarize daily photo volume for analytics displays.                    |
+| 32   | src/server-batch/5_video/1_transcode_ia_raw_to_web.py                   | Transcode Internet Archive MP4 files to web-optimized H.264.            |
+| 33   | src/server-batch/5_video/2_create_ia_videos_json.py                     | Generate manifests describing transcoded Internet Archive videos.       |
+| 34   | src/server-batch/5_video/3_web_yt_api_live_recordings_json.py           | Capture YouTube livestream metadata for web playback.                   |
+| 35   | src/server-batch/5_video/4_download_yt_videos.py                        | Download required YouTube recordings to local storage.                  |
+| 36   | src/server-batch/5_video/5_transcribe_yt_videos.py                      | Transcribe legacy YouTube videos (original pipeline).                   |
+| 37   | src/server-batch/5_video/5a_transcribe_yt_videos_v2.py                  | Current YouTube transcription workflow with improved diarization.       |
+| 38   | src/server-batch/5_video/6_web_gen_start_offset_from_transcripts.py     | Compute playback offsets from transcript timing data.                   |
+| 39   | src/server-batch/4_web_eva_info.py                                      | Compile EVA metadata for the public dataset.                            |
+| 40   | src/server-batch/7_web_ephemera.py                                      | Assemble on-this-day content from various ephemera sources.             |
+| 41   | src/server-batch/7a_web_orbit_count.py                                  | Calculate cumulative orbit counts per day.                              |
+| 42   | src/server-batch/10_web_data_availability.py                            | Summarize which data products exist for each calendar day.              |
+| 43   | src/server-batch/11_web_first_comm_each_day.py                          | Track the first available comm clip per day for quick links.            |
+| 44   | src/server-batch/12_make_stats.py                                       | Generate aggregate statistics and sanity-check dashboards.              |
