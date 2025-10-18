@@ -18,8 +18,8 @@ WEB_ASSETS_ROOT = os.getenv("WEB_ASSETS_FOLDER")
 def get_first_comm_for_date(comm_web_dir, date_str):
     """Get the first valid communication entry for a specific date from CSV transcript.
 
-    Prioritizes utterances containing 'DPC' or 'good morning' in the first 10 utterances,
-    otherwise falls back to the first valid utterance.
+    Prioritizes "good morning" utterances around 7:30 AM UTC (between 6:00-9:00 AM).
+    Falls back to the first utterance after 6:00 AM UTC if no "good morning" is found.
     """
     year, month, day = date_str.split("-")
     transcript_file = os.path.join(
@@ -80,26 +80,56 @@ def get_first_comm_for_date(comm_web_dir, date_str):
             if not valid_utterances:
                 return None
 
-            # Look for preferred utterances in the first 10 (or all if fewer than 10)
-            search_limit = min(10, len(valid_utterances))
-            preferred_utterance = None
+            # Look for "good morning" utterances between 6:00 AM and 9:00 AM UTC
+            good_morning_utterances = []
+            first_after_6am = None
 
-            for i in range(search_limit):
-                utterance = valid_utterances[i]
-                text_lower = utterance["text"].lower()
-
-                # Check if text contains "DPC" or "good morning"
-                if "dpc" in text_lower or "good morning" in text_lower:
-                    preferred_utterance = utterance
-                    print(
-                        f"Found preferred utterance at position {i + 1} for {date_str}: '{utterance['text'][:50]}...'"
+            for utterance in valid_utterances:
+                try:
+                    # Parse the utterance time (format: YYYY-MM-DD HH:MM:SS)
+                    utterance_dt = datetime.strptime(
+                        utterance["utteranceTime"], "%Y-%m-%d %H:%M:%S"
                     )
-                    break
+                    hour = utterance_dt.hour
 
-            # Use preferred utterance if found, otherwise use the first valid one
-            selected_utterance = (
-                preferred_utterance if preferred_utterance else valid_utterances[0]
-            )
+                    # Track first utterance after 6 AM
+                    if first_after_6am is None and hour >= 6:
+                        first_after_6am = utterance
+
+                    # Look for "good morning" between 6 AM and 9 AM
+                    if 6 <= hour < 9:
+                        text_lower = utterance["text"].lower()
+                        if "good morning" in text_lower:
+                            # Calculate how close to 7:30 AM (in minutes from midnight)
+                            minutes_from_midnight = (
+                                utterance_dt.hour * 60 + utterance_dt.minute
+                            )
+                            target_minutes = 7 * 60 + 30  # 7:30 AM
+                            distance = abs(minutes_from_midnight - target_minutes)
+                            good_morning_utterances.append((distance, utterance))
+                except (ValueError, AttributeError):
+                    # Skip utterances with invalid time format
+                    continue
+
+            # Select utterance: prefer "good morning" closest to 7:30 AM, else first after 6 AM
+            if good_morning_utterances:
+                # Sort by distance to 7:30 AM and pick the closest
+                good_morning_utterances.sort(key=lambda x: x[0])
+                selected_utterance = good_morning_utterances[0][1]
+                print(
+                    f"Found 'good morning' for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
+                )
+            elif first_after_6am:
+                selected_utterance = first_after_6am
+                print(
+                    f"No 'good morning' found, using first after 6 AM for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
+                )
+            else:
+                # Fallback to the very first utterance if nothing after 6 AM
+                selected_utterance = valid_utterances[0]
+                print(
+                    f"No utterances after 6 AM, using first for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
+                )
 
             # Construct relative path to AAC file for web assets
             year, month, day = date_str.split("-")
