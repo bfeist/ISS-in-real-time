@@ -19,7 +19,8 @@ def get_first_comm_for_date(comm_web_dir, date_str):
     """Get the first valid communication entry for a specific date from CSV transcript.
 
     Prioritizes "good morning" utterances around 7:30 AM UTC (between 6:00-9:00 AM).
-    Falls back to the first utterance after 6:00 AM UTC if no "good morning" is found.
+    If no "good morning" is found, looks for other "morning" utterances in that window.
+    Falls back to the first utterance after 6:00 AM UTC if neither is found.
     """
     year, month, day = date_str.split("-")
     transcript_file = os.path.join(
@@ -82,13 +83,14 @@ def get_first_comm_for_date(comm_web_dir, date_str):
 
             # Look for "good morning" utterances between 6:00 AM and 9:00 AM UTC
             good_morning_utterances = []
+            morning_utterances = []
             first_after_6am = None
 
             for utterance in valid_utterances:
                 try:
-                    # Parse the utterance time (format: YYYY-MM-DD HH:MM:SS)
+                    # Parse the utterance time (format: HH:MM:SS, combine with date from filename)
                     utterance_dt = datetime.strptime(
-                        utterance["utteranceTime"], "%Y-%m-%d %H:%M:%S"
+                        f"{date_str} {utterance['utteranceTime']}", "%Y-%m-%d %H:%M:%S"
                     )
                     hour = utterance_dt.hour
 
@@ -107,22 +109,35 @@ def get_first_comm_for_date(comm_web_dir, date_str):
                             target_minutes = 7 * 60 + 30  # 7:30 AM
                             distance = abs(minutes_from_midnight - target_minutes)
                             good_morning_utterances.append((distance, utterance))
+                        elif "morning" in text_lower:
+                            minutes_from_midnight = (
+                                utterance_dt.hour * 60 + utterance_dt.minute
+                            )
+                            target_minutes = 7 * 60 + 30  # 7:30 AM
+                            distance = abs(minutes_from_midnight - target_minutes)
+                            morning_utterances.append((distance, utterance))
                 except (ValueError, AttributeError):
                     # Skip utterances with invalid time format
                     continue
 
-            # Select utterance: prefer "good morning" closest to 7:30 AM, else first after 6 AM
+            # Select utterance: prefer "good morning" closest to 7:30 AM, then other "morning" entries
             if good_morning_utterances:
                 # Sort by distance to 7:30 AM and pick the closest
                 good_morning_utterances.sort(key=lambda x: x[0])
                 selected_utterance = good_morning_utterances[0][1]
                 print(
-                    f"Found 'good morning' for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
+                    f"Found a morning greeting for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
+                )
+            elif morning_utterances:
+                morning_utterances.sort(key=lambda x: x[0])
+                selected_utterance = morning_utterances[0][1]
+                print(
+                    f"Found a morning greeting for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
                 )
             elif first_after_6am:
                 selected_utterance = first_after_6am
                 print(
-                    f"No 'good morning' found, using first after 6 AM for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
+                    f"No 'good morning' or 'morning' found, using first after 6 AM for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
                 )
             else:
                 # Fallback to the very first utterance if nothing after 6 AM

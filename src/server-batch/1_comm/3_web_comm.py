@@ -57,10 +57,15 @@ def is_invalid_utterance(text):
     return text in textStringsIndicateInvalidUtterance
 
 
-def create_daily_transcript(root_dir, date_str, output_dir):
+def create_daily_transcript(root_dir, date_str, output_dir, overwrite=False):
     # Split the date string into year, month, day
     year, month, day = date_str.split("-")
     dir_path = os.path.join(root_dir, year, month, day)
+    dest_dir = os.path.join(output_dir, year, month, day)
+
+    if overwrite and os.path.exists(dest_dir):
+        shutil.rmtree(dest_dir)
+        print(f"Cleared destination folder: {dest_dir}")
 
     # Initialize a list to collect data and AAC files to copy
     data_list = []
@@ -144,9 +149,7 @@ def create_daily_transcript(root_dir, date_str, output_dir):
                     aac_files_to_copy.append((aac_file_path, aac_filename))
 
     # Write the data to a pipe-delimited file
-    output_file = os.path.join(
-        output_dir, year, month, day, f"_transcript_{date_str}.csv"
-    )
+    output_file = os.path.join(dest_dir, f"_transcript_{date_str}.csv")
 
     # Only write the file if there's data to write
     if data_list:
@@ -170,7 +173,6 @@ def create_daily_transcript(root_dir, date_str, output_dir):
 
     # Now copy all AAC files individually
     if aac_files_to_copy:
-        dest_dir = os.path.join(output_dir, year, month, day)
         os.makedirs(dest_dir, exist_ok=True)
 
         # Use individual file copying for reliable results
@@ -192,7 +194,7 @@ def create_daily_transcript(root_dir, date_str, output_dir):
     return date_str
 
 
-def process_all_transcripts(root_dir, output_dir, end_date=None):
+def process_all_transcripts(root_dir, output_dir, end_date=None, overwrite=False):
     processed_dates = []
     years = sorted(os.listdir(root_dir))
     for year in years:
@@ -222,12 +224,15 @@ def process_all_transcripts(root_dir, output_dir, end_date=None):
                                 )
                             )
 
-                            # Skip only if transcript exists AND there are no SG/DG files
-                            if transcript_exists:
+                            # Skip only if transcript exists and overwrite is not requested
+                            if transcript_exists and not overwrite:
                                 continue
 
                             processed_date = create_daily_transcript(
-                                root_dir, date_str, output_dir
+                                root_dir,
+                                date_str,
+                                output_dir,
+                                overwrite=overwrite,
                             )
                             processed_dates.append(processed_date)
     return processed_dates
@@ -246,6 +251,11 @@ if __name__ == "__main__":
         type=parse_date_arg,
         help="Inclusive end date (YYYY-MM-DD). When used with --start-date, processes EVERY day in the range",
     )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Rebuild output for each processed date by clearing its target directory first",
+    )
     args = parser.parse_args()
 
     if args.start_date and args.end_date:
@@ -253,28 +263,30 @@ if __name__ == "__main__":
         current = args.start_date
         while current <= args.end_date:
             date_str = current.strftime("%Y-%m-%d")
-            processed_date = create_daily_transcript(COMM_RAW, date_str, COMM_WEB)
+            processed_date = create_daily_transcript(
+                COMM_RAW, date_str, COMM_WEB, overwrite=args.overwrite
+            )
             processed_dates.append(processed_date)
             current += timedelta(days=1)
         print(f"Processed dates: {processed_dates}")
     elif args.end_date:
         processed_dates = process_all_transcripts(
-            COMM_RAW, COMM_WEB, end_date=args.end_date
+            COMM_RAW,
+            COMM_WEB,
+            end_date=args.end_date,
+            overwrite=args.overwrite,
         )
         print(
             f"Processed dates up to {args.end_date.strftime('%Y-%m-%d')}: {processed_dates}"
         )
     elif args.date:
-        # Clear destination folder for the date
-        year, month, day = args.date.split("-")
-        dest_dir = os.path.join(COMM_WEB, year, month, day)
-        if os.path.exists(dest_dir):
-            shutil.rmtree(dest_dir)
-            print(f"Cleared destination folder: {dest_dir}")
-
         # Process the specific date
-        processed_date = create_daily_transcript(COMM_RAW, args.date, COMM_WEB)
+        processed_date = create_daily_transcript(
+            COMM_RAW, args.date, COMM_WEB, overwrite=args.overwrite
+        )
         print(f"Processed date: {processed_date}")
     else:
-        processed_dates = process_all_transcripts(COMM_RAW, COMM_WEB)
+        processed_dates = process_all_transcripts(
+            COMM_RAW, COMM_WEB, overwrite=args.overwrite
+        )
         print(f"Processed dates: {processed_dates}")
