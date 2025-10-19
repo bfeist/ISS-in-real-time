@@ -89,7 +89,7 @@
 
 .statsSection {
   /* background: rgb(41 43 58 / 70%); */
-  border: 1px solid var(--grey3);
+  border: 1px solid var(--grey4);
   border-radius: 4px;
   padding: 8px;
 }
@@ -101,7 +101,7 @@
   font-weight: 600;
   text-align: left;
   padding-bottom: 4px;
-  border-bottom: 1px solid var(--grey3);
+  border-bottom: 1px solid var(--grey4);
 }
 
 .statRow {
@@ -119,7 +119,7 @@
 }
 
 .statRow span:first-child {
-  color: var(--grey4);
+  color: var(--grey45);
   font-weight: 500;
 }
 
