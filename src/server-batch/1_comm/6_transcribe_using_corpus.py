@@ -188,6 +188,9 @@ CURRENT_IA_ZIP_WAVS_WORKING = Path(
 CENTRAL_TZ = ZoneInfo("America/Chicago")
 UTC_TZ = dt.timezone.utc
 
+LEGACY_UTC_START_DATE = dt.date(2013, 11, 26)
+LEGACY_UTC_END_DATE = dt.date(2016, 3, 8)
+
 TRANSCRIPTION_VERSION = 2
 ZIP_KIND_DEFAULT_TYPE = {
     "SG": "Space-to-Grounds",
@@ -1236,6 +1239,11 @@ def release_cuda_memory() -> None:
         torch.cuda.empty_cache()
     except Exception:  # pragma: no cover - defensive guard
         logger.debug("torch.cuda.empty_cache() raised unexpectedly", exc_info=True)
+
+
+def should_skip_timezone_correction(comm_datetime: dt.datetime) -> bool:
+    date_value = comm_datetime.date()
+    return LEGACY_UTC_START_DATE <= date_value <= LEGACY_UTC_END_DATE
 
 
 def _is_cuda_error(exc: BaseException) -> bool:
@@ -2702,9 +2710,14 @@ def process_zip_group(
             wav_local = wav_local_candidate or wav_file
             try:
                 start_time_str = wav_local.stem[:17]
-                start_time_local = dt.datetime.strptime(
+                start_time_naive = dt.datetime.strptime(
                     start_time_str, "%Y-%m-%dT%H%M%S"
-                ).replace(tzinfo=CENTRAL_TZ)
+                )
+                if should_skip_timezone_correction(start_time_naive):
+                    # Legacy recordings in this range are already stored in UTC.
+                    start_time_local = start_time_naive.replace(tzinfo=UTC_TZ)
+                else:
+                    start_time_local = start_time_naive.replace(tzinfo=CENTRAL_TZ)
                 descriptor_local = wav_local.stem[18:]
             except ValueError as exc:
                 logger.error("Failed to parse WAV name %s: %s", wav_local.name, exc)

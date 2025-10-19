@@ -91,6 +91,12 @@ def create_daily_transcript(root_dir, date_str, output_dir, overwrite=False):
         with open(file_path, "r", encoding="utf-8") as f:
             json_data = json.load(f)
 
+            # Determine AAC filename: use json_data's filename if present, else assume same as JSON with .aac
+            aac_filename = json_data.get("filename", filename.replace(".json", ".aac"))
+            aac_file_path = os.path.join(dir_path, aac_filename)
+            if not os.path.exists(aac_file_path):
+                continue  # Ignore JSON without matching AAC file. this seems to happen on the v1 transcriptions.
+
             # Extract and normalize 'utteranceTime' (already stored as UTC in source JSON)
             utteranceTime_str = json_data.get("utteranceTime", "")
             utterance_dt = None
@@ -130,9 +136,7 @@ def create_daily_transcript(root_dir, date_str, output_dir, overwrite=False):
             data_list.append(
                 {
                     "utteranceTime": utteranceTime_utc,
-                    "filename": filename.replace(
-                        ".json", ".aac"
-                    ),  # Replace JSON extension with AAC
+                    "filename": aac_filename,  # Use the actual AAC filename
                     "text": text,
                     "textOriginalLang": textOriginalLang,
                     "start": str(start),
@@ -142,11 +146,7 @@ def create_daily_transcript(root_dir, date_str, output_dir, overwrite=False):
             )
 
             # Collect AAC file for batch copying later
-            aac_filename = json_data.get("filename", "")
-            if aac_filename:
-                aac_file_path = os.path.join(dir_path, aac_filename)
-                if os.path.exists(aac_file_path):
-                    aac_files_to_copy.append((aac_file_path, aac_filename))
+            aac_files_to_copy.append((aac_file_path, aac_filename))
 
     # Write the data to a pipe-delimited file
     output_file = os.path.join(dest_dir, f"_transcript_{date_str}.csv")
