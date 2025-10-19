@@ -81,6 +81,17 @@ const useMouseHint = (isTimelineVisible: boolean): MouseHintController => {
   };
 };
 
+const isTouchCapable = (): boolean => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const nav = window.navigator as Navigator & { msMaxTouchPoints?: number };
+  const maxTouchPoints = nav?.maxTouchPoints ?? nav?.msMaxTouchPoints ?? 0;
+
+  return "ontouchstart" in window || maxTouchPoints > 0;
+};
+
 // ---------------------------------------------------------------------------
 // Local mega overlay state controller
 // ---------------------------------------------------------------------------
@@ -330,7 +341,10 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
   const { showHint: showMouseHint, markInteracted: markUserInteracted } =
     useMouseHint(showTimelineYears);
 
-  const [interactionMode, setInteractionMode] = useState<InteractionMode>(() => "mouse");
+  const [isTouchDevice, setIsTouchDevice] = useState(() => isTouchCapable());
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>(() =>
+    isTouchCapable() ? "touch" : "mouse"
+  );
   const ignoreMouseEventsUntilRef = useRef<number>(0);
   const pointerDownRef = useRef(false);
   const pointerPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -370,12 +384,13 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       setInteractionMode((prev) => (prev === mode ? prev : mode));
 
       if (mode === "touch" || mode === "pen") {
+        setIsTouchDevice(true);
         ignoreMouseEventsUntilRef.current = getNow() + 800;
       } else {
         ignoreMouseEventsUntilRef.current = 0;
       }
     },
-    [getNow]
+    [getNow, setIsTouchDevice]
   );
 
   const updateScrollIndicators = useCallback(() => {
@@ -590,6 +605,12 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
         return;
       }
 
+      const scrollContainer = yearsScrollContainerRef.current;
+      const target = event.target;
+      if (!scrollContainer || !(target instanceof Node) || !scrollContainer.contains(target)) {
+        return;
+      }
+
       registerInteractionMode("mouse");
 
       pointerDownRef.current = true;
@@ -619,6 +640,12 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
       }
 
       if (shouldIgnoreMouseEvents()) {
+        return;
+      }
+
+      const scrollContainer = yearsScrollContainerRef.current;
+      const target = event.target;
+      if (!scrollContainer || !(target instanceof Node) || !scrollContainer.contains(target)) {
         return;
       }
 
@@ -869,7 +896,23 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     : null;
   const hoveredYearIndex = activeYearIndex ?? hoveredYearIndexFromDate;
 
-  const isTouchLike = isTouchLikeInteraction(interactionMode);
+  useEffect(() => {
+    if (typeof window === "undefined" || isTouchDevice) {
+      return undefined;
+    }
+
+    const handleFirstTouch = () => {
+      setIsTouchDevice(true);
+    };
+
+    window.addEventListener("touchstart", handleFirstTouch, { passive: true, once: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleFirstTouch);
+    };
+  }, [isTouchDevice, setIsTouchDevice]);
+
+  const isTouchLike = isTouchDevice || isTouchLikeInteraction(interactionMode);
 
   // Calculate start and end months for partial year rendering
   const getYearMonthRange = (year: number) => {
@@ -889,9 +932,8 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
     (yearIndex: number) => {
       cancelMegaOverlayHide();
       openMegaOverlay(yearIndex);
-      markUserInteracted();
     },
-    [cancelMegaOverlayHide, openMegaOverlay, markUserInteracted]
+    [cancelMegaOverlayHide, openMegaOverlay]
   );
 
   const handleYearLeave = () => {
@@ -989,10 +1031,7 @@ const TimelineYears2: React.FC<TimelineYears2Props> = ({
 
     markUserInteracted();
     updateActiveYearFromPointer();
-
     updateScrollIndicators();
-    markUserInteracted();
-    updateActiveYearFromPointer();
   }, [isHeaderDragActive, markUserInteracted, updateActiveYearFromPointer, updateScrollIndicators]);
 
   useEffect(() => {
