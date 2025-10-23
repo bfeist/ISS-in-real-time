@@ -1,8 +1,19 @@
 # This script checks if all the zips in the IA_ZIPS_PROCESSED_TRACKING_FILE have corresponding raw folders in the COMM_TRANSCRIPTS_AACS directory.
 # This gives an indication of whether zips have been processed correctly as a check for whether there were errors in the processing.
+# Note: Checks for any .aac or .json files in the date folder, not just that the folder exists (which could be empty).
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+ROOT_ENV_PATH = Path(__file__).resolve().parents[3] / ".env"
+
+
+def load_environment() -> None:
+    if ROOT_ENV_PATH.exists():
+        load_dotenv(ROOT_ENV_PATH)
+    else:
+        load_dotenv()
 
 
 def extract_date_from_zip(zip_name):
@@ -25,15 +36,26 @@ def extract_date_from_zip(zip_name):
     return year, month, day
 
 
+def folder_has_output_files(folder_path):
+    """Check if folder exists and contains any .aac or .json files."""
+    if not folder_path.is_dir():
+        return False
+    # Check for any .aac or .json files in the folder
+    return any(folder_path.glob("*.aac")) or any(folder_path.glob("*.json"))
+
+
 def main():
+    load_environment()
     # Define paths
     base_dir = os.path.dirname(__file__)
     IA_ZIPS_PROCESSED_TRACKING_FILE = os.path.join(base_dir, "ia_zips_processed.txt")
     IA_SKIP_ZIPS_TRACKING_FILE = os.path.join(
         base_dir, "ia_skip_zips.txt"
     )  # New skip tracking file
-    COMM_TRANSCRIPTS_AACS = Path(os.getenv("SG_RAW_FOLDER") + "comm_transcripts_aacs/")
-    INPUT_IA_ZIPS_PATH = os.path.join(os.getenv("IA_ZIP_WAVS_WORKING_FOLDER"))
+    COMM_TRANSCRIPTS_AACS = Path(os.getenv("RAW_FOLDER") + "comm_transcripts_aacs/")
+    INPUT_IA_ZIPS_PATH = os.path.join(
+        os.getenv("RAW_AUDIO_FOLDER"), "InternetArchive_space_to_grounds"
+    )
 
     # Read the processed zips from the tracking file
     with open(IA_ZIPS_PROCESSED_TRACKING_FILE, "r") as f:
@@ -55,7 +77,9 @@ def main():
             continue
         year, month, day = date_parts
         folder_path = COMM_TRANSCRIPTS_AACS / year / month / day
-        if not folder_path.is_dir():
+
+        # Check if folder exists and has any output files
+        if not folder_has_output_files(folder_path):
             missing.append(zip_name)
 
     # Print results

@@ -10,6 +10,7 @@ const images = [
   "/images/backgrounds/iss_moon_big.jpg",
   "/images/backgrounds/The_International_Space_Station_with_ATV-2_and_Endeavour.jpg",
   "/images/backgrounds/iss_rotated.png",
+  "/images/backgrounds/S113e05436.jpg",
   "/images/backgrounds/S106E5331_big.jpg",
 ];
 
