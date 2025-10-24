@@ -1,0 +1,96 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  background-color: rgb(0 0 0 / 50%);
+}
+
+.modal {
+  background: rgb(41 43 58 / 70%);
+  backdrop-filter: blur(15px);
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+  box-shadow: 0 4px 6px rgb(0 0 0 / 10%);
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 0 20px;
+  margin-bottom: 0;
+}
+
+.header h3 {
+  margin: 0;
+  color: var(--grey5);
+  font-family: var(--font-sans);
+  font-weight: 400;
+}
+
+.content {
+  padding: 20px;
+}
+
+.content p {
+  margin: 0 0 15px 0;
+  color: var(--grey5);
+  font-family: var(--font-sans);
+}
+
+.urlContainer {
+  margin-bottom: 20px;
+}
+
+.urlInput {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--grey3);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  box-sizing: border-box;
+  background: var(--grey1);
+  color: var(--grey5);
+}
+
+.urlInput:focus {
+  outline: none;
+  border-color: var(--headerbutton);
+  box-shadow: 0 0 0 2px var(--highlight);
+}
+
+.copyButton {
+  background: transparent;
+  border: 1px solid var(--headerbutton);
+  color: var(--headerbutton);
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  transition: all 0.2s ease;
+}
+
+.copyButton:hover {
+  background-color: var(--grey3);
+}
+
+.copyButton:focus-visible {
+  box-shadow: 0 0 0 2px var(--highlight);
+  outline: none;
+}
+
+.copyButton:active {
+  transform: translateY(0);
+}

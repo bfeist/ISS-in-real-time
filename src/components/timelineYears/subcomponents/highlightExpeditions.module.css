@@ -1,0 +1,14 @@
+/* Expedition-specific content styles */
+.expeditionNumber {
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+
+.expeditionDate {
+  font-size: 0.75rem;
+  color: #888888;
+}
+
+.expeditionItem.selected .expeditionDate {
+  color: #4e4e4e;
+}

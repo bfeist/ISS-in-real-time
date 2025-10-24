@@ -1,0 +1,218 @@
+.highlightContainer {
+  position: relative;
+  height: auto;
+  min-height: 250px;
+  background-color: var(--grey2);
+  font-size: 0.7em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-bottom-left-radius: var(--panel-radius);
+  border-bottom-right-radius: var(--panel-radius);
+}
+
+.highlightItems {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 0 0 0 0;
+  padding: 10px 0;
+}
+
+.highlightTableWrapper {
+  display: flex;
+  gap: 0;
+  position: relative;
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+  overflow: hidden;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+}
+
+.column:not(:last-child) {
+  border-right: 1px solid var(--grey3);
+}
+
+.columnData {
+  flex: 0 0 160px;
+}
+
+.columnCrew {
+  flex: 0 0 230px;
+}
+
+.columnExpeditions {
+  flex: 0 0 275px;
+}
+
+.columnNotable {
+  flex: 0 0 275px;
+}
+
+.columnHeader {
+  color: var(--highlight);
+  text-align: left;
+  padding: 7px 10px;
+  background-color: var(--grey2);
+  border-bottom: 1px solid var(--grey3);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.columnBody {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #4a5568;
+  border-radius: 2px;
+  background-color: transparent;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.checkboxLabel input[type="checkbox"]:checked {
+  background-color: #d4b5d0ff;
+  border-color: #c500ab;
+}
+
+.toggleButton {
+  background-color: var(--grey3);
+  border: 1px solid #4a5568;
+  border-radius: 4px;
+  color: white;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.toggleButton:hover {
+  background-color: var(--grey4);
+}
+
+.buttonWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.layoutTestWrapper {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.overlayPanelLayoutTest {
+  position: fixed;
+  bottom: 0;
+  left: 10px;
+  background-color: var(--grey2);
+  border: 1px solid var(--grey3);
+  border-radius: 4px;
+  padding: 10px;
+  z-index: 1000;
+  width: auto;
+  min-width: 300px;
+  max-width: 600px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
+}
+
+.headerText {
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+
+/* Tab Navigation Styles */
+.tabNavigation {
+  display: none;
+  width: 100%;
+  gap: 0;
+  border: 1px solid var(--grey3);
+  overflow: hidden;
+  background-color: var(--grey2);
+}
+
+.tabButton {
+  flex: 1;
+  padding: 10px 8px;
+  background-color: var(--grey2);
+  border: none;
+  border-right: 1px solid var(--grey3);
+  color: #999999;
+  cursor: pointer;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  transition: all 0.2s;
+  font-weight: 400;
+}
+
+.tabButton:last-child {
+  border-right: none;
+}
+
+.tabButton:hover {
+  background-color: var(--grey3);
+  color: white;
+}
+
+.tabButtonActive {
+  background-color: var(--grey3);
+  color: var(--highlight);
+  font-weight: 500;
+  border-bottom: 2px solid var(--highlight);
+}
+
+/* Responsive Styles */
+@media (width < 935px) {
+  .highlightItems {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 0;
+  }
+
+  .tabNavigation {
+    display: flex;
+    flex-direction: row;
+    border-left: none;
+  }
+
+  .highlightTableWrapper {
+    grid-template-columns: 1fr;
+    border: none;
+  }
+
+  .column {
+    display: none;
+    min-width: 100%;
+  }
+
+  .column .columnHeader {
+    display: none;
+  }
+
+  .columnActive {
+    display: flex;
+  }
+}

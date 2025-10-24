@@ -7,3 +7,9 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME} !-l
 RewriteRule . /index.html [L]
 </IfModule>
+
+# AuthBasicProvider file
+# AuthUserFile /home/dh_4jfgr5/.htpasswd
+# AuthType Basic
+# AuthName "Restricted"
+# Require valid-user

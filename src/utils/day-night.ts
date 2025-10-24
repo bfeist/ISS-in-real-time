@@ -1,0 +1,89 @@
+import SunCalc from "./suncalc";
+import { getSatelliteInfo } from "tle.js";
+import { hhmmssFromAppSeconds } from "./dateTime";
+
+/**
+ * Calculate day night information from a given ephemera for a desired date
+ * @param ephemera ephemera containing a TLE
+ * @param year yyyy
+ * @param month mm
+ * @param date dd
+ * @returns An array of day night objects. Each object in the array is a change in daylight state.
+ */
+export function calcDayNight(tle: string, selectedDate: string): DayNightObj[] {
+  const secondsIn24Hours = 86400;
+
+  const dayNightObjArray = [];
+  let prevDaylight = null;
+  //1 minute resolution on day/night times
+  for (let i = 0; i < secondsIn24Hours; i = i + 60) {
+    const iISODate = selectedDate + "T" + hhmmssFromAppSeconds(i) + "Z";
+    const iDate = new Date(iISODate);
+
+    const issInfo = getSatelliteInfo(tle, iDate.getTime());
+
+    let daylight = true;
+    daylight = isSunlit(iDate, issInfo.lng, issInfo.lat, issInfo.height * 1000);
+
+    if (daylight !== prevDaylight) {
+      const dayNightObj: DayNightObj = {
+        appSeconds: i,
+        daylight: daylight ? "day" : "night",
+      };
+      dayNightObjArray.push(dayNightObj);
+    }
+
+    prevDaylight = daylight;
+  }
+  const dayNightObj: DayNightObj = {
+    appSeconds: secondsIn24Hours,
+    daylight: "night",
+  };
+  dayNightObjArray.push(dayNightObj);
+
+  return dayNightObjArray;
+}
+
+function isSunlit(date: Date, lng: number, lat: number, heightMeters: number) {
+  const sunTimes = SunCalc.getTimes(date, lat, lng, heightMeters);
+
+  // get time between sunset start and golden hour.
+  const sunlightEnd = new Date((sunTimes.sunset.getTime() + sunTimes.goldenHour.getTime()) / 2);
+
+  let sunlight = true;
+  // if sunrise or sunset are NaN then it's high beta angle season and the sun never sets
+  if (!isNaN(sunTimes.sunriseEnd.getTime()) && !isNaN(sunlightEnd.getTime())) {
+    if (date > sunTimes.sunriseEnd && date < sunlightEnd) {
+      sunlight = true;
+    } else {
+      sunlight = false;
+    }
+  }
+  return sunlight;
+}
+
+/**
+ * Gets the sun lighting state at a specific time in the day
+ * @param dayNight - Array of day/night transitions
+ * @param appSeconds - The time of day in seconds (0-86399)
+ * @returns The sun lighting state ('day' or 'night'), where sunrise and sunset are considered 'day'
+ */
+export function getSunLightingAtTime(dayNight: DayNightObj[], appSeconds: number): "day" | "night" {
+  if (!dayNight || dayNight.length === 0) {
+    return "day"; // Default to day if no data
+  }
+
+  // Find the latest transition that occurred before or at the current time
+  let currentLighting: SunLighting = "day";
+
+  for (let i = 0; i < dayNight.length; i++) {
+    if (dayNight[i].appSeconds <= appSeconds) {
+      currentLighting = dayNight[i].daylight;
+    } else {
+      break;
+    }
+  }
+
+  // Simplify to day or night (sunrise and sunset are considered day)
+  return currentLighting === "night" ? "night" : "day";
+}

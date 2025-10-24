@@ -1,0 +1,38 @@
+.columnContent {
+  padding: 12px;
+  min-height: 120px;
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vehicleSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vehicleType {
+  font-weight: bold;
+  color: #a0aec0;
+  font-size: 10px;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+.vehicleItem {
+  margin-left: 12px;
+  padding-left: 12px;
+  text-indent: -12px;
+  color: #e2e8f0;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.noData {
+  color: #718096;
+  font-style: italic;
+  font-size: 12px;
+}

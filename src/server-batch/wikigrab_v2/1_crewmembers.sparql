@@ -1,0 +1,39 @@
+PREFIX wd:   <http://www.wikidata.org/entity/>
+PREFIX wdt:  <http://www.wikidata.org/prop/direct/>
+PREFIX p:    <http://www.wikidata.org/prop/>
+PREFIX ps:   <http://www.wikidata.org/prop/statement/>
+PREFIX pq:   <http://www.wikidata.org/prop/qualifier/>
+PREFIX schema: <http://schema.org/>
+PREFIX bd:   <http://www.bigdata.com/rdf#>
+
+SELECT DISTINCT ?person ?personLabel ?enwikiTitle ?image WHERE {
+  ?person wdt:P31 wd:Q5 .          # human
+  ?person wdt:P450 ?mission .      # astronaut mission (person -> mission)
+
+  # Mission must be ISS-related (any of these patterns)
+  FILTER (
+    EXISTS { ?mission wdt:P1444 wd:Q25271 }                    # destination point = ISS
+    || EXISTS {
+      ?mission p:P793 ?ev .
+      ?ev ps:P793 wd:Q557450 ; pq:P276 wd:Q25271 .             # docking/berthing event located at ISS
+    }
+    || EXISTS {
+      ?mission p:P622 ?t . ?t pq:P276 wd:Q25271 .              # docking/undocking date qualified with ISS
+    }
+  )
+
+  # Main image from Wikidata (optional)
+  OPTIONAL {
+    ?person wdt:P18 ?image .
+  }
+
+  # English Wikipedia sitelink (optional but helpful)
+  OPTIONAL {
+    ?enwiki schema:about ?person ;
+            schema:isPartOf <https://en.wikipedia.org/> .
+    BIND(REPLACE(STR(?enwiki), "https://en.wikipedia.org/wiki/", "") AS ?enwikiTitle)
+  }
+
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+}
+ORDER BY ?personLabel

@@ -1,0 +1,267 @@
+.dateTooltip {
+  position: fixed;
+  padding: 0;
+  background-color: #2a3441;
+  border: 1px solid #4a5568;
+  border-radius: 6px;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: #e2e8f0;
+  pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 30%);
+  transition: opacity 0.2s ease;
+  width: 450px;
+  min-height: 200px;
+  max-height: 80vh;
+  white-space: normal;
+  overflow-y: auto;
+}
+
+.compactTooltip {
+  width: 300px;
+  min-height: 0;
+}
+
+.extraCompactTooltip {
+  width: 150px;
+  min-height: 0;
+}
+
+.tooltipHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background-color: #1a202c;
+  border-bottom: 1px solid #4a5568;
+}
+
+.tooltipHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tooltipHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tooltipDate {
+  font-family: var(--font-mono);
+  font-size: 1.2em;
+  font-weight: 500;
+  color: var(--highlight);
+  margin: 0;
+}
+
+.tooltipContent {
+  padding: 0;
+}
+
+.tooltipGrid {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  border-collapse: collapse;
+}
+
+.singleColumn {
+  grid-template-columns: 1fr;
+}
+
+.singleColumn .columnHeader {
+  border-right: none;
+}
+
+.singleColumn .combinedColumn {
+  border-right: none;
+}
+
+.columnHeader {
+  background-color: #2d3748;
+  padding: 8px 12px;
+  font-weight: bold;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #a0aec0;
+  border-bottom: 1px solid #4a5568;
+  border-right: 1px solid #4a5568;
+}
+
+.columnHeader:last-child {
+  border-right: none;
+}
+
+.combinedColumn {
+  padding: 12px;
+  border-right: 1px solid #4a5568;
+  min-height: 120px;
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.subSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.subSectionTitle {
+  font-weight: bold;
+  color: #a0aec0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tooltipButtons {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tooltipOrbits {
+  font-family: "Roboto Mono", monospace;
+  font-size: 0.9em;
+  font-weight: 400;
+}
+
+.tooltipGoButton {
+  width: fit-content;
+  padding: 6px 12px;
+  background-color: var(--grey2);
+  border: 1px solid var(--highlight);
+  color: var(--grey5);
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  animation: flash-blink 0.6s infinite;
+}
+
+.tooltipGoButton:hover {
+  background-color: var(--grey3);
+}
+
+.clickPrompt {
+  padding: 2px 0 0 0;
+  color: #a0aec0;
+  font-family: var(--font-sans);
+  font-size: 1em;
+  font-weight: 400;
+}
+
+.tooltipCancelButton {
+  height: 1em;
+  background: none;
+  border: none;
+  color: #a0aec0;
+  font-size: 2em;
+  font-weight: bold;
+  padding: 0;
+  min-width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  margin-left: 4px;
+}
+
+.tooltipCancelButton:hover {
+  color: #e2e8f0;
+}
+
+.contentIndicatorsWrapper {
+  padding: 8px 16px;
+  background-color: #1a202c;
+  border-top: 1px solid #4a5568;
+}
+
+/* Extra small screen layout */
+.extraSmallHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background-color: #1a202c;
+  border-bottom: 1px solid #4a5568;
+}
+
+.extraSmallGoButton {
+  flex: 0 0 75%;
+  padding: 6px 12px;
+  background-color: var(--grey2);
+  border: 1px solid var(--highlight);
+  color: var(--grey5);
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  animation: flash-blink 0.6s infinite;
+}
+
+.extraSmallGoButton:hover {
+  background-color: var(--grey3);
+}
+
+.extraSmallCloseButton {
+  flex: 0 0 auto;
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #a0aec0;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.extraSmallCloseButton:hover {
+  color: #e2e8f0;
+}
+
+.extraSmallDateRow {
+  font-family: var(--font-mono);
+  padding: 10px 12px;
+  font-size: 1em;
+  font-weight: 500;
+  color: var(--grey5);
+  text-align: center;
+  background-color: #2a3441;
+}
+
+@keyframes flash-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+
+  51%,
+  100% {
+    opacity: 0.6;
+  }
+}

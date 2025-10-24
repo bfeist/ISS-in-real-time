@@ -1,0 +1,79 @@
+.container {
+  width: 440px;
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+  background: rgb(41 43 58 / 70%);
+  backdrop-filter: blur(15px);
+  font-family: var(--font-sans);
+  color: var(--grey5);
+  text-shadow: 0 0 5px rgb(0 0 0 / 70%);
+}
+
+.headingContainer {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.heading {
+  margin: 0 0 12px 0;
+  font-size: 1em;
+  font-weight: normal;
+}
+
+.clockValue {
+  flex: 0 0 120px;
+  font-family: var(--font-mono);
+  font-size: 1em;
+  font-weight: 500;
+  color: white;
+}
+
+.buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.button {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--highlight);
+  background-color: var(--grey2);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 0.9em;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
+  text-shadow: 0 0 5px rgb(0 0 0 / 70%);
+}
+
+.button:hover {
+  background-color: var(--grey3);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (width < 500px) {
+  .container {
+    width: min(calc(100vw - 70px), 440px);
+  }
+
+  .buttons {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+}

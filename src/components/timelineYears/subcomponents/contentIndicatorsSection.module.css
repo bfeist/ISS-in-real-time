@@ -1,0 +1,28 @@
+.contentIndicatorsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  cursor: default;
+}
+
+.contentIndicator {
+  padding: 2px 6px;
+  border-radius: var(--radius);
+  font-size: 0.6rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+
+.contentIndicator.available {
+  background-color: var(--grey2);
+  color: var(--grey5);
+  border: 1px solid var(--grey2);
+}
+
+.contentIndicator.unavailable {
+  background-color: var(--grey1);
+  color: var(--grey4);
+  border: 1px solid var(--grey2);
+}

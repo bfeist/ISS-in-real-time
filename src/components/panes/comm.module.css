@@ -1,0 +1,248 @@
+.comm {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  background-color: var(--grey2);
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+  box-sizing: border-box;
+  container-type: inline-size;
+  container-name: comm;
+}
+
+.commContent {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  backdrop-filter: blur(2px);
+  margin-right: 4px;
+  padding: 7px 0 0 0;
+  border-top: 1px solid var(--grey3);
+}
+
+.commItem {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.8em;
+  padding: 8px;
+}
+
+.commItem:nth-child(odd) {
+  background-color: rgb(255 255 255 / 5%);
+}
+
+.commItemActive {
+  background-color: rgb(255 255 255 / 20%) !important;
+  transition: background-color 0.5s ease-in-out;
+}
+
+.channelnum {
+  white-space: nowrap;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 3px;
+  color: black;
+  font-size: 0.9em;
+  font-family: var(--font-mono);
+}
+
+.commTime {
+  font-family: var(--font-mono);
+  font-weight: 300;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.textContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-weight: 300;
+  color: var(--grey5);
+  font-family: var(--font-sans);
+}
+
+.textOriginalLang {
+  filter: brightness(0.7);
+  font-size: 0.9em;
+}
+
+.audioPlayer {
+  display: none;
+}
+
+/* Channel Toggles */
+
+:root {
+  /* Channel Colors */
+  --channel1-primary: #68bfd7;
+  --channel2-primary: #59e1c6;
+  --channel3-primary: #df8d8d;
+  --channel4-primary: #b374e4;
+  --channel5-primary: #ce643b;
+
+  /* Inactive channel color */
+  --channel-inactive-bg: #64748b;
+}
+
+.channelToggleHeader {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  padding: 6px 10px 0 0;
+  background-color: var(--grey2);
+  border-radius: var(--panel-radius) var(--panel-radius) 0 0;
+}
+
+.muteAllIcon {
+  flex: 1;
+  max-width: 250px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  margin-left: 10px;
+  align-self: center;
+}
+
+.channelToggleContainer {
+  display: flex;
+  gap: 8px;
+  align-content: space-between;
+  align-self: center;
+  padding: 10px;
+  background-color: var(--grey2);
+  border-radius: var(--panel-radius) var(--panel-radius) 0 0;
+}
+
+.channelToggle {
+  padding: 6px 6px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.8em;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  color: black;
+  user-select: none;
+}
+
+@container comm (width <= 270px) {
+  .channelToggleContainer {
+    gap: 4px;
+    padding: 8px 6px;
+  }
+
+  .channelToggle {
+    font-size: 0.7em;
+    padding: 4px 4px;
+    font-weight: 600;
+  }
+}
+
+/* Channel 1 - Dark Blue */
+.channelToggle1Active {
+  background-color: var(--channel1-primary);
+}
+
+.channelToggle1Inactive {
+  background-color: var(--channel-inactive-bg);
+}
+
+/* Channel 2 - Dark Green */
+.channelToggle2Active {
+  background-color: var(--channel2-primary);
+}
+
+.channelToggle2Inactive {
+  background-color: var(--channel-inactive-bg);
+}
+
+/* Channel 3 - Dark Red */
+.channelToggle3Active {
+  background-color: var(--channel3-primary);
+}
+
+.channelToggle3Inactive {
+  background-color: var(--channel-inactive-bg);
+}
+
+/* Channel 4 - Dark Purple */
+.channelToggle4Active {
+  background-color: var(--channel4-primary);
+}
+
+.channelToggle4Inactive {
+  background-color: var(--channel-inactive-bg);
+}
+
+/* Channel 5 - Dark Orange */
+.channelToggle5Active {
+  background-color: var(--channel5-primary);
+}
+
+.channelToggle5Inactive {
+  background-color: var(--channel-inactive-bg);
+}
+
+/* Disabled channel styles */
+.channelToggleDisabled {
+  background-color: #61616b;
+  color: #b2b2be;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.channelToggleDisabled:hover {
+  filter: none;
+}
+
+.channelnum1 {
+  background-color: var(--channel1-primary);
+}
+
+.channelnum2 {
+  background-color: var(--channel2-primary);
+}
+
+.channelnum3 {
+  background-color: var(--channel3-primary);
+}
+
+.channelnum4 {
+  background-color: var(--channel4-primary);
+}
+
+.channelnum5 {
+  background-color: var(--channel5-primary);
+}
+
+.autoScrollButton {
+  position: absolute;
+  top: 50px;
+  right: 15px;
+  z-index: 10;
+  background: var(--grey1);
+  border: 1px solid var(--highlight);
+  border-radius: var(--radius);
+  color: var(--highlight);
+  font-size: 14px;
+  padding: 6px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 24px;
+  box-shadow: 0 6px 12px rgb(0 0 0 / 50%);
+}
+
+.autoScrollButton:hover {
+  background: var(--grey3);
+  box-shadow: 0 3px 6px rgb(0 0 0 / 25%);
+}

@@ -1,5 +1,6 @@
-import { getCrewMembersOnboardByDate } from "utils/crew";
+import { getCrewMembersOnboardByDate } from "utils/onboard";
 import crewArrDepFile from "./mock_data/iss_crew_arr_dep.json";
+import { expect, test } from "vitest";
 
 const crewArrDep: CrewArrDepItem[] = JSON.parse(JSON.stringify(crewArrDepFile));
 
@@ -8,7 +9,10 @@ test("Multiple crew onboard on Expedition 1", async () => {
 
   const expected: CrewArrDepItem[] = [
     {
-      name: "Yuri Gidzenko",
+      name_first: "Yuri",
+      name_middle: "",
+      name_last: "Gidzenko",
+      name_suffix: "",
       nationality: "Russia",
       arrivalDate: "2000-11-02T09:21:00Z",
       arrivalFlight: "Soyuz TM-31",
@@ -17,7 +21,10 @@ test("Multiple crew onboard on Expedition 1", async () => {
       durationDays: "141",
     },
     {
-      name: "Sergei Krikalev",
+      name_first: "Sergei",
+      name_middle: "",
+      name_last: "Krikalev",
+      name_suffix: "",
       nationality: "Russia",
       arrivalDate: "2000-11-02T09:21:00Z",
       arrivalFlight: "Soyuz TM-31",
@@ -26,7 +33,10 @@ test("Multiple crew onboard on Expedition 1", async () => {
       durationDays: "141",
     },
     {
-      name: "William Shepherd",
+      name_first: "William",
+      name_middle: "",
+      name_last: "Shepherd",
+      name_suffix: "",
       nationality: "United States",
       arrivalDate: "2000-11-02T09:21:00Z",
       arrivalFlight: "Soyuz TM-31",
@@ -45,7 +55,10 @@ test("Multiple crew onboard on 2001-04-15", async () => {
 
   const expected: CrewArrDepItem[] = [
     {
-      name: "Yury Usachov",
+      name_first: "Yury",
+      name_middle: "",
+      name_last: "Usachov",
+      name_suffix: "",
       nationality: "Russia",
       arrivalDate: "2001-03-08T11:42:00Z",
       arrivalFlight: "STS-102",
@@ -54,7 +67,10 @@ test("Multiple crew onboard on 2001-04-15", async () => {
       durationDays: "167.28",
     },
     {
-      name: "James S. Voss",
+      name_first: "James",
+      name_middle: "S.",
+      name_last: "Voss",
+      name_suffix: "",
       nationality: "United States",
       arrivalDate: "2001-03-08T11:42:00Z",
       arrivalFlight: "STS-102",
@@ -63,7 +79,10 @@ test("Multiple crew onboard on 2001-04-15", async () => {
       durationDays: "167.28",
     },
     {
-      name: "Susan Helms",
+      name_first: "Susan",
+      name_middle: "",
+      name_last: "Helms",
+      name_suffix: "",
       nationality: "United States",
       arrivalDate: "2001-03-08T11:42:00Z",
       arrivalFlight: "STS-102",
@@ -82,16 +101,10 @@ test("Multiple crew onboard on 2001-12-10", async () => {
 
   const expected: CrewArrDepItem[] = [
     {
-      name: "Frank L. Culbertson Jr.",
-      nationality: "United States",
-      arrivalDate: "2001-08-10T21:10:00Z",
-      arrivalFlight: "STS-105",
-      departureDate: "2001-12-17T17:56:00Z",
-      departureFlight: "STS-108",
-      durationDays: "128.86",
-    },
-    {
-      name: "Mikhail Tyurin",
+      name_first: "Mikhail",
+      name_middle: "",
+      name_last: "Tyurin",
+      name_suffix: "",
       nationality: "Russia",
       arrivalDate: "2001-08-10T21:10:00Z",
       arrivalFlight: "STS-105",
@@ -100,7 +113,10 @@ test("Multiple crew onboard on 2001-12-10", async () => {
       durationDays: "128.86",
     },
     {
-      name: "Vladimir Dezhurov",
+      name_first: "Vladimir",
+      name_middle: "",
+      name_last: "Dezhurov",
+      name_suffix: "",
       nationality: "Russia",
       arrivalDate: "2001-08-10T21:10:00Z",
       arrivalFlight: "STS-105",
@@ -109,13 +125,28 @@ test("Multiple crew onboard on 2001-12-10", async () => {
       durationDays: "128.86",
     },
     {
-      name: "Yury Onufriyenko",
+      name_first: "Yury",
+      name_middle: "",
+      name_last: "Onufriyenko",
+      name_suffix: "",
       nationality: "Russia",
       arrivalDate: "2001-12-05T22:19:00Z",
       arrivalFlight: "STS-108",
       departureDate: "2002-06-19T09:57:00Z",
       departureFlight: "STS-111",
       durationDays: "195.82",
+    },
+    {
+      name_first: "Frank",
+      name_middle: "L.",
+      name_last: "Culbertson",
+      name_suffix: "Jr.",
+      nationality: "United States",
+      arrivalDate: "2001-08-10T21:10:00Z",
+      arrivalFlight: "STS-105",
+      departureDate: "2001-12-17T17:56:00Z",
+      departureFlight: "STS-108",
+      durationDays: "128.86",
     },
   ];
 

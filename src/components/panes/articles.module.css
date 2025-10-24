@@ -1,0 +1,177 @@
+.blogContainer {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  backdrop-filter: blur(2px);
+  box-sizing: border-box;
+  font-family: Inter, sans-serif;
+  background-color: var(--grey2);
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+  display: flex;
+  flex-direction: column;
+}
+
+.scrollableContent {
+  flex: 1;
+  padding: 7px;
+  margin: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.sectionTitle {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--highlight);
+  padding: 8px 0;
+}
+
+.blogEntries {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.blogEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.blogEntry h3 {
+  margin: 0;
+  font-size: 1.1em;
+  font-weight: 500;
+  color: var(--highlight);
+}
+
+.imageContainer {
+  float: right;
+  margin: 0 0 16px 16px;
+  max-width: 60%;
+}
+
+.imageContainer img {
+  width: 100%;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.clickableImage:hover {
+  opacity: 0.9;
+  box-shadow: 0 0 10px rgb(124 180 255 / 50%);
+  transition: all 0.2s ease-in-out;
+}
+
+.imageCaption {
+  font-size: 1em;
+  font-style: italic;
+  margin-top: 6px;
+  color: #cccccc;
+}
+
+.content p {
+  font-size: 0.9em;
+  font-weight: 300;
+  margin: 8px 0;
+  line-height: 1.2;
+}
+
+.content p:first-of-type {
+  margin-top: 0;
+}
+
+.content p a {
+  color: rgb(201 211 255);
+  text-decoration: underline;
+}
+
+.content p a:hover {
+  text-decoration: underline;
+}
+
+/* Activity Summary Styles */
+.activitySummary {
+  margin-bottom: 30px;
+}
+
+.activityCategory {
+  margin-bottom: 20px;
+}
+
+.activityCategory h3 {
+  margin: 4px 0;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.activityList {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.activityItem {
+  font-size: 0.8rem;
+  font-weight: 200;
+  margin-bottom: 10px;
+  line-height: 1.5;
+  color: var(--grey5);
+}
+
+.activityName {
+  font-weight: 600;
+}
+
+/* Station Timeline PDF Styles */
+.timelineSection {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--grey3);
+}
+
+.pdfContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 10px;
+  background-color: var(--grey1);
+  border-radius: 4px;
+  margin-top: 10px;
+  overflow-x: hidden;
+  overflow-y: visible;
+  max-width: 100%;
+}
+
+.pdfDarkMode {
+  filter: invert(0.85) hue-rotate(180deg) contrast(0.9) brightness(1.25);
+  max-width: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pdfPage {
+  box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+  margin-bottom: 10px;
+  max-width: 100%;
+}
+
+.pdfLoading,
+.pdfError {
+  padding: 20px;
+  text-align: center;
+  color: var(--grey5);
+  font-size: 0.9em;
+}
+
+.pdfError {
+  color: #ff6b6b;
+}

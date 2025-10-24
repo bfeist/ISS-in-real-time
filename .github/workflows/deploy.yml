@@ -3,25 +3,40 @@ name: Deploy React App
 on:
   push:
     branches:
-      - main
+      - "**"
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code for tests
+        uses: actions/checkout@v4
+      - name: Setup Node.js for tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm run test
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: "npm"
 
-      - name: Clean dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
+      - name: Install dependencies
+        run: npm ci
 
       - name: Rebuild native modules
         run: npm rebuild
@@ -31,8 +46,7 @@ jobs:
 
       - name: Create .env file
         run: |
-          echo "VITE_BASE_STATIC_URL=${{ secrets.VITE_BASE_STATIC_URL }}" >> .env
-          echo "VITE_IMAGE_BASE_URL=${{ secrets.VITE_IMAGE_BASE_URL }}" >> .env
+          echo "VITE_BASE_STATIC_URL=${{ vars.VITE_BASE_STATIC_URL }}" >> .env
           echo "VITE_CESIUM_ION_TOKEN=${{ secrets.VITE_CESIUM_ION_TOKEN }}" >> .env
 
       - name: Build the app
@@ -41,15 +55,28 @@ jobs:
       - name: Deploy to DreamHost
         env:
           SSH_AUTH_SOCK: /tmp/ssh-agent.sock
+          DREAMHOST_PRIVATE_KEY: "${{ secrets.DREAMHOST_PRIVATE_KEY }}"
+          DREAMHOST_HOST: "${{ vars.DREAMHOST_HOST }}"
+          DREAMHOST_PATH: "${{ vars.DREAMHOST_PATH }}"
+          DREAMHOST_PATH_DEV: "${{ vars.DREAMHOST_PATH_DEV }}"
+          DREAMHOST_USER: "${{ secrets.DREAMHOST_USER }}"
+
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.DREAMHOST_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "$DREAMHOST_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           touch ~/.ssh/known_hosts
-          ssh-keyscan -H ${{ secrets.DREAMHOST_HOST }} >> ~/.ssh/known_hosts
-          ssh ${{ secrets.DREAMHOST_USER }}@${{ secrets.DREAMHOST_HOST }} "mkdir -p ${{ secrets.DREAMHOST_PATH_DEV }}"
+          ssh-keyscan -H "$DREAMHOST_HOST" >> ~/.ssh/known_hosts
+
+          if [ "${GITHUB_REF}" == "refs/heads/prod" ]; then
+            DEPLOY_PATH="$DREAMHOST_PATH"
+          else
+            DEPLOY_PATH="$DREAMHOST_PATH_DEV"
+          fi
+
+          ssh "$DREAMHOST_USER@$DREAMHOST_HOST" "mkdir -p $DEPLOY_PATH"
           if [ -d .local/vite/dist ]; then
-            rsync -avz --delete .local/vite/dist/ ${{ secrets.DREAMHOST_USER }}@${{ secrets.DREAMHOST_HOST }}:${{ secrets.DREAMHOST_PATH_DEV }}
+            rsync -avz --delete .local/vite/dist/ "$DREAMHOST_USER@$DREAMHOST_HOST":"$DEPLOY_PATH"
           else
             echo "Error: .local/vite/dist directory is missing. Skipping deployment."
             exit 1

@@ -1,0 +1,54 @@
+.mouseHintOverlay {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.mouseHintOverlay.visible {
+  opacity: 1;
+}
+
+.mouseHintSvg {
+  width: 100px;
+  height: 100px;
+  background: url("/icons/movemouse.svg") no-repeat center;
+  background-size: 100px 100px;
+  margin: auto;
+  animation: wiggle 2.5s infinite;
+}
+
+.mouseHintSvg.touch {
+  background-image: url("/icons/movefinger.svg");
+  filter: brightness(0) invert(1);
+}
+
+@keyframes wiggle {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  80% {
+    transform: rotate(0deg);
+  }
+
+  85% {
+    transform: rotate(5deg);
+  }
+
+  95% {
+    transform: rotate(-5deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}

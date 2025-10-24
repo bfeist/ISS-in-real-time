@@ -1,0 +1,90 @@
+.telemetryContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 3px;
+  cursor: default;
+}
+
+.telemetryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-self: flex-start;
+}
+
+.telemetryGroup:first-child {
+  min-width: 50px;
+}
+
+.telemetryGroup:nth-child(2) {
+  min-width: 140px;
+}
+
+.telemetryGroup:last-child {
+  min-width: 100px;
+}
+
+.telemetryItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+  font-size: 0.6em;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  background-color: var(--grey2);
+  color: #ffffff;
+  border: 1px solid var(--grey2);
+  font-family: "Roboto Mono", monospace;
+}
+
+.telemetryItemMultiLine {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px 6px;
+  border-radius: var(--radius);
+  font-size: 0.6em;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  background-color: var(--grey2);
+  color: #ffffff;
+  border: 1px solid var(--grey2);
+  font-family: "Roboto Mono", monospace;
+}
+
+.telemetryLine {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.label {
+  color: var(--grey5);
+  min-width: fit-content;
+}
+
+.label::after {
+  content: ":";
+}
+
+.value {
+  font-weight: 300;
+  color: #ffffff;
+}
+
+.valueLeft {
+  font-weight: 400;
+  color: #ffffff;
+}
+
+.unit {
+  font-size: 0.75em;
+  opacity: 0.8;
+  color: #ffffff;
+}

@@ -1,0 +1,75 @@
+.yearsTimeline {
+  position: relative;
+  height: var(--years-fixed-h, auto);
+  overflow: visible;
+  transition: height 0.24s ease;
+  user-select: none;
+}
+
+.isCollapsed {
+  height: auto;
+}
+
+.yearsScrollContainer {
+  position: relative;
+  width: 100%;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: none;
+}
+
+/* ====== YEARS (mini canvases) ====== */
+.years {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  overflow: visible;
+}
+
+.scrollIndicator {
+  position: absolute;
+  top: 20%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: #ffffff;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.scrollIndicatorLeft {
+  left: 0;
+  background: linear-gradient(90deg, rgb(0 0 0 / 35%), transparent);
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+.scrollIndicatorRight {
+  right: 0;
+  background: linear-gradient(270deg, rgb(0 0 0 / 35%), transparent);
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+
+.scrollIndicatorArrowIcon {
+  width: 70%;
+  height: 70%;
+  filter: drop-shadow(0 0 6px rgb(0 0 0 / 45%));
+}
+
+@media (width <= 1299px) {
+  .yearsScrollContainer {
+    overflow-x: hidden;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable both-edges;
+  }
+
+  .years {
+    min-width: 1300px;
+  }
+}

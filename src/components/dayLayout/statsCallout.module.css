@@ -1,0 +1,51 @@
+.siteStats {
+  margin-top: 20px;
+  color: var(--grey5);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  font-family: var(--font-sans);
+  text-align: left;
+  padding: 15px;
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+  width: 440px;
+  background: rgb(41 43 58 / 70%);
+  backdrop-filter: blur(15px);
+}
+
+.siteStats h3 {
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.siteStats ul {
+  margin: 0 0 0 20px;
+  padding: 0;
+  color: var(--grey45);
+}
+
+.statsLink {
+  display: inline;
+  color: var(--highlight);
+  font-size: 1.1em;
+  margin-left: 20px;
+  text-decoration: underline;
+  cursor: pointer;
+  user-select: none;
+}
+
+.percentage {
+  color: white;
+}
+
+@media (width < 500px) {
+  .siteStats {
+    width: min(calc(100vw - 70px), 440px);
+    font-size: 0.9em;
+  }
+
+  .siteStats h3 {
+    font-size: 1.1em;
+  }
+}

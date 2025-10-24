@@ -1,0 +1,163 @@
+import { FunctionComponent, useState } from "react";
+import HighlightCrew from "./highlightCrew";
+import HighlightExpeditions from "./highlightExpeditions";
+import HighlightNotableMoments from "./highlightNotableMoments";
+import LayoutTestComponent from "./layoutTestComponent";
+import styles from "./highlightData.module.css";
+import { useStateContentHighlights } from "store/hooks/useStateContentHighlights";
+import { useStateHover } from "store/hooks/useStateHover";
+
+const HighlightData: FunctionComponent<{
+  onCloseMegaOverlay?: () => void;
+}> = ({ onCloseMegaOverlay }) => {
+  const { contentHighlights, toggleContentHighlight } = useStateContentHighlights();
+  const { setHoveredDate } = useStateHover();
+  const [showLayoutTest, setShowLayoutTest] = useState(false);
+  const [activeTab, setActiveTab] = useState<"data" | "crew" | "expeditions" | "notable">("data");
+
+  // Define the available content types for highlighting
+  const contentTypes = [
+    { key: "comm", label: "Comm" },
+    { key: "vvComm", label: "Spacecraft Comm" },
+    { key: "earthPhotos", label: "Earth Photos" },
+    { key: "flickrPhotos", label: "Mission Photos" },
+    { key: "video", label: "Video" },
+    { key: "blog", label: "Articles" },
+    { key: "eva", label: "EVA (spacewalks)" },
+  ];
+
+  return (
+    <div
+      className={styles.highlightContainer}
+      onClick={() => {
+        onCloseMegaOverlay?.();
+        setHoveredDate(null);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          onCloseMegaOverlay?.();
+          setHoveredDate(null);
+        }
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseMove={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
+      role="button"
+      tabIndex={0}
+    >
+      <div className={styles.highlightItems}>
+        {/* Tab Navigation - visible on mobile */}
+        <div className={styles.tabNavigation}>
+          <button
+            className={`${styles.tabButton} ${activeTab === "data" ? styles.tabButtonActive : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab("data");
+            }}
+          >
+            Content Types
+          </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === "crew" ? styles.tabButtonActive : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab("crew");
+            }}
+          >
+            Find Crew
+          </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === "expeditions" ? styles.tabButtonActive : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab("expeditions");
+            }}
+          >
+            Find Expeditions
+          </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === "notable" ? styles.tabButtonActive : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab("notable");
+            }}
+          >
+            Notable
+          </button>
+        </div>
+
+        <div className={styles.highlightTableWrapper}>
+          {/* Column 1: Highlight Data */}
+          <div
+            className={`${styles.column} ${styles.columnData} ${activeTab === "data" ? styles.columnActive : ""}`}
+          >
+            <div className={styles.columnHeader}>Content Types</div>
+            <div className={styles.columnBody}>
+              <span className={styles.headerText}>Days with (all):</span>
+              {contentTypes.map((contentType) => (
+                <label key={contentType.key} className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={contentHighlights.includes(contentType.key)}
+                    onChange={() => toggleContentHighlight(contentType.key)}
+                  />
+                  {contentType.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 2: Highlight Crew */}
+          <div
+            className={`${styles.column} ${styles.columnCrew} ${activeTab === "crew" ? styles.columnActive : ""}`}
+          >
+            <div className={styles.columnHeader}>Find Crew</div>
+            <div className={styles.columnBody}>
+              <HighlightCrew />
+            </div>
+          </div>
+
+          {/* Column 3: Highlight Expeditions */}
+          <div
+            className={`${styles.column} ${styles.columnExpeditions} ${activeTab === "expeditions" ? styles.columnActive : ""}`}
+          >
+            <div className={styles.columnHeader}>Find Expeditions</div>
+            <div className={styles.columnBody}>
+              <HighlightExpeditions />
+            </div>
+          </div>
+
+          {/* Column 4: Notable Moments */}
+          <div
+            className={`${styles.column} ${styles.columnNotable} ${activeTab === "notable" ? styles.columnActive : ""}`}
+          >
+            <div className={styles.columnHeader}>Notable Moments</div>
+            <div className={styles.columnBody}>
+              <HighlightNotableMoments />
+            </div>
+          </div>
+        </div>
+
+        <div className={`${styles.buttonWrapper} ${styles.layoutTestWrapper}`}>
+          <button
+            className={styles.toggleButton}
+            onClick={() => setShowLayoutTest(!showLayoutTest)}
+            style={{ display: "none" }}
+          >
+            Layout Test
+          </button>
+          {showLayoutTest && (
+            <div className={styles.overlayPanelLayoutTest}>
+              <LayoutTestComponent onClose={() => setShowLayoutTest(false)} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default HighlightData;

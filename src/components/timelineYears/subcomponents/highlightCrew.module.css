@@ -1,0 +1,20 @@
+/* Crew-specific styles */
+.crewItem.selected {
+  background-color: var(--crewhighlight);
+  color: black !important;
+}
+
+/* Crew-specific content styles */
+.crewName {
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+
+.crewNationality {
+  font-size: 0.75rem;
+  color: #888888;
+}
+
+.crewItem.selected .crewNationality {
+  color: #4e4e4e;
+}

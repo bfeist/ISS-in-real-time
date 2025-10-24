@@ -1,0 +1,16 @@
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.expeditionItem {
+  color: #e2e8f0;
+  font-size: 12px;
+}
+
+.noData {
+  color: #718096;
+  font-style: italic;
+  font-size: 12px;
+}

@@ -1,0 +1,69 @@
+.year {
+  flex: 1 1 0;
+  background: var(--grey2);
+  border-radius: 0;
+  padding: 0 0 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.yearHeader {
+  height: 25px;
+  display: grid;
+  place-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  cursor: grab;
+  touch-action: pan-y;
+  border: 1px solid var(--grey3);
+}
+
+.yearHeader:active {
+  cursor: grabbing;
+}
+
+.yearHeader.noScroll {
+  cursor: pointer;
+}
+
+.yearHeader.noScroll:active {
+  cursor: pointer;
+}
+
+.yearTitle {
+  line-height: 1;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  transition:
+    color 0.16s ease,
+    font-size 0.12s ease;
+  user-select: none;
+}
+
+.year:hover .yearTitle,
+.year.active .yearTitle {
+  color: var(--hi-yellow);
+  font-weight: 800;
+}
+
+/* Selected year in yellow */
+.year.selected .yearTitle {
+  color: var(--hi-yellow);
+  font-weight: 800;
+}
+
+.monthsCanvas {
+  pointer-events: auto;
+  cursor: default;
+}
+
+.monthsCanvas > canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}

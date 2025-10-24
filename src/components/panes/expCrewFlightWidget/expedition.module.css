@@ -1,0 +1,119 @@
+.expeditionsContainer {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  padding-left: 15px;
+  max-height: 135px;
+}
+
+.expedition {
+  flex: 1;
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.expeditionLink {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  text-decoration: none;
+  color: inherit;
+}
+
+.expeditionLink:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
+}
+
+.expeditionBody {
+  margin-left: 10px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden; /* To contain the scrolling blurb */
+}
+
+.expedition.expeditionCycling {
+  position: absolute;
+  top: 0;
+  left: 15px;
+  right: 0;
+  width: calc(100% - 15px);
+  height: 100%;
+  margin-bottom: 0;
+  opacity: 0; /* Start with opacity 0 to avoid flash of unstyled content */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  visibility: hidden;
+}
+
+.expedition.expeditionPlaceholder {
+  visibility: hidden;
+  margin-bottom: 0;
+  pointer-events: none;
+}
+
+.expeditionSideText {
+  flex: 0 0 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: visible;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  z-index: 10;
+  color: var(--highlight);
+  font-weight: 600;
+  font-size: 0.7em;
+  text-transform: uppercase;
+}
+
+.expeditionSideTextInner {
+  white-space: nowrap;
+  position: absolute;
+  top: 55px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-90deg);
+}
+
+.patchImg {
+  width: 70px;
+  padding: 0 10px 5px 0;
+  margin: 0;
+  flex-shrink: 0;
+  align-self: flex-start; /* Align image to the top */
+}
+
+.expeditionTitle {
+  font-size: 1em;
+  font-weight: 500;
+  color: var(--highlight);
+  margin-left: 10px;
+  margin-bottom: 5px;
+  flex-shrink: 0; /* Prevent title from shrinking */
+}
+
+.expeditionTitle:hover {
+  text-decoration: underline;
+}
+
+.expeditionBlurb {
+  font-size: 0.8em;
+  font-weight: 200;
+  color: white;
+  overflow-wrap: break-word;
+  padding-right: 5px;
+  margin: 0;
+  overflow-y: auto; /* Allow only the blurb to scroll */
+  flex: 1;
+  min-height: 0;
+}

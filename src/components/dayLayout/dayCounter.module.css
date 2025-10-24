@@ -1,0 +1,70 @@
+.dayCounterContainer {
+  font-family: var(--font-sans);
+  font-size: 1em;
+  text-align: left;
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid var(--grey3);
+  border-radius: var(--panel-radius);
+  width: 440px;
+  background: rgb(41 43 58 / 70%);
+  backdrop-filter: blur(15px);
+}
+
+.title {
+  margin-bottom: 15px;
+  color: var(--grey5);
+  font-size: 1em;
+  font-weight: normal;
+  text-shadow: 0 0 5px rgb(0 0 0 / 70%);
+}
+
+.timeDisplay {
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.timeUnit {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.timeValue {
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 0 5px rgb(0 0 0 / 70%);
+}
+
+.unitLabel {
+  margin-left: 5px;
+  font-weight: normal;
+  color: rgb(255 255 255 / 80%);
+  text-shadow: 0 0 5px rgb(0 0 0 / 70%);
+}
+
+@media (width < 500px) {
+  .dayCounterContainer {
+    width: min(calc(100vw - 70px), 440px);
+  }
+
+  .title {
+    font-size: 1em;
+  }
+
+  .timeDisplay {
+    font-size: 1.1em;
+    gap: 6px;
+  }
+
+  .timeValue {
+    font-size: 0.75em;
+  }
+
+  .unitLabel {
+    font-size: 0.75em;
+  }
+}

@@ -1,0 +1,66 @@
+.touchZone {
+  position: absolute;
+  z-index: 50;
+  pointer-events: auto;
+  cursor: default;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  background: transparent;
+  overflow: visible;
+  touch-action: none;
+
+  /* Prevent text selection on all platforms, especially iOS */
+  user-select: none;
+  /* stylelint-disable-next-line property-no-vendor-prefix */
+  -webkit-user-select: none;
+  /* stylelint-disable-next-line property-no-vendor-prefix */
+  -moz-user-select: none;
+  /* stylelint-disable-next-line property-no-vendor-prefix */
+  -ms-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: transparent;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.yearOverlay {
+  background: var(--grey1);
+  overflow: visible;
+  box-shadow: 0 12px 32px 8px rgb(0 0 0 / 60%);
+  pointer-events: none;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.yearOverlay canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.horizontalExtension {
+  flex-shrink: 0;
+  background: transparent;
+  pointer-events: none;
+  position: relative;
+  z-index: 2;
+}
+
+.touchExtension {
+  flex-shrink: 0;
+  width: 100%;
+  background: transparent;
+  pointer-events: none;
+  position: relative;
+  z-index: 2;
+}

@@ -13,6 +13,9 @@
 /.next/
 /out/
 
+# uv
+.venv/
+
 # production
 /build
 
@@ -61,4 +64,10 @@ whisperx_models
 ia_zips_processed.txt
 ia_zips_in_progress.txt
 ia_skip_zips.txt
+ia_zips_errors.txt
 identifiers.txt
+ia_zips_download_skipped_collection.txt
+comm_transcription_log*
+
+**/__pycache__/
+copilot-instructions.md

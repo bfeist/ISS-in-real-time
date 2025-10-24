@@ -1,15 +1,18 @@
 import { fixupConfigRules, fixupPluginRules } from "@eslint/compat";
 import react from "eslint-plugin-react";
-import reactHooks from "eslint-plugin-react-hooks";
+import reactHooksPkg from "eslint-plugin-react-hooks";
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import jsxa11y from "eslint-plugin-jsx-a11y";
 import prettier from "eslint-plugin-prettier";
+import cssModules from "eslint-plugin-css-modules";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
 import { FlatCompat } from "@eslint/eslintrc";
+
+const { configs: reactHooksConfigs } = reactHooksPkg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,19 +24,18 @@ const compat = new FlatCompat({
 
 export default [
   {
-    ignores: ["**/public/**/*", "**/coverage", "**/.local", "coverage/*"],
+    ignores: ["**/public/**/*", "**/coverage", "**/.local", "coverage/*", "**/.venv"],
   },
-  ...fixupConfigRules(
-    compat.extends("prettier", "plugin:react-hooks/recommended", "plugin:jsx-a11y/recommended")
-  ),
+  ...fixupConfigRules(compat.extends("prettier", "plugin:jsx-a11y/recommended")),
+  ...reactHooksConfigs.recommended,
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
     plugins: {
       react,
-      "react-hooks": fixupPluginRules(reactHooks),
       "@typescript-eslint": typescriptEslint,
       prettier,
       jsxa11y,
+      "css-modules": fixupPluginRules(cssModules),
     },
 
     languageOptions: {
@@ -66,6 +68,13 @@ export default [
           location: "anywhere",
         },
       ],
+
+      // Add recommended CSS Modules rules
+      ...cssModules.configs.recommended.rules,
+
+      // User's specific CSS Modules rules (these will override recommended if there are conflicts)
+      "css-modules/no-undef-class": ["error", { camelCase: true }],
+      "css-modules/no-unused-class": ["error", { camelCase: true }],
 
       "no-implied-eval": "error",
       "no-bitwise": "error",
@@ -154,7 +163,10 @@ export default [
         },
       ],
 
-      "no-unused-expressions": "error",
+      // Replace base rule with TypeScript version for better TS support
+      "no-unused-expressions": "off",
+      "@typescript-eslint/no-unused-expressions": "error",
+
       "no-useless-call": "error",
       "no-void": "error",
       "no-with": "error",
@@ -185,6 +197,27 @@ export default [
       "no-import-assign": "error",
       "no-unreachable": "error",
       "react/jsx-no-target-blank": "off",
+
+      // React-specific rules
+      "react/react-in-jsx-scope": "off", // Not needed in React 17+
+      "react/prop-types": "off", // Using TypeScript for prop validation
+      "react/jsx-uses-react": "off", // Not needed in React 17+
+      "react/jsx-uses-vars": "error",
+      "react/no-unescaped-entities": "error",
+      "react/no-children-prop": "error",
+      "react/no-danger-with-children": "error",
+      "react/no-deprecated": "error",
+      "react/no-direct-mutation-state": "error",
+      "react/no-find-dom-node": "error",
+      "react/no-is-mounted": "error",
+      "react/no-render-return-value": "error",
+      "react/no-string-refs": "error",
+      "react/no-unknown-property": "error",
+      "react/require-render-return": "error",
+
+      // React Hooks rules (already extended, but good to be explicit)
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
     },
   },
 ];

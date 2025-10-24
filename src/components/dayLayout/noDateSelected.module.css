@@ -1,0 +1,185 @@
+p {
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+}
+
+h2 {
+  font-family: var(--font-sans);
+  margin: 0 0 10px 0;
+  padding: 0;
+  font-size: 1.5em;
+  font-weight: normal;
+  color: white;
+  text-shadow: 0 0 5px rgb(0 0 0 / 70%);
+}
+
+.container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  position: relative;
+  touch-action: pan-y pinch-zoom;
+}
+
+.container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* background-color: rgb(0 0 0 / 30%); */
+  z-index: 1;
+}
+
+.pageContent {
+  margin: 20px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  color: var(--grey5);
+  text-shadow: 0 0 5px rgb(0 0 0 / 70%);
+  position: relative;
+  z-index: 2;
+}
+
+.pageContent p {
+  margin: 0 0 15px 0;
+  color: var(--grey5);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+
+.headerContent {
+  max-width: 800px;
+}
+
+.headerContent h2 {
+  color: white;
+  font-size: 2em;
+  margin-bottom: 10px;
+  margin-top: 20px;
+}
+
+.headerContent p {
+  color: var(--grey45);
+  background: rgb(0 0 0 / 70%);
+}
+
+.breakSpan {
+  display: inline;
+}
+
+.exploreButton {
+  width: fit-content;
+  margin-top: 30px;
+  padding: 10px 45px;
+  background-color: var(--grey2);
+  border: 1px solid var(--highlight);
+  color: white;
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exploreButton:hover {
+  background-color: var(--grey3);
+}
+
+.backgroundCarousel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.backgroundImage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: bottom right;
+  opacity: 0;
+  transition: opacity 2s ease-in-out;
+  z-index: 0;
+  will-change: opacity;
+  image-rendering: -webkit-optimize-contrast;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.backgroundImage.active {
+  opacity: 1;
+}
+
+.forumCallout {
+  color: var(--grey45);
+  margin-top: 20px;
+  line-height: 1.6;
+  font-family: var(--font-sans);
+  text-align: left;
+  padding: 15px;
+  border-radius: var(--panel-radius);
+  width: 440px;
+  background: rgb(0 0 0 / 60%);
+  backdrop-filter: blur(15px);
+}
+
+.forumCallout a {
+  color: var(--grey45);
+  text-decoration: underline;
+  cursor: pointer;
+  user-select: none;
+}
+
+@media (width <= 840px) {
+  .breakSpan {
+    display: block;
+  }
+}
+
+/* if on a super small screen, don't bother helping with wrapping the title */
+@media (width < 390px) {
+  .breakSpan {
+    display: inline;
+  }
+}
+
+@media (width < 500px) {
+  .container {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .pageContent {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .headerContent {
+    max-width: 100%;
+    font-size: 0.8em;
+  }
+
+  .forumCallout {
+    width: min(calc(100vw - 70px), 440px);
+    font-size: 0.8em;
+  }
+
+  .backgroundImage {
+    height: 100%;
+    min-height: 80vh;
+    background-size: cover;
+  }
+}

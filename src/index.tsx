@@ -8,22 +8,15 @@ import {
   Route,
 } from "react-router-dom";
 import App from "./App.tsx";
-import Home from "pages/index";
-import DatePage from "pages/dateSlug";
-import { getDatePageData, getAvailableDates, getCesiumPageData } from "utils/dataLoaders";
-import Cesium from "pages/cesium_demo.tsx";
-import Cesium2 from "pages/cesium2.tsx";
+import Home from "pages/home.tsx";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <>
-      <Route path="/" element={<App />}>
-        <Route index element={<Home />} loader={getAvailableDates} />
-        <Route path="date/:date" element={<DatePage />} loader={getDatePageData} />
-        <Route path="/cesium_demo" element={<Cesium />} loader={getCesiumPageData} />
-        <Route path="/cesium2" element={<Cesium2 />} loader={getCesiumPageData} />
-      </Route>
-    </>
+    <Route path="/" element={<App />}>
+      <Route index element={<Home />} />
+      <Route path=":dateTimeSlug" element={<Home />} />
+      <Route path="/threejs" element={<div>Three.js Test Page</div>} />
+    </Route>
   )
 );
 

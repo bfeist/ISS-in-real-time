@@ -1,0 +1,204 @@
+from dotenv import load_dotenv
+import requests
+from bs4 import BeautifulSoup
+import json
+from itertools import count
+import os
+import datetime  # ...existing code...
+
+load_dotenv(dotenv_path="../../.env")
+WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
+
+# URL of the Wikipedia page
+url = "https://en.wikipedia.org/wiki/List_of_International_Space_Station_spacewalks"
+
+# Headers to avoid being blocked by Wikipedia
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+}
+
+# Send a GET request to fetch the page content
+response = requests.get(url, headers=headers)
+response.raise_for_status()  # Raise an exception for HTTP errors
+
+# Parse the page content with BeautifulSoup
+soup = BeautifulSoup(response.text, "html.parser")
+
+# Find all tables in the page
+tables = soup.find_all("table", {"class": "wikitable"})
+
+# List to hold all EVA details
+eva_details = []
+
+# Iterate over each table to extract data
+for table in tables:
+    # Iterate over each row in the table
+    for row in table.find_all("tr")[1:]:  # Skip the header row
+        cells = row.find_all(["td", "th"])
+
+        if len(cells) == 6:
+            # Extract data with improved handling
+            number = cells[0].get_text(strip=True).replace(".", "")
+            mission = cells[1].find("a").get_text(strip=True)
+            mission_eva_tag = cells[1].find("small")
+            mission_eva_num = (
+                int(mission_eva_tag.get_text(strip=True).replace("EVA ", ""))
+                if mission_eva_tag
+                else None
+            )
+            crew_links = cells[2].find_all("a")
+            crew_counter = count(1)
+            crew = [
+                {
+                    "ev": next(crew_counter),
+                    "name": link.get_text(strip=True),
+                    "nationality": link.find_previous("img")[
+                        "alt"
+                    ],  # Assuming the flag image precedes the name
+                }
+                for link in crew_links
+                if link.get_text(strip=True)
+            ]
+            start_time_raw = cells[3].get_text(strip=True)
+            end_time_raw = cells[4].get_text(strip=True)
+            duration = cells[5].get_text(strip=True)
+
+            # Correctly map the data
+            eva = {
+                "number": number,
+                "mission": mission,
+                "missionEvaNum": mission_eva_num,
+                "crew": crew,
+                "groundIVcrew": [],
+                "startTime": start_time_raw,
+                "endTime": end_time_raw,
+                "duration": duration,
+            }
+
+        if len(cells) == 7:
+            # Extract data with improved handling
+            number = cells[0].get_text(strip=True).replace(".", "")
+            mission = cells[1].find("a").get_text(strip=True)
+            mission_eva_tag = cells[1].find("small")
+            mission_eva_num = (
+                int(mission_eva_tag.get_text(strip=True).replace("EVA ", ""))
+                if mission_eva_tag
+                else None
+            )
+            crew_links = cells[2].find_all("a")
+            crew_counter = count(1)
+            crew = [
+                {
+                    "ev": next(crew_counter),
+                    "name": link.get_text(strip=True),
+                    "nationality": link.find_previous("img")[
+                        "alt"
+                    ],  # Assuming the flag image precedes the name
+                }
+                for link in crew_links
+                if link.get_text(strip=True)
+            ]
+            groundIVcrew_links = cells[3].find_all("a")
+            groundIVcrew = [
+                {
+                    "name": link.get_text(strip=True),
+                    "nationality": link.find_previous("img")["alt"],
+                }
+                for link in groundIVcrew_links
+                if link.get_text(strip=True)
+            ]
+            start_time_raw = cells[4].get_text(strip=True)
+            end_time_raw = cells[5].get_text(strip=True)
+            duration = cells[6].get_text(strip=True)
+
+            # Correctly map the data
+            eva = {
+                "number": number,
+                "mission": mission,
+                "missionEvaNum": mission_eva_num,
+                "crew": crew,
+                "groundIVcrew": groundIVcrew,
+                "startTime": start_time_raw,
+                "endTime": end_time_raw,
+                "duration": duration,
+            }
+
+        elif len(cells) == 1:
+            cell = cells[0]
+
+            # if the cell is a divider row, skip it
+            if cell.get("bgcolor") == "#ccccff":
+                continue
+
+            # Extract the mission name with HTML and remove reference hyperlinks
+            description_html = cells[0].decode_contents()
+            soup_desc = BeautifulSoup(description_html, "html.parser")
+
+            # Remove all <sup class="reference"> tags
+            for sup in soup_desc.find_all("sup", {"class": "reference"}):
+                sup.decompose()
+
+            for a in soup_desc.find_all("a", href=True):
+                if a["href"].startswith("/wiki/"):
+                    a["href"] = f"https://en.wikipedia.org{a['href']}"
+                    a["target"] = "_blank"
+            description = str(soup_desc).strip()
+
+            eva["description"] = description
+
+            eva_details.append(eva)
+
+            eva = {}
+
+
+# audit the EVA details removing any planned EVAs. These can be determined by crew being TBD or TBC
+eva_details = [
+    eva
+    for eva in eva_details
+    if all([crew["name"] not in ["TBD", "TBC"] for crew in eva["crew"]])
+    and eva["startTime"] not in ["TBD", "TBC"]
+    and eva["endTime"] not in ["TBD", "TBC"]
+    and eva["duration"] not in ["TBC", "TBD"]
+]
+
+
+def parse_time(time_str):
+    # Try first format: "01 May 2023 14:25"
+    fmt1 = "%d %B %Y%H:%M"
+    try:
+        return datetime.datetime.strptime(time_str, fmt1).isoformat() + "Z"
+    except ValueError:
+        pass
+
+    # Try second format: "1 May, 2025" (note comma and different separator)
+    fmt2 = "%d %B, %Y%H:%M"
+    try:
+        return datetime.datetime.strptime(time_str, fmt2).isoformat() + "Z"
+    except ValueError:
+        return None
+
+
+# convert the startTime and end_time to isoformat
+for eva in eva_details:
+    try:
+        eva["startTime"] = parse_time(eva["startTime"])
+    except:
+        eva["startTime"] = None
+
+    try:
+        eva["endTime"] = parse_time(eva["endTime"])
+    except:
+        eva["endTime"] = None
+
+# Convert the list to a JSON object
+eva_json = json.dumps(eva_details, indent=4)
+
+# Write the JSON object to a file in WEB_ASSETS_FOLDER
+output_path = os.path.join(WEB_ASSETS_FOLDER, "eva_details.json")
+with open(output_path, "w") as f:
+    f.write(eva_json)

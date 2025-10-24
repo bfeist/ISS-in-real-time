@@ -1,0 +1,205 @@
+.layoutTestContainer {
+  background: rgb(255 255 255 / 5%);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.closeButtonContainer {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.title {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.description {
+  color: #cccccc;
+  font-size: 13px;
+  margin: 0 0 16px 0;
+  line-height: 1.4;
+}
+
+.layoutGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.layoutButton {
+  background: rgb(255 255 255 / 10%);
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 4px;
+  text-align: center;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.layoutButton:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.layoutButton:hover:not(:disabled) {
+  background: rgb(255 255 255 / 15%);
+  border-color: rgb(255 255 255 / 40%);
+  transform: scale(1.05);
+}
+
+.layoutButton:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* Button colors by category */
+.videoCommButton {
+  background: rgb(255 100 100 / 20%);
+  border-color: rgb(255 100 100 / 40%);
+}
+
+.videoCommButton:hover:not(:disabled) {
+  background: rgb(255 100 100 / 30%);
+  border-color: rgb(255 100 100 / 60%);
+}
+
+.videoButton {
+  background: rgb(100 255 100 / 20%);
+  border-color: rgb(100 255 100 / 40%);
+}
+
+.videoButton:hover:not(:disabled) {
+  background: rgb(100 255 100 / 30%);
+  border-color: rgb(100 255 100 / 60%);
+}
+
+.commButton {
+  background: rgb(100 100 255 / 20%);
+  border-color: rgb(100 100 255 / 40%);
+}
+
+.commButton:hover:not(:disabled) {
+  background: rgb(100 100 255 / 30%);
+  border-color: rgb(100 100 255 / 60%);
+}
+
+.noCommButton {
+  background: rgb(255 255 100 / 20%);
+  border-color: rgb(255 255 100 / 40%);
+}
+
+.noCommButton:hover:not(:disabled) {
+  background: rgb(255 255 100 / 30%);
+  border-color: rgb(255 255 100 / 60%);
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.legendItem {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.legendColor {
+  border-radius: 2px;
+  height: 12px;
+  width: 12px;
+}
+
+.videoCommColor {
+  background: rgb(255 100 100 / 60%);
+}
+
+.videoColor {
+  background: rgb(100 255 100 / 60%);
+}
+
+.commColor {
+  background: rgb(100 100 255 / 60%);
+}
+
+.noCommColor {
+  background: rgb(255 255 100 / 60%);
+}
+
+.legendItem span {
+  color: #cccccc;
+  font-size: 12px;
+}
+
+/* Responsive adjustments */
+@media (width <= 600px) {
+  .layoutGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .layoutButton {
+    font-size: 9px;
+    padding: 4px 2px;
+  }
+
+  .title {
+    font-size: 14px;
+  }
+
+  .description {
+    font-size: 11px;
+    margin-bottom: 12px;
+  }
+
+  .legend {
+    gap: 10px;
+  }
+
+  .legendItem span {
+    font-size: 10px;
+  }
+
+  .layoutTestContainer {
+    padding: 12px;
+  }
+}
+
+@media (width <= 450px) {
+  .layoutGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .layoutButton {
+    font-size: 8px;
+    padding: 3px 1px;
+  }
+
+  .layoutTestContainer {
+    padding: 10px;
+  }
+}
+
+@media (width <= 350px) {
+  .layoutGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

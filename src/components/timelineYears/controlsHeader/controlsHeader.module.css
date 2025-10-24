@@ -1,0 +1,157 @@
+.controlsPositioner {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 0; /* slight overlap below the container */
+  z-index: 1;
+  background-color: var(--grey1);
+}
+
+.left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.center {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.centerWithBackground {
+  position: relative;
+  height: 40px;
+  width: 550px;
+  background-image: url("/images/header/header_center_background.svg");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 20px;
+  pointer-events: auto; /* enable clicks */
+  filter: drop-shadow(0 1px 0 var(--grey3));
+}
+
+@media (width <= 575px) {
+  .centerWithBackground {
+    background-image: none;
+    width: auto;
+  }
+}
+
+.dateTimeContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  font-family: "Roboto Mono", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--highlight);
+  margin: 0 0 0 0;
+}
+
+.dateContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  align-items: center;
+}
+
+.dateValue {
+  white-space: nowrap;
+  border: 1px solid var(--grey3);
+  padding: 1px 8px;
+}
+
+.timeValue {
+  white-space: nowrap;
+  border: 1px solid var(--grey3);
+  padding: 1px 8px;
+  border-radius: var(--radius);
+}
+
+.dateButtonLeft {
+  cursor: pointer;
+  color: var(--headerbutton);
+  border-top: 1px solid var(--grey3);
+  border-left: 1px solid var(--grey3);
+  border-bottom: 1px solid var(--grey3);
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
+  padding: 1px 2px;
+  transition: all 0.2s ease;
+  background: transparent;
+}
+
+.dateButtonLeft:hover {
+  background-color: var(--grey3);
+}
+
+.dateButtonRight {
+  cursor: pointer;
+  color: var(--headerbutton);
+  border-top: 1px solid var(--grey3);
+  border-right: 1px solid var(--grey3);
+  border-bottom: 1px solid var(--grey3);
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+  padding: 1px 2px;
+  transition: all 0.2s ease;
+  background: transparent;
+}
+
+.dateButtonRight:hover {
+  background-color: var(--grey3);
+}
+
+.noDateSelectedMessage {
+  margin-bottom: 5px;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--grey5);
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  gap: 5px;
+  margin: 0 0 0 0;
+}
+
+.closeDayButton {
+  background: transparent;
+  border: 1px solid var(--warning);
+  cursor: pointer;
+  color: var(--warning);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
+}
+
+.closeDayButton:hover {
+  background-color: var(--grey3);
+}

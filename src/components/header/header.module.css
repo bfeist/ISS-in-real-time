@@ -1,0 +1,79 @@
+.header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  display: flex;
+  background-color: var(--grey2);
+  border-bottom: 1px solid var(--grey3);
+  z-index: 10;
+}
+
+.left {
+  display: flex;
+  margin: 0 0 0 10px;
+  flex: 1;
+}
+
+.titleContainer {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 10px;
+}
+
+.titleContainer .logo {
+  width: 30px;
+  height: 30px;
+  align-self: center;
+}
+
+.titleContainer .title {
+  flex: 0 0 210px;
+  font-size: 1.7rem;
+  font-family: Exo, sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  color: var(--highlight);
+  align-self: center;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.titleContainer .blurb {
+  font-size: 0.9rem;
+  font-family: Inter, sans-serif;
+  font-weight: 400;
+  align-self: center;
+  white-space: nowrap;
+}
+
+@media (width < 1024px) {
+  .titleContainer .blurb {
+    display: none;
+  }
+}
+
+.right {
+  float: right;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.rightButtons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin: 0 10px 0 0;
+}
+
+.dataWarningButton {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.dataWarningButton:hover {
+  background-color: rgb(255 179 71 / 12%);
+}

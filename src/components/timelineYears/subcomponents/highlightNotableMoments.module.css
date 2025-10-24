@@ -1,0 +1,48 @@
+/* Notable Moments-specific content styles */
+.notableItemContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: relative;
+}
+
+.notableDescription {
+  font-weight: 500;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.notableDateTime {
+  font-size: 0.75rem;
+  color: #888888;
+}
+
+.notableItem.selected .notableDateTime {
+  color: #4e4e4e;
+}
+
+.goButton {
+  position: absolute;
+  bottom: -2px;
+  right: 0;
+  background-color: var(--highlight);
+  color: black;
+  border: 1px solid rgb(0 0 0 / 20%);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.goButton:hover {
+  background-color: var(--highlight);
+  filter: brightness(1.1);
+  transform: scale(1.05);
+}
+
+.goButton:active {
+  transform: scale(0.95);
+}
