@@ -11,12 +11,6 @@
   text-shadow: 0 0 5px rgb(0 0 0 / 70%);
 }
 
-.heading {
-  margin: 0 0 12px 0;
-  font-size: 1em;
-  font-weight: normal;
-}
-
 .headingContainer {
   display: flex;
   flex-direction: row;
@@ -24,7 +18,14 @@
   gap: 4px;
 }
 
+.heading {
+  margin: 0 0 12px 0;
+  font-size: 1em;
+  font-weight: normal;
+}
+
 .clockValue {
+  flex: 0 0 120px;
   font-family: var(--font-mono);
   font-size: 1em;
   font-weight: 500;
