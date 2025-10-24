@@ -16,7 +16,7 @@ h2 {
 
 .container {
   width: 100%;
-  height: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -37,7 +37,8 @@ h2 {
 
 .pageContent {
   margin: 20px;
-  height: 100%;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
   color: var(--grey5);
   text-shadow: 0 0 5px rgb(0 0 0 / 70%);
   position: relative;
@@ -91,12 +92,13 @@ h2 {
 }
 
 .backgroundCarousel {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   z-index: 0;
+  pointer-events: none;
 }
 
 .backgroundImage {
@@ -161,6 +163,8 @@ h2 {
 
   .pageContent {
     height: auto;
+    max-height: none;
+    overflow: visible;
   }
 
   .headerContent {
