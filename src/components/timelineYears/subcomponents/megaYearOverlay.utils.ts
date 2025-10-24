@@ -1,3 +1,5 @@
+import { isBeforeTimelineStart } from "utils/dateTime";
+
 export const MEGA_OVERLAY_CELL_GAP = 1;
 export const MEGA_OVERLAY_MAX_DAYS_IN_MONTH = 31;
 
@@ -83,6 +85,10 @@ export const getMegaDateFromCoordinates = (
 
   // Validate day exists in this month
   if (day < 1 || day > daysInMonth) return null;
+
+  if (isBeforeTimelineStart(year, month, day)) {
+    return null;
+  }
 
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 };

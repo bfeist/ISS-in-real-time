@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import styles from "./yearCanvas.module.css";
+import { isBeforeTimelineStart } from "utils/dateTime";
 
 // Constants from the original HTML
 export const MONTH_GAP = 1;
@@ -148,6 +149,10 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
       const startX = month * (cellWidth + MONTH_GAP);
 
       for (let day = 1; day <= daysInMonth; day++) {
+        if (isBeforeTimelineStart(year, month, day)) {
+          continue;
+        }
+
         const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         const x = startX;
         const y = (day - 1) * (cellHeight + ROW_GAP); // Start from top of canvas

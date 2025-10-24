@@ -59,4 +59,22 @@ describe("getMegaDateFromCoordinates", () => {
     });
     expect(result).toBeNull();
   });
+
+  it("returns null for dates before the timeline start", () => {
+    const { x, y, gridOffsetY, cellGap } = buildCoordinate({ monthIndex: 10, day: 1, width });
+    const result = getMegaDateFromCoordinates(x, y, 2000, width, 10, 11, {
+      gridOffsetY,
+      cellGap,
+    });
+    expect(result).toBeNull();
+  });
+
+  it("allows the first selectable timeline date", () => {
+    const { x, y, gridOffsetY, cellGap } = buildCoordinate({ monthIndex: 10, day: 2, width });
+    const result = getMegaDateFromCoordinates(x, y, 2000, width, 10, 11, {
+      gridOffsetY,
+      cellGap,
+    });
+    expect(result).toBe("2000-11-02");
+  });
 });

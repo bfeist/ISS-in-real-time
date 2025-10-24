@@ -15,7 +15,11 @@ import { useStateToggle } from "../../../store/hooks/useStateToggle";
 import { useStateClock } from "../../../store/hooks/useStateClock";
 import { useStateHover } from "../../../store/hooks/useStateHover";
 import DateTooltip from "../dateTooltip/dateTooltip";
-import { appSecondsFromDateTime } from "../../../utils/dateTime";
+import {
+  appSecondsFromDateTime,
+  isBeforeTimelineStart,
+  isDateStringBeforeTimelineStart,
+} from "../../../utils/dateTime";
 import { COLORS } from "./yearCanvas";
 import {
   MEGA_OVERLAY_CELL_GAP,
@@ -216,6 +220,10 @@ const drawMegaOverlay = ({
     for (let month = startMonth; month <= endMonth; month++) {
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       if (day > daysInMonth) {
+        continue;
+      }
+
+      if (isBeforeTimelineStart(year, month, day)) {
         continue;
       }
 
@@ -529,7 +537,7 @@ const useMegaOverlayInteraction = (
         }
       );
 
-      if (!dateStr || isDateStringInFuture(dateStr)) {
+      if (!dateStr || isDateStringInFuture(dateStr) || isDateStringBeforeTimelineStart(dateStr)) {
         if (hoveredDate) {
           setHoveredDate(null);
         }
@@ -611,7 +619,7 @@ const useMegaOverlayInteraction = (
         }
       );
 
-      if (!dateStr || isDateStringInFuture(dateStr)) {
+      if (!dateStr || isDateStringInFuture(dateStr) || isDateStringBeforeTimelineStart(dateStr)) {
         setHoveredDate(null);
         setCursorPosition(null);
       } else {
@@ -702,7 +710,7 @@ const useMegaOverlayInteraction = (
         }
       );
 
-      if (!dateStr || isDateStringInFuture(dateStr)) {
+      if (!dateStr || isDateStringInFuture(dateStr) || isDateStringBeforeTimelineStart(dateStr)) {
         setHoveredDate(null);
         setCursorPosition(null);
       } else {
@@ -790,7 +798,7 @@ const useMegaOverlayInteraction = (
         }
       );
 
-      if (!dateStr || isDateStringInFuture(dateStr)) {
+      if (!dateStr || isDateStringInFuture(dateStr) || isDateStringBeforeTimelineStart(dateStr)) {
         setHoveredDate(null);
         setCursorPosition(null);
       } else {
@@ -862,7 +870,7 @@ const useMegaOverlayInteraction = (
           }
         );
 
-        if (!dateStr || isDateStringInFuture(dateStr)) {
+        if (!dateStr || isDateStringInFuture(dateStr) || isDateStringBeforeTimelineStart(dateStr)) {
           setHoveredDate(null);
           setCursorPosition(null);
         } else {
@@ -936,7 +944,8 @@ const useMegaOverlayInteraction = (
         }
       );
 
-      const isSelectable = dateStr && !isDateStringInFuture(dateStr);
+      const isSelectable =
+        dateStr && !isDateStringInFuture(dateStr) && !isDateStringBeforeTimelineStart(dateStr);
 
       notifyPointerUpdate({
         clientX: event.clientX,
@@ -972,7 +981,11 @@ const useMegaOverlayInteraction = (
     (date?: string | null) => {
       const dateToSelect = date ?? pendingTouchDate ?? hoveredDate;
 
-      if (!dateToSelect || isDateStringInFuture(dateToSelect)) {
+      if (
+        !dateToSelect ||
+        isDateStringInFuture(dateToSelect) ||
+        isDateStringBeforeTimelineStart(dateToSelect)
+      ) {
         return;
       }
 

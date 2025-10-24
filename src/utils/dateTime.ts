@@ -1,6 +1,48 @@
 /**
  * Date helpers focused on day-level comparisons.
  */
+export const TIMELINE_FIRST_AVAILABLE_DATE = "2000-11-02";
+export const TIMELINE_FIRST_AVAILABLE_YEAR = 2000;
+export const TIMELINE_FIRST_AVAILABLE_MONTH_INDEX = 10; // 0-based (November)
+export const TIMELINE_FIRST_AVAILABLE_DAY = 2;
+
+export const isBeforeTimelineStart = (year: number, monthIndex: number, day: number): boolean => {
+  if (year < TIMELINE_FIRST_AVAILABLE_YEAR) {
+    return true;
+  }
+
+  if (year > TIMELINE_FIRST_AVAILABLE_YEAR) {
+    return false;
+  }
+
+  if (monthIndex < TIMELINE_FIRST_AVAILABLE_MONTH_INDEX) {
+    return true;
+  }
+
+  if (monthIndex > TIMELINE_FIRST_AVAILABLE_MONTH_INDEX) {
+    return false;
+  }
+
+  return day < TIMELINE_FIRST_AVAILABLE_DAY;
+};
+
+export const isDateStringBeforeTimelineStart = (dateStr: string): boolean => {
+  const [yearStr, monthStr, dayStr] = dateStr.split("-");
+  if (!yearStr || !monthStr || !dayStr) {
+    return false;
+  }
+
+  const year = Number.parseInt(yearStr, 10);
+  const monthIndex = Number.parseInt(monthStr, 10) - 1;
+  const day = Number.parseInt(dayStr, 10);
+
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || !Number.isFinite(day)) {
+    return false;
+  }
+
+  return isBeforeTimelineStart(year, monthIndex, day);
+};
+
 export const isSameDay = (date1: Date | null, date2: Date): boolean => {
   if (!date1) return false;
   return (
