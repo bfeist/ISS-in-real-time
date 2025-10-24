@@ -57,11 +57,11 @@
 
   .timeDisplay {
     font-size: 1.1em;
-    gap: 10px;
+    gap: 6px;
   }
 
   .timeValue {
-    font-size: 1em;
+    font-size: 0.75em;
   }
 
   .unitLabel {

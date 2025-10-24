@@ -102,9 +102,9 @@ const AboutModal: FunctionComponent<{
           </div>
 
           <h4>Who Made This?</h4>
-          <a href="/images/ben-dave1.jpg" target="_blank" rel="noopener noreferrer">
+          <a href="/images/ben-dave2.jpg" target="_blank" rel="noopener noreferrer">
             <img
-              src="/images/ben-dave1.jpg"
+              src="/images/ben-dave2.jpg"
               alt="Dave and Ben"
               style={{
                 float: "right",
