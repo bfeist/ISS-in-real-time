@@ -2,6 +2,7 @@ import { FunctionComponent, JSX, useState, useEffect } from "react";
 import StatsModal from "./statsModal";
 import DayCounter from "./dayCounter";
 import StatsCallout from "./statsCallout";
+import TimeTravelCallout from "./timeTravelCallout";
 import styles from "./noDateSelected.module.css";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { useGeneralStats } from "api/useGeneralData";
@@ -70,13 +71,15 @@ const NoDateSelected: FunctionComponent = (): JSX.Element => {
         >
           Explore
         </div>
-        <DayCounter />
+
         <StatsCallout
           stats={stats}
           isLoading={isLoading}
           error={error}
           onShowStats={() => setShowStats(true)}
         />
+        <DayCounter />
+        <TimeTravelCallout />
 
         <div className={styles.forumCallout}>
           Visit the{" "}
