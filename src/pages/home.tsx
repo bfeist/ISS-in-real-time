@@ -1,5 +1,5 @@
 import styles from "./home.module.css";
-import { FunctionComponent, JSX, useEffect, useMemo, useRef } from "react";
+import { FunctionComponent, JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Tooltip, type TooltipRefProps } from "react-tooltip";
 import DayLayout from "components/dayLayout/dayLayout";
@@ -17,6 +17,7 @@ const HomePage: FunctionComponent = (): JSX.Element => {
   const { showTimelineYears, setShowTimelineYears } = useStateToggle();
 
   const tooltipRef = useRef<TooltipRefProps | null>(null);
+  const [tooltipEnabled, setTooltipEnabled] = useState(true);
 
   // Determine tooltip close events based on device capabilities
   const tooltipEvents = useMemo(() => {
@@ -37,6 +38,76 @@ const HomePage: FunctionComponent = (): JSX.Element => {
 
     return { closeEvents, globalCloseEvents };
   }, []);
+
+  // Opt out of tooltips automatically after the app sees a touch pointer and re-enable as soon as the user switches back to a mouse or pen.
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+
+    const hoverMedia = window.matchMedia("(hover: hover)");
+    const finePointerMedia = window.matchMedia("(pointer: fine)");
+
+    const evaluatePointerSupport = () => {
+      const canHover = hoverMedia.matches || finePointerMedia.matches;
+      setTooltipEnabled(canHover);
+    };
+
+    evaluatePointerSupport();
+
+    const addChangeListener = (media: MediaQueryList, listener: () => void): (() => void) => {
+      if (typeof media.addEventListener === "function") {
+        media.addEventListener("change", listener);
+        return () => media.removeEventListener("change", listener);
+      }
+
+      if (typeof media.addListener === "function") {
+        media.addListener(listener);
+        return () => media.removeListener(listener);
+      }
+
+      return () => {
+        /* no-op */
+      };
+    };
+
+    const removeHoverListener = addChangeListener(hoverMedia, evaluatePointerSupport);
+    const removeFinePointerListener = addChangeListener(finePointerMedia, evaluatePointerSupport);
+
+    return () => {
+      removeHoverListener();
+      removeFinePointerListener();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.pointerType === "mouse" || event.pointerType === "pen") {
+        setTooltipEnabled(true);
+        return;
+      }
+
+      if (event.pointerType === "touch") {
+        setTooltipEnabled(false);
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown, { passive: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!tooltipEnabled) {
+      tooltipRef.current?.close({ delay: 0 });
+    }
+  }, [tooltipEnabled]);
 
   // Handle slug parameter to set date and time in Zustand state
   useEffect(() => {
@@ -174,6 +245,7 @@ const HomePage: FunctionComponent = (): JSX.Element => {
         delayShow={500}
         closeEvents={tooltipEvents.closeEvents}
         globalCloseEvents={tooltipEvents.globalCloseEvents}
+        disableTooltip={() => !tooltipEnabled}
       />
     </div>
   );

@@ -30,6 +30,7 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [hasWindowFocus, setHasWindowFocus] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const playerOrigin = typeof window !== "undefined" ? window.location.origin : undefined;
 
   const { isRunning } = useStateClock();
   const { videoMute, setVideoMute } = useStateToggle();
@@ -381,9 +382,11 @@ const YtVideoComponent: FunctionComponent<YtVideoComponentProps> = ({
             autoplay: 0,
             controls: 0,
             rel: 0,
-            showinfo: 0,
             modestbranding: 1,
             iv_load_policy: 3,
+            disablekb: 1,
+            playsinline: 1,
+            ...(playerOrigin ? { origin: playerOrigin } : {}),
           },
           height: "100%",
           width: "100%",
