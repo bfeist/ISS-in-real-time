@@ -13,6 +13,8 @@ import js from "@eslint/js";
 import { FlatCompat } from "@eslint/eslintrc";
 
 const { configs: reactHooksConfigs } = reactHooksPkg;
+const reactHooksPlugin = fixupPluginRules(reactHooksPkg);
+const reactHooksRecommendedRules = reactHooksConfigs?.recommended?.rules ?? {};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,7 +29,14 @@ export default [
     ignores: ["**/public/**/*", "**/coverage", "**/.local", "coverage/*", "**/.venv"],
   },
   ...fixupConfigRules(compat.extends("prettier", "plugin:jsx-a11y/recommended")),
-  ...reactHooksConfigs.recommended,
+  {
+    plugins: {
+      "react-hooks": reactHooksPlugin,
+    },
+    rules: {
+      ...reactHooksRecommendedRules,
+    },
+  },
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
     plugins: {
@@ -36,6 +45,7 @@ export default [
       prettier,
       jsxa11y,
       "css-modules": fixupPluginRules(cssModules),
+      "react-hooks": reactHooksPlugin,
     },
 
     languageOptions: {
@@ -218,6 +228,10 @@ export default [
       // React Hooks rules (already extended, but good to be explicit)
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/immutability": "off",
+      "react-hooks/preserve-manual-memoization": "off",
     },
   },
 ];
