@@ -8,7 +8,7 @@ import { useDateCommTranscript } from "api/useDateSpecificData";
 import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
 import { useDateCacheManagement } from "api/useDateCacheManagement";
 import { useParams } from "react-router-dom";
-import { appSecondsFromTimeStr } from "utils/dateTime";
+import { appSecondsFromTimeStr, appSecondsFromDateTime } from "utils/dateTime";
 import { parseDateTimeSlug } from "utils/params";
 import { calcDayNight } from "utils/day-night";
 import { findClosestEphemeraItem } from "utils/map";
@@ -163,8 +163,8 @@ const DayLayout: FunctionComponent = () => {
   const { dateTimeSlug } = useParams();
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
   const { data: commItems = [] } = useDateCommTranscript(selectedDate);
-  const { data: videoYt = [] } = useGeneralVideoYt();
-  const { data: videoIa = [] } = useGeneralVideoIa();
+  const { data: videoYt = [], isLoading: isVideoYtLoading } = useGeneralVideoYt();
+  const { data: videoIa = [], isLoading: isVideoIaLoading } = useGeneralVideoIa();
   const { data: ephemeraItems = [] } = useDateEphemera(selectedDate || "");
   const { width } = useViewport();
   const isMobile = width < 768;
@@ -195,13 +195,75 @@ const DayLayout: FunctionComponent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayNight]);
 
-  // Find YouTube recording for this date
-  const videoYtRecording = videoYt?.find((recording: VideoYtItem) =>
-    recording.ytStartTime.startsWith(selectedDate || "")
-  );
-  const videoIaRecording = videoIa?.find(
-    (recording: VideoIaItem) => recording.date === selectedDate
-  );
+  // Gather video recordings for this date
+  const videoYtRecordingsForDate = useMemo(() => {
+    if (!selectedDate) {
+      return [];
+    }
+
+    return videoYt
+      .filter((recording: VideoYtItem) => {
+        if (!recording?.ytStartTime) {
+          return false;
+        }
+
+        const hasDuration = typeof recording.duration === "number" && recording.duration > 0;
+        return hasDuration && recording.ytStartTime.startsWith(selectedDate);
+      })
+      .sort((a, b) => {
+        const aStart = appSecondsFromDateTime(a.derivedStartTime || a.ytStartTime);
+        const bStart = appSecondsFromDateTime(b.derivedStartTime || b.ytStartTime);
+
+        const aSeconds =
+          typeof aStart === "number" && Number.isFinite(aStart) ? aStart : Number.POSITIVE_INFINITY;
+        const bSeconds =
+          typeof bStart === "number" && Number.isFinite(bStart) ? bStart : Number.POSITIVE_INFINITY;
+
+        return aSeconds - bSeconds;
+      });
+  }, [videoYt, selectedDate]);
+
+  const videoIaRecordingsForDate = useMemo(() => {
+    if (!selectedDate) {
+      return [];
+    }
+
+    return videoIa
+      .filter((recording: VideoIaItem) => {
+        if (!recording) {
+          return false;
+        }
+
+        const hasDuration = typeof recording.duration === "number" && recording.duration > 0;
+        const hasTime = typeof recording.time === "string" && recording.time.length > 0;
+        return recording.date === selectedDate && hasDuration && hasTime;
+      })
+      .sort((a, b) => appSecondsFromTimeStr(a.time) - appSecondsFromTimeStr(b.time));
+  }, [videoIa, selectedDate]);
+
+  const earliestVideoStartSeconds = useMemo(() => {
+    const startCandidates: number[] = [];
+
+    for (const recording of videoYtRecordingsForDate) {
+      const start = appSecondsFromDateTime(recording.derivedStartTime || recording.ytStartTime);
+      if (typeof start === "number" && Number.isFinite(start)) {
+        startCandidates.push(start);
+      }
+    }
+
+    for (const recording of videoIaRecordingsForDate) {
+      const start = appSecondsFromTimeStr(recording.time);
+      if (Number.isFinite(start)) {
+        startCandidates.push(start);
+      }
+    }
+
+    if (startCandidates.length === 0) {
+      return null;
+    }
+
+    return Math.min(...startCandidates);
+  }, [videoYtRecordingsForDate, videoIaRecordingsForDate]);
 
   // Manage cache when date changes
   useDateCacheManagement(selectedDate);
@@ -267,61 +329,81 @@ const DayLayout: FunctionComponent = () => {
 
   // Set initial clock position and start the clock when a day loads
   useEffect(() => {
-    if (!selectedDate) return;
+    if (!selectedDate) {
+      return;
+    }
 
-    // Handle dateTimeSlug parameter - takes highest priority
     if (slugIncludesTime) {
       // If the slug included a time we defer to the autoplay handling above
       return;
     }
 
-    // Only initialize the clock position once per date to avoid infinite loops
-    // Allow re-initialization if the notable moment changes
-    const initKey = selectedNotableMoment
-      ? `${selectedDate}-${selectedNotableMoment.datetime}`
-      : selectedDate;
+    if (isVideoYtLoading || isVideoIaLoading) {
+      return;
+    }
+
+    const notableKey = selectedNotableMoment?.datetime ?? "none";
+    const videoKey =
+      typeof earliestVideoStartSeconds === "number"
+        ? `video-${earliestVideoStartSeconds}`
+        : "no-video";
+    let firstCommTime = "no-comm";
+    const firstComm = commItems[0];
+    if (firstComm?.utteranceTime) {
+      firstCommTime = firstComm.utteranceTime;
+    }
+    const initKey = `${selectedDate}-${notableKey}-${videoKey}-${firstCommTime}`;
 
     if (initializedDateRef.current === initKey) {
       return;
     }
-    initializedDateRef.current = initKey;
 
-    // If the date is a selected notable moment, set clock to that time
+    const applyInitialization = (rawSeconds: number) => {
+      const clampedSeconds = Math.min(Math.max(rawSeconds, 0), 86399);
+      setTimeOnly(clampedSeconds);
+      startClock();
+      initializedDateRef.current = initKey;
+    };
+
     if (selectedNotableMoment && selectedNotableMoment.datetime.startsWith(selectedDate || "")) {
       const timeStr = selectedNotableMoment.datetime.split("T")[1];
-      setTimeOnly(appSecondsFromTimeStr(timeStr));
-      startClock();
+      if (timeStr) {
+        applyInitialization(appSecondsFromTimeStr(timeStr));
+      }
       return;
     }
 
-    // Set automatic clock position based on available data
-    // YouTube takes priority over comm data
-    if (videoYtRecording || videoIaRecording) {
-      // Set the clock to the start time of the YouTube recording
-      const startTimeStr = videoYtRecording?.ytStartTime.split("T")[1] || videoIaRecording?.time;
-      setTimeOnly(appSecondsFromTimeStr(startTimeStr));
-    } else if (commItems.length > 0) {
-      // If we have comm data and no YouTube, start 10 seconds before first comm
-      const firstComm = commItems[0];
-      setTimeOnly(appSecondsFromTimeStr(firstComm.utteranceTime) - 10);
-    } else {
-      // Default to current time if today, otherwise 12:00:00 (noon)
-      const today = new Date().toISOString().split("T")[0];
-      if (selectedDate === today) {
-        const now = new Date();
-        const currentSeconds =
-          now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
-        setTimeOnly(currentSeconds);
-      } else {
-        // Default to noon if not today
-        setTimeOnly(43200);
-      }
+    if (typeof earliestVideoStartSeconds === "number") {
+      applyInitialization(earliestVideoStartSeconds);
+      return;
     }
 
-    // Start the clock after setting position
-    startClock();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, dateTimeSlug, videoYtRecording, videoIaRecording, selectedNotableMoment]);
+    if (firstComm?.utteranceTime) {
+      applyInitialization(appSecondsFromTimeStr(firstComm.utteranceTime) - 10);
+      return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    if (selectedDate === today) {
+      const now = new Date();
+      const currentSeconds =
+        now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
+      applyInitialization(currentSeconds);
+      return;
+    }
+
+    applyInitialization(43200);
+  }, [
+    commItems,
+    earliestVideoStartSeconds,
+    isVideoIaLoading,
+    isVideoYtLoading,
+    selectedDate,
+    selectedNotableMoment,
+    setTimeOnly,
+    slugIncludesTime,
+    startClock,
+  ]);
 
   // Handle left/right arrow keys to adjust clock by 10 seconds
   useEffect(() => {
