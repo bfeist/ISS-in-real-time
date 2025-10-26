@@ -1,3 +1,25 @@
+import {
+  RegExpMatcher,
+  TextCensor,
+  asteriskCensorStrategy,
+  englishDataset,
+  englishRecommendedTransformers,
+} from "obscenity";
+
+const profanityMatcher = new RegExpMatcher({
+  ...englishDataset.build(),
+  ...englishRecommendedTransformers,
+});
+
+const profanityCensor = new TextCensor().setStrategy(asteriskCensorStrategy());
+
+const filterProfanity = (text: string): string => {
+  if (!text) return text;
+  const matches = profanityMatcher.getAllMatches(text, true);
+  if (matches.length === 0) return text;
+  return profanityCensor.applyTo(text, matches);
+};
+
 export function processCommCsv(data: string): CommItem[] {
   // lines are "|" delimited
   const lines = data.split("\n");
@@ -13,7 +35,7 @@ export function processCommCsv(data: string): CommItem[] {
         start,
         end,
         language,
-        text,
+        text: filterProfanity(text),
         textOriginalLang,
       });
     } else {
