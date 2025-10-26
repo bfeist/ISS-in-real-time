@@ -61,6 +61,15 @@ cache_hits = 0
 cache_misses = 0
 
 
+def safe_int(value, default=0):
+    """Safely convert a value to int, returning default on failure."""
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def make_flickr_api_request(method, params=None, max_retries=3):
     """
     Make a request to the Flickr API with rate limiting and retry logic
@@ -357,8 +366,6 @@ def process_photoset(
     Returns:
         Complete photoset data with all photos
     """
-    global processed_photos
-
     photoset_id = photoset_data.get("id")
     photoset_title = photoset_data.get("title", {}).get("_content", "Untitled")
 
@@ -371,6 +378,7 @@ def process_photoset(
 
     all_photos = photos_data["photos"]
     total_pages = photos_data["pages"]
+    total_in_album_reported = safe_int(photos_data.get("total"), len(all_photos))
 
     # Get remaining pages if any
     if total_pages > 1:
@@ -384,9 +392,14 @@ def process_photoset(
 
     # Load existing photos if resuming
     existing_photos = []
+    existing_photo_ids = set()
     if existing_data and "photos" in existing_data:
         existing_photos = existing_data["photos"]
-        existing_photo_ids = {photo.get("id") for photo in existing_photos}
+        existing_photo_ids = {
+            photo.get("id") for photo in existing_photos if photo.get("id")
+        }
+        if existing_photo_ids:
+            photo_cache.update(existing_photo_ids)
         print(f"  Found {len(existing_photos)} existing photos in output file")
 
         # Filter out photos that are already in the existing data
@@ -396,17 +409,25 @@ def process_photoset(
         print(f"  {len(all_photos)} new photos to process")
 
     # Filter out photos that have already been processed (using photo_cache for deduplication)
-    original_count = len(all_photos)
-    all_photos = [photo for photo in all_photos if photo.get("id") not in photo_cache]
-    skipped_count = original_count - len(all_photos)
+    candidate_count = len(all_photos)
+    all_photos = [
+        photo
+        for photo in all_photos
+        if photo.get("id") and photo.get("id") not in photo_cache
+    ]
+    skipped_count = candidate_count - len(all_photos)
 
     if skipped_count > 0:
         print(f"  Skipped {skipped_count} photos already processed in other albums")
 
     print(f"  Photos to process: {len(all_photos)}")
 
-    # Calculate total count for metadata
-    total_original_count = len(existing_photos) + original_count + skipped_count
+    # Calculate totals for metadata
+    photos_processed_this_run = len(all_photos)
+    photos_in_output = len(existing_photos) + photos_processed_this_run
+    total_photos_expected = (
+        total_in_album_reported if total_in_album_reported else photos_in_output
+    )
 
     # Enhance photos with detailed information if requested
     if include_detailed_info and all_photos:
@@ -442,19 +463,25 @@ def process_photoset(
                         "username": TARGET_USERNAME,
                         "retrieved_at": datetime.now().isoformat(),
                         "flickr_api_version": "1.0",
-                        "total_photos_in_album": total_original_count,
+                        "total_photos_in_album": total_photos_expected,
                         "photos_processed": i,
+                        "photos_processed_this_run": i,
+                        "photos_in_output": len(partial_photos),
                         "photos_skipped": skipped_count,
+                        "photos_skipped_due_to_cache": skipped_count,
                         "photos_from_existing": len(existing_photos),
+                        "photos_from_existing_output": len(existing_photos),
                         "include_detailed_info": include_detailed_info,
                         "include_exif": include_exif,
                         "partial_save": True,
                         "last_saved_at": datetime.now().isoformat(),
+                        "has_new_photos": True,
                     },
                     "photoset_info": photoset_data,
                     "photos": partial_photos,
                 }
                 save_photoset_data(partial_output_data, photoset_id, photoset_title)
+                save_photo_cache()
 
     # Combine existing and new photos
     final_photos = existing_photos + all_photos
@@ -467,12 +494,17 @@ def process_photoset(
             "username": TARGET_USERNAME,
             "retrieved_at": datetime.now().isoformat(),
             "flickr_api_version": "1.0",
-            "total_photos_in_album": total_original_count,
-            "photos_processed": len(all_photos),
+            "total_photos_in_album": total_photos_expected,
+            "photos_processed": photos_processed_this_run,
+            "photos_processed_this_run": photos_processed_this_run,
+            "photos_in_output": len(final_photos),
             "photos_skipped": skipped_count,
+            "photos_skipped_due_to_cache": skipped_count,
             "photos_from_existing": len(existing_photos),
+            "photos_from_existing_output": len(existing_photos),
             "include_detailed_info": include_detailed_info,
             "include_exif": include_exif,
+            "has_new_photos": photos_processed_this_run > 0,
         },
         "photoset_info": photoset_data,
         "photos": final_photos,
@@ -647,22 +679,15 @@ def main():
         existing_data = load_existing_photoset_data(photoset_id, photoset_title)
 
         if existing_data:
-            # Check if photoset is complete
             metadata = existing_data.get("metadata", {})
-            total_photos_in_album = metadata.get("total_photos_in_album", 0)
-            photos_processed = metadata.get("photos_processed", 0)
-            photos_skipped = metadata.get("photos_skipped", 0)
-
-            if photos_processed + photos_skipped >= total_photos_in_album:
+            total_photos_in_album = metadata.get("total_photos_in_album")
+            existing_photo_count = len(existing_data.get("photos", []))
+            if total_photos_in_album:
                 print(
-                    f"  Skipping - photoset already complete: {photos_processed + photos_skipped}/{total_photos_in_album} photos"
+                    f"  Existing output contains {existing_photo_count}/{total_photos_in_album} photos"
                 )
-                successful_count += 1
-                continue
             else:
-                print(
-                    f"  Resuming partial photoset: {photos_processed + photos_skipped}/{total_photos_in_album} photos already processed"
-                )
+                print(f"  Existing output contains {existing_photo_count} photos")
 
         try:
             # Process the photoset (will resume from existing data if available)
@@ -677,13 +702,21 @@ def main():
                 # Save the result
                 if save_photoset_data(result, photoset_id, photoset_title):
                     successful_count += 1
-                    photos_processed_in_this_set = result["metadata"][
-                        "photos_processed"
-                    ]
-                    total_photos_processed += photos_processed_in_this_set
-                    print(
-                        f"  ✓ Successfully processed photoset: {photoset_title} ({photos_processed_in_this_set} photos)"
+                    result_metadata = result["metadata"]
+                    photos_processed_in_this_set = result_metadata.get(
+                        "photos_processed", 0
                     )
+                    total_photos_processed += photos_processed_in_this_set
+                    if result_metadata.get("has_new_photos"):
+                        print(
+                            f"  ✓ Added {photos_processed_in_this_set} new photos for {photoset_title}"
+                        )
+                    else:
+                        print(
+                            f"  ✓ No new photos found for {photoset_title}; metadata refreshed"
+                        )
+                    if result_metadata.get("has_new_photos"):
+                        save_photo_cache()
                 else:
                     failed_count += 1
                     print(f"  ✗ Failed to save photoset: {photoset_title}")

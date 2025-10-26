@@ -146,7 +146,11 @@ if __name__ == "__main__":
     with open(f"{WEB_ASSETS_FOLDER}/eva_details.json") as f:
         evas = json.load(f)
         for eva in evas:
-            eva_dates.add(eva["startTime"].split("T")[0])
+            start_time = eva.get("startTime")
+            end_time = eva.get("endTime")
+            if not start_time or not end_time:
+                continue  # Skip EVAs missing timing info
+            eva_dates.add(start_time.split("T")[0])
 
     # Get all photo dates upfront using the same method as analyze_photos
     earth_photo_dates = get_earth_photo_dates()
