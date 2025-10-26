@@ -11,10 +11,10 @@ describe("processCommCsv", () => {
     const items = processCommCsv(csv);
 
     expect(items).toHaveLength(2);
-  expect(items[0].text).toBe("This is **** example.");
-  expect(items[0].textOriginalLang).toBe("This is fuck original.");
-  expect(items[1].text).toBe("Another **** example.");
-  expect(items[1].textOriginalLang).toBe("Another SHIT original.");
+    expect(items[0].text).toBe("This is **** example.");
+    expect(items[0].textOriginalLang).toBe("This is fuck original.");
+    expect(items[1].text).toBe("Another **** example.");
+    expect(items[1].textOriginalLang).toBe("Another SHIT original.");
   });
 
   it("leaves non-english transcripts unchanged", () => {
