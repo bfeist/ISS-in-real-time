@@ -1,6 +1,7 @@
 import React from "react";
 import { render, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MockInstance } from "vitest";
 import DayLayout from "../components/dayLayout/dayLayout";
 import { useStateClock } from "../store/hooks/useStateClock";
 import { useStateDayNight } from "../store/hooks/useStateDayNight";
@@ -116,7 +117,7 @@ describe("DayLayout autoplay handling", () => {
   let playMock: ReturnType<typeof vi.fn>;
   let pauseMock: ReturnType<typeof vi.fn>;
   let originalCreateElement: typeof document.createElement;
-  let createElementSpy: ReturnType<typeof vi.spyOn>;
+  let createElementSpy: MockInstance<typeof document.createElement>;
   let audioElementStub: HTMLAudioElement;
 
   beforeEach(() => {
