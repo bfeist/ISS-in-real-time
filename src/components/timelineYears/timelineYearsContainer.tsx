@@ -56,7 +56,8 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
     if (!selectedExpedition) return () => false;
 
     const expeditionStart = new Date(selectedExpedition.start);
-    const expeditionEnd = new Date(selectedExpedition.end);
+    // If end date is null, use current date (for ongoing expeditions)
+    const expeditionEnd = selectedExpedition.end ? new Date(selectedExpedition.end) : new Date();
 
     return (dateStr: string) => {
       const date = new Date(dateStr);
