@@ -21,6 +21,44 @@ const COLORS = {
   satisfiesHighlights: "#d9d9d9cc",
 } as const;
 
+type TodayParts = {
+  year: number;
+  monthIndex: number;
+  day: number;
+};
+
+const getTodayParts = (): TodayParts => {
+  const now = new Date();
+  return {
+    year: now.getFullYear(),
+    monthIndex: now.getMonth(),
+    day: now.getDate(),
+  };
+};
+
+const isAfterToday = (
+  candidateYear: number,
+  candidateMonthIndex: number,
+  candidateDay: number,
+  today: TodayParts
+): boolean => {
+  if (candidateYear > today.year) {
+    return true;
+  }
+
+  if (candidateYear === today.year) {
+    if (candidateMonthIndex > today.monthIndex) {
+      return true;
+    }
+
+    if (candidateMonthIndex === today.monthIndex && candidateDay > today.day) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 interface YearCanvasProps {
   year: number;
   index: number;
@@ -142,6 +180,7 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
     // Use full 12-month width calculation for consistent layout, but only draw visible months
     const cellWidth = (width - (12 - 1) * MONTH_GAP) / 12; // Always divide by 12 for consistent spacing
     const cellHeight = (height - (maxDaysInMonth - 1) * ROW_GAP) / maxDaysInMonth;
+    const today = getTodayParts();
 
     for (let month = startMonth; month <= endMonth; month++) {
       const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -150,6 +189,10 @@ const YearCanvas: React.FC<YearCanvasProps> = ({
 
       for (let day = 1; day <= daysInMonth; day++) {
         if (isBeforeTimelineStart(year, month, day)) {
+          continue;
+        }
+
+        if (isAfterToday(year, month, day, today)) {
           continue;
         }
 
