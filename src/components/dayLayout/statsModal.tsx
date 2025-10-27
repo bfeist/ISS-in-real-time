@@ -3,6 +3,10 @@ import { createPortal } from "react-dom";
 import { useGeneralStats } from "../../api/useGeneralData";
 import styles from "./statsModal.module.css";
 import CloseButton from "../common/closeButton";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
 
 const StatsModal: FunctionComponent<{
   isOpen: boolean;
@@ -249,7 +253,7 @@ const StatsModal: FunctionComponent<{
           )}
           {stats && (
             <div className={styles.generatedAt}>
-              Generated: {new Date(stats.generated_at).toLocaleString()}
+              Generated: {dayjs(stats.generated_at).utc().format("YYYY-MM-DD, hh:mm:ss A UTC")}
             </div>
           )}
         </div>

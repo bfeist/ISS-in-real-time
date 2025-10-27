@@ -2,7 +2,7 @@ import os
 import json
 import re
 import csv
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict, Counter
 from dotenv import load_dotenv
 import pycountry
@@ -604,7 +604,7 @@ def main():
         "photos": photos_stats,
         "videos": videos_stats,
         "data_availability": data_stats,
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": datetime.now().astimezone(timezone.utc).isoformat(),
     }
 
     output_path = os.path.join(WEB_ASSETS_FOLDER, "stats.json")
