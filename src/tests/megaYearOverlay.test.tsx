@@ -1,6 +1,7 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MockInstance } from "vitest";
 import MegaYearOverlay from "../components/timelineYears/subcomponents/megaYearOverlay";
 import { useStateToggle } from "../store/hooks/useStateToggle";
 import { useStateHover } from "../store/hooks/useStateHover";
@@ -29,7 +30,7 @@ const mockedClock = vi.mocked(useStateClock);
 let toggleState: ReturnType<typeof useStateToggle>;
 let hoverState: ReturnType<typeof useStateHover>;
 let clockState: ReturnType<typeof useStateClock>;
-let getContextSpy: ReturnType<typeof vi.spyOn>;
+let getContextSpy: MockInstance<HTMLCanvasElement["getContext"]>;
 
 describe("MegaYearOverlay", () => {
   beforeEach(() => {

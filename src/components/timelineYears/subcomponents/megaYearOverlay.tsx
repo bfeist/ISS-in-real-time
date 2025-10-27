@@ -39,9 +39,10 @@ type TodayParts = {
 const getTodayParts = (): TodayParts => {
   const now = new Date();
   return {
-    year: now.getFullYear(),
-    monthIndex: now.getMonth(),
-    day: now.getDate(),
+    // Align overlay rendering with UTC to match timeline expectations
+    year: now.getUTCFullYear(),
+    monthIndex: now.getUTCMonth(),
+    day: now.getUTCDate(),
   };
 };
 
@@ -1443,6 +1444,7 @@ const MegaYearOverlay = forwardRef<MegaYearOverlayHandle, MegaYearOverlayProps>(
           hoveredDate={hoveredDate}
           cursorPosition={cursorPosition}
           isTouchDevice={isTouchDevice}
+          isTouchDragActive={activeTouchId.current !== null}
           onTouchGo={handleTouchGo}
           onTouchCancel={handleTouchCancel}
           containerRef={calendarContentRef}

@@ -30,9 +30,10 @@ type TodayParts = {
 const getTodayParts = (): TodayParts => {
   const now = new Date();
   return {
-    year: now.getFullYear(),
-    monthIndex: now.getMonth(),
-    day: now.getDate(),
+    // Use UTC so timeline rendering is consistent regardless of viewer timezone
+    year: now.getUTCFullYear(),
+    monthIndex: now.getUTCMonth(),
+    day: now.getUTCDate(),
   };
 };
 

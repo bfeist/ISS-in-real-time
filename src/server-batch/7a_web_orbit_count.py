@@ -12,13 +12,15 @@ This script calculates daily orbit counts and accumulates them over time.
 import json
 import os
 import glob
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 
 def parse_tle_epoch(epoch_str):
     """Parse TLE epoch string to datetime object"""
-    return datetime.strptime(epoch_str, "%Y-%m-%dT%H:%M:%S.%f")
+    return datetime.strptime(epoch_str, "%Y-%m-%dT%H:%M:%S.%f").replace(
+        tzinfo=timezone.utc
+    )
 
 
 def calculate_daily_orbits(date, tle_data):
@@ -34,7 +36,9 @@ def calculate_daily_orbits(date, tle_data):
     Returns:
         float: number of orbits per day based on real TLE mean motion
     """
-    target_datetime = datetime.combine(date, datetime.min.time())
+    target_datetime = datetime.combine(date, datetime.min.time()).replace(
+        tzinfo=timezone.utc
+    )
 
     # Binary search for closest TLE (since tle_data is sorted by epoch)
     left, right = 0, len(tle_data) - 1
@@ -124,7 +128,7 @@ def generate_daily_orbits():
     print(f"Loaded {len(tles)} TLE entries")
 
     start_date = tles[0]["epoch"].date()
-    end_date = max(tles[-1]["epoch"].date(), datetime.now().date())
+    end_date = max(tles[-1]["epoch"].date(), datetime.now(timezone.utc).date())
     total_days = (end_date - start_date).days + 1
 
     print(f"Calculating orbits from {start_date} to {end_date}")

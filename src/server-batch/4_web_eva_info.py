@@ -195,6 +195,9 @@ for eva in eva_details:
     except:
         eva["endTime"] = None
 
+# Filter out EVAs missing timing data so we only persist complete records.
+eva_details = [eva for eva in eva_details if eva["startTime"] and eva["endTime"]]
+
 # Convert the list to a JSON object
 eva_json = json.dumps(eva_details, indent=4)
 

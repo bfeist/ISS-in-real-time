@@ -2,7 +2,7 @@ import requests
 import getpass
 import time
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 import os
 import json
@@ -19,7 +19,7 @@ NORAD_ID = 25544  # ISS NORAD ID
 WEB_EPHEMERA = os.getenv("WEB_ASSETS_FOLDER") + "ephemera/"
 
 START_DATE = "2000-10-01"
-END_DATE = datetime.now().strftime("%Y-%m-%d")
+END_DATE = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
 # Function to create an authenticated session
@@ -131,8 +131,8 @@ def get_all_tle(session, start_year=2015, norad_id=NORAD_ID):
         pd.DataFrame: DataFrame containing all TLE records.
     """
     all_tle = []
-    current_date = datetime(start_year, 1, 1)
-    end_date = datetime.now()
+    current_date = datetime(start_year, 1, 1, tzinfo=timezone.utc)
+    end_date = datetime.now(timezone.utc)
 
     # Define batch size (e.g., 1 month)
     batch_delta = timedelta(days=30)
@@ -237,7 +237,8 @@ def main():
             output_file = os.path.join(WEB_EPHEMERA, year, f"{year}-{month}.json")
 
             # Check if the month is the current month
-            current_month = datetime.now().strftime("%Y-%m")
+            # Compare against UTC so we don't re-fetch at local month boundaries
+            current_month = datetime.now(timezone.utc).strftime("%Y-%m")
             if os.path.exists(output_file) and month_str != current_month:
                 print(
                     f"Ephemera file for {year}-{month} already exists. Skipping API call."
@@ -245,10 +246,13 @@ def main():
                 continue
 
             # Include one day before and after the month
-            start_date_dt = datetime(int(year), int(month), 1) - timedelta(days=1)
+            start_date_dt = datetime(
+                int(year), int(month), 1, tzinfo=timezone.utc
+            ) - timedelta(days=1)
             start_date = start_date_dt.strftime("%Y-%m-%d")
             end_date_dt = (
-                datetime(int(year), int(month), 1) + timedelta(days=32)
+                datetime(int(year), int(month), 1, tzinfo=timezone.utc)
+                + timedelta(days=32)
             ).replace(day=1)
             end_date_dt += timedelta(days=1)
             end_str = end_date_dt.strftime("%Y-%m-%d")
