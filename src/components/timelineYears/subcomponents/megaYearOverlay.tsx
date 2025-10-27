@@ -1444,6 +1444,7 @@ const MegaYearOverlay = forwardRef<MegaYearOverlayHandle, MegaYearOverlayProps>(
           hoveredDate={hoveredDate}
           cursorPosition={cursorPosition}
           isTouchDevice={isTouchDevice}
+          isTouchDragActive={activeTouchId.current !== null}
           onTouchGo={handleTouchGo}
           onTouchCancel={handleTouchCancel}
           containerRef={calendarContentRef}

@@ -11,10 +11,19 @@ const DateTooltip: FunctionComponent<{
   hoveredDate: string | null;
   cursorPosition: { x: number; y: number } | null;
   isTouchDevice: boolean;
+  isTouchDragActive: boolean;
   onTouchGo: (date: string | null) => void;
   onTouchCancel: () => void;
   containerRef: React.RefObject<HTMLDivElement>;
-}> = ({ hoveredDate, cursorPosition, isTouchDevice, onTouchGo, onTouchCancel, containerRef }) => {
+}> = ({
+  hoveredDate,
+  cursorPosition,
+  isTouchDevice,
+  isTouchDragActive,
+  onTouchGo,
+  onTouchCancel,
+  containerRef,
+}) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const goButtonTouchActiveRef = useRef(false);
   const cancelButtonTouchActiveRef = useRef(false);
@@ -53,6 +62,11 @@ const DateTooltip: FunctionComponent<{
   const showClickPromptInHeader = showClickPrompt && !isExtraSmallScreen;
   const showTooltipContent = !isExtraSmallScreen;
   const showContentIndicators = !isExtraSmallScreen;
+  const shouldBlinkSelectButton = isTouchDevice && !isTouchDragActive;
+  const getBlinkAwareClassName = useCallback(
+    (baseClass: string) => (shouldBlinkSelectButton ? baseClass : `${baseClass} ${styles.noBlink}`),
+    [shouldBlinkSelectButton]
+  );
 
   // Extract data from React Query hooks
   const { data: dataAvailabilityItems } = useGeneralDataAvailabilities();
@@ -219,7 +233,7 @@ const DateTooltip: FunctionComponent<{
                 {showGoButton ? (
                   <>
                     <button
-                      className={styles.extraSmallGoButton}
+                      className={getBlinkAwareClassName(styles.extraSmallGoButton)}
                       onClick={handleGoButtonClick}
                       onTouchStart={handleGoButtonTouchStart}
                       onTouchMove={stopEventPropagation}
@@ -256,7 +270,7 @@ const DateTooltip: FunctionComponent<{
 
                 {showGoButtonInHeader && (
                   <button
-                    className={styles.tooltipGoButton}
+                    className={getBlinkAwareClassName(styles.tooltipGoButton)}
                     onClick={handleGoButtonClick}
                     onTouchStart={handleGoButtonTouchStart}
                     onTouchMove={stopEventPropagation}

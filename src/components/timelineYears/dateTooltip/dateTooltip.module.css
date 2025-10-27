@@ -265,3 +265,7 @@
     opacity: 0.6;
   }
 }
+
+.noBlink {
+  animation: none;
+}
