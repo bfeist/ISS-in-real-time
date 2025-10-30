@@ -183,15 +183,29 @@ export const getActiveSupplyFlightsByDate = ({
   if (!dateRegex.test(dateStr)) {
     throw new Error("Invalid date format. Please use 'YYYY-MM-DD'.");
   }
-  const currentDate = new Date(dateStr);
+  const parseDateString = (value?: string): Date | null => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = new Date(trimmed);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+  const startOfDay = new Date(`${dateStr}T00:00:00Z`);
+  const endOfDay = new Date(`${dateStr}T23:59:59Z`);
 
   // Filter supply flights that are active on the current date
   return flightsSupply.filter((supply) => {
     if (supply.is_module || supply.is_failure) return false;
 
-    const launchDate = new Date(supply.launch_date);
-    const undockingDate = supply.undocking_date ? new Date(supply.undocking_date) : null;
+    const dockingDate = parseDateString(supply.docking_date);
+    const undockingDate = parseDateString(supply.undocking_date);
 
-    return launchDate <= currentDate && (!undockingDate || currentDate <= undockingDate);
+    if (!dockingDate) return false;
+
+    // Treat flights with a blank undocking date as still docked on station.
+    const overlapsSelectedDay =
+      dockingDate <= endOfDay && (!undockingDate || undockingDate >= startOfDay);
+
+    return overlapsSelectedDay;
   });
 };
