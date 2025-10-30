@@ -12,7 +12,7 @@ import {
 } from "cesium";
 import * as Cesium from "cesium";
 import { Clock, Scene, Camera, CesiumComponentRef } from "resium";
-import { FunctionComponent, useState, useRef, useEffect, useMemo } from "react";
+import { FunctionComponent, useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Viewer, Entity } from "resium";
 import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
@@ -73,8 +73,8 @@ const GlobeCesium: FunctionComponent = () => {
 
   // Cleanup refs for proper memory management
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const originalZoomInRef = useRef<Function | null>(null);
-  const originalZoomOutRef = useRef<Function | null>(null);
+  const originalZoomInRef = useRef<((amount?: number) => void) | null>(null);
+  const originalZoomOutRef = useRef<((amount?: number) => void) | null>(null);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const ephemeraSource = useMemo(() => {
@@ -191,10 +191,6 @@ const GlobeCesium: FunctionComponent = () => {
   // Memoize terrain provider to avoid implicit Cesium ion calls
   const terrainProvider = useMemo(() => new EllipsoidTerrainProvider(), []);
   const contextOptions = useMemo(() => ({ webgl: { alpha: true } }), []);
-  const viewerImageryProps = useMemo<Partial<Record<string, unknown>>>(
-    () => ({ imageryProvider: false }),
-    []
-  );
   const imageryProvider = useMemo(() => {
     if (!mapTilerKey) return undefined;
 
@@ -207,7 +203,13 @@ const GlobeCesium: FunctionComponent = () => {
   }, [mapTilerKey]);
 
   const issEntityRef = useRef<CesiumComponentRef<Cesium.Entity>>(null);
-  const viewerRef = useRef(null);
+  const viewerRef = useRef<CesiumComponentRef<Cesium.Viewer> | null>(null);
+  const [viewerInstance, setViewerInstance] = useState<Cesium.Viewer>();
+
+  const handleViewerRef = useCallback((ref: CesiumComponentRef<Cesium.Viewer> | null) => {
+    viewerRef.current = ref;
+    setViewerInstance(ref?.cesiumElement);
+  }, []);
 
   // Detect touch device
   const isTouchDevice = useMemo(() => "ontouchstart" in window, []);
@@ -317,10 +319,9 @@ const GlobeCesium: FunctionComponent = () => {
   }, [cesiumReady]);
 
   useEffect(() => {
-    const viewer = viewerRef.current?.cesiumElement;
-    if (!viewer) return;
+    if (!viewerInstance) return;
 
-    const layers = viewer.imageryLayers;
+    const layers = viewerInstance.imageryLayers;
     layers.removeAll();
 
     if (!imageryProvider) {
@@ -332,7 +333,7 @@ const GlobeCesium: FunctionComponent = () => {
     return () => {
       layers.remove(layer, false);
     };
-  }, [imageryProvider, cesiumReady]);
+  }, [imageryProvider, viewerInstance]);
 
   const startOfDay = new Date(startTime);
   startOfDay.setUTCHours(0, 0, 0, 0);
@@ -369,9 +370,9 @@ const GlobeCesium: FunctionComponent = () => {
       )}
       <GlobeMapToggle isVisible={isHovering} />
       <Viewer
-        {...viewerImageryProps}
+        baseLayer={false}
         style={{ width: "100%", height: "100%" }}
-        ref={viewerRef}
+        ref={handleViewerRef}
         terrainProvider={terrainProvider}
         timeline={false}
         animation={false}
