@@ -353,20 +353,27 @@ const GlobeCesium: FunctionComponent = () => {
       onMouseLeave={() => setIsHovering(false)}
     >
       {(isHovering || isTouchDevice) && (
-        <div className={styles.zoomControls}>
-          <IconButton
-            icon={faPlus}
-            onClick={handleZoomIn}
-            tooltipContent="Zoom In"
-            tooltipPlace="right"
-          />
-          <IconButton
-            icon={faMinus}
-            onClick={handleZoomOut}
-            tooltipContent="Zoom Out"
-            tooltipPlace="right"
-          />
-        </div>
+        <>
+          <div className={styles.zoomControls}>
+            <IconButton
+              icon={faPlus}
+              onClick={handleZoomIn}
+              tooltipContent="Zoom In"
+              tooltipPlace="right"
+            />
+            <IconButton
+              icon={faMinus}
+              onClick={handleZoomOut}
+              tooltipContent="Zoom Out"
+              tooltipPlace="right"
+            />
+          </div>
+          <div className={styles.maptilerAttribution}>
+            <a href="https://maptiler.com/" target="_blank" rel="noopener noreferrer">
+              <img src="/images/maptiler-logo-adaptive.svg" alt="MapTiler Logo" height={20} />
+            </a>
+          </div>
+        </>
       )}
       <GlobeMapToggle isVisible={isHovering} />
       <Viewer

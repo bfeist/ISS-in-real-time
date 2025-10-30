@@ -21,3 +21,11 @@
 .zoomControls button {
   background: rgb(0 0 0 / 70%);
 }
+
+.maptilerAttribution {
+  position: absolute;
+  z-index: 1000;
+  bottom: 5px;
+  right: 5px;
+  cursor: pointer;
+}
