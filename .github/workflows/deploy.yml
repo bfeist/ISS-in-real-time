@@ -48,6 +48,7 @@ jobs:
         run: |
           echo "VITE_BASE_STATIC_URL=${{ vars.VITE_BASE_STATIC_URL }}" >> .env
           echo "VITE_CESIUM_ION_TOKEN=${{ vars.VITE_CESIUM_ION_TOKEN }}" >> .env
+          echo "VITE_MAPTILER_API_KEY=${{ vars.VITE_MAPTILER_API_KEY }}" >> .env
 
       - name: Build the app
         run: npm run build

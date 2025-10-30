@@ -1,18 +1,18 @@
-import styles from "./globe.module.css";
+import styles from "./globeCesium.module.css";
 import {
   Cartesian3,
-  createWorldTerrainAsync,
-  Ion,
   Math as CesiumMath,
   JulianDate,
   Color,
+  Credit,
   SampledPositionProperty,
   ClockRange,
   Rectangle,
+  EllipsoidTerrainProvider,
 } from "cesium";
 import * as Cesium from "cesium";
 import { Clock, Scene, Camera, CesiumComponentRef } from "resium";
-import { FunctionComponent, useState, useRef, useEffect, useMemo } from "react";
+import { FunctionComponent, useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Viewer, Entity } from "resium";
 import { findClosestEphemeraItem } from "utils/map";
 import * as satellite from "satellite.js";
@@ -30,10 +30,11 @@ import GlobeMapToggle from "./globeMapToggle";
 import IconButton from "../common/iconButton";
 import { faPlus, faMinus } from "@fortawesome/free-solid-svg-icons";
 
-// Set Cesium Ion access token
-Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
+// Clear default Cesium ion token to prevent implicit asset requests
+Cesium.Ion.defaultAccessToken = "";
 
-const Globe: FunctionComponent = () => {
+const GlobeCesium: FunctionComponent = () => {
+  const mapTilerKey = import.meta.env.VITE_MAPTILER_API_KEY;
   const { isRunning, startStopTimestamp, appSecondsAtStartStop, selectedDate } = useStateClock();
   const { hoverSeconds } = useStateHover();
   const { showEarthPhotos, showTimelapsePhotos } = useStateToggle();
@@ -72,8 +73,8 @@ const Globe: FunctionComponent = () => {
 
   // Cleanup refs for proper memory management
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const originalZoomInRef = useRef<Function | null>(null);
-  const originalZoomOutRef = useRef<Function | null>(null);
+  const originalZoomInRef = useRef<((amount?: number) => void) | null>(null);
+  const originalZoomOutRef = useRef<((amount?: number) => void) | null>(null);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const ephemeraSource = useMemo(() => {
@@ -187,12 +188,28 @@ const Globe: FunctionComponent = () => {
     [appSeconds, earthPhotographyItems, showEarthPhotos, showTimelapsePhotos]
   );
 
-  // Memoize terrain provider to prevent creating new promises on each render
-  const terrainProvider = useMemo(() => createWorldTerrainAsync(), []);
+  // Memoize terrain provider to avoid implicit Cesium ion calls
+  const terrainProvider = useMemo(() => new EllipsoidTerrainProvider(), []);
   const contextOptions = useMemo(() => ({ webgl: { alpha: true } }), []);
+  const imageryProvider = useMemo(() => {
+    if (!mapTilerKey) return undefined;
+
+    return new Cesium.UrlTemplateImageryProvider({
+      url: `https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=${mapTilerKey}`,
+      tilingScheme: new Cesium.WebMercatorTilingScheme(),
+      maximumLevel: 19,
+      credit: new Credit("© MapTiler"),
+    });
+  }, [mapTilerKey]);
 
   const issEntityRef = useRef<CesiumComponentRef<Cesium.Entity>>(null);
-  const viewerRef = useRef(null);
+  const viewerRef = useRef<CesiumComponentRef<Cesium.Viewer> | null>(null);
+  const [viewerInstance, setViewerInstance] = useState<Cesium.Viewer>();
+
+  const handleViewerRef = useCallback((ref: CesiumComponentRef<Cesium.Viewer> | null) => {
+    viewerRef.current = ref;
+    setViewerInstance(ref?.cesiumElement);
+  }, []);
 
   // Detect touch device
   const isTouchDevice = useMemo(() => "ontouchstart" in window, []);
@@ -301,6 +318,23 @@ const Globe: FunctionComponent = () => {
     };
   }, [cesiumReady]);
 
+  useEffect(() => {
+    if (!viewerInstance) return;
+
+    const layers = viewerInstance.imageryLayers;
+    layers.removeAll();
+
+    if (!imageryProvider) {
+      return;
+    }
+
+    const layer = layers.addImageryProvider(imageryProvider);
+
+    return () => {
+      layers.remove(layer, false);
+    };
+  }, [imageryProvider, viewerInstance]);
+
   const startOfDay = new Date(startTime);
   startOfDay.setUTCHours(0, 0, 0, 0);
   const endOfDay = new Date(startOfDay);
@@ -336,8 +370,9 @@ const Globe: FunctionComponent = () => {
       )}
       <GlobeMapToggle isVisible={isHovering} />
       <Viewer
+        baseLayer={false}
         style={{ width: "100%", height: "100%" }}
-        ref={viewerRef}
+        ref={handleViewerRef}
         terrainProvider={terrainProvider}
         timeline={false}
         animation={false}
@@ -436,4 +471,4 @@ const Globe: FunctionComponent = () => {
   );
 };
 
-export default Globe;
+export default GlobeCesium;
