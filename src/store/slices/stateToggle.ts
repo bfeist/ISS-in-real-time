@@ -4,7 +4,7 @@ export const createStateToggle: StateCreator<AppState, [], [], ToggleState> = (s
   // ToggleState initial state
   commMute: false,
   videoMute: true, // Start videos muted by default
-  showGlobe: false,
+  showGlobe: true,
   showTimelineYears: false,
   hoveringYearsLabels: false,
   showEarthPhotos: true,
