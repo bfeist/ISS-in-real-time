@@ -9,6 +9,8 @@ import {
   ClockRange,
   Rectangle,
   EllipsoidTerrainProvider,
+  TileMapServiceImageryProvider,
+  WebMercatorTilingScheme,
 } from "cesium";
 import * as Cesium from "cesium";
 import { Clock, Scene, Camera, CesiumComponentRef } from "resium";
@@ -32,6 +34,8 @@ import { faPlus, faMinus } from "@fortawesome/free-solid-svg-icons";
 
 // Clear default Cesium ion token to prevent implicit asset requests
 Cesium.Ion.defaultAccessToken = "";
+
+const localTiles = true;
 
 const GlobeCesium: FunctionComponent = () => {
   const mapTilerKey = import.meta.env.VITE_MAPTILER_API_KEY;
@@ -191,15 +195,60 @@ const GlobeCesium: FunctionComponent = () => {
   // Memoize terrain provider to avoid implicit Cesium ion calls
   const terrainProvider = useMemo(() => new EllipsoidTerrainProvider(), []);
   const contextOptions = useMemo(() => ({ webgl: { alpha: true } }), []);
-  const imageryProvider = useMemo(() => {
-    if (!mapTilerKey) return undefined;
+  const [imageryProvider, setImageryProvider] = useState<Cesium.ImageryProvider>();
 
-    return new Cesium.UrlTemplateImageryProvider({
+  useEffect(() => {
+    let isCanceled = false;
+
+    if (localTiles) {
+      TileMapServiceImageryProvider.fromUrl(
+        // "https://data.issinrealtime.org/tiles/naturalearth/tiles_tms",
+        "https://data.issinrealtime.org/tiles/world_2004_tiles",
+        {
+          credit: new Credit("NASA Blue Marble Next Generation (August 2004)"),
+          fileExtension: "png",
+          tilingScheme: new WebMercatorTilingScheme(),
+          maximumLevel: 8,
+        }
+      )
+        .then((provider) => {
+          if (!isCanceled) {
+            setImageryProvider(provider);
+          }
+        })
+        .catch((error) => {
+          if (!isCanceled) {
+            console.error("Failed to load tile imagery", error);
+          }
+        });
+
+      return () => {
+        isCanceled = true;
+      };
+    } else {
+      if (!mapTilerKey) {
+        console.warn("MapTiler API key missing; globe imagery disabled.");
+        setImageryProvider(undefined);
+        return () => {
+          isCanceled = true;
+        };
+      }
+    }
+
+    const provider = new Cesium.UrlTemplateImageryProvider({
       url: `https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=${mapTilerKey}`,
       tilingScheme: new Cesium.WebMercatorTilingScheme(),
       maximumLevel: 19,
       credit: new Credit("© MapTiler"),
     });
+
+    if (!isCanceled) {
+      setImageryProvider(provider);
+    }
+
+    return () => {
+      isCanceled = true;
+    };
   }, [mapTilerKey]);
 
   const issEntityRef = useRef<CesiumComponentRef<Cesium.Entity>>(null);
@@ -368,10 +417,22 @@ const GlobeCesium: FunctionComponent = () => {
               tooltipPlace="right"
             />
           </div>
-          <div className={styles.maptilerAttribution}>
-            <a href="https://maptiler.com/" target="_blank" rel="noopener noreferrer">
-              <img src="/images/maptiler-logo-adaptive.svg" alt="MapTiler Logo" height={20} />
-            </a>
+          <div className={styles.globeAttribution}>
+            {localTiles ? (
+              <>
+                <a
+                  href="https://visibleearth.nasa.gov/collection/1484/blue-marble"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  NASA Blue Marble Next Generation
+                </a>
+              </>
+            ) : (
+              <a href="https://maptiler.com/" target="_blank" rel="noopener noreferrer">
+                <img src="/images/maptiler-logo-adaptive.svg" alt="MapTiler Logo" height={20} />
+              </a>
+            )}
           </div>
         </>
       )}

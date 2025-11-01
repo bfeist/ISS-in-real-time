@@ -22,10 +22,26 @@
   background: rgb(0 0 0 / 70%);
 }
 
-.maptilerAttribution {
+.globeAttribution {
   position: absolute;
   z-index: 1000;
-  bottom: 5px;
-  right: 5px;
-  cursor: pointer;
+  bottom: 8px;
+  right: 8px;
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 12px;
+  color: #ffffff;
+  background: rgb(0 0 0 / 60%);
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.globeAttribution a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.globeAttribution a:hover {
+  text-decoration: underline;
 }
