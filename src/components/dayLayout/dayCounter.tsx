@@ -17,23 +17,35 @@ const DayCounter: React.FC = () => {
 
   useEffect(() => {
     // November 2, 2000 time of hatch opening in UTC
-    const epochDate = dayjs("2000-11-02T10:23:00Z");
+    const epochTimestamp = Date.UTC(2000, 10, 2, 10, 23, 0); // Month is 0-indexed
 
     const updateCounter = () => {
-      const now = dayjs();
-      const diff = dayjs.duration(now.diff(epochDate));
+      const nowTimestamp = Date.now();
 
-      // Calculate time components using dayjs duration methods
-      const years = Math.floor(diff.asYears());
-      const totalDays = Math.floor(diff.asDays());
-      const daysInCurrentYear = totalDays - Math.floor(years * 365.25);
+      // Total seconds elapsed
+      let totalSeconds = Math.floor((nowTimestamp - epochTimestamp) / 1000);
+
+      // Calculate years (approximate, then we'll adjust for exact days)
+      const secondsPerYear = 365.25 * 24 * 60 * 60;
+      const years = Math.floor(totalSeconds / secondsPerYear);
+      totalSeconds -= Math.floor(years * secondsPerYear);
+
+      // Calculate remaining time components
+      const days = Math.floor(totalSeconds / (24 * 60 * 60));
+      totalSeconds -= days * 24 * 60 * 60;
+
+      const hours = Math.floor(totalSeconds / (60 * 60));
+      totalSeconds -= hours * 60 * 60;
+
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
 
       setTimeElapsed({
         years,
-        days: daysInCurrentYear,
-        hours: diff.hours(),
-        minutes: diff.minutes(),
-        seconds: diff.seconds(),
+        days,
+        hours,
+        minutes,
+        seconds,
       });
     };
 
