@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from "react";
-import dayjs from "dayjs";
-import duration from "dayjs/plugin/duration";
 import styles from "./dayCounter.module.css";
-
-// Enable duration plugin
-dayjs.extend(duration);
 
 const DayCounter: React.FC = () => {
   const [timeElapsed, setTimeElapsed] = useState({
