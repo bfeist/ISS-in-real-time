@@ -36,6 +36,8 @@ import { faPlus, faMinus } from "@fortawesome/free-solid-svg-icons";
 Cesium.Ion.defaultAccessToken = "";
 
 const localTiles = true;
+const localTilesUrl =
+  import.meta.env.VITE_GLOBE_TILES_URL ?? "https://data.issinrealtime.org/tiles/world_2004_tiles";
 
 const GlobeCesium: FunctionComponent = () => {
   const mapTilerKey = import.meta.env.VITE_MAPTILER_API_KEY;
@@ -203,7 +205,7 @@ const GlobeCesium: FunctionComponent = () => {
     if (localTiles) {
       TileMapServiceImageryProvider.fromUrl(
         // "https://data.issinrealtime.org/tiles/naturalearth/tiles_tms",
-        "https://data.issinrealtime.org/tiles/world_2004_tiles",
+        localTilesUrl,
         {
           credit: new Credit("NASA Blue Marble Next Generation (August 2004)"),
           fileExtension: "png",
