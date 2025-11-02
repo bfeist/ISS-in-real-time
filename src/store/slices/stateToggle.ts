@@ -7,9 +7,9 @@ export const createStateToggle: StateCreator<AppState, [], [], ToggleState> = (s
   showGlobe: true,
   showTimelineYears: false,
   hoveringYearsLabels: false,
-  showEarthPhotos: false,
+  showEarthPhotos: true,
   showMissionPhotos: true,
-  showTimelapsePhotos: false,
+  showTimelapsePhotos: true,
 
   // Actions
   setCommMute: (mute: boolean) => set({ commMute: mute }),
