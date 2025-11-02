@@ -13,27 +13,60 @@ const DayCounter: React.FC = () => {
   useEffect(() => {
     // November 2, 2000 time of hatch opening in UTC
     const epochTimestamp = Date.UTC(2000, 10, 2, 10, 23, 0); // Month is 0-indexed
+    const epochDate = new Date(epochTimestamp);
 
     const updateCounter = () => {
       const nowTimestamp = Date.now();
+      if (nowTimestamp < epochTimestamp) {
+        setTimeElapsed({ years: 0, days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
 
-      // Total seconds elapsed
-      let totalSeconds = Math.floor((nowTimestamp - epochTimestamp) / 1000);
+      const nowDate = new Date(nowTimestamp);
 
-      // Calculate years (approximate, then we'll adjust for exact days)
-      const secondsPerYear = 365.25 * 24 * 60 * 60;
-      const years = Math.floor(totalSeconds / secondsPerYear);
-      totalSeconds -= Math.floor(years * secondsPerYear);
+      // Work out complete years using real anniversaries to avoid leap-year drift.
+      let years = nowDate.getUTCFullYear() - epochDate.getUTCFullYear();
 
-      // Calculate remaining time components
-      const days = Math.floor(totalSeconds / (24 * 60 * 60));
-      totalSeconds -= days * 24 * 60 * 60;
+      const currentAnniversary = Date.UTC(
+        epochDate.getUTCFullYear() + years,
+        epochDate.getUTCMonth(),
+        epochDate.getUTCDate(),
+        epochDate.getUTCHours(),
+        epochDate.getUTCMinutes(),
+        epochDate.getUTCSeconds()
+      );
 
-      const hours = Math.floor(totalSeconds / (60 * 60));
-      totalSeconds -= hours * 60 * 60;
+      if (nowTimestamp < currentAnniversary) {
+        years -= 1;
+      }
 
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = totalSeconds % 60;
+      years = Math.max(years, 0);
+
+      const lastAnniversary = Date.UTC(
+        epochDate.getUTCFullYear() + years,
+        epochDate.getUTCMonth(),
+        epochDate.getUTCDate(),
+        epochDate.getUTCHours(),
+        epochDate.getUTCMinutes(),
+        epochDate.getUTCSeconds()
+      );
+
+      let remainingMilliseconds = nowTimestamp - lastAnniversary;
+
+      const millisecondsPerDay = 24 * 60 * 60 * 1000;
+      const millisecondsPerHour = 60 * 60 * 1000;
+      const millisecondsPerMinute = 60 * 1000;
+
+      const days = Math.floor(remainingMilliseconds / millisecondsPerDay);
+      remainingMilliseconds -= days * millisecondsPerDay;
+
+      const hours = Math.floor(remainingMilliseconds / millisecondsPerHour);
+      remainingMilliseconds -= hours * millisecondsPerHour;
+
+      const minutes = Math.floor(remainingMilliseconds / millisecondsPerMinute);
+      remainingMilliseconds -= minutes * millisecondsPerMinute;
+
+      const seconds = Math.floor(remainingMilliseconds / 1000);
 
       setTimeElapsed({
         years,
