@@ -9,8 +9,7 @@ import {
   ClockRange,
   Rectangle,
   EllipsoidTerrainProvider,
-  TileMapServiceImageryProvider,
-  WebMercatorTilingScheme,
+  ImageryLayer,
 } from "cesium";
 import * as Cesium from "cesium";
 import { Clock, Scene, Camera, CesiumComponentRef } from "resium";
@@ -23,6 +22,7 @@ import { useStateHover } from "store/hooks/useStateHover";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { hhmmssFromAppSeconds } from "utils/dateTime";
 import { useDateEphemera, useDateEarthPhotography, useLiveTle } from "api/useDateSpecificData";
+import { useGeneralCloudsAvailable } from "api/useGeneralData";
 import {
   getCurrentAndAdjacentPhotos,
   calculateRectangleBounds,
@@ -35,12 +35,13 @@ import { faPlus, faMinus } from "@fortawesome/free-solid-svg-icons";
 // Clear default Cesium ion token to prevent implicit asset requests
 Cesium.Ion.defaultAccessToken = "";
 
-const localTiles = true;
-const localTilesUrl =
-  import.meta.env.VITE_GLOBE_TILES_URL ?? "https://data.issinrealtime.org/tiles/world_2004_tiles";
+// const localTiles = true;
+// const localTilesUrl =
+//   import.meta.env.VITE_GLOBE_TILES_URL ?? "https://data.issinrealtime.org/tiles/world_2004_tiles";
+// const gibsRestBaseUrl = "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best";
 
 const GlobeCesium: FunctionComponent = () => {
-  const mapTilerKey = import.meta.env.VITE_MAPTILER_API_KEY;
+  // const mapTilerKey = import.meta.env.VITE_MAPTILER_API_KEY;
   const { isRunning, startStopTimestamp, appSecondsAtStartStop, selectedDate } = useStateClock();
   const { hoverSeconds } = useStateHover();
   const { showEarthPhotos, showTimelapsePhotos } = useStateToggle();
@@ -48,6 +49,7 @@ const GlobeCesium: FunctionComponent = () => {
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDateValue);
   const { data: liveTle } = useLiveTle(selectedDateValue);
   const { data: earthPhotographyItems = [] } = useDateEarthPhotography(selectedDateValue);
+  const { data: cloudsAvailable = [] } = useGeneralCloudsAvailable();
 
   const [isHovering, setIsHovering] = useState(false);
 
@@ -197,61 +199,113 @@ const GlobeCesium: FunctionComponent = () => {
   // Memoize terrain provider to avoid implicit Cesium ion calls
   const terrainProvider = useMemo(() => new EllipsoidTerrainProvider(), []);
   const contextOptions = useMemo(() => ({ webgl: { alpha: true } }), []);
-  const [imageryProvider, setImageryProvider] = useState<Cesium.ImageryProvider>();
+  // const [imageryProvider, setImageryProvider] = useState<Cesium.ImageryProvider>();
+  const [cloudImageryProvider, setCloudImageryProvider] = useState<Cesium.ImageryProvider>();
+
+  // useEffect(() => {
+  //   let isCanceled = false;
+
+  //   if (localTiles) {
+  //     TileMapServiceImageryProvider.fromUrl(
+  //       // "https://data.issinrealtime.org/tiles/naturalearth/tiles_tms",
+  //       localTilesUrl,
+  //       {
+  //         credit: new Credit("NASA Blue Marble Next Generation (August 2004)"),
+  //         fileExtension: "png",
+  //         tilingScheme: new GeographicTilingScheme(),
+  //         maximumLevel: 8,
+  //       }
+  //     )
+  //       .then((provider) => {
+  //         if (!isCanceled) {
+  //           setImageryProvider(provider);
+  //         }
+  //       })
+  //       .catch((error) => {
+  //         if (!isCanceled) {
+  //           console.error("Failed to load tile imagery", error);
+  //         }
+  //       });
+
+  //     return () => {
+  //       isCanceled = true;
+  //     };
+  //   } else {
+  //     if (!mapTilerKey) {
+  //       console.warn("MapTiler API key missing; globe imagery disabled.");
+  //       setImageryProvider(undefined);
+  //       return () => {
+  //         isCanceled = true;
+  //       };
+  //     }
+  //   }
+
+  //   const provider = new Cesium.UrlTemplateImageryProvider({
+  //     url: `https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=${mapTilerKey}`,
+  //     tilingScheme: new Cesium.GeographicTilingScheme(),
+  //     maximumLevel: 19,
+  //     credit: new Credit("© MapTiler"),
+  //   });
+
+  //   if (!isCanceled) {
+  //     setImageryProvider(provider);
+  //   }
+
+  //   return () => {
+  //     isCanceled = true;
+  //   };
+  // }, [mapTilerKey]);
 
   useEffect(() => {
+    const imageryDate = selectedDate || today;
     let isCanceled = false;
 
-    if (localTiles) {
-      TileMapServiceImageryProvider.fromUrl(
-        // "https://data.issinrealtime.org/tiles/naturalearth/tiles_tms",
-        localTilesUrl,
-        {
-          credit: new Credit("NASA Blue Marble Next Generation (August 2004)"),
-          fileExtension: "png",
-          tilingScheme: new WebMercatorTilingScheme(),
-          maximumLevel: 8,
-        }
-      )
-        .then((provider) => {
-          if (!isCanceled) {
-            setImageryProvider(provider);
-          }
-        })
-        .catch((error) => {
-          if (!isCanceled) {
-            console.error("Failed to load tile imagery", error);
-          }
-        });
+    // Check if clouds are available for the selected date
+    // Find the object with the matching date and check if it has available layers
+    const dateEntry = cloudsAvailable.find((item) => item[imageryDate]);
+    const availableLayers = dateEntry ? dateEntry[imageryDate] : [];
 
+    // Check if the cloud layer we want is available for this date
+    const isCloudAvailable = availableLayers && availableLayers.length > 0;
+
+    if (!isCloudAvailable) {
+      if (!isCanceled) {
+        setCloudImageryProvider(undefined);
+      }
       return () => {
         isCanceled = true;
       };
-    } else {
-      if (!mapTilerKey) {
-        console.warn("MapTiler API key missing; globe imagery disabled.");
-        setImageryProvider(undefined);
-        return () => {
-          isCanceled = true;
-        };
-      }
     }
 
-    const provider = new Cesium.UrlTemplateImageryProvider({
-      url: `https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=${mapTilerKey}`,
-      tilingScheme: new Cesium.WebMercatorTilingScheme(),
-      maximumLevel: 19,
-      credit: new Credit("© MapTiler"),
-    });
+    try {
+      // Use the first available layer (or you could prioritize specific layers)
+      const layerToUse = availableLayers[0];
 
-    if (!isCanceled) {
-      setImageryProvider(provider);
+      // Construct the proper GIBS WMTS URL manually
+      const provider = new Cesium.WebMapTileServiceImageryProvider({
+        url: `https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/wmts.cgi?TIME=${imageryDate}`,
+        layer: layerToUse,
+        style: "default",
+        format: "image/jpeg",
+        tileMatrixSetID: "250m",
+        maximumLevel: 8,
+        credit: new Credit("Imagery courtesy NASA GIBS"),
+      });
+
+      if (!isCanceled) {
+        setCloudImageryProvider(provider);
+      }
+    } catch (error) {
+      console.error("Failed to initialize GIBS cloud layer", error);
+      if (!isCanceled) {
+        setCloudImageryProvider(undefined);
+      }
     }
 
     return () => {
       isCanceled = true;
     };
-  }, [mapTilerKey]);
+  }, [selectedDate, today, cloudsAvailable]);
 
   const issEntityRef = useRef<CesiumComponentRef<Cesium.Entity>>(null);
   const viewerRef = useRef<CesiumComponentRef<Cesium.Viewer> | null>(null);
@@ -375,16 +429,26 @@ const GlobeCesium: FunctionComponent = () => {
     const layers = viewerInstance.imageryLayers;
     layers.removeAll();
 
-    if (!imageryProvider) {
-      return;
+    const addedLayers: ImageryLayer[] = [];
+
+    // if (imageryProvider) {
+    //   addedLayers.push(layers.addImageryProvider(imageryProvider));
+    // }
+
+    if (cloudImageryProvider) {
+      const cloudLayer = layers.addImageryProvider(cloudImageryProvider);
+      cloudLayer.alpha = 1.0;
+      addedLayers.push(cloudLayer);
     }
 
-    const layer = layers.addImageryProvider(imageryProvider);
-
     return () => {
-      layers.remove(layer, false);
+      addedLayers.forEach((layer) => {
+        if (!layers.isDestroyed()) {
+          layers.remove(layer, false);
+        }
+      });
     };
-  }, [imageryProvider, viewerInstance]);
+  }, [cloudImageryProvider, viewerInstance]);
 
   const startOfDay = new Date(startTime);
   startOfDay.setUTCHours(0, 0, 0, 0);
@@ -420,21 +484,9 @@ const GlobeCesium: FunctionComponent = () => {
             />
           </div>
           <div className={styles.globeAttribution}>
-            {localTiles ? (
-              <>
-                <a
-                  href="https://visibleearth.nasa.gov/collection/1484/blue-marble"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  NASA Blue Marble Next Generation
-                </a>
-              </>
-            ) : (
-              <a href="https://maptiler.com/" target="_blank" rel="noopener noreferrer">
-                <img src="/images/maptiler-logo-adaptive.svg" alt="MapTiler Logo" height={20} />
-              </a>
-            )}
+            <a href="https://www.earthdata.nasa.gov/" target="_blank" rel="noopener noreferrer">
+              NASA GIBS
+            </a>
           </div>
         </>
       )}
