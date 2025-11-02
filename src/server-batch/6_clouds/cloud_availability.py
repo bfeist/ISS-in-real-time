@@ -1,6 +1,6 @@
 """Generate a per-day availability list for NASA GIBS cloud layers.
 
-The script fetches the EPSG:4326 WMTS capabilities document, extracts any layers
+The script fetches the Web Mercator (EPSG:3857) WMTS capabilities document, extracts any layers
 that mention clouds and expose a time dimension, and then records which days
 are covered by those sources. Results are written to `clouds_available.json`
 in the path specified by the `WEB_ASSETS_FOLDER` environment variable. Each
@@ -25,7 +25,7 @@ from dotenv import load_dotenv
 # Constants
 DEFAULT_START_DATE = date(2000, 11, 1)
 CAPABILITIES_URL = (
-    "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/"
+    "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"
     "wmts.cgi?service=WMTS&request=GetCapabilities"
 )
 

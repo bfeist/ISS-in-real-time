@@ -281,14 +281,15 @@ const GlobeCesium: FunctionComponent = () => {
       // Use the first available layer (or you could prioritize specific layers)
       const layerToUse = availableLayers[0];
 
-      // Construct the proper GIBS WMTS URL manually
+      // Construct the proper GIBS WMTS URL for Web Mercator projection
       const provider = new Cesium.WebMapTileServiceImageryProvider({
-        url: `https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/wmts.cgi?TIME=${imageryDate}`,
+        url: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?TIME=${imageryDate}`,
         layer: layerToUse,
         style: "default",
         format: "image/jpeg",
-        tileMatrixSetID: "250m",
-        maximumLevel: 8,
+        tileMatrixSetID: "GoogleMapsCompatible_Level9",
+        tilingScheme: new Cesium.WebMercatorTilingScheme(),
+        maximumLevel: 9,
         credit: new Credit("Imagery courtesy NASA GIBS"),
       });
 
