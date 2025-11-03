@@ -39,6 +39,7 @@ interface ToggleState {
   showEarthPhotos: boolean;
   showMissionPhotos: boolean;
   showTimelapsePhotos: boolean;
+  showCloudsOverlay: boolean;
 
   // Actions
   setCommMute: (mute: boolean) => void;
@@ -49,6 +50,7 @@ interface ToggleState {
   setShowEarthPhotos: (show: boolean) => void;
   setShowMissionPhotos: (show: boolean) => void;
   setShowTimelapsePhotos: (show: boolean) => void;
+  setShowCloudsOverlay: (show: boolean) => void;
 }
 
 interface CrewSelectionState {

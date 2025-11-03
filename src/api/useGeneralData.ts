@@ -12,6 +12,7 @@ import {
   fetchOrbitsDaily,
   fetchStats,
   fetchNotableMoments,
+  fetchCloudsAvailable,
 } from "./dataFetchers";
 
 // Individual hooks for each data type
@@ -117,6 +118,15 @@ export function useGeneralNotableMoments(): UseQueryResult<NotableMomentItem[], 
   return useQuery({
     queryKey: ["notableMoments"],
     queryFn: fetchNotableMoments,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+export function useGeneralCloudsAvailable(): UseQueryResult<Record<string, string[]>[], Error> {
+  return useQuery({
+    queryKey: ["cloudsAvailable"],
+    queryFn: fetchCloudsAvailable,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });

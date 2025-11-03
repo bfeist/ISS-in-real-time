@@ -10,6 +10,7 @@ export const createStateToggle: StateCreator<AppState, [], [], ToggleState> = (s
   showEarthPhotos: true,
   showMissionPhotos: true,
   showTimelapsePhotos: true,
+  showCloudsOverlay: false,
 
   // Actions
   setCommMute: (mute: boolean) => set({ commMute: mute }),
@@ -20,4 +21,5 @@ export const createStateToggle: StateCreator<AppState, [], [], ToggleState> = (s
   setShowEarthPhotos: (show: boolean) => set({ showEarthPhotos: show }),
   setShowMissionPhotos: (show: boolean) => set({ showMissionPhotos: show }),
   setShowTimelapsePhotos: (show: boolean) => set({ showTimelapsePhotos: show }),
+  setShowCloudsOverlay: (show: boolean) => set({ showCloudsOverlay: show }),
 });
