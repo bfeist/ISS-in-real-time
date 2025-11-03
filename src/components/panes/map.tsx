@@ -18,6 +18,7 @@ import VectorSourceOL from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import Terminator from "utils/terminator";
 import { containsCoordinate } from "ol/extent";
+import { createXYZ } from "ol/tilegrid";
 import { hhmmssFromAppSeconds } from "utils/dateTime";
 import {
   getCurrentAndAdjacentPhotos,
@@ -30,18 +31,21 @@ import { useStateClock } from "store/hooks/useStateClock";
 import { useStateHover } from "store/hooks/useStateHover";
 import { useStateToggle } from "store/hooks/useStateToggle";
 import { useDateEphemera, useDateEarthPhotography, useLiveTle } from "api/useDateSpecificData";
+import { useGeneralCloudsAvailable } from "api/useGeneralData";
 import GlobeMapToggle from "./globeMapToggle";
 import IconButton from "../common/iconButton";
-import { faPlus, faMinus } from "@fortawesome/free-solid-svg-icons";
+import { faPlus, faMinus, faCloud } from "@fortawesome/free-solid-svg-icons";
 
 const MapComponent: FunctionComponent = () => {
   const { selectedDate } = useStateClock();
   const { hoverSeconds } = useStateHover();
-  const { showEarthPhotos, showTimelapsePhotos } = useStateToggle();
+  const { showEarthPhotos, showTimelapsePhotos, setShowCloudsOverlay, showCloudsOverlay } =
+    useStateToggle();
   const selectedDateValue = selectedDate || "";
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDateValue);
   const { data: liveTle } = useLiveTle(selectedDateValue);
   const { data: earthPhotographyItems = [] } = useDateEarthPhotography(selectedDateValue);
+  const { data: cloudsAvailable = [] } = useGeneralCloudsAvailable();
 
   const [clockAppSeconds, setClockAppSeconds] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
@@ -69,6 +73,7 @@ const MapComponent: FunctionComponent = () => {
   const markerFeatureRef = useRef<Feature | null>(null);
   const orbitLayerRef = useRef<VectorLayer | null>(null);
   const photoRectanglesLayerRef = useRef<VectorLayer | null>(null);
+  const cloudLayerRef = useRef<TileLayer | null>(null);
 
   // Detect touch device
   const isTouchDevice = useMemo(() => "ontouchstart" in window, []);
@@ -103,6 +108,12 @@ const MapComponent: FunctionComponent = () => {
     });
     labelLayer.setOpacity(0.7);
 
+    // Initialize cloud layer (will be configured later based on date)
+    cloudLayerRef.current = new TileLayer({
+      visible: false, // Initially hidden
+      opacity: 1.0,
+    });
+
     olMapRef.current = new Map({
       target: mapRef.current,
       layers: [
@@ -111,6 +122,7 @@ const MapComponent: FunctionComponent = () => {
             url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
           }),
         }),
+        cloudLayerRef.current, // Add cloud layer between base map and labels
         labelLayer,
         new Graticule({
           strokeStyle: new Stroke({
@@ -300,6 +312,44 @@ const MapComponent: FunctionComponent = () => {
   }, [selectedDate, ephemeraSource, appSeconds]);
 
   /**
+   * Update cloud layer based on selected date and toggle state
+   */
+  useEffect(() => {
+    if (!cloudLayerRef.current || !olMapRef.current) return;
+
+    const imageryDate = selectedDate || today;
+
+    // Check if clouds are available for the selected date
+    const dateEntry = cloudsAvailable.find((item) => item[imageryDate]);
+    const availableLayers = dateEntry ? dateEntry[imageryDate] : [];
+    const isCloudAvailable = availableLayers && availableLayers.length > 0;
+
+    if (!isCloudAvailable || !showCloudsOverlay) {
+      // Hide cloud layer if not available or toggle is off
+      cloudLayerRef.current.setVisible(false);
+      return;
+    }
+
+    // Use the first available layer
+    const layerToUse = availableLayers[0];
+
+    // Create XYZ source for GIBS cloud layer
+    const cloudSource = new XYZ({
+      url: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layerToUse}/default/${imageryDate}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`,
+      projection: "EPSG:3857",
+      tileGrid: createXYZ({
+        extent: [-20037508.34, -20037508.34, 20037508.34, 20037508.34],
+        maxZoom: 9,
+      }),
+      wrapX: true,
+      attributions: "Imagery courtesy NASA GIBS",
+    });
+
+    cloudLayerRef.current.setSource(cloudSource);
+    cloudLayerRef.current.setVisible(true);
+  }, [selectedDate, today, cloudsAvailable, showCloudsOverlay]);
+
+  /**
    * Update photo rectangles on the map
    */
   useEffect(() => {
@@ -394,24 +444,37 @@ const MapComponent: FunctionComponent = () => {
       onMouseLeave={() => setIsHovering(false)}
     >
       {(isHovering || isTouchDevice) && (
-        <div className={styles.zoomControls}>
-          <IconButton
-            icon={faPlus}
-            onClick={handleZoomIn}
-            tooltipContent="Zoom In"
-            tooltipPlace="right"
-          />
-          <IconButton
-            icon={faMinus}
-            onClick={handleZoomOut}
-            tooltipContent="Zoom Out"
-            tooltipPlace="right"
-          />
-        </div>
+        <>
+          <div className={styles.zoomControls}>
+            <IconButton
+              icon={faPlus}
+              onClick={handleZoomIn}
+              tooltipContent="Zoom In"
+              tooltipPlace="right"
+            />
+            <IconButton
+              icon={faMinus}
+              onClick={handleZoomOut}
+              tooltipContent="Zoom Out"
+              tooltipPlace="right"
+            />
+          </div>
+
+          <div className={styles.toggleButtons}>
+            <GlobeMapToggle isVisible={isHovering} />
+            <IconButton
+              className={styles.cloudToggle}
+              icon={faCloud}
+              onClick={() => setShowCloudsOverlay(!showCloudsOverlay)}
+              style={{
+                opacity: showCloudsOverlay ? 1 : 0.5,
+              }}
+              tooltipContent="Toggle Today's Cloud Cover"
+              tooltipPlace="right"
+            />
+          </div>
+        </>
       )}
-      <div className={styles.globeMapToggle}>
-        <GlobeMapToggle isVisible={isHovering} />
-      </div>
       <ClockInterval setAppSeconds={setClockAppSeconds} />
       <div ref={mapRef} className={styles.map}></div>
     </div>
