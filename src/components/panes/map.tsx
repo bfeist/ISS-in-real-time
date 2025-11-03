@@ -409,7 +409,9 @@ const MapComponent: FunctionComponent = () => {
           />
         </div>
       )}
-      <GlobeMapToggle isVisible={isHovering} />
+      <div className={styles.globeMapToggle}>
+        <GlobeMapToggle isVisible={isHovering} />
+      </div>
       <ClockInterval setAppSeconds={setClockAppSeconds} />
       <div ref={mapRef} className={styles.map}></div>
     </div>

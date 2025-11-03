@@ -10,6 +10,8 @@ import {
   Rectangle,
   EllipsoidTerrainProvider,
   ImageryLayer,
+  TileMapServiceImageryProvider,
+  WebMercatorTilingScheme,
 } from "cesium";
 import * as Cesium from "cesium";
 import { Clock, Scene, Camera, CesiumComponentRef } from "resium";
@@ -30,21 +32,19 @@ import {
 } from "utils/photoRectangles";
 import GlobeMapToggle from "./globeMapToggle";
 import IconButton from "../common/iconButton";
-import { faPlus, faMinus } from "@fortawesome/free-solid-svg-icons";
+import { faPlus, faMinus, faCloud } from "@fortawesome/free-solid-svg-icons";
 
 // Clear default Cesium ion token to prevent implicit asset requests
 Cesium.Ion.defaultAccessToken = "";
 
-// const localTiles = true;
-// const localTilesUrl =
-//   import.meta.env.VITE_GLOBE_TILES_URL ?? "https://data.issinrealtime.org/tiles/world_2004_tiles";
-// const gibsRestBaseUrl = "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best";
+const localTilesUrl =
+  import.meta.env.VITE_GLOBE_TILES_URL ?? "https://data.issinrealtime.org/tiles/world_2004_tiles";
 
 const GlobeCesium: FunctionComponent = () => {
-  // const mapTilerKey = import.meta.env.VITE_MAPTILER_API_KEY;
   const { isRunning, startStopTimestamp, appSecondsAtStartStop, selectedDate } = useStateClock();
   const { hoverSeconds } = useStateHover();
-  const { showEarthPhotos, showTimelapsePhotos } = useStateToggle();
+  const { showEarthPhotos, showTimelapsePhotos, setShowCloudsOverlay, showCloudsOverlay } =
+    useStateToggle();
   const selectedDateValue = selectedDate || "";
   const { data: ephemeraItems = [], isLoading } = useDateEphemera(selectedDateValue);
   const { data: liveTle } = useLiveTle(selectedDateValue);
@@ -199,62 +199,33 @@ const GlobeCesium: FunctionComponent = () => {
   // Memoize terrain provider to avoid implicit Cesium ion calls
   const terrainProvider = useMemo(() => new EllipsoidTerrainProvider(), []);
   const contextOptions = useMemo(() => ({ webgl: { alpha: true } }), []);
-  // const [imageryProvider, setImageryProvider] = useState<Cesium.ImageryProvider>();
+  const [imageryProvider, setImageryProvider] = useState<Cesium.ImageryProvider>();
   const [cloudImageryProvider, setCloudImageryProvider] = useState<Cesium.ImageryProvider>();
 
-  // useEffect(() => {
-  //   let isCanceled = false;
+  useEffect(() => {
+    let isCanceled = false;
 
-  //   if (localTiles) {
-  //     TileMapServiceImageryProvider.fromUrl(
-  //       // "https://data.issinrealtime.org/tiles/naturalearth/tiles_tms",
-  //       localTilesUrl,
-  //       {
-  //         credit: new Credit("NASA Blue Marble Next Generation (August 2004)"),
-  //         fileExtension: "png",
-  //         tilingScheme: new GeographicTilingScheme(),
-  //         maximumLevel: 8,
-  //       }
-  //     )
-  //       .then((provider) => {
-  //         if (!isCanceled) {
-  //           setImageryProvider(provider);
-  //         }
-  //       })
-  //       .catch((error) => {
-  //         if (!isCanceled) {
-  //           console.error("Failed to load tile imagery", error);
-  //         }
-  //       });
+    TileMapServiceImageryProvider.fromUrl(localTilesUrl, {
+      credit: new Credit("NASA Blue Marble Next Generation (August 2004)"),
+      fileExtension: "png",
+      tilingScheme: new WebMercatorTilingScheme(),
+      maximumLevel: 8,
+    })
+      .then((provider) => {
+        if (!isCanceled) {
+          setImageryProvider(provider);
+        }
+      })
+      .catch((error) => {
+        if (!isCanceled) {
+          console.error("Failed to load tile imagery", error);
+        }
+      });
 
-  //     return () => {
-  //       isCanceled = true;
-  //     };
-  //   } else {
-  //     if (!mapTilerKey) {
-  //       console.warn("MapTiler API key missing; globe imagery disabled.");
-  //       setImageryProvider(undefined);
-  //       return () => {
-  //         isCanceled = true;
-  //       };
-  //     }
-  //   }
-
-  //   const provider = new Cesium.UrlTemplateImageryProvider({
-  //     url: `https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=${mapTilerKey}`,
-  //     tilingScheme: new Cesium.GeographicTilingScheme(),
-  //     maximumLevel: 19,
-  //     credit: new Credit("© MapTiler"),
-  //   });
-
-  //   if (!isCanceled) {
-  //     setImageryProvider(provider);
-  //   }
-
-  //   return () => {
-  //     isCanceled = true;
-  //   };
-  // }, [mapTilerKey]);
+    return () => {
+      isCanceled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const imageryDate = selectedDate || today;
@@ -286,7 +257,7 @@ const GlobeCesium: FunctionComponent = () => {
         url: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi?TIME=${imageryDate}`,
         layer: layerToUse,
         style: "default",
-        format: "image/jpeg",
+        format: "image/png",
         tileMatrixSetID: "GoogleMapsCompatible_Level9",
         tilingScheme: new Cesium.WebMercatorTilingScheme(),
         maximumLevel: 9,
@@ -356,7 +327,13 @@ const GlobeCesium: FunctionComponent = () => {
   }, []);
 
   useEffect(() => {
-    if (!viewerRef.current?.cesiumElement?.scene || !issEntityRef.current?.cesiumElement) return;
+    // Wait for Cesium to be fully initialized
+    if (
+      !cesiumReady ||
+      !viewerRef.current?.cesiumElement?.scene ||
+      !issEntityRef.current?.cesiumElement
+    )
+      return;
 
     // set globe lighting
     viewerRef.current.cesiumElement.scene.globe.enableLighting = true;
@@ -425,20 +402,26 @@ const GlobeCesium: FunctionComponent = () => {
   }, [cesiumReady]);
 
   useEffect(() => {
-    if (!viewerInstance) return;
+    // Wait for Cesium to be fully initialized
+    if (!cesiumReady || !viewerInstance) return;
 
     const layers = viewerInstance.imageryLayers;
     layers.removeAll();
 
     const addedLayers: ImageryLayer[] = [];
 
-    // if (imageryProvider) {
-    //   addedLayers.push(layers.addImageryProvider(imageryProvider));
-    // }
+    // Add base map (NASA Blue Marble)
+    if (imageryProvider) {
+      addedLayers.push(layers.addImageryProvider(imageryProvider));
+    }
 
-    if (cloudImageryProvider) {
+    // Add cloud overlay only if showCloudsOverlay is enabled
+    if (cloudImageryProvider && showCloudsOverlay) {
       const cloudLayer = layers.addImageryProvider(cloudImageryProvider);
       cloudLayer.alpha = 1.0;
+      // Make black pixels transparent to show underlying layers
+      cloudLayer.colorToAlpha = new Cesium.Color(0, 0, 0, 1);
+      cloudLayer.colorToAlphaThreshold = 0.1;
       addedLayers.push(cloudLayer);
     }
 
@@ -449,7 +432,7 @@ const GlobeCesium: FunctionComponent = () => {
         }
       });
     };
-  }, [cloudImageryProvider, viewerInstance]);
+  }, [cesiumReady, cloudImageryProvider, viewerInstance, imageryProvider, showCloudsOverlay]);
 
   const startOfDay = new Date(startTime);
   startOfDay.setUTCHours(0, 0, 0, 0);
@@ -486,12 +469,32 @@ const GlobeCesium: FunctionComponent = () => {
           </div>
           <div className={styles.globeAttribution}>
             <a href="https://www.earthdata.nasa.gov/" target="_blank" rel="noopener noreferrer">
-              NASA GIBS
+              Cloudcover: NASA GIBS
             </a>
+            <a
+              href="https://visibleearth.nasa.gov/collection/1484/blue-marble"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              NASA Blue Marble Next Generation
+            </a>
+          </div>
+
+          <div className={styles.toggleButtons}>
+            <GlobeMapToggle isVisible={isHovering} />
+            <IconButton
+              icon={faCloud}
+              onClick={() => setShowCloudsOverlay(!showCloudsOverlay)}
+              style={{
+                opacity: showCloudsOverlay ? 1 : 0.5,
+              }}
+              tooltipContent="Toggle Today's Cloud Cover"
+              tooltipPlace="right"
+            />
           </div>
         </>
       )}
-      <GlobeMapToggle isVisible={isHovering} />
+
       <Viewer
         baseLayer={false}
         style={{ width: "100%", height: "100%" }}
