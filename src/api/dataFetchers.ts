@@ -364,6 +364,17 @@ export async function fetchNotableMoments(): Promise<NotableMomentItem[]> {
     .sort((a, b) => a.datetime.localeCompare(b.datetime));
 }
 
+export async function fetchCloudsAvailable(): Promise<Record<string, string[]>[]> {
+  const baseStaticUrl = getBaseStaticUrl();
+  const response = await fetch(`${baseStaticUrl}/clouds_available.json`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch Clouds Available data");
+  }
+
+  return response.json();
+}
+
 export function processDataAvailabilities({
   dataAvailabilitiesRaw,
 }: {
