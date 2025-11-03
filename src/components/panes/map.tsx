@@ -464,16 +464,17 @@ const MapComponent: FunctionComponent = () => {
 
           <div className={styles.toggleButtons}>
             <GlobeMapToggle isVisible={isHovering} />
-            <IconButton
-              className={styles.mapButton}
-              icon={faCloud}
-              onClick={() => setShowCloudsOverlay(!showCloudsOverlay)}
-              style={{
-                opacity: showCloudsOverlay ? 1 : 0.5,
-              }}
-              tooltipContent="Toggle Today's Cloud Cover"
-              tooltipPlace="right"
-            />
+            <div className={styles.mapButton}>
+              <IconButton
+                icon={faCloud}
+                onClick={() => setShowCloudsOverlay(!showCloudsOverlay)}
+                style={{
+                  opacity: showCloudsOverlay ? 1 : 0.5,
+                }}
+                tooltipContent="Toggle Today's Cloud Cover"
+                tooltipPlace="right"
+              />
+            </div>
           </div>
         </>
       )}
