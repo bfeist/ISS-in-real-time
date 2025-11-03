@@ -32,6 +32,12 @@
   gap: 4px;
 }
 
+.globeButton {
+  background: rgb(0 0 0 / 70%);
+  border-radius: 4px;
+  box-shadow: 0 6px 12px rgb(0 0 0 / 50%);
+}
+
 .globeAttribution {
   position: absolute;
   z-index: 1000;

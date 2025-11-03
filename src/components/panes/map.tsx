@@ -447,12 +447,14 @@ const MapComponent: FunctionComponent = () => {
         <>
           <div className={styles.zoomControls}>
             <IconButton
+              className={styles.mapButton}
               icon={faPlus}
               onClick={handleZoomIn}
               tooltipContent="Zoom In"
               tooltipPlace="right"
             />
             <IconButton
+              className={styles.mapButton}
               icon={faMinus}
               onClick={handleZoomOut}
               tooltipContent="Zoom Out"
@@ -463,7 +465,7 @@ const MapComponent: FunctionComponent = () => {
           <div className={styles.toggleButtons}>
             <GlobeMapToggle isVisible={isHovering} />
             <IconButton
-              className={styles.cloudToggle}
+              className={styles.mapButton}
               icon={faCloud}
               onClick={() => setShowCloudsOverlay(!showCloudsOverlay)}
               style={{

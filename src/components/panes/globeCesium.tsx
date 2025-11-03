@@ -401,6 +401,38 @@ const GlobeCesium: FunctionComponent = () => {
     };
   }, [cesiumReady]);
 
+  // Establish and maintain tracking
+  useEffect(() => {
+    if (!cesiumReady || !viewerRef.current?.cesiumElement || !issEntityRef.current?.cesiumElement)
+      return;
+
+    const viewer = viewerRef.current.cesiumElement;
+    const entity = issEntityRef.current.cesiumElement;
+
+    // Verify entity has a valid position property and can be evaluated
+    if (!entity.position) {
+      return;
+    }
+
+    // Try to get the position at the current time to verify it's valid
+    try {
+      const position = entity.position.getValue(viewer.clock.currentTime);
+      if (!position) {
+        // Position not available yet, wait for next update
+        return;
+      }
+    } catch (e) {
+      // Position evaluation failed, wait for next update
+      return;
+    }
+
+    // Only set tracked entity if it's not already tracked
+    // This ensures tracking is established and maintained
+    if (viewer.trackedEntity !== entity) {
+      viewer.trackedEntity = entity;
+    }
+  }, [cesiumReady, julianDate, sampledPositionProperty]);
+
   useEffect(() => {
     // Wait for Cesium to be fully initialized
     if (!cesiumReady || !viewerInstance) return;
@@ -455,12 +487,14 @@ const GlobeCesium: FunctionComponent = () => {
         <>
           <div className={styles.zoomControls}>
             <IconButton
+              className={styles.globeButton}
               icon={faPlus}
               onClick={handleZoomIn}
               tooltipContent="Zoom In"
               tooltipPlace="right"
             />
             <IconButton
+              className={styles.globeButton}
               icon={faMinus}
               onClick={handleZoomOut}
               tooltipContent="Zoom Out"
@@ -483,6 +517,7 @@ const GlobeCesium: FunctionComponent = () => {
           <div className={styles.toggleButtons}>
             <GlobeMapToggle isVisible={isHovering} />
             <IconButton
+              className={styles.globeButton}
               icon={faCloud}
               onClick={() => setShowCloudsOverlay(!showCloudsOverlay)}
               style={{
@@ -517,7 +552,6 @@ const GlobeCesium: FunctionComponent = () => {
           <Camera />
         </Scene>
         <Entity
-          tracked={true}
           ref={issEntityRef}
           name="ISS"
           position={sampledPositionProperty}
