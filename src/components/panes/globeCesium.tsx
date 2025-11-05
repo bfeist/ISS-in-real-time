@@ -260,7 +260,7 @@ const GlobeCesium: FunctionComponent = () => {
         format: "image/png",
         tileMatrixSetID: "GoogleMapsCompatible_Level9",
         tilingScheme: new Cesium.WebMercatorTilingScheme(),
-        maximumLevel: 9,
+        maximumLevel: 12,
         credit: new Credit("Imagery courtesy NASA GIBS"),
       });
 
@@ -338,6 +338,10 @@ const GlobeCesium: FunctionComponent = () => {
     // set globe lighting
     viewerRef.current.cesiumElement.scene.globe.enableLighting = true;
     viewerRef.current.cesiumElement.scene.skyAtmosphere.show = false;
+
+    // Force higher detail tiles to load even when zoomed out
+    viewerRef.current.cesiumElement.scene.globe.maximumScreenSpaceError = 1; // Lower = higher quality (default is 2)
+    viewerRef.current.cesiumElement.scene.globe.tileCacheSize = 1000; // Increase tile cache
 
     const viewer = viewerRef.current.cesiumElement;
     const camera = viewer.scene.camera;
@@ -536,6 +540,7 @@ const GlobeCesium: FunctionComponent = () => {
         style={{ width: "100%", height: "100%" }}
         ref={handleViewerRef}
         terrainProvider={terrainProvider}
+        resolutionScale={window.devicePixelRatio}
         timeline={false}
         animation={false}
         navigationHelpButton={false}

@@ -54,6 +54,15 @@ jobs:
       - name: Build the app
         run: npm run build
 
+      - name: Configure .htaccess for environment
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/prod" ]; then
+            echo "Non-production branch detected. Using .htaccess with basic auth."
+            cp .local/vite/dist/.htaccess-auth .local/vite/dist/.htaccess
+          else
+            echo "Production branch detected. Using standard .htaccess."
+          fi
+
       - name: Deploy to DreamHost
         env:
           SSH_AUTH_SOCK: /tmp/ssh-agent.sock
@@ -77,6 +86,7 @@ jobs:
           fi
 
           ssh "$DREAMHOST_USER@$DREAMHOST_HOST" "mkdir -p $DEPLOY_PATH"
+
           if [ -d .local/vite/dist ]; then
             rsync -avz --delete .local/vite/dist/ "$DREAMHOST_USER@$DREAMHOST_HOST":"$DEPLOY_PATH"
           else
