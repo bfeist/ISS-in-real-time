@@ -1,30 +1,32 @@
 import { StateCreator } from "zustand";
+import type { AppStore, ContentHighlightsSlice } from "../types";
 
-export const createStateContentHighlights: StateCreator<
-  AppState,
+export const createContentHighlightsSlice: StateCreator<
+  AppStore,
   [],
   [],
-  ContentHighlightsState
-> = (set) => ({
-  // Content highlights initial state
-  contentHighlights: [],
+  ContentHighlightsSlice
+> = (set, _get, _store) => {
+  const patchList = (updater: (list: string[]) => string[]) =>
+    set((state) => ({
+      contentHighlights: {
+        ...state.contentHighlights,
+        contentHighlights: updater(state.contentHighlights.contentHighlights),
+      },
+    }));
 
-  // Actions
-  addContentHighlight: (highlight: string) =>
-    set((state) => ({
-      contentHighlights: state.contentHighlights.includes(highlight)
-        ? state.contentHighlights
-        : [...state.contentHighlights, highlight],
-    })),
-  removeContentHighlight: (highlight: string) =>
-    set((state) => ({
-      contentHighlights: state.contentHighlights.filter((h) => h !== highlight),
-    })),
-  toggleContentHighlight: (highlight: string) =>
-    set((state) => ({
-      contentHighlights: state.contentHighlights.includes(highlight)
-        ? state.contentHighlights.filter((h) => h !== highlight)
-        : [...state.contentHighlights, highlight],
-    })),
-  clearContentHighlights: () => set({ contentHighlights: [] }),
-});
+  return {
+    contentHighlights: {
+      contentHighlights: [],
+      addContentHighlight: (highlight: string) =>
+        patchList((list) => (list.includes(highlight) ? list : [...list, highlight])),
+      removeContentHighlight: (highlight: string) =>
+        patchList((list) => list.filter((h) => h !== highlight)),
+      toggleContentHighlight: (highlight: string) =>
+        patchList((list) =>
+          list.includes(highlight) ? list.filter((h) => h !== highlight) : [...list, highlight]
+        ),
+      clearContentHighlights: () => patchList(() => []),
+    },
+  };
+};

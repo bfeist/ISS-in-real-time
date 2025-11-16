@@ -5,7 +5,7 @@ import type { MockInstance } from "vitest";
 import DayLayout from "../components/dayLayout/dayLayout";
 import { useStateClock } from "../store/hooks/useStateClock";
 import { useStateDayNight } from "../store/hooks/useStateDayNight";
-import { useStateSearch } from "../store/hooks/useStateSearch";
+import { useStateSearchHighlights } from "../store/hooks/useStateSearchHighlights";
 import {
   useDateDataAvailability,
   useDateEphemera,
@@ -24,8 +24,8 @@ vi.mock("../store/hooks/useStateDayNight", () => ({
   useStateDayNight: vi.fn(),
 }));
 
-vi.mock("../store/hooks/useStateSearch", () => ({
-  useStateSearch: vi.fn(),
+vi.mock("../store/hooks/useStateSearchHighlights", () => ({
+  useStateSearchHighlights: vi.fn(),
 }));
 
 vi.mock("../api/useDateSpecificData", () => ({
@@ -102,7 +102,7 @@ vi.mock("react-router-dom", async () => {
 describe("DayLayout autoplay handling", () => {
   const mockedClock = vi.mocked(useStateClock);
   const mockedDayNight = vi.mocked(useStateDayNight);
-  const mockedSearch = vi.mocked(useStateSearch);
+  const mockedSearchHighlights = vi.mocked(useStateSearchHighlights);
   const mockedDataAvailability = vi.mocked(useDateDataAvailability);
   const mockedEphemera = vi.mocked(useDateEphemera);
   const mockedComm = vi.mocked(useDateCommTranscript);
@@ -143,7 +143,7 @@ describe("DayLayout autoplay handling", () => {
       setDayNight,
     } as unknown as ReturnType<typeof useStateDayNight>);
 
-    mockedSearch.mockReturnValue({
+    mockedSearchHighlights.mockReturnValue({
       selectedCrewMember: null,
       setSelectedCrewMember: vi.fn(),
       selectedExpedition: null,
@@ -151,7 +151,7 @@ describe("DayLayout autoplay handling", () => {
       selectedNotableMoment: null,
       setSelectedNotableMoment: vi.fn(),
       clearAllSearchHighlights: vi.fn(),
-    } as unknown as ReturnType<typeof useStateSearch>);
+    } as unknown as ReturnType<typeof useStateSearchHighlights>);
 
     mockedDataAvailability.mockReturnValue({ data: undefined } as unknown as ReturnType<
       typeof useDateDataAvailability
@@ -213,7 +213,7 @@ describe("DayLayout autoplay handling", () => {
   });
 
   afterEach(() => {
-    createElementSpy.mockRestore();
+    createElementSpy?.mockRestore();
     cleanup();
   });
 

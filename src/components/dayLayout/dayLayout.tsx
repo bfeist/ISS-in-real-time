@@ -2,7 +2,7 @@ import { FunctionComponent, useEffect, useState, useMemo, useRef } from "react";
 import styles from "./dayLayout.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateDayNight } from "store/hooks/useStateDayNight";
-import { useStateSearch } from "store/hooks/useStateSearch";
+import { useStateSearchHighlights } from "store/hooks/useStateSearchHighlights";
 import { useDateDataAvailability, useDateEphemera } from "api/useDateSpecificData";
 import { useDateCommTranscript } from "api/useDateSpecificData";
 import { useGeneralVideoIa, useGeneralVideoYt } from "api/useGeneralData";
@@ -159,7 +159,7 @@ const renderColumn = (components: ComponentConfig[], columnClass: string): JSX.E
 const DayLayout: FunctionComponent = () => {
   const { selectedDate, startClock, setTimeOnly, appSecondsAtStartStop } = useStateClock();
   const { setDayNight } = useStateDayNight();
-  const { selectedNotableMoment } = useStateSearch();
+  const { selectedNotableMoment } = useStateSearchHighlights();
   const { dateTimeSlug } = useParams();
   const { data: dataAvailability } = useDateDataAvailability(selectedDate);
   const { data: commItems = [] } = useDateCommTranscript(selectedDate);

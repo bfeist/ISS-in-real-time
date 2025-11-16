@@ -1,9 +1,19 @@
 import { StateCreator } from "zustand";
+import type { AppStore, DayNightSlice } from "../types";
 
-export const createStateDayNight: StateCreator<AppState, [], [], DayNightState> = (set) => ({
-  // Day/Night initial state
-  dayNight: [],
-
-  // Actions
-  setDayNight: (dayNight: DayNightObj[]) => set({ dayNight }),
+export const createDayNightSlice: StateCreator<AppStore, [], [], DayNightSlice> = (
+  set,
+  _get,
+  _store
+) => ({
+  dayNight: {
+    dayNight: [],
+    setDayNight: (dayNight: DayNightObj[]) =>
+      set((state) => ({
+        dayNight: {
+          ...state.dayNight,
+          dayNight,
+        },
+      })),
+  },
 });

@@ -52,6 +52,8 @@ describe("MegaYearOverlay", () => {
       setShowMissionPhotos: vi.fn(),
       showTimelapsePhotos: false,
       setShowTimelapsePhotos: vi.fn(),
+      showCloudsOverlay: false,
+      setShowCloudsOverlay: vi.fn(),
     };
 
     hoverState = {

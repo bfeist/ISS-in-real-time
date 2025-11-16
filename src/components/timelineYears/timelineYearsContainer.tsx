@@ -8,7 +8,7 @@ import {
 } from "../../api/useGeneralData";
 import { useStateClock } from "../../store/hooks/useStateClock";
 import { useStateContentHighlights } from "../../store/hooks/useStateContentHighlights";
-import { useStateSearch } from "../../store/hooks/useStateSearch";
+import { useStateSearchHighlights } from "../../store/hooks/useStateSearchHighlights";
 import { getCrewNormalizedName } from "utils/crew";
 import { dateComponentFromDateTime } from "utils/dateTime";
 import ControlsHeader from "./controlsHeader/controlsHeader";
@@ -26,7 +26,8 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
   // Global state hooks
   const { selectedDate } = useStateClock();
   const { contentHighlights } = useStateContentHighlights();
-  const { selectedCrewMember, selectedExpedition, selectedNotableMoment } = useStateSearch();
+  const { selectedCrewMember, selectedExpedition, selectedNotableMoment } =
+    useStateSearchHighlights();
 
   // Fetch data availability
   const { data: dataAvailabilityItems, isLoading, error } = useGeneralDataAvailabilities();

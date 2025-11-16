@@ -1,23 +1,31 @@
-import { create } from "zustand";
+import { createStore } from "zustand";
+import { useStore } from "zustand/react";
 import { devtools } from "zustand/middleware";
-import { createStateClock } from "./slices/stateClock";
-import { createStateHover } from "./slices/stateHover";
-import { createStateToggle } from "./slices/stateToggle";
-import { createStateCrewSelection } from "./slices/stateCrewSelection";
-import { createStateContentHighlights } from "./slices/stateContentHighlights";
-import { createStateDayNight } from "./slices/stateDayNight";
+import { useShallow } from "zustand/react/shallow";
+import type { AppStore } from "./types";
+import { createClockSlice } from "./slices/stateClock";
+import { createHoverSlice } from "./slices/stateHover";
+import { createToggleSlice } from "./slices/stateToggle";
+import { createCrewSelectionSlice } from "./slices/stateSearchHighlights";
+import { createContentHighlightsSlice } from "./slices/stateContentHighlights";
+import { createDayNightSlice } from "./slices/stateDayNight";
 
-// Create store with redux devtools middleware
-export const useAppStore = create<AppState>()(
+const store = createStore<AppStore>()(
   devtools(
-    (...a) => ({
-      ...createStateClock(...a),
-      ...createStateHover(...a),
-      ...createStateToggle(...a),
-      ...createStateCrewSelection(...a),
-      ...createStateContentHighlights(...a),
-      ...createStateDayNight(...a),
+    (set, get, api) => ({
+      ...createClockSlice(set, get, api),
+      ...createHoverSlice(set, get, api),
+      ...createToggleSlice(set, get, api),
+      ...createCrewSelectionSlice(set, get, api),
+      ...createContentHighlightsSlice(set, get, api),
+      ...createDayNightSlice(set, get, api),
     }),
     { name: "ISSiRT Zustand Store" }
   )
 );
+
+type Selector<T> = (state: AppStore) => T;
+
+export const useAppStore = <T>(selector: Selector<T>): T => useStore(store, useShallow(selector));
+
+export { store as appStore };

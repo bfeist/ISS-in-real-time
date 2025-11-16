@@ -1,13 +1,5 @@
-import { useShallow } from "zustand/react/shallow";
+import type { DayNightSlice } from "../types";
 import { useAppStore } from "../index";
 
-export const useStateDayNight = (): {
-  dayNight: DayNightObj[];
-  setDayNight: (dayNight: DayNightObj[]) => void;
-} =>
-  useAppStore(
-    useShallow((state) => ({
-      dayNight: state.dayNight,
-      setDayNight: state.setDayNight,
-    }))
-  );
+export const useStateDayNight = (): DayNightSlice["dayNight"] =>
+  useAppStore((state) => state.dayNight);

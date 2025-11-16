@@ -1,6 +1,6 @@
 import React, { FunctionComponent, useMemo } from "react";
 import styles from "./highlightCrew.module.css";
-import { useStateSearch } from "store/hooks/useStateSearch";
+import { useStateSearchHighlights } from "store/hooks/useStateSearchHighlights";
 import { useGeneralCrewArrDep } from "api/useGeneralData";
 import { getCrewNormalizedName } from "utils/crew";
 import HighlightType, { HighlightTypeConfig } from "./highlightType";
@@ -9,7 +9,7 @@ interface HighlightCrewProps {}
 
 const HighlightCrew: FunctionComponent<HighlightCrewProps> = () => {
   const { data: crewArrDep } = useGeneralCrewArrDep();
-  const { selectedCrewMember, setSelectedCrewMember } = useStateSearch();
+  const { selectedCrewMember, setSelectedCrewMember } = useStateSearchHighlights();
 
   // Generate unique crew list for display
   // Use normalized names to deduplicate crew members across multiple stays
