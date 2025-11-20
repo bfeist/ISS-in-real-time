@@ -7,7 +7,7 @@ import datetime  # Added import
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv(dotenv_path="../../.env")
+load_dotenv(dotenv_path="../../../.env")
 
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 
@@ -51,6 +51,7 @@ def get_expedition_patch_url(expedition_number):
 
     # Wikimedia Commons API endpoint
     api_url = "https://commons.wikimedia.org/w/api.php"
+    headers = {"User-Agent": "ISSiRT-Bot/1.0 (https://github.com/bfeist/ISSiRT)"}
 
     for title in possible_titles:
         # Set up parameters to check if the file exists
@@ -63,8 +64,13 @@ def get_expedition_patch_url(expedition_number):
         }
 
         # Make the API request
-        response = requests.get(api_url, params=params)
-        data = response.json()
+        response = requests.get(api_url, params=params, headers=headers)
+        try:
+            data = response.json()
+        except json.JSONDecodeError:
+            print(f"Failed to decode JSON for title: {title}")
+            print(f"Response content: {response.text[:200]}...")
+            continue
 
         # Extract page information
         pages = data.get("query", {}).get("pages", {})
@@ -90,8 +96,13 @@ def get_expedition_patch_url(expedition_number):
     }
 
     # Make the search API request
-    search_response = requests.get(api_url, params=search_params)
-    search_data = search_response.json()
+    search_response = requests.get(api_url, params=search_params, headers=headers)
+    try:
+        search_data = search_response.json()
+    except json.JSONDecodeError:
+        print(f"Failed to decode JSON for search query: {search_params}")
+        print(f"Response content: {search_response.text[:200]}...")
+        return None
 
     # Iterate over search results
     for result in search_data.get("query", {}).get("search", []):
@@ -99,8 +110,13 @@ def get_expedition_patch_url(expedition_number):
 
         # Get image info for the found file
         params["titles"] = file_title
-        response = requests.get(api_url, params=params)
-        data = response.json()
+        response = requests.get(api_url, params=params, headers=headers)
+        try:
+            data = response.json()
+        except json.JSONDecodeError:
+            print(f"Failed to decode JSON for file title: {file_title}")
+            print(f"Response content: {response.text[:200]}...")
+            continue
         pages = data.get("query", {}).get("pages", {})
         for page in pages.values():
             if "imageinfo" in page:
@@ -116,7 +132,8 @@ def get_expedition_patch_url(expedition_number):
 
 def scrape_expedition(num):
     url = f"https://www.nasa.gov/mission/expedition-{str(num)}/"
-    response = requests.get(url)
+    headers = {"User-Agent": "ISSiRT-Bot/1.0 (https://github.com/bfeist/ISSiRT)"}
+    response = requests.get(url, headers=headers)
     response.raise_for_status()  # Check for request errors
 
     soup = BeautifulSoup(response.content, "html.parser")

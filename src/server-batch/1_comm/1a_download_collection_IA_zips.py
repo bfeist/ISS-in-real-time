@@ -197,7 +197,7 @@ def main():
     # Download and parse XML
     print("Downloading and parsing XML files...")
 
-    for collection in collections_xml:
+    for collection in reversed(collections_xml):
         xml_url = f"{ia_root_path}{collection}/{collection}_files.xml"
         base_download_url = f"{ia_root_path}{collection}/"
 
