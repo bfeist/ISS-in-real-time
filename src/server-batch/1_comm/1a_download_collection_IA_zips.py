@@ -203,8 +203,13 @@ def main():
 
         print(f"Downloading and parsing {collection} XML file...")
 
-        response = requests.get(xml_url)
-        root = ET.fromstring(response.content)
+        try:
+            response = requests.get(xml_url)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+        except (requests.RequestException, ET.ParseError) as e:
+            print(f"Skipping {collection} due to error: {e}")
+            continue
 
         # Get existing files (normalized mapping)
         space_files, dragon_files = get_existing_files()
