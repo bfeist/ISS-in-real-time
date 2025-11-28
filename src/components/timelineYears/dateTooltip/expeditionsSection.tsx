@@ -13,7 +13,8 @@ const ExpeditionsSection: FunctionComponent<ExpeditionsSectionProps> = ({ hovere
     if (!hoveredDate || !expeditionInfo) return [];
     return expeditionInfo.filter(
       (expedition: ExpeditionInfo) =>
-        expedition.start <= hoveredDate && expedition.end >= hoveredDate
+        expedition.start <= hoveredDate &&
+        (expedition.end === null || expedition.end >= hoveredDate)
     );
   }, [hoveredDate, expeditionInfo]);
 
