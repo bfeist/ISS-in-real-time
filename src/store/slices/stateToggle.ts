@@ -1,25 +1,39 @@
 import { StateCreator } from "zustand";
+import type { AppStore, ToggleSlice } from "../types";
 
-export const createStateToggle: StateCreator<AppState, [], [], ToggleState> = (set) => ({
-  // ToggleState initial state
-  commMute: false,
-  videoMute: true, // Start videos muted by default
-  showGlobe: true,
-  showTimelineYears: false,
-  hoveringYearsLabels: false,
-  showEarthPhotos: true,
-  showMissionPhotos: true,
-  showTimelapsePhotos: true,
-  showCloudsOverlay: true,
+export const createToggleSlice: StateCreator<AppStore, [], [], ToggleSlice> = (
+  set,
+  _get,
+  _store
+) => {
+  const patch = (partial: Partial<ToggleSlice["toggles"]>) =>
+    set((state) => ({
+      toggles: {
+        ...state.toggles,
+        ...partial,
+      },
+    }));
 
-  // Actions
-  setCommMute: (mute: boolean) => set({ commMute: mute }),
-  setVideoMute: (mute: boolean) => set({ videoMute: mute }),
-  setShowGlobe: (show: boolean) => set({ showGlobe: show }),
-  setShowTimelineYears: (show: boolean) => set({ showTimelineYears: show }),
-  setHoveringYearsLabels: (hovering: boolean) => set({ hoveringYearsLabels: hovering }),
-  setShowEarthPhotos: (show: boolean) => set({ showEarthPhotos: show }),
-  setShowMissionPhotos: (show: boolean) => set({ showMissionPhotos: show }),
-  setShowTimelapsePhotos: (show: boolean) => set({ showTimelapsePhotos: show }),
-  setShowCloudsOverlay: (show: boolean) => set({ showCloudsOverlay: show }),
-});
+  return {
+    toggles: {
+      commMute: false,
+      videoMute: true,
+      showGlobe: true,
+      showTimelineYears: false,
+      hoveringYearsLabels: false,
+      showEarthPhotos: true,
+      showMissionPhotos: true,
+      showTimelapsePhotos: true,
+      showCloudsOverlay: true,
+      setCommMute: (mute: boolean) => patch({ commMute: mute }),
+      setVideoMute: (mute: boolean) => patch({ videoMute: mute }),
+      setShowGlobe: (show: boolean) => patch({ showGlobe: show }),
+      setShowTimelineYears: (show: boolean) => patch({ showTimelineYears: show }),
+      setHoveringYearsLabels: (hovering: boolean) => patch({ hoveringYearsLabels: hovering }),
+      setShowEarthPhotos: (show: boolean) => patch({ showEarthPhotos: show }),
+      setShowMissionPhotos: (show: boolean) => patch({ showMissionPhotos: show }),
+      setShowTimelapsePhotos: (show: boolean) => patch({ showTimelapsePhotos: show }),
+      setShowCloudsOverlay: (show: boolean) => patch({ showCloudsOverlay: show }),
+    },
+  };
+};

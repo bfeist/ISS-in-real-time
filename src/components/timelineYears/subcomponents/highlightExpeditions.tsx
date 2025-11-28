@@ -1,6 +1,6 @@
 import React, { FunctionComponent, useMemo } from "react";
 import styles from "./highlightExpeditions.module.css";
-import { useStateSearch } from "store/hooks/useStateSearch";
+import { useStateSearchHighlights } from "store/hooks/useStateSearchHighlights";
 import { useGeneralExpeditionInfo } from "api/useGeneralData";
 import HighlightType, { HighlightTypeConfig } from "./highlightType";
 
@@ -8,7 +8,7 @@ interface HighlightExpeditionsProps {}
 
 const HighlightExpeditions: FunctionComponent<HighlightExpeditionsProps> = () => {
   const { data: expeditionInfo } = useGeneralExpeditionInfo();
-  const { selectedExpedition, setSelectedExpedition } = useStateSearch();
+  const { selectedExpedition, setSelectedExpedition } = useStateSearchHighlights();
 
   // Generate expedition list for display
   const expeditions: ExpeditionInfo[] = useMemo(() => {

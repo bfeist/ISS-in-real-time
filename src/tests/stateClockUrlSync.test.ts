@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { create, type StateCreator } from "zustand";
-import { createStateClock } from "store/slices/stateClock";
+import { createClockSlice } from "store/slices/stateClock";
+import type { ClockSlice } from "store/types";
 
 const createClockTestStore = () => {
-  const slice = createStateClock as unknown as StateCreator<ClockState, [], [], ClockState>;
-  return create<ClockState>()(slice);
+  const slice = createClockSlice as unknown as StateCreator<ClockSlice, [], [], ClockSlice>;
+  return create<ClockSlice>()(slice);
 };
 
 describe("stateClock URL syncing", () => {
@@ -16,19 +17,19 @@ describe("stateClock URL syncing", () => {
   });
 
   it("writes date-only slug by default", () => {
-    store.getState().setDateOnly("2024-01-01");
+    store.getState().clock.setDateOnly("2024-01-01");
 
     expect(window.location.pathname).toBe("/2024-01-01");
   });
 
   it("includes time slug when requested", () => {
-    store.getState().setDateTime("2024-01-01", 3661, { includeTimeInUrl: true });
+    store.getState().clock.setDateTime("2024-01-01", 3661, { includeTimeInUrl: true });
     expect(window.location.pathname).toBe("/2024-01-01T01:01:01");
   });
 
   it("clears slug when date is cleared", () => {
-    store.getState().setDateOnly("2023-05-05");
-    store.getState().setDateOnly(null);
+    store.getState().clock.setDateOnly("2023-05-05");
+    store.getState().clock.setDateOnly(null);
 
     expect(window.location.pathname).toBe("/");
   });

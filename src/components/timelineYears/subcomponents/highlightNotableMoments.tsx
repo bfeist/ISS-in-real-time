@@ -1,6 +1,6 @@
 import React, { FunctionComponent, useMemo } from "react";
 import styles from "./highlightNotableMoments.module.css";
-import { useStateSearch } from "store/hooks/useStateSearch";
+import { useStateSearchHighlights } from "store/hooks/useStateSearchHighlights";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useGeneralNotableMoments } from "api/useGeneralData";
 import HighlightType, { HighlightTypeConfig } from "./highlightType";
@@ -11,7 +11,7 @@ interface HighlightNotableMomentsProps {}
 
 const HighlightNotableMoments: FunctionComponent<HighlightNotableMomentsProps> = () => {
   const { data: notableData } = useGeneralNotableMoments();
-  const { selectedNotableMoment, setSelectedNotableMoment } = useStateSearch();
+  const { selectedNotableMoment, setSelectedNotableMoment } = useStateSearchHighlights();
   const { setDateTime } = useStateClock();
   const { setShowTimelineYears } = useStateToggle();
 

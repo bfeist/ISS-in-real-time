@@ -4,31 +4,36 @@ This directory contains the individual slices of the Zustand store, organized by
 
 ## Slices
 
-- **`stateClock.ts`** - Manages clock state (start/stop timestamps, running state)
-- **`stateHover.ts`** - Manages hover state (hover seconds, hovered date)
-- **`stateSelectedDate.ts`** - Manages selected date state
-- **`stateToggle.ts`** - Manages global toggles (mute, globe visibility)
-- **`stateCrewSelection.ts`** - Manages crew member selection
-- **`stateContentHighlights.ts`** - Manages content highlights array
+- **`stateClock.ts`** – Clock state (start/stop timestamps, running state, selection helpers)
+- **`stateHover.ts`** – Hover state (hover seconds, hovered date)
+- **`stateToggle.ts`** – Global toggles (mute, overlays, visibility)
+- **`stateCrewSelection.ts`** – Crew member, expedition and notable moment selection
+- **`stateContentHighlights.ts`** – Content highlight tracking helpers
+- **`stateDayNight.ts`** – Day/night overlays
 
 ## Structure
 
-Each slice file exports a `createState*` function that follows the Zustand slice pattern:
+Each slice file exports a `create*Slice` factory that namespaces state + actions under a single key:
 
 ```typescript
-export const createStateName: StateCreator<AppState, [], [], StateInterface> = (set) => ({
-  // Initial state
-  someState: initialValue,
-
-  // Actions
-  setSomeState: (value) => set({ someState: value }),
+export const createExampleSlice: StateCreator<AppStore, [], [], ExampleSlice> = (set) => ({
+  example: {
+    value: 0,
+    setValue: (next: number) =>
+      set((state) => ({
+        example: {
+          ...state.example,
+          value: next,
+        },
+      })),
+  },
 });
 ```
 
 ## Usage
 
-All slices are composed together in the main store file (`../index.ts`). The corresponding selector hooks are organized in the `../hooks/` directory, with each hook file matching its slice counterpart.
+All slices are composed together in the main store file (`../index.ts`). Selector hooks under `../hooks/` simply subscribe to the relevant namespaced slice (for example `useStateClock` returns `state.clock`).
 
 ## Types
 
-Type definitions for each slice are maintained in `src/typings/store.d.ts` to keep them centralized and avoid duplication.
+Type definitions for each slice now live in `src/store/types.ts`, which also exports the combined `AppStore` interface.
