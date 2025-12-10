@@ -4,9 +4,19 @@ import csv
 import argparse
 from datetime import datetime
 from dotenv import load_dotenv
+from rich.console import Console
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+)
 
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../.env")
+
+console = Console()
 
 # This script processes the CSV transcript files created by 3_web_comm.py and creates
 # a single JSON file with the first communication entry for each date.
@@ -29,8 +39,6 @@ def get_first_comm_for_date(comm_web_dir, date_str):
 
     if not os.path.exists(transcript_file):
         return None
-
-    print(f"Processing first comm for {date_str}...")
 
     try:
         with open(transcript_file, "r", encoding="utf-8") as f:
@@ -125,26 +133,14 @@ def get_first_comm_for_date(comm_web_dir, date_str):
                 # Sort by distance to 7:30 AM and pick the closest
                 good_morning_utterances.sort(key=lambda x: x[0])
                 selected_utterance = good_morning_utterances[0][1]
-                print(
-                    f"Found a morning greeting for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
-                )
             elif morning_utterances:
                 morning_utterances.sort(key=lambda x: x[0])
                 selected_utterance = morning_utterances[0][1]
-                print(
-                    f"Found a morning greeting for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
-                )
             elif first_after_6am:
                 selected_utterance = first_after_6am
-                print(
-                    f"No 'good morning' or 'morning' found, using first after 6 AM for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
-                )
             else:
                 # Fallback to the very first utterance if nothing after 6 AM
                 selected_utterance = valid_utterances[0]
-                print(
-                    f"No utterances after 6 AM, using first for {date_str} at {selected_utterance['utteranceTime']}: '{selected_utterance['text'][:50]}...'"
-                )
 
             # Construct relative path to AAC file for web assets
             year, month, day = date_str.split("-")
@@ -198,13 +194,13 @@ def get_dates_with_comm(comm_web_dir, existing_dates=None):
                 except ValueError:
                     pass
     dates_with_comm = sorted(set(dates_with_comm))  # unique and sorted
-    print(f"Found {len(dates_with_comm)} new dates with comm CSV")
+    console.print(f"[cyan]Found {len(dates_with_comm)} new dates with comm CSV[/cyan]")
     return dates_with_comm
 
 
 def create_first_comm_json(comm_web_dir, output_file, override=False):
     """Create a JSON file with the first communication entry for each date."""
-    print("Creating first comm JSON file...")
+    console.print("[bold cyan]Creating first comm JSON file...[/bold cyan]")
 
     # Read existing data if the output file exists and not overriding
     first_comm_data = {}
@@ -212,13 +208,19 @@ def create_first_comm_json(comm_web_dir, output_file, override=False):
         try:
             with open(output_file, "r", encoding="utf-8") as f:
                 first_comm_data = json.load(f)
-            print(f"Loaded existing data: {len(first_comm_data)} dates")
+            console.print(
+                f"[cyan]Loaded existing data: {len(first_comm_data)} dates[/cyan]"
+            )
         except (OSError, json.JSONDecodeError) as e:
-            print(f"Warning: Could not read existing file {output_file}: {e}")
-            print("Starting with empty data...")
+            console.print(
+                f"[yellow]Warning: Could not read existing file {output_file}: {e}[/yellow]"
+            )
+            console.print("[yellow]Starting with empty data...[/yellow]")
             first_comm_data = {}
     elif override:
-        print("Override mode: Starting with empty data (will reprocess all dates)")
+        console.print(
+            "[cyan]Override mode: Starting with empty data (will reprocess all dates)[/cyan]"
+        )
 
     # Get dates with comm data from scanning the comm directory
     existing_dates = set(first_comm_data.keys()) if not override else set()
@@ -227,36 +229,55 @@ def create_first_comm_json(comm_web_dir, output_file, override=False):
     if override:
         # Process all dates when overriding
         dates_to_process = dates_with_comm
-        print(
-            f"Override mode: Processing all {len(dates_to_process)} dates with comm data..."
+        console.print(
+            f"[cyan]Override mode: Processing all {len(dates_to_process)} dates with comm data...[/cyan]"
         )
     else:
         # dates_with_comm already excludes existing dates
         dates_to_process = dates_with_comm
 
         if not dates_to_process:
-            print(
-                "No missing dates to process. All dates already have first comm data."
+            console.print(
+                "[yellow]No missing dates to process. All dates already have first comm data.[/yellow]"
             )
             return first_comm_data
 
         # Process only missing dates
-        print(
-            f"Incremental mode: Processing {len(dates_to_process)} new dates with comm data..."
+        console.print(
+            f"[cyan]Incremental mode: Processing {len(dates_to_process)} new dates with comm data...[/cyan]"
         )
 
-    for date_str in dates_to_process:
-        first_comm = get_first_comm_for_date(comm_web_dir, date_str)
-        if first_comm:
-            first_comm_data[date_str] = first_comm
+    console.print()
+
+    # Process dates with progress bar
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task(
+            f"[cyan]Processing {len(dates_to_process)} dates...",
+            total=len(dates_to_process),
+        )
+
+        for date_str in dates_to_process:
+            first_comm = get_first_comm_for_date(comm_web_dir, date_str)
+            if first_comm:
+                first_comm_data[date_str] = first_comm
+            progress.update(task, advance=1)
+
+    console.print()
 
     # Write the JSON file
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(first_comm_data, f, indent=2, ensure_ascii=False)
 
-    print(f"First comm JSON file created: {output_file}")
-    print(f"Total dates processed: {len(first_comm_data)}")
+    console.print(f"[bold green]✓ First comm JSON file created![/bold green]")
+    console.print(f"Output: {output_file}")
+    console.print(f"Total dates processed: {len(first_comm_data)}")
 
     return first_comm_data
 

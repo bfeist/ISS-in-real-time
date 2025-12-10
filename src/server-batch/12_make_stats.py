@@ -6,14 +6,26 @@ from datetime import datetime, timezone
 from collections import defaultdict, Counter
 from dotenv import load_dotenv
 import pycountry
+from rich.console import Console
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+)
 
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../.env")
 
+console = Console()
+
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER").strip('"')
 
 if not WEB_ASSETS_FOLDER:
-    print("Error: WEB_ASSETS_FOLDER environment variable not set!")
+    console.print(
+        "[bold red]Error: WEB_ASSETS_FOLDER environment variable not set![/bold red]"
+    )
     exit(1)
 
 COMM_FOLDER = WEB_ASSETS_FOLDER + "comm/"
@@ -35,7 +47,7 @@ def calculate_total_days_since_epoch():
     return (current_date - epoch_date).days + 1  # +1 to include the epoch day itself
 
 
-def analyze_comm():
+def analyze_comm(progress=None):
     """Analyze communication transcripts and return statistics"""
 
     total_words = 0
@@ -63,56 +75,81 @@ def analyze_comm():
         except:
             pass
 
+    # First, collect all CSV files to process
+    csv_files = []
     for root, dirs, files in os.walk(COMM_FOLDER):
         for file in files:
             if file.endswith(".csv"):
-                # Extract date from file path (assumes directory structure contains date)
+                # Extract date from file path or filename
                 date_match = re.search(r"(\d{4}-\d{2}-\d{2})", root)
-                file_date = date_match.group(1) if date_match else None
+                if not date_match:
+                    # Try to extract from filename if not in path
+                    date_match = re.search(r"(\d{4}-\d{2}-\d{2})", file)
+                file_date = date_match.group(1) if date_match else "unknown"
+                csv_files.append((root, file, file_date))
 
-                # Check if this file contains VV communications before reading its content
-                vv_file = False
-                with open(os.path.join(root, file), "r", encoding="utf-8") as f:
-                    rows = f.readlines()
-                    for row in rows:
-                        total_utterances += 1  # Count each row as one utterance
-                        time, filename, start, end, language, text, textOriginalLang = (
-                            row.strip().split("|")
-                        )
+    # Create sub-progress for comm files if we have a parent progress
+    comm_task = None
+    if progress:
+        comm_task = progress.add_task(
+            f"[cyan]Comm files: 0/{len(csv_files)} days",
+            total=len(csv_files),
+        )
 
-                        # Check if file contains AG or DG and extract date if needed
-                        if "_AG_" in filename or "_DG_" in filename:
-                            if not file_date:
-                                # Extract date from filename if not already found in directory
-                                date_match = re.search(r"(\d{4}-\d{2}-\d{2})", filename)
-                                if date_match:
-                                    vv_days_set.add(date_match.group(1))
-                            else:
-                                vv_days_set.add(file_date)
+    for idx, (root, file, file_date) in enumerate(csv_files):
+        # Update progress with current day
+        if progress and comm_task:
+            progress.update(
+                comm_task,
+                description=f"[cyan]Comm files: {idx+1}/{len(csv_files)} - {file_date}",
+            )
 
-                        # Continue with normal word counting
-                        if language == "en":
-                            word_count = len(text.split())
-                        else:
-                            word_count = len(textOriginalLang.split())
-                        total_words += word_count
+        # Check if this file contains VV communications before reading its content
+        vv_file = False
+        with open(os.path.join(root, file), "r", encoding="utf-8") as f:
+            rows = f.readlines()
+            for row in rows:
+                total_utterances += 1  # Count each row as one utterance
+                time, filename, start, end, language, text, textOriginalLang = (
+                    row.strip().split("|")
+                )
 
-                        # look for strings like 1_SG_1 or 1_DG_2 in the filename, the last digit is the channel number
-                        # use regex to match 1_XG_? and get the last digit, where X can be any letter
-                        pattern = re.compile(r"\d+_\w+G_(\d+)")
-                        match = pattern.search(filename)
-                        channel = match.group(1) if match else "unknown"
+                # Check if file contains AG or DG and extract date if needed
+                if "_AG_" in filename or "_DG_" in filename:
+                    if file_date == "unknown":
+                        # Extract date from filename if not already found in directory
+                        date_match = re.search(r"(\d{4}-\d{2}-\d{2})", filename)
+                        if date_match:
+                            vv_days_set.add(date_match.group(1))
+                    else:
+                        vv_days_set.add(file_date)
 
-                        if channel in channel_word_counts:
-                            channel_word_counts[channel] += word_count
-                        else:
-                            channel_word_counts[channel] = word_count
+                # Continue with normal word counting
+                if language == "en":
+                    word_count = len(text.split())
+                else:
+                    word_count = len(textOriginalLang.split())
+                total_words += word_count
 
-                        languages.add(language)
-                        if language in word_counts:
-                            word_counts[language] += word_count
-                        else:
-                            word_counts[language] = word_count
+                # look for strings like 1_SG_1 or 1_DG_2 in the filename, the last digit is the channel number
+                # use regex to match 1_XG_? and get the last digit, where X can be any letter
+                pattern = re.compile(r"\d+_\w+G_(\d+)")
+                match = pattern.search(filename)
+                channel = match.group(1) if match else "unknown"
+
+                if channel in channel_word_counts:
+                    channel_word_counts[channel] += word_count
+                else:
+                    channel_word_counts[channel] = word_count
+
+                languages.add(language)
+                if language in word_counts:
+                    word_counts[language] += word_count
+                else:
+                    word_counts[language] = word_count
+
+        if progress and comm_task:
+            progress.advance(comm_task)
 
     # Calculate average utterances per day using CSV-based comm days
     avg_utterances_per_day = (
@@ -169,7 +206,7 @@ def extract_year_from_date(date_taken):
         return None
 
 
-def analyze_photos():
+def analyze_photos(progress=None):
     """Analyze photos using data availability CSV and count photos from JSON files"""
 
     # Get day counts from CSV data (consistent with data availability section)
@@ -210,135 +247,185 @@ def analyze_photos():
         },
     }
 
-    print(f"Scanning directory: {IMAGES_FOLDER}")
-
     if not os.path.exists(IMAGES_FOLDER):
-        print(f"Error: Directory {IMAGES_FOLDER} does not exist!")
+        console.print(
+            f"[bold red]Error: Directory {IMAGES_FOLDER} does not exist![/bold red]"
+        )
         return {"error": f"Directory {IMAGES_FOLDER} does not exist!"}
 
     # Process images-manifest files
     source = sources["photos_earth"]
+
+    # Count files first for progress bar
+    earth_manifest_files = []
     for root, dirs, files in os.walk(IMAGES_FOLDER):
         for file in files:
             if file.endswith(".json") and "images-manifest_" in file:
-                file_path = os.path.join(root, file)
+                earth_manifest_files.append((root, file))
 
-                try:
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
+    # Create sub-progress for Earth photos if we have a parent progress
+    earth_task = None
+    if progress:
+        earth_task = progress.add_task(
+            f"[cyan]Earth photos: 0/{len(earth_manifest_files)} days",
+            total=len(earth_manifest_files),
+        )
 
-                    if not isinstance(data, list):
-                        continue
+    for idx, (root, file) in enumerate(earth_manifest_files):
+        file_path = os.path.join(root, file)
 
-                    # Extract date from filename (e.g., "images-manifest_2001-06-28.json")
-                    date_match = re.search(
-                        r"images-manifest_(\d{4}-\d{2}-\d{2})\.json", file
-                    )
-                    if date_match:
-                        file_date = date_match.group(1)
-                        source["days_with_photos"].add(file_date)
+        # Update progress with current day
+        if progress and earth_task:
+            # Extract date from filename for display
+            date_match = re.search(r"(\d{4}-\d{2}-\d{2})", file)
+            day_str = date_match.group(1) if date_match else "unknown"
+            progress.update(
+                earth_task,
+                description=f"[cyan]Earth photos: {idx+1}/{len(earth_manifest_files)} - {day_str}",
+            )
 
-                    daily_photo_count = len(data)
-                    source["total_photos"] += daily_photo_count
-                    source["photos_per_day"].append(daily_photo_count)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
 
-                    # Analyze each photo in the manifest
-                    for photo in data:
-                        if isinstance(photo, dict):
-                            # Extract date info
-                            date_taken = photo.get("dateTaken", "")
-                            if date_taken:
-                                try:
-                                    dt = datetime.fromisoformat(
-                                        date_taken.replace("Z", "")
-                                    )
+            if not isinstance(data, list):
+                if progress and earth_task:
+                    progress.advance(earth_task)
+                continue
 
-                                    # Track earliest and latest dates
-                                    if (
-                                        source["earliest_date"] is None
-                                        or dt < source["earliest_date"]
-                                    ):
-                                        source["earliest_date"] = dt
-                                    if (
-                                        source["latest_date"] is None
-                                        or dt > source["latest_date"]
-                                    ):
-                                        source["latest_date"] = dt
+            # Extract date from filename (e.g., "images-manifest_2001-06-28.json")
+            date_match = re.search(r"images-manifest_(\d{4}-\d{2}-\d{2})\.json", file)
+            if date_match:
+                file_date = date_match.group(1)
+                source["days_with_photos"].add(file_date)
 
-                                except:
-                                    pass
+            daily_photo_count = len(data)
+            source["total_photos"] += daily_photo_count
+            source["photos_per_day"].append(daily_photo_count)
 
-                except (json.JSONDecodeError, IOError) as e:
-                    print(f"Error reading {file_path}: {e}")
-                    continue
+            # Analyze each photo in the manifest
+            for photo in data:
+                if isinstance(photo, dict):
+                    # Extract date info
+                    date_taken = photo.get("dateTaken", "")
+                    if date_taken:
+                        try:
+                            dt = datetime.fromisoformat(date_taken.replace("Z", ""))
+
+                            # Track earliest and latest dates
+                            if (
+                                source["earliest_date"] is None
+                                or dt < source["earliest_date"]
+                            ):
+                                source["earliest_date"] = dt
+                            if (
+                                source["latest_date"] is None
+                                or dt > source["latest_date"]
+                            ):
+                                source["latest_date"] = dt
+
+                        except:
+                            pass
+
+        except (json.JSONDecodeError, IOError) as e:
+            console.print(f"[yellow]Error reading {file_path}: {e}[/yellow]")
+
+        if progress and earth_task:
+            progress.advance(earth_task)
 
     # Don't override the CSV count
     # source["total_days_with_photos"] = len(source["days_with_photos"])
 
     # Process Flickr photos-manifest files
-    print(f"Scanning directory: {FLICKR_FOLDER}")
-
     if os.path.exists(FLICKR_FOLDER):
-        source = sources["photos_flickr"]
+        # Count Flickr files first for progress bar
+        flickr_manifest_files = []
         for root, dirs, files in os.walk(FLICKR_FOLDER):
             for file in files:
                 if file.endswith(".json") and "photos-manifest_" in file:
-                    file_path = os.path.join(root, file)
+                    flickr_manifest_files.append((root, file))
 
-                    try:
-                        with open(file_path, "r", encoding="utf-8") as f:
-                            data = json.load(f)
+        source = sources["photos_flickr"]
 
-                        if not isinstance(data, list):
-                            continue
+        # Create sub-progress for Flickr photos if we have a parent progress
+        flickr_task = None
+        if progress:
+            flickr_task = progress.add_task(
+                f"[cyan]Flickr photos: 0/{len(flickr_manifest_files)} days",
+                total=len(flickr_manifest_files),
+            )
 
-                        # Extract date from filename (e.g., "photos-manifest_2001-06-28.json")
-                        date_match = re.search(
-                            r"photos-manifest_(\d{4}-\d{2}-\d{2})\.json", file
-                        )
-                        if date_match:
-                            file_date = date_match.group(1)
-                            source["days_with_photos"].add(file_date)
+        for idx, (root, file) in enumerate(flickr_manifest_files):
+            file_path = os.path.join(root, file)
 
-                        # Count photos for this day
-                        day_count = len(data)
-                        source["total_photos"] += day_count
-                        source["photos_per_day"].append(day_count)
+            # Update progress with current day
+            if progress and flickr_task:
+                # Extract date from filename for display
+                date_match = re.search(r"(\d{4}-\d{2}-\d{2})", file)
+                day_str = date_match.group(1) if date_match else "unknown"
+                progress.update(
+                    flickr_task,
+                    description=f"[cyan]Flickr photos: {idx+1}/{len(flickr_manifest_files)} - {day_str}",
+                )
 
-                        # Analyze each photo in the manifest
-                        for photo in data:
-                            if isinstance(photo, dict):
-                                # Extract date info
-                                date_taken = photo.get("dateTaken", "")
-                                if date_taken:
-                                    try:
-                                        dt = datetime.fromisoformat(
-                                            date_taken.replace("Z", "")
-                                        )
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
 
-                                        # Track earliest and latest dates
-                                        if (
-                                            source["earliest_date"] is None
-                                            or dt < source["earliest_date"]
-                                        ):
-                                            source["earliest_date"] = dt
-                                        if (
-                                            source["latest_date"] is None
-                                            or dt > source["latest_date"]
-                                        ):
-                                            source["latest_date"] = dt
+                if not isinstance(data, list):
+                    if progress and flickr_task:
+                        progress.advance(flickr_task)
+                    continue
 
-                                    except:
-                                        pass
+                # Extract date from filename (e.g., "photos-manifest_2001-06-28.json")
+                date_match = re.search(
+                    r"photos-manifest_(\d{4}-\d{2}-\d{2})\.json", file
+                )
+                if date_match:
+                    file_date = date_match.group(1)
+                    source["days_with_photos"].add(file_date)
 
-                    except (json.JSONDecodeError, IOError) as e:
-                        print(f"Error reading {file_path}: {e}")
-                        continue
+                # Count photos for this day
+                day_count = len(data)
+                source["total_photos"] += day_count
+                source["photos_per_day"].append(day_count)
+
+                # Analyze each photo in the manifest
+                for photo in data:
+                    if isinstance(photo, dict):
+                        # Extract date info
+                        date_taken = photo.get("dateTaken", "")
+                        if date_taken:
+                            try:
+                                dt = datetime.fromisoformat(date_taken.replace("Z", ""))
+
+                                # Track earliest and latest dates
+                                if (
+                                    source["earliest_date"] is None
+                                    or dt < source["earliest_date"]
+                                ):
+                                    source["earliest_date"] = dt
+                                if (
+                                    source["latest_date"] is None
+                                    or dt > source["latest_date"]
+                                ):
+                                    source["latest_date"] = dt
+
+                            except:
+                                pass
+
+            except (json.JSONDecodeError, IOError) as e:
+                console.print(f"[yellow]Error reading {file_path}: {e}[/yellow]")
+
+            if progress and flickr_task:
+                progress.advance(flickr_task)
 
         # Don't override the CSV count
         # source["total_days_with_photos"] = len(source["days_with_photos"])
     else:
-        print(f"Flickr photos directory not found: {FLICKR_FOLDER}")
+        console.print(
+            f"[yellow]Flickr photos directory not found: {FLICKR_FOLDER}[/yellow]"
+        )
 
     # Calculate combined stats
     combined_days_with_photos = set()
@@ -589,15 +676,43 @@ def analyze_data_availability():
             "days_with_articles": days_with_articles,
         }
     except (IOError, csv.Error) as e:
-        print(f"Error reading {DATA_AVAILABILITY_CSV}: {e}")
+        console.print(f"[yellow]Error reading {DATA_AVAILABILITY_CSV}: {e}[/yellow]")
         return {}
 
 
 def main():
-    comm_stats = analyze_comm()
-    photos_stats = analyze_photos()
-    videos_stats = analyze_videos()
-    data_stats = analyze_data_availability()
+    console.print("[bold cyan]Generating statistics...[/bold cyan]\n")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    ) as progress:
+        # Analyze communication data
+        task_comm = progress.add_task("[cyan]Analyzing communications...", total=None)
+        comm_stats = analyze_comm(progress)
+        progress.update(task_comm, completed=1, total=1)
+
+        # Analyze photos
+        task_photos = progress.add_task("[cyan]Analyzing photos...", total=None)
+        photos_stats = analyze_photos(progress)
+        progress.update(task_photos, completed=1, total=1)
+
+        # Analyze videos
+        task_videos = progress.add_task("[cyan]Analyzing videos...", total=None)
+        videos_stats = analyze_videos()
+        progress.update(task_videos, completed=1, total=1)
+
+        # Analyze data availability
+        task_data = progress.add_task(
+            "[cyan]Analyzing data availability...", total=None
+        )
+        data_stats = analyze_data_availability()
+        progress.update(task_data, completed=1, total=1)
+
+    console.print()
 
     stats = {
         "comm": comm_stats,
@@ -612,7 +727,8 @@ def main():
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(stats, f, indent=2, ensure_ascii=False)
 
-    print(f"Stats saved to {output_path}")
+    console.print(f"[bold green]✓ Stats generated successfully![/bold green]")
+    console.print(f"Output: {output_path}")
 
 
 if __name__ == "__main__":
