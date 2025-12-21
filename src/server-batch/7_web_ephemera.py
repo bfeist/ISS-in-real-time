@@ -54,6 +54,7 @@ def create_session(username, password):
 def fetch_tle(session, start_date, end_date, norad_id=NORAD_ID, limit=1000):
     """
     Fetch TLE data for a specific NORAD ID between start_date and end_date.
+    Uses the gp_history class (replaces deprecated tle class).
 
     Parameters:
         session (requests.Session): Authenticated session.
@@ -63,7 +64,7 @@ def fetch_tle(session, start_date, end_date, norad_id=NORAD_ID, limit=1000):
         limit (int): Maximum number of records per request.
 
     Returns:
-        list: List of TLE records.
+        list: List of TLE records (with gp_history field names).
     """
     all_tle = []
     step = limit  # Number of records per request
@@ -75,8 +76,9 @@ def fetch_tle(session, start_date, end_date, norad_id=NORAD_ID, limit=1000):
     orderby_encoded = orderby.replace(" ", "%20")  # Replace space with '%20'
 
     # Construct the query string with proper encoding
+    # Using gp_history class instead of deprecated tle class
     query = (
-        f"/class/tle/EPOCH/{start_date}--{end_date}/NORAD_CAT_ID/{norad_id}/"
+        f"/class/gp_history/EPOCH/{start_date}--{end_date}/NORAD_CAT_ID/{norad_id}/"
         f"{orderby_encoded}/limit/{step}/format/json"
     )
 
@@ -165,6 +167,8 @@ def get_all_tle(session, start_year=2015, norad_id=NORAD_ID):
 
 
 def save_monthly_tle(tle_df, output_file):
+    # Handle both old TLE format and new gp_history format
+    # gp_history uses TLE_LINE1 and TLE_LINE2 like the old tle class
     tle_df = tle_df[["EPOCH", "TLE_LINE1", "TLE_LINE2"]]
     tle_df.loc[:, "EPOCH"] = pd.to_datetime(tle_df["EPOCH"])
     tle_df = tle_df.rename(
@@ -217,8 +221,8 @@ def get_all_months(start_date, end_date):
 
 # Main function
 def main():
-    print("Space-Track.org ISS TLE Data Retriever")
-    print("--------------------------------------")
+    print("Space-Track.org ISS TLE Data Retriever (using gp_history API)")
+    print("-------------------------------------------------------------")
 
     # Retrieve username and password from environment variables
     username = os.getenv("SPACETRACK_USERNAME")

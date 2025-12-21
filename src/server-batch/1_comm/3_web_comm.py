@@ -24,6 +24,7 @@ load_dotenv(dotenv_path="../../../.env")
 
 
 COMM_RAW = os.getenv("RAW_FOLDER") + "comm_transcripts_aacs/"
+# COMM_RAW = os.getenv("RAW_FOLDER") + "comm_transcripts_aacs_v1/"
 COMM_WEB = os.getenv("WEB_ASSETS_FOLDER") + "comm/"
 
 # Debug: Print the paths being used
@@ -141,7 +142,8 @@ def create_daily_transcript(root_dir, date_str, output_dir, overwrite=False):
                     "textOriginalLang": textOriginalLang,
                     "start": str(start),
                     "end": str(end),
-                    "language": json_data.get("language", "en"),
+                    "language": json_data.get("detectedLanguage")
+                    or json_data.get("language", "en"),
                 }
             )
 

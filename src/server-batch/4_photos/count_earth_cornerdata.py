@@ -63,14 +63,14 @@ def parse_arguments():
 def count_manifest_file(manifest_path):
     """
     Count photos with and without corner data in a manifest file.
-    Returns (total_photos, photos_with_corners, photos_with_center_only)
+    Returns (total_photos, photos_with_corners, photos_with_center_only, corner_points_count)
     """
     try:
         with open(manifest_path, "r") as f:
             data = json.load(f)
 
         if not isinstance(data, list):
-            return 0, 0, 0
+            return 0, 0, 0, 0
 
         total = len(data)
         with_corners = sum(1 for entry in data if "corners" in entry)
@@ -78,9 +78,16 @@ def count_manifest_file(manifest_path):
             1 for entry in data if "lat" in entry and "corners" not in entry
         )
 
-        return total, with_corners, with_center_only
+        # Count total corner points
+        corner_points = 0
+        for entry in data:
+            if "corners" in entry and isinstance(entry["corners"], dict):
+                # Corners is an object with ul, ur, ll, lr keys
+                corner_points += len(entry["corners"])
+
+        return total, with_corners, with_center_only, corner_points
     except (IOError, json.JSONDecodeError) as e:
-        return 0, 0, 0
+        return 0, 0, 0, 0
 
 
 def main():
@@ -104,10 +111,15 @@ def main():
     total_with_corners = 0
     total_with_center_only = 0
     total_manifests = 0
+    total_corner_points = 0
 
     # Breakdown tracking
-    by_year = defaultdict(lambda: {"total": 0, "corners": 0, "center_only": 0})
-    by_month = defaultdict(lambda: {"total": 0, "corners": 0, "center_only": 0})
+    by_year = defaultdict(
+        lambda: {"total": 0, "corners": 0, "center_only": 0, "corner_points": 0}
+    )
+    by_month = defaultdict(
+        lambda: {"total": 0, "corners": 0, "center_only": 0, "corner_points": 0}
+    )
 
     # Find all manifest files
     manifest_files = []
@@ -157,23 +169,28 @@ def main():
         )
 
         for manifest_path, year, month in manifest_files:
-            total, corners, center_only = count_manifest_file(manifest_path)
+            total, corners, center_only, corner_points = count_manifest_file(
+                manifest_path
+            )
 
             total_photos += total
             total_with_corners += corners
             total_with_center_only += center_only
+            total_corner_points += corner_points
             total_manifests += 1
 
             # Track by year
             by_year[year]["total"] += total
             by_year[year]["corners"] += corners
             by_year[year]["center_only"] += center_only
+            by_year[year]["corner_points"] += corner_points
 
             # Track by month
             month_key = f"{year}-{month:02d}"
             by_month[month_key]["total"] += total
             by_month[month_key]["corners"] += corners
             by_month[month_key]["center_only"] += center_only
+            by_month[month_key]["corner_points"] += corner_points
 
             progress.update(task, advance=1)
 
@@ -197,6 +214,15 @@ def main():
         (
             f"{(total_with_corners / total_photos * 100):.1f}%"
             if total_photos > 0
+            else "N/A"
+        ),
+    )
+    summary_table.add_row(
+        "Total Corner Points",
+        f"{total_corner_points:,}",
+        (
+            f"Avg: {(total_corner_points / total_with_corners):.1f}"
+            if total_with_corners > 0
             else "N/A"
         ),
     )
@@ -230,6 +256,7 @@ def main():
         year_table.add_column("Total", justify="right", style="white")
         year_table.add_column("With Corners", justify="right", style="green")
         year_table.add_column("Corner %", justify="right", style="yellow")
+        year_table.add_column("Corner Points", justify="right", style="blue")
         year_table.add_column("Center Only", justify="right", style="blue")
         year_table.add_column("No Location", justify="right", style="red")
 
@@ -246,6 +273,7 @@ def main():
                 f"{data['total']:,}",
                 f"{data['corners']:,}",
                 pct,
+                f"{data['corner_points']:,}",
                 f"{data['center_only']:,}",
                 f"{no_loc:,}",
             )
@@ -264,6 +292,7 @@ def main():
         month_table.add_column("Total", justify="right", style="white")
         month_table.add_column("With Corners", justify="right", style="green")
         month_table.add_column("Corner %", justify="right", style="yellow")
+        month_table.add_column("Corner Points", justify="right", style="blue")
         month_table.add_column("Center Only", justify="right", style="blue")
         month_table.add_column("No Location", justify="right", style="red")
 
@@ -280,6 +309,7 @@ def main():
                 f"{data['total']:,}",
                 f"{data['corners']:,}",
                 pct,
+                f"{data['corner_points']:,}",
                 f"{data['center_only']:,}",
                 f"{no_loc:,}",
             )
