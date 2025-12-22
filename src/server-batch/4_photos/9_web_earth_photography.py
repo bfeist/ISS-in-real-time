@@ -57,7 +57,13 @@ def parse_arguments():
         "--start-date",
         type=str,
         default=None,
-        help="Start date in YYYY-MM-DD format. Script will process from this date backwards to START_DATE. Ignored if a specific date is provided.",
+        help="Start date in YYYY-MM-DD format. Script will process from this date backwards to START_DATE (or --stop-date if provided). Ignored if a specific date is provided.",
+    )
+    parser.add_argument(
+        "--stop-date",
+        type=str,
+        default=None,
+        help="Stop date in YYYY-MM-DD format. Script will stop processing when it reaches this date. Defaults to START_DATE (2000-11-01).",
     )
     parser.add_argument(
         "--output",
@@ -621,15 +627,25 @@ def main():
             )
             sys.exit(1)
     else:
-        # Process range of dates from start_date backwards to START_DATE
-        start_date = datetime.strptime(START_DATE, "%Y-%m-%d")
+        # Process range of dates from start_date backwards to stop_date
+        # Determine stop date (how far back to go)
+        if args.stop_date:
+            try:
+                start_date = datetime.strptime(args.stop_date, "%Y-%m-%d")
+            except ValueError:
+                console.print(
+                    f"[bold red]Error: Invalid --stop-date format '{args.stop_date}'. Use YYYY-MM-DD format.[/bold red]"
+                )
+                sys.exit(1)
+        else:
+            start_date = datetime.strptime(START_DATE, "%Y-%m-%d")
 
         # Use --start-date if provided, otherwise use today
         if args.start_date:
             try:
                 end_date = datetime.strptime(args.start_date, "%Y-%m-%d")
                 console.print(
-                    f"[bold green]Processing dates from {args.start_date} backwards to {START_DATE}[/bold green]"
+                    f"[bold green]Processing dates from {args.start_date} backwards to {start_date.strftime('%Y-%m-%d')}[/bold green]"
                 )
             except ValueError:
                 console.print(
@@ -639,7 +655,7 @@ def main():
         else:
             end_date = datetime.strptime(END_DATE, "%Y-%m-%d")
             console.print(
-                f"[bold green]Processing dates from {END_DATE} backwards to {START_DATE}[/bold green]"
+                f"[bold green]Processing dates from {END_DATE} backwards to {start_date.strftime('%Y-%m-%d')}[/bold green]"
             )
 
         dates_to_process = []

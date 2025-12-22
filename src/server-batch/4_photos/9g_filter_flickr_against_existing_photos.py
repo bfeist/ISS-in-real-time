@@ -178,10 +178,12 @@ class AllPhotoIDCache:
 
                 self.stats["files_loaded"] += 1
                 self.stats["total_ids_loaded"] += len(ids)
-                print(f"   📅 Loaded {len(ids)} earth photo IDs for {date_str}")
+                print(f"   Loaded {len(ids)} earth photo IDs for {date_str}")
 
             except Exception as e:
-                print(f"   ⚠️  Error loading earth photography data for {date_str}: {e}")
+                print(
+                    f"   [!]  Error loading earth photography data for {date_str}: {e}"
+                )
 
         self.date_cache[date_str] = ids
         return ids
@@ -216,7 +218,7 @@ class AllPhotoIDCache:
 
         manifest_files = list(month_folder.glob("images-manifest_*.json"))
         print(
-            f"   📂 Preloading {len(manifest_files)} earth photography files for {year_str}-{month_str}"
+            f"   [DIR] Preloading {len(manifest_files)} earth photography files for {year_str}-{month_str}"
         )
 
         for manifest_file in manifest_files:
@@ -239,7 +241,7 @@ class AllPhotoIDCache:
         self.all_ids = set()
         current_year = datetime.now().year
 
-        print(f"   🌍 Preloading all earth photography IDs (2000-{current_year})...")
+        print(f"   Preloading all earth photography IDs (2000-{current_year})...")
 
         for year in range(2000, current_year + 1):
             year_str = str(year)
@@ -267,11 +269,11 @@ class AllPhotoIDCache:
 
                     except Exception as e:
                         print(
-                            f"   ⚠️  Error loading earth photography data from {manifest_file.name}: {e}"
+                            f"   [!]  Error loading earth photography data from {manifest_file.name}: {e}"
                         )
 
         self.stats["total_ids_loaded"] = len(self.all_ids)
-        print(f"   ✅ Total loaded photo IDs from all sources: {len(self.all_ids)}")
+        print(f"   Total loaded photo IDs from all sources: {len(self.all_ids)}")
         return self.all_ids
 
     def get_stats(self) -> Dict:
@@ -333,26 +335,28 @@ def load_flickr_album(album_path: Path) -> Optional[Dict]:
             data = json.load(f)
 
         if not isinstance(data, dict) or "photos" not in data:
-            print(f"   ❌ Invalid album format: {album_path.name}")
+            print(f"   [X] Invalid album format: {album_path.name}")
             return None
 
         return data
 
     except Exception as e:
-        print(f"   ❌ Error loading album {album_path.name}: {e}")
+        print(f"   [X] Error loading album {album_path.name}: {e}")
         return None
 
 
 def filter_album_against_existing_photos(
-    album_data: Dict, photo_cache: AllPhotoIDCache
+    album_data: Dict, photo_cache: AllPhotoIDCache, global_seen_ids: set = None
 ) -> Dict:
     """
     Filter Flickr album to keep only photos with NASA IDs that do not match existing photo databases.
     Removes photos that match existing photo IDs and photos without NASA IDs.
+    Also removes duplicate photos across all albums.
 
     Args:
         album_data: Flickr album data dictionary
         photo_cache: All photo ID cache
+        global_seen_ids: Set of photo IDs already output across all albums (for cross-album deduplication)
 
     Returns:
         Dictionary with filtering results
@@ -360,17 +364,43 @@ def filter_album_against_existing_photos(
     photos = album_data.get("photos", [])
     filtered_photos = []
     removed_photos = []
-    extraction_stats = {"extracted": 0, "no_nasa_id": 0, "matched_existing": 0}
+    extraction_stats = {
+        "extracted": 0,
+        "no_nasa_id": 0,
+        "matched_existing": 0,
+        "duplicates_removed": 0,
+    }
+
+    # Use global seen set if provided, otherwise create local one
+    if global_seen_ids is None:
+        global_seen_ids = set()
+
+    # First, deduplicate photos by photo ID (across all albums)
+    deduped_photos = []
+    for photo in photos:
+        photo_id = photo.get("id")
+        if photo_id and photo_id in global_seen_ids:
+            extraction_stats["duplicates_removed"] += 1
+            continue
+        # Don't add to global_seen_ids yet - only add photos that pass all filters
+        deduped_photos.append(photo)
+
+    if extraction_stats["duplicates_removed"] > 0:
+        print(
+            f"   [SYNC] Removed {extraction_stats['duplicates_removed']} duplicate photos (already in another album)"
+        )
+
+    photos = deduped_photos
 
     # Get all existing photo IDs for fast lookup
     all_existing_ids = photo_cache.get_all_ids()
 
-    print(f"   🔍 Processing {len(photos)} photos...")
+    print(f"    Processing {len(photos)} photos...")
 
     for i, photo in enumerate(photos):
         # Show progress every 100 photos
         if (i + 1) % 100 == 0:
-            print(f"   📊 Progress: {i + 1}/{len(photos)} photos processed")
+            print(f"   [STATS] Progress: {i + 1}/{len(photos)} photos processed")
 
         # Extract NASA ID from description
         description_content = ""
@@ -403,10 +433,14 @@ def filter_album_against_existing_photos(
                 removed_photos.append(enhanced_photo)
                 extraction_stats["matched_existing"] += 1
                 print(
-                    f"   🚫 Removed photo with NASA ID {nasa_id} (matches existing photo database)"
+                    f"   [SKIP] Removed photo with NASA ID {nasa_id} (matches existing photo database)"
                 )
             else:
                 filtered_photos.append(enhanced_photo)
+                # Add to global seen set to prevent duplicates in subsequent albums
+                photo_id = photo.get("id")
+                if photo_id:
+                    global_seen_ids.add(photo_id)
         else:
             enhanced_photo["nasa_id"] = None
             extraction_stats["no_nasa_id"] += 1
@@ -452,12 +486,15 @@ def save_filtered_album(
                 "original_photo_count": filter_results["original_count"],
                 "existing_filtered_photo_count": filter_results["filtered_count"],
                 "existing_removed_photo_count": filter_results["removed_count"],
+                "duplicates_removed": filter_results["stats"].get(
+                    "duplicates_removed", 0
+                ),
                 "nasa_ids_extracted": filter_results["stats"]["extracted"],
                 "photos_removed_no_nasa_id": filter_results["stats"]["no_nasa_id"],
                 "photos_matched_existing_db": filter_results["stats"][
                     "matched_existing"
                 ],
-                "filter_description": "Kept only photos with NASA IDs not matching existing photo databases (earth photography); removed existing photo matches and photos without NASA IDs",
+                "filter_description": "Kept only photos with NASA IDs not matching existing photo databases (earth photography); removed existing photo matches, duplicates, and photos without NASA IDs",
             }
         )
 
@@ -465,11 +502,11 @@ def save_filtered_album(
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(filtered_album, f, indent=2, ensure_ascii=False)
 
-        print(f"   ✅ Saved filtered album: {output_path.name}")
+        print(f"   [OK] Saved filtered album: {output_path.name}")
         return True
 
     except Exception as e:
-        print(f"   ❌ Error saving filtered album: {e}")
+        print(f"   [X] Error saving filtered album: {e}")
         return False
 
 
@@ -483,7 +520,7 @@ def find_raw_albums() -> List[Path]:
         List of Path objects for matching raw albums
     """
     if not FLICKR_ALBUMS_FOLDER or not os.path.exists(FLICKR_ALBUMS_FOLDER):
-        print(f"❌ Flickr albums folder not found: {FLICKR_ALBUMS_FOLDER}")
+        print(f"[X] Flickr albums folder not found: {FLICKR_ALBUMS_FOLDER}")
         return []
 
     albums_folder = Path(FLICKR_ALBUMS_FOLDER)
@@ -516,18 +553,18 @@ def find_raw_albums() -> List[Path]:
                     if sts_mission in shuttle_missions_to_station:
                         matching_albums.append(album)
                         print(
-                            f"   ✅ STS mission to ISS: {sts_mission} -> {album.name}"
+                            f"   [OK] STS mission to ISS: {sts_mission} -> {album.name}"
                         )
                     else:
                         sts_filtered_albums.append((album.name, sts_mission))
                         print(
-                            f"   🚫 STS mission not to ISS: {sts_mission} -> {album.name} (skipped)"
+                            f"   [SKIP] STS mission not to ISS: {sts_mission} -> {album.name} (skipped)"
                         )
                 else:
                     # STS album but couldn't extract mission number, include it to be safe
                     matching_albums.append(album)
                     print(
-                        f"   ⚠️  STS album with unclear mission number: {album.name} (included)"
+                        f"   [!]  STS album with unclear mission number: {album.name} (included)"
                     )
             else:
                 # Non-STS album that matches keywords
@@ -536,7 +573,7 @@ def find_raw_albums() -> List[Path]:
     # Sort by filename for consistent processing order
     matching_albums.sort(key=lambda x: x.name)
 
-    print(f"✅ Found {len(matching_albums)} matching raw albums to process")
+    print(f"[OK] Found {len(matching_albums)} matching raw albums to process")
     print(f"   Target keywords: {', '.join(ALBUM_KEYWORDS)}")
     print(
         f"   STS missions to ISS: {len([a for a in matching_albums if 'STS' in a.name.upper()])}"
@@ -549,13 +586,16 @@ def find_raw_albums() -> List[Path]:
     return matching_albums
 
 
-def process_album(album_path: Path, photo_cache: AllPhotoIDCache) -> Dict:
+def process_album(
+    album_path: Path, photo_cache: AllPhotoIDCache, global_seen_ids: set = None
+) -> Dict:
     """
     Process a single raw album and create filtered version
 
     Args:
         album_path: Path to the raw album JSON file
         photo_cache: All photo ID cache
+        global_seen_ids: Set of photo IDs already seen across all albums (for cross-album deduplication)
 
     Returns:
         Processing results dictionary
@@ -567,7 +607,7 @@ def process_album(album_path: Path, photo_cache: AllPhotoIDCache) -> Dict:
     output_name = f"{name_part}_filtered{ext}"
     output_path = album_path.parent / output_name
 
-    print(f"\n📸 Processing: {album_name}")
+    print(f"\n Processing: {album_name}")
 
     # Load album data
     album_data = load_flickr_album(album_path)
@@ -579,14 +619,16 @@ def process_album(album_path: Path, photo_cache: AllPhotoIDCache) -> Dict:
         }
 
     original_count = len(album_data.get("photos", []))
-    print(f"   📊 Original photos: {original_count}")
+    print(f"   [STATS] Original photos: {original_count}")
 
     if original_count == 0:
-        print(f"   ⚠️  No photos in album, skipping")
+        print(f"   [!]  No photos in album, skipping")
         return {"status": "skipped", "album": album_name, "reason": "No photos"}
 
-    # Filter against existing photos
-    filter_results = filter_album_against_existing_photos(album_data, photo_cache)
+    # Filter against existing photos (with cross-album deduplication)
+    filter_results = filter_album_against_existing_photos(
+        album_data, photo_cache, global_seen_ids
+    )
 
     # Extract photos without NASA IDs for reporting
     no_nasa_id_photos = [
@@ -600,10 +642,10 @@ def process_album(album_path: Path, photo_cache: AllPhotoIDCache) -> Dict:
 
     if success:
         print(
-            f"   📊 Results: {filter_results['filtered_count']} kept, {filter_results['removed_count']} removed"
+            f"   [STATS] Results: {filter_results['filtered_count']} kept, {filter_results['removed_count']} removed"
         )
         print(
-            f"   📊 NASA IDs: {filter_results['stats']['extracted']} extracted, {filter_results['stats']['matched_existing']} matched existing DB"
+            f"   [STATS] NASA IDs: {filter_results['stats']['extracted']} extracted, {filter_results['stats']['matched_existing']} matched existing DB"
         )
 
         return {
@@ -612,6 +654,7 @@ def process_album(album_path: Path, photo_cache: AllPhotoIDCache) -> Dict:
             "original_count": filter_results["original_count"],
             "filtered_count": filter_results["filtered_count"],
             "removed_count": filter_results["removed_count"],
+            "duplicates_removed": filter_results["stats"]["duplicates_removed"],
             "nasa_ids_extracted": filter_results["stats"]["extracted"],
             "existing_matches": filter_results["stats"]["matched_existing"],
             "no_nasa_id_photos": no_nasa_id_photos,
@@ -634,34 +677,37 @@ def main():
 
     # Validate configuration
     if not RAW_FOLDER or not WEB_ASSETS_FOLDER:
-        print("❌ Environment variables RAW_FOLDER and WEB_ASSETS_FOLDER must be set")
+        print("[X] Environment variables RAW_FOLDER and WEB_ASSETS_FOLDER must be set")
         return False
 
     if not PHOTOS_EARTH_FOLDER or not os.path.exists(PHOTOS_EARTH_FOLDER):
-        print(f"❌ Earth photography folder not found: {PHOTOS_EARTH_FOLDER}")
+        print(f"[X] Earth photography folder not found: {PHOTOS_EARTH_FOLDER}")
         return False
 
     if not FLICKR_ALBUMS_FOLDER or not os.path.exists(FLICKR_ALBUMS_FOLDER):
-        print(f"❌ Flickr albums folder not found: {FLICKR_ALBUMS_FOLDER}")
+        print(f"[X] Flickr albums folder not found: {FLICKR_ALBUMS_FOLDER}")
         return False
 
-    print(f"📁 Earth photography folder: {PHOTOS_EARTH_FOLDER}")
-    print(f"📁 Web assets folder: {WEB_ASSETS_FOLDER}")
-    print(f"📁 Flickr albums folder: {FLICKR_ALBUMS_FOLDER}")
+    print(f"[DIR] Earth photography folder: {PHOTOS_EARTH_FOLDER}")
+    print(f"[DIR] Web assets folder: {WEB_ASSETS_FOLDER}")
+    print(f"[DIR] Flickr albums folder: {FLICKR_ALBUMS_FOLDER}")
 
     # Initialize all photo cache
     photo_cache = AllPhotoIDCache(PHOTOS_EARTH_FOLDER, WEB_ASSETS_FOLDER)
 
     # Preload all photo IDs for fast lookup
-    print("🌍 Preloading all photo IDs from all sources...")
+    print("Preloading all photo IDs from all sources...")
     all_photo_ids = photo_cache.get_all_ids()
-    print(f"✅ Loaded {len(all_photo_ids)} total photo IDs into memory")
+    print(f"Loaded {len(all_photo_ids)} total photo IDs into memory")
 
     # Find raw albums to process
     raw_albums = find_raw_albums()
     if not raw_albums:
-        print("❌ No raw albums found to process")
+        print("No raw albums found to process")
         return False
+
+    # Global set to track photos across all albums for deduplication
+    global_seen_ids = set()
 
     # Process each album
     results = {
@@ -673,19 +719,23 @@ def main():
         "total_removed_photos": 0,
         "total_nasa_ids_extracted": 0,
         "total_existing_matches": 0,
+        "total_cross_album_duplicates": 0,
         "no_nasa_id_photos": [],
     }
 
     for i, album_path in enumerate(raw_albums, 1):
         print(f"\n[{i}/{len(raw_albums)}] ", end="")
 
-        result = process_album(album_path, photo_cache)
+        result = process_album(album_path, photo_cache, global_seen_ids)
 
         if result["status"] == "success":
             results["success"] += 1
             results["total_original_photos"] += result["original_count"]
             results["total_filtered_photos"] += result["filtered_count"]
             results["total_removed_photos"] += result["removed_count"]
+            results["total_cross_album_duplicates"] += result.get(
+                "duplicates_removed", 0
+            )
             results["total_nasa_ids_extracted"] += result["nasa_ids_extracted"]
             results["total_existing_matches"] += result["existing_matches"]
             results["no_nasa_id_photos"].extend(result["no_nasa_id_photos"])
@@ -693,41 +743,47 @@ def main():
             results["skipped"] += 1
         else:
             results["errors"] += 1
-            print(f"   ❌ Error: {result.get('error', 'Unknown error')}")
+            print(f"   [X] Error: {result.get('error', 'Unknown error')}")
 
     # Final summary
     print(f"\n" + "=" * 80)
-    print(f"🏁 PROCESSING COMPLETE")
-    print(f"📊 Albums processed: {results['success']}")
-    print(f"⏭️  Albums skipped: {results['skipped']}")
-    print(f"❌ Albums failed: {results['errors']}")
-    print(f"📸 Total original photos: {results['total_original_photos']}")
-    print(f"✅ Total filtered photos: {results['total_filtered_photos']}")
-    print(f"🚫 Total removed photos: {results['total_removed_photos']}")
-    print(f"🔍 Total NASA IDs extracted: {results['total_nasa_ids_extracted']}")
-    print(f"📸 Total existing photo matches: {results['total_existing_matches']}")
+    print(f" PROCESSING COMPLETE")
+    print(f"[STATS] Albums processed: {results['success']}")
+    print(f"  Albums skipped: {results['skipped']}")
+    print(f"[X] Albums failed: {results['errors']}")
+    print(f" Total original photos: {results['total_original_photos']}")
+    print(f"[OK] Total filtered photos: {results['total_filtered_photos']}")
+    print(f"[SKIP] Total removed photos: {results['total_removed_photos']}")
+    print(
+        f"[SYNC] Cross-album duplicates removed: {results['total_cross_album_duplicates']}"
+    )
+    print(f" Total NASA IDs extracted: {results['total_nasa_ids_extracted']}")
+    print(f" Total existing photo matches: {results['total_existing_matches']}")
 
     if results["total_original_photos"] > 0:
         removal_rate = (
             results["total_removed_photos"] / results["total_original_photos"]
         ) * 100
-        print(f"📈 Existing photo removal rate: {removal_rate:.1f}%")
+        print(f" Existing photo removal rate: {removal_rate:.1f}%")
+
+    # Show unique photo count
+    print(f" Unique photos across all albums: {len(global_seen_ids)}")
 
     # Show cache statistics
     cache_stats = photo_cache.get_stats()
-    print(f"\n📊 Photo Cache Statistics:")
+    print(f"\n[STATS] Photo Cache Statistics:")
     print(f"   Cache hits: {cache_stats['cache_hits']}")
     print(f"   Cache misses: {cache_stats['cache_misses']}")
     print(f"   Files loaded: {cache_stats['files_loaded']}")
     print(f"   Total IDs loaded: {cache_stats['total_ids_loaded']}")
     print(f"   All IDs in memory: {cache_stats['all_ids_loaded']}")
 
-    print(f"\n📁 Filtered albums saved to: {FLICKR_ALBUMS_FOLDER}")
+    print(f"\n[DIR] Filtered albums saved to: {FLICKR_ALBUMS_FOLDER}")
 
     # Show photos without NASA IDs
     # if results["no_nasa_id_photos"]:
     #     print(
-    #         f"\n📋 Photos without NASA IDs ({len(results['no_nasa_id_photos'])} total):"
+    #         f"\n[LIST] Photos without NASA IDs ({len(results['no_nasa_id_photos'])} total):"
     #     )
     #     for photo in results["no_nasa_id_photos"]:
     #         flickr_id = photo.get("id", "Unknown")
@@ -741,7 +797,7 @@ def main():
     #             if isinstance(photo.get("description"), dict)
     #             else photo.get("description", "No description")
     #         )
-    #         print(f"   🖼️  ID: {flickr_id}")
+    #         print(f"     ID: {flickr_id}")
     #         print(f"       Title: {title}")
     #         print(
     #             f"       Description: {description[:100]}{'...' if len(description) > 100 else ''}"

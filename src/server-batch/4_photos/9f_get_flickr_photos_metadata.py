@@ -30,8 +30,9 @@ import requests
 from pathlib import Path
 from dotenv import load_dotenv
 import sys
-from datetime import datetime
+from datetime import datetime, date
 import time
+import argparse
 
 # Load environment variables
 load_dotenv(dotenv_path="../../../.env")
@@ -213,7 +214,7 @@ def load_photo_cache():
             with open(PHOTO_CACHE_FILE, "r", encoding="utf-8") as f:
                 cache_data = json.load(f)
                 photo_cache = set(cache_data.get("cached_photo_ids", []))
-                print(f"✓ Loaded photo cache with {len(photo_cache)} photos")
+                print(f"[OK] Loaded photo cache with {len(photo_cache)} photos")
                 return True
         except Exception as e:
             print(f"Warning: Could not load photo cache: {e}")
@@ -223,6 +224,54 @@ def load_photo_cache():
         print("No existing photo cache found, starting fresh")
         photo_cache = set()
         return True
+
+
+def prepopulate_cache_from_albums():
+    """
+    Pre-populate photo cache from existing album JSON files.
+    This ensures we don't re-fetch photos that already exist in album outputs.
+
+    Returns:
+        Number of photo IDs added to cache
+    """
+    global photo_cache
+
+    if not os.path.exists(OUTPUT_FOLDER):
+        print("No albums folder found, skipping cache pre-population")
+        return 0
+
+    initial_count = len(photo_cache)
+    albums_processed = 0
+
+    print(f"Pre-populating cache from existing album files...")
+
+    for filename in os.listdir(OUTPUT_FOLDER):
+        if not filename.endswith(".json"):
+            continue
+
+        filepath = os.path.join(OUTPUT_FOLDER, filename)
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                album_data = json.load(f)
+
+            photos = album_data.get("photos", [])
+            for photo in photos:
+                photo_id = photo.get("id")
+                if photo_id:
+                    photo_cache.add(photo_id)
+
+            albums_processed += 1
+        except Exception as e:
+            print(f"  Warning: Could not load {filename}: {e}")
+            continue
+
+    added = len(photo_cache) - initial_count
+    print(
+        f"[OK] Pre-populated cache with {added} photo IDs from {albums_processed} album files"
+    )
+    print(f"  Total cache size: {len(photo_cache)} photos")
+
+    return added
 
 
 def save_photo_cache():
@@ -251,7 +300,7 @@ def save_photo_cache():
             json.dump(cache_data, f, indent=2, ensure_ascii=False)
 
         print(
-            f"✓ Saved photo cache with {len(photo_cache)} photos to {PHOTO_CACHE_FILE}"
+            f"[OK] Saved photo cache with {len(photo_cache)} photos to {PHOTO_CACHE_FILE}"
         )
         return True
 
@@ -494,6 +543,9 @@ def process_photoset(
             "username": TARGET_USERNAME,
             "retrieved_at": datetime.now().isoformat(),
             "flickr_api_version": "1.0",
+            "flickr_date_update": photoset_data.get(
+                "date_update"
+            ),  # For cache invalidation
             "total_photos_in_album": total_photos_expected,
             "photos_processed": photos_processed_this_run,
             "photos_processed_this_run": photos_processed_this_run,
@@ -613,6 +665,34 @@ def main():
     """
     Main function to fetch metadata for all photos in NASA Flickr photosets
     """
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Fetch metadata for NASA Flickr photosets"
+    )
+    parser.add_argument(
+        "--since-date",
+        type=str,
+        help="Only process albums updated on or after this date (YYYY-MM-DD). "
+        "Skips albums that haven't changed since this date.",
+    )
+    parser.add_argument(
+        "--max-albums",
+        type=int,
+        help="Maximum number of albums to process (for testing)",
+    )
+    args = parser.parse_args()
+
+    # Parse since_date if provided
+    since_timestamp = None
+    if args.since_date:
+        try:
+            since_dt = datetime.strptime(args.since_date, "%Y-%m-%d")
+            since_timestamp = int(since_dt.timestamp())
+            print(f"Filtering albums updated since: {args.since_date}")
+        except ValueError:
+            print(f"Error: Invalid date format '{args.since_date}'. Use YYYY-MM-DD.")
+            sys.exit(1)
+
     print("NASA Flickr Photos Metadata Retriever")
     print("=" * 50)
 
@@ -624,6 +704,10 @@ def main():
     # Load photo cache
     if not load_photo_cache():
         print("Warning: Could not load photo cache, continuing without cache")
+
+    # Pre-populate cache from existing album JSON files
+    # This ensures we skip photos that already exist in outputs
+    prepopulate_cache_from_albums()
 
     # Load photosets list
     photosets_data = load_photosets_list()
@@ -655,22 +739,46 @@ def main():
     print(f"  Include EXIF data: {include_exif}")
     print(f"  Output folder: {OUTPUT_FOLDER}")
     print(f"  Cache file: {PHOTO_CACHE_FILE}")
+    if since_timestamp:
+        print(f"  Only albums updated since: {args.since_date}")
+    if args.max_albums:
+        print(f"  Max albums to process: {args.max_albums}")
 
     # Process each photoset
     successful_count = 0
     failed_count = 0
+    skipped_old_count = 0
     total_photos_processed = 0
+    albums_processed = 0
 
     for i, photoset in enumerate(photosets, 1):
+        # Check max albums limit
+        if args.max_albums and albums_processed >= args.max_albums:
+            print(f"\nReached max albums limit ({args.max_albums}), stopping.")
+            break
+
         photoset_id = photoset.get("id")
         photoset_title = photoset.get("title", {}).get("_content", "Untitled")
 
-        # Skip albums that start with "Astronaut"
+        # Skip albums that start with "Astronaut" or "Hurricane"
         if photoset_title.startswith("Astronaut") or photoset_title.startswith(
             "Hurricane"
         ):
             print(f"\n[{i}/{len(photosets)}] Skipping album: {photoset_title}")
             continue
+
+        # Skip albums that haven't been updated since the cutoff date
+        if since_timestamp:
+            album_update_time = int(photoset.get("date_update", 0))
+            if album_update_time < since_timestamp:
+                album_update_date = datetime.fromtimestamp(album_update_time).strftime(
+                    "%Y-%m-%d"
+                )
+                print(
+                    f"\n[{i}/{len(photosets)}] Skipping old album: {photoset_title} (last updated: {album_update_date})"
+                )
+                skipped_old_count += 1
+                continue
 
         print(f"\n[{i}/{len(photosets)}] Processing: {photoset_title}")
         print(f"Photoset ID: {photoset_id}")
@@ -678,8 +786,24 @@ def main():
         # Check if file already exists and load existing data
         existing_data = load_existing_photoset_data(photoset_id, photoset_title)
 
+        # Check if album hasn't changed since last fetch (compare date_update timestamps)
         if existing_data:
             metadata = existing_data.get("metadata", {})
+            saved_date_update = metadata.get("flickr_date_update")
+            current_date_update = photoset.get("date_update")
+
+            if (
+                saved_date_update
+                and current_date_update
+                and str(saved_date_update) == str(current_date_update)
+            ):
+                # Album hasn't been modified, skip entirely
+                print(
+                    f"  [OK] Album unchanged (date_update: {current_date_update}), skipping"
+                )
+                skipped_old_count += 1
+                continue
+
             total_photos_in_album = metadata.get("total_photos_in_album")
             existing_photo_count = len(existing_data.get("photos", []))
             if total_photos_in_album:
@@ -688,6 +812,8 @@ def main():
                 )
             else:
                 print(f"  Existing output contains {existing_photo_count} photos")
+
+        albums_processed += 1
 
         try:
             # Process the photoset (will resume from existing data if available)
@@ -709,11 +835,11 @@ def main():
                     total_photos_processed += photos_processed_in_this_set
                     if result_metadata.get("has_new_photos"):
                         print(
-                            f"  ✓ Added {photos_processed_in_this_set} new photos for {photoset_title}"
+                            f"  [OK] Added {photos_processed_in_this_set} new photos for {photoset_title}"
                         )
                     else:
                         print(
-                            f"  ✓ No new photos found for {photoset_title}; metadata refreshed"
+                            f"  [OK] No new photos found for {photoset_title}; metadata refreshed"
                         )
                     if result_metadata.get("has_new_photos"):
                         save_photo_cache()
@@ -749,6 +875,8 @@ def main():
     print(f"\n" + "=" * 50)
     print(f"Processing complete!")
     print(f"Total photosets: {len(photosets)}")
+    print(f"Albums processed: {albums_processed}")
+    print(f"Skipped (old/unchanged): {skipped_old_count}")
     print(f"Successfully processed: {successful_count}")
     print(f"Failed: {failed_count}")
     print(f"Output folder: {OUTPUT_FOLDER}")
@@ -771,7 +899,7 @@ def test_input_format():
         print("No photosets found")
         return False
 
-    print(f"✓ Found {len(photosets)} photosets")
+    print(f"[OK] Found {len(photosets)} photosets")
 
     # Check first photoset structure
     if photosets:
@@ -783,7 +911,7 @@ def test_input_format():
                 print(f"✗ Missing required field: {field}")
                 return False
 
-        print(f"✓ Input format validation passed")
+        print(f"[OK] Input format validation passed")
         print(f"  Sample photoset ID: {first_photoset.get('id')}")
         print(
             f"  Sample photoset title: {first_photoset.get('title', {}).get('_content', 'N/A')}"
