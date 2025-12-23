@@ -569,6 +569,221 @@ def dashboard(ctx: click.Context, auto_run: bool, interval: str) -> None:
 
 
 @main.command()
+@click.option(
+    "--since", type=click.DateTime(formats=["%Y-%m-%d"]), help="Process since date"
+)
+@click.option("--force", is_flag=True, help="Force reprocess even if complete")
+@click.option(
+    "--dry-run", is_flag=True, help="Show what would be done without doing it"
+)
+@click.pass_context
+def update(
+    ctx: click.Context,
+    since: Optional[datetime],
+    force: bool,
+    dry_run: bool,
+) -> None:
+    """Run all pipelines with live progress display.
+    
+    This is the main command for running incremental updates.
+    It runs all enabled pipelines in dependency order with a 
+    nice live progress display.
+    
+    Examples:
+        issirt-incremental update
+        issirt-incremental update --since 2024-01-01
+        issirt-incremental update --force
+    """
+    import asyncio
+    from rich.live import Live
+    from rich.table import Table
+    from rich.spinner import Spinner
+    from rich.text import Text
+    from rich.panel import Panel
+    from rich.console import Group
+    from collections import deque
+    from .orchestrator import Orchestrator
+
+    settings = get_settings(ctx)
+    db = get_state_db(ctx)
+    zip_tracker = ZipFileTracker(settings.paths.server_batch_dir)
+
+    # Track state for live display
+    pipeline_status: dict[str, dict[str, str]] = {}  # {pipeline: {stage: status}}
+    current_activity: str = "Initializing..."
+    activity_log: deque[str] = deque(maxlen=8)
+    start_time = datetime.now()
+
+    # Initialize pipeline status from settings
+    for pid, pconfig in settings.pipelines.items():
+        if pconfig.enabled:
+            pipeline_status[pid] = {stage.id: "pending" for stage in pconfig.stages}
+
+    def make_display() -> Panel:
+        """Generate the live display."""
+        # Build pipeline table
+        table = Table(show_header=True, header_style="bold cyan", expand=True)
+        table.add_column("Pipeline", style="cyan", no_wrap=True, width=16)
+        table.add_column("Status", width=50)
+        table.add_column("Stages", justify="right", width=12)
+        
+        status_icons = {
+            "pending": "[dim]○[/dim]",
+            "running": "[yellow]●[/yellow]",
+            "complete": "[green]✓[/green]",
+            "failed": "[red]✗[/red]",
+            "skipped": "[dim]⊘[/dim]",
+        }
+        
+        for pid, stages in pipeline_status.items():
+            # Count stage statuses
+            counts = {"pending": 0, "running": 0, "complete": 0, "failed": 0, "skipped": 0}
+            for s in stages.values():
+                counts[s] = counts.get(s, 0) + 1
+            
+            # Build stage icons row
+            stage_icons = " ".join(status_icons.get(s, "?") for s in stages.values())
+            
+            # Determine pipeline status
+            if counts["failed"] > 0:
+                pstatus = "[red]Failed[/red]"
+            elif counts["running"] > 0:
+                pstatus = "[yellow]Running...[/yellow]"
+            elif counts["complete"] == len(stages):
+                pstatus = "[green]Complete[/green]"
+            elif counts["skipped"] == len(stages):
+                pstatus = "[dim]Skipped[/dim]"
+            elif counts["complete"] > 0 or counts["skipped"] > 0:
+                pstatus = "[yellow]Partial[/yellow]"
+            else:
+                pstatus = "[dim]Pending[/dim]"
+            
+            done = counts["complete"] + counts["skipped"]
+            table.add_row(pid, stage_icons, f"{done}/{len(stages)}")
+        
+        # Build activity section
+        elapsed = (datetime.now() - start_time).total_seconds()
+        elapsed_str = f"{int(elapsed // 60)}:{int(elapsed % 60):02d}"
+        
+        activity_text = Text()
+        activity_text.append(f"\n⏱ {elapsed_str}  ", style="dim")
+        activity_text.append(current_activity, style="bold")
+        activity_text.append("\n")
+        
+        if activity_log:
+            activity_text.append("\n")
+            for line in activity_log:
+                activity_text.append(f"  {line}\n", style="dim")
+        
+        return Panel(
+            Group(table, activity_text),
+            title="[bold cyan]ISSiRT Incremental Update[/bold cyan]",
+            subtitle="[dim]Press Ctrl+C to cancel[/dim]",
+            border_style="cyan",
+        )
+
+    def on_progress(pipeline_id: str, stage_id: str, message: str) -> None:
+        """Handle progress updates."""
+        nonlocal current_activity
+        current_activity = f"{pipeline_id} → {stage_id}: {message}"
+        
+        msg_lower = message.lower()
+        
+        # Update stage status based on message patterns
+        if pipeline_id in pipeline_status and stage_id and stage_id in pipeline_status[pipeline_id]:
+            if "completed:" in msg_lower or "completed successfully" in msg_lower:
+                pipeline_status[pipeline_id][stage_id] = "complete"
+            elif "failed" in msg_lower or "error" in msg_lower:
+                pipeline_status[pipeline_id][stage_id] = "failed"
+            elif "skipped" in msg_lower or "no items" in msg_lower or "dependencies not satisfied" in msg_lower:
+                pipeline_status[pipeline_id][stage_id] = "skipped"
+            elif "starting stage" in msg_lower or "processing" in msg_lower or "waiting" in msg_lower:
+                pipeline_status[pipeline_id][stage_id] = "running"
+        
+        # Only log stage-specific messages (not empty stage_id)
+        if stage_id:
+            activity_log.append(f"{pipeline_id}.{stage_id}: {message[:60]}")
+
+    # Create orchestrator
+    orchestrator = Orchestrator(
+        settings=settings,
+        state_db=db,
+        zip_tracker=zip_tracker,
+    )
+
+    async def run_with_live_display():
+        """Run pipelines with live Rich display."""
+        nonlocal current_activity
+        
+        current_activity = "Starting pipelines..."
+        
+        with Live(make_display(), refresh_per_second=4, console=console) as live:
+            # Wrap the orchestrator to update display
+            original_progress = on_progress
+            
+            def updating_progress(pid: str, sid: str, msg: str):
+                original_progress(pid, sid, msg)
+                live.update(make_display())
+            
+            try:
+                result = await orchestrator.run_pipelines(
+                    pipeline_ids=None,  # All enabled
+                    since=since.date() if since else None,
+                    force=force,
+                    dry_run=dry_run,
+                    on_progress=updating_progress,
+                )
+                
+                current_activity = "Complete!" if result.success else "Completed with errors"
+                live.update(make_display())
+                
+                return result
+                
+            except Exception as e:
+                current_activity = f"Error: {e}"
+                live.update(make_display())
+                raise
+
+    if dry_run:
+        console.print("[yellow]DRY RUN - no changes will be made[/yellow]\n")
+
+    try:
+        result = asyncio.run(run_with_live_display())
+
+        # Show final results
+        console.print()
+        if result.success:
+            console.print("[bold green]✓ Update complete[/bold green]")
+        else:
+            console.print("[bold red]✗ Update completed with errors[/bold red]")
+
+        console.print(f"  Pipelines: {result.pipelines_run}")
+        console.print(f"  Stages: {result.stages_run}")
+        console.print(f"  Items processed: {result.items_processed}")
+        console.print(f"  Items failed: {result.items_failed}")
+        console.print(f"  Duration: {result.duration_seconds:.1f}s")
+
+        if result.errors:
+            console.print("\n[bold red]Errors:[/bold red]")
+            for err in result.errors[:5]:
+                console.print(f"  • {err}")
+            if len(result.errors) > 5:
+                console.print(f"  ... and {len(result.errors) - 5} more")
+
+        sys.exit(0 if result.success else 1)
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrupted - shutting down...[/yellow]")
+        asyncio.run(orchestrator.shutdown())
+        sys.exit(130)
+    except Exception as e:
+        console.print(f"[bold red]Error: {e}[/bold red]")
+        if ctx.obj.get("debug"):
+            console.print_exception()
+        sys.exit(1)
+
+
+@main.command()
 @click.pass_context
 def graph(ctx: click.Context) -> None:
     """Show dependency graph."""

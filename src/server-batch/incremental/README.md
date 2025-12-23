@@ -25,25 +25,51 @@ cd src/server-batch/incremental
 uv sync
 
 # Initialize state database
-uv run python -m incremental init
+uv run issirt-incremental init
 
-# Check status
-uv run python -m incremental status
+# Run all pipelines with live progress display
+uv run issirt-incremental update
 
-# List pipelines
-uv run python -m incremental list-pipelines
+# Preview what would run (dry-run)
+uv run issirt-incremental update --dry-run
 
-# Dry run (preview what would run)
-uv run python -m incremental run --dry-run
+# Process only recent data
+uv run issirt-incremental update --since 2024-12-01
 
-# Run all pipelines
-uv run python -m incremental run
+# Force reprocessing
+uv run issirt-incremental update --force
+```
 
-# Run specific pipeline
-uv run python -m incremental run --pipeline flights
+## Common Commands
 
-# Run with date constraints
-uv run python -m incremental run --pipeline articles --since 2024-12-01
+```bash
+# View status
+uv run issirt-incremental status
+
+# List all pipelines and stages
+uv run issirt-incremental list-pipelines
+
+# Run specific pipeline(s)
+uv run issirt-incremental run -p flights
+uv run issirt-incremental run -p flights -p photos_earth
+
+# Run from a specific stage onward
+uv run issirt-incremental run -p photos_flickr -s filter
+
+# Check external sources for new data
+uv run issirt-incremental check-sources
+
+# View dependency graph
+uv run issirt-incremental graph
+
+# View errors
+uv run issirt-incremental errors
+
+# Live dashboard (view-only)
+uv run issirt-incremental dashboard
+
+# Live dashboard with auto-run every 15 minutes
+uv run issirt-incremental dashboard --auto-run --interval 15m
 ```
 
 ## Configuration
@@ -57,11 +83,26 @@ uv run python -m incremental run --pipeline articles --since 2024-12-01
 Defined in `pipelines.yaml`. View with:
 
 ```bash
-uv run python -m incremental graph
+uv run issirt-incremental graph
 ```
 
 Key dependencies:
 
 - `eva` depends on `flights`
-- `stats` depends on `articles`, `flights`, `photos_earth`, `clouds`, `ephemera`
+- `aggregation` depends on `comm`, `articles`, `flights`, `photos_earth`, `photos_flickr`, `clouds`, `eva`, `ephemera`
 - Stage dependencies within `comm`: download → corpus → transcribe → web
+
+## CLI Entry Point
+
+The package installs a CLI entry point: `issirt-incremental`
+
+You can run it directly after `uv sync`:
+```bash
+uv run issirt-incremental --help
+uv run issirt-incremental update
+```
+
+Or use the module form (same functionality):
+```bash
+uv run python -m incremental --help
+```

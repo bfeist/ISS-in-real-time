@@ -73,3 +73,5 @@ comm_transcription_log*
 copilot-instructions.md
 
 incremental.db
+incremental.db-shm
+incremental.db-wal

@@ -348,9 +348,14 @@ class Orchestrator:
                     on_progress, pipeline.id, stage.id, "Waiting for GPU..."
                 )
 
-                acquired = await self.resource_manager.acquire_gpu(gpu_task_type)
-                if not acquired:
-                    msg = f"Failed to acquire GPU for stage {stage.id}"
+                try:
+                    await self.resource_manager.acquire_gpu(
+                        gpu_task_type, ollama_model=stage.ollama_model
+                    )
+                    gpu_acquired = True
+                    logger.info(f"GPU acquired for stage {stage.id}")
+                except Exception as e:
+                    msg = f"Failed to acquire GPU for stage {stage.id}: {e}"
                     logger.error(msg)
                     return StageResult(
                         success=False,
@@ -359,8 +364,6 @@ class Orchestrator:
                         duration_seconds=0.0,
                         errors=[msg],
                     )
-                gpu_acquired = True
-                logger.info(f"GPU acquired for stage {stage.id}")
 
             # Process work items
             for i, work_item in enumerate(work_items):
