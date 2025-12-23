@@ -97,12 +97,14 @@ Key dependencies:
 The package installs a CLI entry point: `issirt-incremental`
 
 You can run it directly after `uv sync`:
+
 ```bash
 uv run issirt-incremental --help
 uv run issirt-incremental update
 ```
 
 Or use the module form (same functionality):
+
 ```bash
 uv run python -m incremental --help
 ```

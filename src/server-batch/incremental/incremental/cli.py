@@ -584,11 +584,11 @@ def update(
     dry_run: bool,
 ) -> None:
     """Run all pipelines with live progress display.
-    
+
     This is the main command for running incremental updates.
-    It runs all enabled pipelines in dependency order with a 
+    It runs all enabled pipelines in dependency order with a
     nice live progress display.
-    
+
     Examples:
         issirt-incremental update
         issirt-incremental update --since 2024-01-01
@@ -626,7 +626,7 @@ def update(
         table.add_column("Pipeline", style="cyan", no_wrap=True, width=16)
         table.add_column("Status", width=50)
         table.add_column("Stages", justify="right", width=12)
-        
+
         status_icons = {
             "pending": "[dim]○[/dim]",
             "running": "[yellow]●[/yellow]",
@@ -634,16 +634,22 @@ def update(
             "failed": "[red]✗[/red]",
             "skipped": "[dim]⊘[/dim]",
         }
-        
+
         for pid, stages in pipeline_status.items():
             # Count stage statuses
-            counts = {"pending": 0, "running": 0, "complete": 0, "failed": 0, "skipped": 0}
+            counts = {
+                "pending": 0,
+                "running": 0,
+                "complete": 0,
+                "failed": 0,
+                "skipped": 0,
+            }
             for s in stages.values():
                 counts[s] = counts.get(s, 0) + 1
-            
+
             # Build stage icons row
             stage_icons = " ".join(status_icons.get(s, "?") for s in stages.values())
-            
+
             # Determine pipeline status
             if counts["failed"] > 0:
                 pstatus = "[red]Failed[/red]"
@@ -657,24 +663,24 @@ def update(
                 pstatus = "[yellow]Partial[/yellow]"
             else:
                 pstatus = "[dim]Pending[/dim]"
-            
+
             done = counts["complete"] + counts["skipped"]
             table.add_row(pid, stage_icons, f"{done}/{len(stages)}")
-        
+
         # Build activity section
         elapsed = (datetime.now() - start_time).total_seconds()
         elapsed_str = f"{int(elapsed // 60)}:{int(elapsed % 60):02d}"
-        
+
         activity_text = Text()
         activity_text.append(f"\n⏱ {elapsed_str}  ", style="dim")
         activity_text.append(current_activity, style="bold")
         activity_text.append("\n")
-        
+
         if activity_log:
             activity_text.append("\n")
             for line in activity_log:
                 activity_text.append(f"  {line}\n", style="dim")
-        
+
         return Panel(
             Group(table, activity_text),
             title="[bold cyan]ISSiRT Incremental Update[/bold cyan]",
@@ -686,20 +692,32 @@ def update(
         """Handle progress updates."""
         nonlocal current_activity
         current_activity = f"{pipeline_id} → {stage_id}: {message}"
-        
+
         msg_lower = message.lower()
-        
+
         # Update stage status based on message patterns
-        if pipeline_id in pipeline_status and stage_id and stage_id in pipeline_status[pipeline_id]:
+        if (
+            pipeline_id in pipeline_status
+            and stage_id
+            and stage_id in pipeline_status[pipeline_id]
+        ):
             if "completed:" in msg_lower or "completed successfully" in msg_lower:
                 pipeline_status[pipeline_id][stage_id] = "complete"
             elif "failed" in msg_lower or "error" in msg_lower:
                 pipeline_status[pipeline_id][stage_id] = "failed"
-            elif "skipped" in msg_lower or "no items" in msg_lower or "dependencies not satisfied" in msg_lower:
+            elif (
+                "skipped" in msg_lower
+                or "no items" in msg_lower
+                or "dependencies not satisfied" in msg_lower
+            ):
                 pipeline_status[pipeline_id][stage_id] = "skipped"
-            elif "starting stage" in msg_lower or "processing" in msg_lower or "waiting" in msg_lower:
+            elif (
+                "starting stage" in msg_lower
+                or "processing" in msg_lower
+                or "waiting" in msg_lower
+            ):
                 pipeline_status[pipeline_id][stage_id] = "running"
-        
+
         # Only log stage-specific messages (not empty stage_id)
         if stage_id:
             activity_log.append(f"{pipeline_id}.{stage_id}: {message[:60]}")
@@ -714,17 +732,17 @@ def update(
     async def run_with_live_display():
         """Run pipelines with live Rich display."""
         nonlocal current_activity
-        
+
         current_activity = "Starting pipelines..."
-        
+
         with Live(make_display(), refresh_per_second=4, console=console) as live:
             # Wrap the orchestrator to update display
             original_progress = on_progress
-            
+
             def updating_progress(pid: str, sid: str, msg: str):
                 original_progress(pid, sid, msg)
                 live.update(make_display())
-            
+
             try:
                 result = await orchestrator.run_pipelines(
                     pipeline_ids=None,  # All enabled
@@ -733,12 +751,14 @@ def update(
                     dry_run=dry_run,
                     on_progress=updating_progress,
                 )
-                
-                current_activity = "Complete!" if result.success else "Completed with errors"
+
+                current_activity = (
+                    "Complete!" if result.success else "Completed with errors"
+                )
                 live.update(make_display())
-                
+
                 return result
-                
+
             except Exception as e:
                 current_activity = f"Error: {e}"
                 live.update(make_display())
