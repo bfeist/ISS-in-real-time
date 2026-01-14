@@ -14,10 +14,11 @@ paths:
   server_batch_dir: "${ISSIRT_SERVER_BATCH_DIR:-..}"
 
   # Web assets output directory (uses project root .env value)
-  web_data_root: "${WEB_ASSETS_FOLDER:-F:/_repos/ISSiRT_assets/ISSiRT_web_assets}"
+  web_data_root: "F:/_repos/ISSiRT_assets/ISSiRT_web_assets"
 
   # Raw data directories
-  raw_audio_folder: "${RAW_AUDIO_FOLDER:-./raw/audio}"
+  raw_folder: "F:/_repos/ISSiRT_assets/_raw"
+  raw_audio_folder: "F:/_repos/ISSiRT_assets/_raw/iss_audio"
   raw_transcribed_folder: "${RAW_TRANSCRIBED_FOLDER:-./raw/transcribed}"
   photos_folder: "${PHOTOS_FOLDER:-./raw/photos}"
 
@@ -32,7 +33,7 @@ gpu:
   enabled: true
 
   # Ollama server for LLM inference
-  ollama_host: "${OLLAMA_HOST:-http://localhost:11434}"
+  ollama_host: "http://localhost:11434"
   ollama_default_model: "qwen3:14b"
   ollama_keepalive: "5m" # How long Ollama keeps model loaded after last request
 

@@ -23,9 +23,9 @@ load_dotenv(dotenv_path="../../../.env")
 # CSV file in the 'comm' directory. It also copies the corresponding AAC files to the 'comm' directory.
 
 
-COMM_RAW = os.getenv("RAW_FOLDER") + "comm_transcripts_aacs/"
-# COMM_RAW = os.getenv("RAW_FOLDER") + "comm_transcripts_aacs_v1/"
-COMM_WEB = os.getenv("WEB_ASSETS_FOLDER") + "comm/"
+COMM_RAW = os.path.join(os.getenv("RAW_FOLDER", ""), "comm_transcripts_aacs/")
+# COMM_RAW = os.path.join(os.getenv("RAW_FOLDER", ""), "comm_transcripts_aacs_v1/")
+COMM_WEB = os.path.join(os.getenv("WEB_ASSETS_FOLDER", ""), "comm/")
 
 # Debug: Print the paths being used
 print("=== PATH DEBUG ===")

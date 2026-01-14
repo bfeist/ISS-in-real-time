@@ -33,6 +33,7 @@ class PathsConfig:
         default_factory=lambda: Path(__file__).parent.parent.parent
     )
     web_data_root: Path = field(default_factory=lambda: Path("./web_assets"))
+    raw_folder: Path = field(default_factory=lambda: Path("./raw"))
     raw_audio_folder: Path = field(default_factory=lambda: Path("./raw/audio"))
     raw_transcribed_folder: Path = field(
         default_factory=lambda: Path("./raw/transcribed")
@@ -252,6 +253,10 @@ def load_settings(
             os.environ.get(
                 "WEB_DATA_ROOT", paths_data.get("web_data_root", "./web_assets")
             ),
+            config_dir,
+        ),
+        raw_folder=resolve_path(
+            os.environ.get("RAW_FOLDER", paths_data.get("raw_folder", "./raw")),
             config_dir,
         ),
         raw_audio_folder=resolve_path(

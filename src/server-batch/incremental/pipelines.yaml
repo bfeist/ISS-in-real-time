@@ -81,7 +81,7 @@ pipelines:
         name: "Download IA ZIPs"
         script: "1_comm/1a_download_collection_IA_zips.py"
         timeout_minutes: 180
-        args_template: " {dry_run_flag}"
+        args_template: "--limit 2 {dry_run_flag}"
 
       - id: corpus
         name: "Generate AI Corpus"
@@ -95,7 +95,7 @@ pipelines:
         cross_dependencies:
           - pipeline: articles
             stage: consolidate
-        args_template: "--start-date {since_date} --end-date {until_date} {overwrite_flag}"
+        args_template: "--start-date {since_date} --end-date {until_date} {force_flag}"
 
       - id: transcribe
         name: "Transcribe Audio"
@@ -104,7 +104,7 @@ pipelines:
         requires_gpu: true
         gpu_task_type: whisperx
         depends_on_stages: [corpus]
-        args_template: ""
+        args_template: "--start-date {since_date} --end-date {until_date} {force_flag}"
 
       - id: web
         name: "Generate Web Assets"

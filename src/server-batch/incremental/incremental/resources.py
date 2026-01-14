@@ -121,42 +121,52 @@ class ResourceManager:
         """
         Load an Ollama model into GPU memory.
 
-        Uses `ollama run MODEL --keepalive 0` to load the model.
-        The --keepalive 0 flag means the model stays loaded indefinitely
-        until explicitly stopped.
+        Uses Ollama's generate API to warm up the model, which loads it into GPU memory.
+        We send a minimal prompt to trigger loading without doing heavy inference.
 
         Args:
             model: The name of the Ollama model to load.
         """
+        import httpx
+
         logger.info(f"Loading Ollama model: {model}")
 
         try:
-            # Use ollama run with keepalive 0 to load and keep model in memory
-            # We send an empty input and close stdin to just trigger the load
-            process = await asyncio.create_subprocess_exec(
-                "ollama",
-                "run",
-                model,
-                "--keepalive",
-                "0",
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            # Use Ollama API to load model with a minimal generate request
+            # This is more reliable than `ollama run` which is interactive
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                # First check if model exists
+                response = await client.post(
+                    f"{self.ollama_host}/api/generate",
+                    json={
+                        "model": model,
+                        "prompt": "hi",
+                        "stream": False,
+                        "options": {
+                            "num_predict": 1
+                        },  # Generate just 1 token to load model
+                    },
+                )
+
+                if response.status_code == 200:
+                    self._loaded_ollama_model = model
+                    logger.info(f"Successfully loaded Ollama model: {model}")
+                else:
+                    error_msg = response.text[:200]
+                    self._last_error = f"Failed to load model {model}: {error_msg}"
+                    logger.error(self._last_error)
+
+        except httpx.TimeoutException:
+            # Timeout might mean the model is still loading, which is OK
+            # The model will be available for subsequent requests
+            self._loaded_ollama_model = model
+            logger.warning(
+                f"Ollama model {model} load timed out, but may still be loading"
             )
-
-            # Send empty input and close stdin to trigger load without waiting for interaction
-            stdout, stderr = await process.communicate(input=b"")
-
-            if process.returncode == 0:
-                self._loaded_ollama_model = model
-                logger.info(f"Successfully loaded Ollama model: {model}")
-            else:
-                error_msg = stderr.decode().strip() if stderr else "Unknown error"
-                self._last_error = f"Failed to load model {model}: {error_msg}"
-                logger.error(self._last_error)
-
-        except FileNotFoundError:
-            self._last_error = "Ollama executable not found. Is Ollama installed?"
+        except httpx.ConnectError:
+            self._last_error = (
+                f"Cannot connect to Ollama at {self.ollama_host}. Is Ollama running?"
+            )
             logger.error(self._last_error)
         except Exception as e:
             self._last_error = f"Error loading Ollama model {model}: {str(e)}"
@@ -166,8 +176,10 @@ class ResourceManager:
         """
         Unload the currently loaded Ollama model from GPU memory.
 
-        Uses `ollama stop MODEL` to unload the model.
+        Uses the Ollama API to unload the model by setting keep_alive to 0.
         """
+        import httpx
+
         if not self._loaded_ollama_model:
             logger.debug("No Ollama model to unload")
             return
@@ -176,29 +188,31 @@ class ResourceManager:
         logger.info(f"Unloading Ollama model: {model}")
 
         try:
-            process = await asyncio.create_subprocess_exec(
-                "ollama",
-                "stop",
-                model,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+            # Use Ollama API to unload model by setting keep_alive to 0
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.ollama_host}/api/generate",
+                    json={
+                        "model": model,
+                        "prompt": "",
+                        "stream": False,
+                        "keep_alive": 0,  # Immediately unload the model
+                    },
+                )
 
-            stdout, stderr = await process.communicate()
+                if response.status_code == 200:
+                    logger.info(f"Successfully unloaded Ollama model: {model}")
+                else:
+                    # Log but don't fail - model might already be unloaded
+                    logger.warning(f"Ollama unload returned: {response.text[:100]}")
 
-            if process.returncode == 0:
-                logger.info(f"Successfully unloaded Ollama model: {model}")
-            else:
-                error_msg = stderr.decode().strip() if stderr else "Unknown error"
-                # Log but don't fail - model might already be unloaded
-                logger.warning(f"Ollama stop returned non-zero: {error_msg}")
-
-            # Clear the loaded model regardless of command result
+            # Clear the loaded model regardless of response
             self._loaded_ollama_model = None
 
-        except FileNotFoundError:
-            self._last_error = "Ollama executable not found. Is Ollama installed?"
-            logger.error(self._last_error)
+        except httpx.ConnectError:
+            logger.warning(
+                f"Cannot connect to Ollama at {self.ollama_host} to unload model"
+            )
             self._loaded_ollama_model = None
         except Exception as e:
             self._last_error = f"Error unloading Ollama model {model}: {str(e)}"

@@ -119,6 +119,9 @@ class Orchestrator:
         self._completed_pipelines: set[str] = (
             set()
         )  # pipelines that completed successfully
+        self._skipped_pipelines: set[str] = (
+            set()
+        )  # pipelines explicitly skipped via --skip flag
 
     async def run_pipelines(
         self,
@@ -151,8 +154,19 @@ class Orchestrator:
         total_items_failed = 0
 
         try:
-            # Get pipelines to run
+            # Get pipelines to run and track which are skipped
+            all_enabled = self._get_pipelines_to_run(None)
             pipelines = self._get_pipelines_to_run(pipeline_ids)
+
+            # Track which pipelines are being skipped (enabled but not in run list)
+            if pipeline_ids is not None:
+                running_ids = {p.id for p in pipelines}
+                self._skipped_pipelines = {
+                    p.id for p in all_enabled if p.id not in running_ids
+                }
+            else:
+                self._skipped_pipelines = set()
+
             if not pipelines:
                 logger.warning("No pipelines to run")
                 return OrchestratorResult(
@@ -222,6 +236,10 @@ class Orchestrator:
                             stage.id,
                             "No items to process",
                         )
+                        # Mark as completed so dependencies are satisfied
+                        if pipeline.id not in self._completed_stages:
+                            self._completed_stages[pipeline.id] = set()
+                        self._completed_stages[pipeline.id].add(stage.id)
                         continue
 
                     logger.info(
@@ -386,6 +404,7 @@ class Orchestrator:
                     force=force,
                     dry_run=dry_run,
                 )
+                logger.info(f"Running {stage.script} with args: {args}")
 
                 self._notify_progress(
                     on_progress,
@@ -407,6 +426,7 @@ class Orchestrator:
                     script_env = {
                         "WEB_ASSETS_FOLDER": web_assets,
                         "WEB_DATA_ROOT": web_assets,
+                        "RAW_FOLDER": str(self.settings.paths.raw_folder),
                         "RAW_AUDIO_FOLDER": str(self.settings.paths.raw_audio_folder),
                         "PYTHONIOENCODING": "utf-8",  # Fix Unicode output issues
                     }
@@ -431,7 +451,13 @@ class Orchestrator:
                         )
                     else:
                         items_failed += 1
-                        error_msg = result.stderr or result.error or "Unknown error"
+                        # Try multiple sources for error info
+                        error_msg = (
+                            result.error_message
+                            or result.stderr
+                            or result.stdout
+                            or f"Exit code {result.exit_code}"
+                        )
                         errors.append(f"{work_item.item_id}: {error_msg[:200]}")
 
                         # Mark ZIP file as errored if applicable
@@ -495,21 +521,48 @@ class Orchestrator:
         Returns:
             List of work items to process
         """
-        # For comm.download, check for unprocessed ZIPs
+        # For comm.download, always run - the script discovers new ZIPs from IA
+        # The download script handles the discovery and only downloads what's missing
         if "download" in stage.id.lower() and "comm" in pipeline.id.lower():
-            unprocessed = self.zip_tracker.get_unprocessed(set())
-            if unprocessed:
+            return [
+                WorkItem(
+                    item_type="zip_discovery",
+                    item_id=f"{pipeline.id}:{stage.id}",
+                    pipeline_id=pipeline.id,
+                    stage_id=stage.id,
+                    metadata={"description": "Check IA for new ZIP files"},
+                )
+            ]
+
+        # For comm.corpus or comm.transcribe, discover dates from unprocessed zips
+        if "comm" in pipeline.id.lower() and stage.id in (
+            "corpus",
+            "transcribe",
+            "web",
+        ):
+            # For web stage, include recently processed zips to ensure we generate assets
+            # even if transcription happened in a previous run
+            include_processed = stage.id == "web"
+            zip_dates = self._discover_dates_from_zips(include_processed=include_processed)
+            if zip_dates:
+                # Use date range from zips
+                min_date = min(zip_dates)
+                max_date = max(zip_dates)
                 return [
                     WorkItem(
-                        item_type="zip",
-                        item_id=f"{pipeline.id}:{stage.id}",
+                        item_type="date_range",
+                        item_id=f"{min_date}_to_{max_date}",
                         pipeline_id=pipeline.id,
                         stage_id=stage.id,
-                        metadata={"unprocessed_count": len(unprocessed)},
+                        metadata={
+                            "since_date": min_date,
+                            "until_date": max_date,
+                            "dates": zip_dates,
+                        },
                     )
                 ]
             elif not force:
-                logger.info(f"No unprocessed ZIPs for {stage.id}, skipping")
+                logger.info(f"No unprocessed ZIP dates for {stage.id}")
                 return []
 
         # Default: single work item for the stage
@@ -523,6 +576,76 @@ class Orchestrator:
             )
         ]
 
+    def _discover_dates_from_zips(self, include_processed: bool = False) -> list[str]:
+        """
+        Discover dates from ZIP files that need processing.
+
+        Looks at the processed and unprocessed ZIP file lists to determine
+        which dates have new audio data to process.
+        """
+        import re
+        from pathlib import Path
+
+        # Get raw audio folder from settings
+        raw_audio_folder = self.settings.paths.raw_audio_folder
+        if not raw_audio_folder:
+            logger.warning("RAW_AUDIO_FOLDER not configured")
+            return []
+
+        sg_folder = Path(raw_audio_folder) / "InternetArchive_space_to_grounds"
+        if not sg_folder.exists():
+            logger.warning(f"Space-to-ground folder not found: {sg_folder}")
+            return []
+
+        # Get processed zips
+        processed = self.zip_tracker.get_processed()
+        skipped = self.zip_tracker.get_skipped()
+        errors = (
+            self.zip_tracker.get_error_filenames()
+        )  # Gets just filenames, not error msgs
+
+        if include_processed:
+            # If including processed, only ignore skipped and errors
+            ignored = skipped | errors
+        else:
+            ignored = processed | skipped | errors
+
+        logger.debug(
+            f"Found {len(processed)} processed, {len(skipped)} skipped, {len(errors)} error zips"
+        )
+
+        # Find all zip files and check which are unprocessed AND recently modified
+        # Only process ZIPs modified in the last 24 hours (recently downloaded)
+        import time
+
+        now = time.time()
+        one_day_ago = now - (24 * 60 * 60)
+
+        dates = set()
+        date_pattern = re.compile(r"(\d{2})-(\d{2})-(\d{2})")
+
+        for zip_file in sg_folder.glob("*.zip"):
+            if zip_file.name in ignored:
+                continue  # Already processed/skipped/errored
+
+            # Check if file was modified recently (within last 30 days)
+            # This prevents picking up ancient unprocessed files when we only care about new data
+            mtime = zip_file.stat().st_mtime
+            if mtime < (now - (30 * 24 * 60 * 60)):
+                logger.debug(f"Skipping old unprocessed ZIP: {zip_file.name}")
+                continue
+
+            match = date_pattern.match(zip_file.name)
+            if match:
+                month, day, year = match.groups()
+                # Convert to YYYY-MM-DD format
+                full_year = f"20{year}"
+                date_str = f"{full_year}-{month}-{day}"
+                dates.add(date_str)
+
+        logger.info(f"Found {len(dates)} recently downloaded ZIP dates")
+        return sorted(dates)
+
     def _expand_args_template(
         self,
         template: str,
@@ -534,8 +657,8 @@ class Orchestrator:
         Expand template variables in argument string.
 
         Template variables:
-        - {since_date}: Work item date or range start
-        - {until_date}: Work item date or range end
+        - {since_date}: Work item date or range start (with flag removed if empty)
+        - {until_date}: Work item date or range end (with flag removed if empty)
         - {overwrite_flag}: --overwrite if force=True
         - {dry_run_flag}: --dry-run if dry_run=True
         - {recent_60_days}: Date 60 days ago (YYYY-MM-DD)
@@ -550,6 +673,7 @@ class Orchestrator:
         Returns:
             Expanded argument list
         """
+        import re
         from datetime import timedelta
 
         if not template:
@@ -568,18 +692,35 @@ class Orchestrator:
 
         # Date expansions - use metadata if available
         target_date = work_item.metadata.get("target_date")
-        if target_date:
+        since_date = work_item.metadata.get("since_date")
+        until_date = work_item.metadata.get("until_date")
+
+        # Handle --flag {placeholder} patterns - remove the flag if value is empty
+        if since_date:
+            expanded = expanded.replace("{since_date}", str(since_date))
+        elif target_date:
             expanded = expanded.replace("{since_date}", str(target_date))
+        else:
+            # Remove the entire "--start-date {since_date}" pattern
+            expanded = re.sub(r"--start-date\s+\{since_date\}", "", expanded)
+            expanded = expanded.replace("{since_date}", "")
+
+        if until_date:
+            expanded = expanded.replace("{until_date}", str(until_date))
+        elif target_date:
             expanded = expanded.replace("{until_date}", str(target_date))
         else:
-            expanded = expanded.replace("{since_date}", "")
+            # Remove the entire "--end-date {until_date}" pattern
+            expanded = re.sub(r"--end-date\s+\{until_date\}", "", expanded)
             expanded = expanded.replace("{until_date}", "")
 
         # Flag expansions
         if force:
             expanded = expanded.replace("{overwrite_flag}", "--overwrite")
+            expanded = expanded.replace("{force_flag}", "--force")
         else:
             expanded = expanded.replace("{overwrite_flag}", "")
+            expanded = expanded.replace("{force_flag}", "")
 
         if dry_run:
             expanded = expanded.replace("{dry_run_flag}", "--dry-run")
@@ -655,6 +796,13 @@ class Orchestrator:
             True if all dependencies are satisfied
         """
         for dep_id in pipeline.depends_on:
+            # If the dependency pipeline was explicitly skipped, ignore this dependency
+            if dep_id in self._skipped_pipelines:
+                logger.debug(
+                    f"Ignoring pipeline dependency {dep_id} " f"because it was skipped"
+                )
+                continue
+
             # Check if dependency pipeline completed in this run
             if dep_id not in self._completed_pipelines:
                 logger.warning(
@@ -696,6 +844,14 @@ class Orchestrator:
             dep_pipeline_id = dep.get("pipeline")
             dep_stage_id = dep.get("stage")
             if dep_pipeline_id and dep_stage_id:
+                # If the dependency pipeline was explicitly skipped, ignore this dependency
+                if dep_pipeline_id in self._skipped_pipelines:
+                    logger.debug(
+                        f"Ignoring cross-dependency {dep_pipeline_id}:{dep_stage_id} "
+                        f"because {dep_pipeline_id} was skipped"
+                    )
+                    continue
+
                 if dep_stage_id not in self._completed_stages.get(
                     dep_pipeline_id, set()
                 ):

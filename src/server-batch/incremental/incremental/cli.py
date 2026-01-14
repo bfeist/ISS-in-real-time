@@ -569,6 +569,8 @@ def dashboard(ctx: click.Context, auto_run: bool, interval: str) -> None:
 
 
 @main.command()
+@click.option("--pipeline", "-p", multiple=True, help="Run specific pipeline(s) only")
+@click.option("--skip", "-x", multiple=True, help="Skip specific pipeline(s)")
 @click.option(
     "--since", type=click.DateTime(formats=["%Y-%m-%d"]), help="Process since date"
 )
@@ -579,6 +581,8 @@ def dashboard(ctx: click.Context, auto_run: bool, interval: str) -> None:
 @click.pass_context
 def update(
     ctx: click.Context,
+    pipeline: tuple[str, ...],
+    skip: tuple[str, ...],
     since: Optional[datetime],
     force: bool,
     dry_run: bool,
@@ -595,36 +599,47 @@ def update(
         issirt-incremental update --force
     """
     import asyncio
-    from rich.live import Live
     from rich.table import Table
-    from rich.spinner import Spinner
     from rich.text import Text
-    from rich.panel import Panel
-    from rich.console import Group
-    from collections import deque
     from .orchestrator import Orchestrator
 
     settings = get_settings(ctx)
     db = get_state_db(ctx)
     zip_tracker = ZipFileTracker(settings.paths.server_batch_dir)
 
-    # Track state for live display
+    # Determine which pipelines to run
+    all_enabled = [
+        pid for pid, pconfig in settings.pipelines.items() if pconfig.enabled
+    ]
+
+    if pipeline:
+        # Run only specified pipelines
+        pipelines_to_run = [p for p in pipeline if p in all_enabled]
+        invalid = [p for p in pipeline if p not in all_enabled]
+        if invalid:
+            console.print(
+                f"[yellow]Warning: Unknown pipelines: {', '.join(invalid)}[/yellow]"
+            )
+    else:
+        pipelines_to_run = all_enabled
+
+    if skip:
+        pipelines_to_run = [p for p in pipelines_to_run if p not in skip]
+
+    # Track state for display
     pipeline_status: dict[str, dict[str, str]] = {}  # {pipeline: {stage: status}}
-    current_activity: str = "Initializing..."
-    activity_log: deque[str] = deque(maxlen=8)
     start_time = datetime.now()
 
-    # Initialize pipeline status from settings
-    for pid, pconfig in settings.pipelines.items():
-        if pconfig.enabled:
-            pipeline_status[pid] = {stage.id: "pending" for stage in pconfig.stages}
+    # Initialize pipeline status for selected pipelines only
+    for pid in pipelines_to_run:
+        pconfig = settings.pipelines[pid]
+        pipeline_status[pid] = {stage.id: "pending" for stage in pconfig.stages}
 
-    def make_display() -> Panel:
-        """Generate the live display."""
-        # Build pipeline table
-        table = Table(show_header=True, header_style="bold cyan", expand=True)
-        table.add_column("Pipeline", style="cyan", no_wrap=True, width=16)
-        table.add_column("Status", width=50)
+    def print_status_table() -> None:
+        """Print the pipeline status table."""
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Pipeline", style="cyan", no_wrap=True, width=20)
+        table.add_column("Status", width=60)
         table.add_column("Stages", justify="right", width=12)
 
         status_icons = {
@@ -650,49 +665,13 @@ def update(
             # Build stage icons row
             stage_icons = " ".join(status_icons.get(s, "?") for s in stages.values())
 
-            # Determine pipeline status
-            if counts["failed"] > 0:
-                pstatus = "[red]Failed[/red]"
-            elif counts["running"] > 0:
-                pstatus = "[yellow]Running...[/yellow]"
-            elif counts["complete"] == len(stages):
-                pstatus = "[green]Complete[/green]"
-            elif counts["skipped"] == len(stages):
-                pstatus = "[dim]Skipped[/dim]"
-            elif counts["complete"] > 0 or counts["skipped"] > 0:
-                pstatus = "[yellow]Partial[/yellow]"
-            else:
-                pstatus = "[dim]Pending[/dim]"
-
             done = counts["complete"] + counts["skipped"]
             table.add_row(pid, stage_icons, f"{done}/{len(stages)}")
 
-        # Build activity section
-        elapsed = (datetime.now() - start_time).total_seconds()
-        elapsed_str = f"{int(elapsed // 60)}:{int(elapsed % 60):02d}"
-
-        activity_text = Text()
-        activity_text.append(f"\n⏱ {elapsed_str}  ", style="dim")
-        activity_text.append(current_activity, style="bold")
-        activity_text.append("\n")
-
-        if activity_log:
-            activity_text.append("\n")
-            for line in activity_log:
-                activity_text.append(f"  {line}\n", style="dim")
-
-        return Panel(
-            Group(table, activity_text),
-            title="[bold cyan]ISSiRT Incremental Update[/bold cyan]",
-            subtitle="[dim]Press Ctrl+C to cancel[/dim]",
-            border_style="cyan",
-        )
+        console.print(table)
 
     def on_progress(pipeline_id: str, stage_id: str, message: str) -> None:
-        """Handle progress updates."""
-        nonlocal current_activity
-        current_activity = f"{pipeline_id} → {stage_id}: {message}"
-
+        """Handle progress updates - prints each update to console."""
         msg_lower = message.lower()
 
         # Update stage status based on message patterns
@@ -718,9 +697,13 @@ def update(
             ):
                 pipeline_status[pipeline_id][stage_id] = "running"
 
-        # Only log stage-specific messages (not empty stage_id)
+        # Print each activity as it happens (scrolling log)
         if stage_id:
-            activity_log.append(f"{pipeline_id}.{stage_id}: {message[:60]}")
+            elapsed = (datetime.now() - start_time).total_seconds()
+            elapsed_str = f"{int(elapsed // 60)}:{int(elapsed % 60):02d}"
+            console.print(
+                f"[dim][{elapsed_str}][/dim] [cyan]{pipeline_id}[/cyan].[yellow]{stage_id}[/yellow]: {message}"
+            )
 
     # Create orchestrator
     orchestrator = Orchestrator(
@@ -729,46 +712,44 @@ def update(
         zip_tracker=zip_tracker,
     )
 
-    async def run_with_live_display():
-        """Run pipelines with live Rich display."""
-        nonlocal current_activity
+    async def run_pipelines_with_output():
+        """Run pipelines with scrolling console output."""
+        console.print("[bold cyan]ISSiRT Incremental Update[/bold cyan]\n")
 
-        current_activity = "Starting pipelines..."
+        # Print initial status table
+        print_status_table()
+        console.print()
+        console.print("[bold]Activity Log:[/bold]")
+        console.print("[dim]─" * 80 + "[/dim]")
 
-        with Live(make_display(), refresh_per_second=4, console=console) as live:
-            # Wrap the orchestrator to update display
-            original_progress = on_progress
+        try:
+            result = await orchestrator.run_pipelines(
+                pipeline_ids=(
+                    pipelines_to_run if pipeline or skip else None
+                ),  # All enabled if no filter
+                since=since.date() if since else None,
+                force=force,
+                dry_run=dry_run,
+                on_progress=on_progress,
+            )
 
-            def updating_progress(pid: str, sid: str, msg: str):
-                original_progress(pid, sid, msg)
-                live.update(make_display())
+            console.print("[dim]─" * 80 + "[/dim]")
+            console.print()
 
-            try:
-                result = await orchestrator.run_pipelines(
-                    pipeline_ids=None,  # All enabled
-                    since=since.date() if since else None,
-                    force=force,
-                    dry_run=dry_run,
-                    on_progress=updating_progress,
-                )
+            # Print final status table
+            print_status_table()
 
-                current_activity = (
-                    "Complete!" if result.success else "Completed with errors"
-                )
-                live.update(make_display())
+            return result
 
-                return result
-
-            except Exception as e:
-                current_activity = f"Error: {e}"
-                live.update(make_display())
-                raise
+        except Exception as e:
+            console.print(f"\n[red]Error: {e}[/red]")
+            raise
 
     if dry_run:
         console.print("[yellow]DRY RUN - no changes will be made[/yellow]\n")
 
     try:
-        result = asyncio.run(run_with_live_display())
+        result = asyncio.run(run_pipelines_with_output())
 
         # Show final results
         console.print()

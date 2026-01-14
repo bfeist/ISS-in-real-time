@@ -1,3 +1,4 @@
+import argparse
 import os
 import re
 from pathlib import Path
@@ -194,10 +195,34 @@ def is_dragon_comm(filename):
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Download ISS comm ZIP files from Internet Archive collections"
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Limit to the N most recent collections (default: all)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be downloaded without actually downloading",
+    )
+    args = parser.parse_args()
+
     # Download and parse XML
     print("Downloading and parsing XML files...")
 
-    for collection in reversed(collections_xml):
+    # Get collections to process (reversed = newest first)
+    collections_to_process = list(reversed(collections_xml))
+    if args.limit:
+        collections_to_process = collections_to_process[: args.limit]
+        print(
+            f"Limiting to {args.limit} most recent collections: {collections_to_process}"
+        )
+
+    for collection in collections_to_process:
         xml_url = f"{ia_root_path}{collection}/{collection}_files.xml"
         base_download_url = f"{ia_root_path}{collection}/"
 
@@ -261,10 +286,11 @@ def main():
             for original, normalized in missing_space_files:
                 print(f"  {original} -> {normalized}")
 
-            for original, normalized in missing_space_files:
-                file_url = urljoin(base_download_url, original)
-                destination = issSpaceToGroundsBasePath / normalized
-                download_file(file_url, destination)
+            if not args.dry_run:
+                for original, normalized in missing_space_files:
+                    file_url = urljoin(base_download_url, original)
+                    destination = issSpaceToGroundsBasePath / normalized
+                    download_file(file_url, destination)
 
         # Download missing Dragon/CST files
         if missing_dragon_files:
@@ -272,9 +298,10 @@ def main():
             for original, normalized in missing_dragon_files:
                 print(f"  {original} -> {normalized}")
 
-            for original, normalized in missing_dragon_files:
-                file_url = urljoin(base_download_url, original)
-                destination = issDragonCommBasePath / normalized
+            if not args.dry_run:
+                for original, normalized in missing_dragon_files:
+                    file_url = urljoin(base_download_url, original)
+                    destination = issDragonCommBasePath / normalized
                 download_file(file_url, destination)
 
     print("\nIncremental download complete!")
