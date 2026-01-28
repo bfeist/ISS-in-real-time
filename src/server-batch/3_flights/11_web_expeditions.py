@@ -134,7 +134,12 @@ def scrape_expedition(num):
     url = f"https://www.nasa.gov/mission/expedition-{str(num)}/"
     headers = {"User-Agent": "ISSiRT-Bot/1.0 (https://github.com/bfeist/ISSiRT)"}
     response = requests.get(url, headers=headers)
-    response.raise_for_status()  # Check for request errors
+
+    # Return None if expedition doesn't exist (404)
+    if response.status_code == 404:
+        return None
+
+    response.raise_for_status()  # Check for other request errors
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -187,39 +192,72 @@ if __name__ == "__main__":
     # Load existing data
     loaded_data = load_and_parse_json(f"{WEB_ASSETS_FOLDER}/expeditions.json")
 
+    # Find the highest expedition number already processed
+    max_existing_expedition = max((e["expedition"] for e in loaded_data), default=0)
+
     # Identify expeditions that need reprocessing (null or empty values)
     needs_reprocessing = []
     for exp in loaded_data:
         if any(value is None or value == "" for value in exp.values()):
             needs_reprocessing.append(exp["expedition"])
 
-    # Process only those that need reprocessing
+    print(
+        f"Starting expedition scrape. Max existing expedition: {max_existing_expedition}"
+    )
+    print(f"Expeditions needing reprocessing: {needs_reprocessing}")
+
+    # Process expeditions, stopping when we hit consecutive 404s
     expeditions = []
     processed_numbers = set()
+    consecutive_404s = 0
+    max_consecutive_404s = 3  # Stop after 3 consecutive 404s
 
-    for i in range(1, 74):
+    i = 1
+    while consecutive_404s < max_consecutive_404s:
         # If this expedition needs reprocessing or doesn't exist in loaded data
         if i in needs_reprocessing or not any(
             e["expedition"] == i for e in loaded_data
         ):
             try:
                 data = scrape_expedition(i)
-                # get patch image url
-                data["patchUrl"] = get_expedition_patch_url(i)
 
-                # If we have existing data, merge it
-                if i in needs_reprocessing:
-                    original_index = next(
-                        idx for idx, e in enumerate(loaded_data) if e["expedition"] == i
+                # If expedition doesn't exist (404), increment counter
+                if data is None:
+                    consecutive_404s += 1
+                    print(
+                        f"Expedition {i}: 404 Not Found ({consecutive_404s}/{max_consecutive_404s})"
                     )
-                    loaded_data[original_index] = data
                 else:
-                    expeditions.append(data)
+                    consecutive_404s = 0  # Reset counter on success
+                    # get patch image url
+                    data["patchUrl"] = get_expedition_patch_url(i)
 
-                processed_numbers.add(i)
-                time.sleep(1)
+                    # If we have existing data, merge it
+                    if i in needs_reprocessing:
+                        original_index = next(
+                            idx
+                            for idx, e in enumerate(loaded_data)
+                            if e["expedition"] == i
+                        )
+                        loaded_data[original_index] = data
+                        print(f"Expedition {i}: Updated")
+                    else:
+                        expeditions.append(data)
+                        print(f"Expedition {i}: Scraped successfully")
+
+                    processed_numbers.add(i)
+                    time.sleep(1)
             except Exception as e:
                 print(f"Error processing expedition {i}: {str(e)}")
+                consecutive_404s += 1
+        else:
+            consecutive_404s = 0  # Reset if expedition already in data
+
+        i += 1
+
+    print(
+        f"\nFinished scraping. Processed {len(processed_numbers)} new/updated expeditions."
+    )
 
     # Combine new and updated data - include all original data plus any new entries
     final_expeditions = loaded_data + [
@@ -229,3 +267,4 @@ if __name__ == "__main__":
     ]
 
     save_json(final_expeditions, f"{WEB_ASSETS_FOLDER}/expeditions.json")
+    print(f"Saved {len(final_expeditions)} total expeditions to expeditions.json")

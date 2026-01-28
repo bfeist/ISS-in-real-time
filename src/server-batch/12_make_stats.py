@@ -28,12 +28,12 @@ if not WEB_ASSETS_FOLDER:
     )
     exit(1)
 
-COMM_FOLDER = WEB_ASSETS_FOLDER + "comm/"
-IMAGES_FOLDER = WEB_ASSETS_FOLDER + "photos_earth/"
-FLICKR_FOLDER = WEB_ASSETS_FOLDER + "photos_flickr/"
-YOUTUBE_JSON = WEB_ASSETS_FOLDER + "videoYt.json"
-IA_VIDEOS_JSON = WEB_ASSETS_FOLDER + "videoIa.json"
-DATA_AVAILABILITY_CSV = WEB_ASSETS_FOLDER + "data_availability.csv"
+COMM_FOLDER = os.path.join(WEB_ASSETS_FOLDER, "comm")
+IMAGES_FOLDER = os.path.join(WEB_ASSETS_FOLDER, "photos_earth")
+FLICKR_FOLDER = os.path.join(WEB_ASSETS_FOLDER, "photos_flickr")
+YOUTUBE_JSON = os.path.join(WEB_ASSETS_FOLDER, "videoYt.json")
+IA_VIDEOS_JSON = os.path.join(WEB_ASSETS_FOLDER, "videoIa.json")
+DATA_AVAILABILITY_CSV = os.path.join(WEB_ASSETS_FOLDER, "data_availability.csv")
 
 
 def calculate_total_days_since_epoch():

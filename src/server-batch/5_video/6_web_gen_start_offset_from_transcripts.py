@@ -30,9 +30,9 @@ WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 RAW_FOLDER = os.getenv("RAW_FOLDER")
 
 YOUTUBE_TRANSCRIPTS_FOLDER = "F:/tempF/iss_working/youtube_transcripts"
-COMM_FOLDER = WEB_ASSETS_FOLDER + "comm/"
-YOUTUBE_RECORDINGS_FILE = WEB_ASSETS_FOLDER + "videoYt.json"
-PROCESSING_LOG_FILE = RAW_FOLDER + "youtube_transcript_processing_log.json"
+COMM_FOLDER = os.path.join(WEB_ASSETS_FOLDER, "comm")
+YOUTUBE_RECORDINGS_FILE = os.path.join(WEB_ASSETS_FOLDER, "videoYt.json")
+PROCESSING_LOG_FILE = os.path.join(RAW_FOLDER, "youtube_transcript_processing_log.json")
 
 # Fuzzy matching parameters
 MIN_SIMILARITY_THRESHOLD = 0.6  # Minimum similarity for a match
@@ -237,10 +237,10 @@ def parse_youtube_filename(
     Parse YouTube transcript filename to extract metadata.
     Format: YYYY-MM-DDTHH-MM-SS_videoId_title_transcript.csv
     videoId is 11 characters (YouTube standard).
-    
+
     Note: Some older files may have had a height field (e.g., _1080_) between videoId and title,
     but current files do not include this field.
-    
+
     Returns: (date, video_id, title)
     """
     try:
@@ -248,7 +248,9 @@ def parse_youtube_filename(
         if basename.endswith("_transcript"):
             basename = basename[:-11]  # Remove _transcript
 
-        if len(basename) < 32:  # Minimum length: 19 (date) + 1 (_) + 11 (videoId) + 1 (_)
+        if (
+            len(basename) < 32
+        ):  # Minimum length: 19 (date) + 1 (_) + 11 (videoId) + 1 (_)
             print(f"Warning: Filename too short: {filename}")
             return None, None, None
 
@@ -257,7 +259,9 @@ def parse_youtube_filename(
 
         # Validate date format
         if basename[19] != "_":
-            print(f"Warning: Expected underscore at position 19 in filename: {filename}")
+            print(
+                f"Warning: Expected underscore at position 19 in filename: {filename}"
+            )
             return None, None, None
 
         # Extract video_id (next 11 chars after _)
@@ -268,7 +272,9 @@ def parse_youtube_filename(
 
         # Check for underscore after video_id
         if len(basename) > 31 and basename[31] != "_":
-            print(f"Warning: Expected underscore at position 31 in filename: {filename}")
+            print(
+                f"Warning: Expected underscore at position 31 in filename: {filename}"
+            )
             return None, None, None
 
         # Everything after position 32 is the title
@@ -283,6 +289,7 @@ def parse_youtube_filename(
     except Exception as e:
         print(f"Error parsing filename {filename}: {e}")
         import traceback
+
         traceback.print_exc()
         return None, None, None
 
@@ -532,7 +539,9 @@ def process_youtube_transcript(
     if existing_log:
         print(f"*** SKIPPING - Already processed video ID: {video_id} ***")
         print(f"Previous status: {existing_log.get('processingStatus', 'unknown')}")
-        print(f"Previous processing date: {existing_log.get('processingDate', 'unknown')}")
+        print(
+            f"Previous processing date: {existing_log.get('processingDate', 'unknown')}"
+        )
         # Return True to indicate no error, but None for log_entry since we don't want to add a duplicate
         return True, None
 

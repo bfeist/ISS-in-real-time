@@ -45,8 +45,8 @@ if not RAW_FOLDER:
     print("Error: RAW_FOLDER environment variable not found")
     sys.exit(1)
 
-INPUT_FOLDER = RAW_FOLDER + "photos_flickr/"
-OUTPUT_FOLDER = RAW_FOLDER + "photos_flickr/albums/"
+INPUT_FOLDER = os.path.join(RAW_FOLDER, "photos_flickr")
+OUTPUT_FOLDER = os.path.join(RAW_FOLDER, "photos_flickr", "albums")
 
 # Flickr API constants
 FLICKR_API_BASE_URL = "https://www.flickr.com/services/rest/"

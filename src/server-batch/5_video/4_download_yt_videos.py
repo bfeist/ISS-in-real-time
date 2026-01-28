@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 import yt_dlp
 
-load_dotenv(dotenv_path="../../.env")
+load_dotenv(dotenv_path="../../../.env")
 
 # Environment variables
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")

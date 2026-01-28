@@ -1,6 +1,10 @@
 import requests
 import os
 import json
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path="../../../.env")
 
 API_KEY = os.getenv("YOUTUBE_API_KEY")
 CHANNEL_ID = "UCLA_DiR1FfKNvjuUpBHmylQ"  # NASA's official YouTube Channel ID

@@ -19,7 +19,7 @@ load_dotenv(dotenv_path="../../.env")
 console = Console()
 
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
-COMM_FOLDER = WEB_ASSETS_FOLDER + "comm/"
+COMM_FOLDER = os.path.join(WEB_ASSETS_FOLDER, "comm")
 
 START_DATE = "2000-11-01"
 END_DATE = datetime.now().strftime("%Y-%m-%d")
@@ -100,7 +100,7 @@ def check_station_timeline(date):
 def get_earth_photo_dates():
     """Scan for all earth photo dates using the same method as analyze_photos"""
     earth_dates = set()
-    images_folder = WEB_ASSETS_FOLDER + "photos_earth/"
+    images_folder = os.path.join(WEB_ASSETS_FOLDER, "photos_earth")
 
     if os.path.exists(images_folder):
         for root, dirs, files in os.walk(images_folder):
@@ -117,7 +117,7 @@ def get_earth_photo_dates():
 def get_flickr_photo_dates():
     """Scan for all flickr photo dates using the same method as analyze_photos"""
     flickr_dates = set()
-    flickr_folder = WEB_ASSETS_FOLDER + "photos_flickr/"
+    flickr_folder = os.path.join(WEB_ASSETS_FOLDER, "photos_flickr")
 
     if os.path.exists(flickr_folder):
         for root, dirs, files in os.walk(flickr_folder):

@@ -543,7 +543,9 @@ class Orchestrator:
             # For web stage, include recently processed zips to ensure we generate assets
             # even if transcription happened in a previous run
             include_processed = stage.id == "web"
-            zip_dates = self._discover_dates_from_zips(include_processed=include_processed)
+            zip_dates = self._discover_dates_from_zips(
+                include_processed=include_processed
+            )
             if zip_dates:
                 # Use date range from zips
                 min_date = min(zip_dates)

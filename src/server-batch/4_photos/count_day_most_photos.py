@@ -12,7 +12,7 @@ if not web_assets_folder:
     print("Error: WEB_ASSETS_FOLDER environment variable not set.")
     exit(1)
 
-IMAGES_FOLDER = web_assets_folder + "photos_earth/"
+IMAGES_FOLDER = os.path.join(web_assets_folder, "photos_earth")
 
 
 def analyze_photo_manifests():
