@@ -16,10 +16,13 @@ dotenv
 Pillow
 qbittorrent-api
 certifi
-charset-normalizer
+# Extra index for CUDA wheels
+--extra-index-url https://download.pytorch.org/whl/cu126
 
-# PyTorch with CUDA 12.1 support
-# Install separately with: uv pip install --index-url https://download.pytorch.org/whl/cu121 torch torchvision torchaudio
-torch==2.5.1+cu121
-torchvision==0.20.1+cu121
-torchaudio==2.5.1+cu121
+charset-normalizer>=3.4.4
+
+# PyTorch >=2.6 for CVE-2025-32434 fix, <2.9 because torchaudio 2.9+ removed
+# AudioMetaData which pyannote-audio 3.x (used by whisperx) still requires.
+torch>=2.6.0,<2.9
+torchvision>=0.21.0,<0.24
+torchaudio>=2.6.0,<2.9
