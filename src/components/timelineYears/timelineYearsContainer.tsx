@@ -15,7 +15,7 @@ import ControlsHeader from "./controlsHeader/controlsHeader";
 
 // Constants for year range and colors (from testtimeline.tsx)
 const START_YEAR = 2000;
-const END_YEAR = 2025;
+const END_YEAR = new Date().getUTCFullYear();
 
 interface CrewStayRange {
   arrivalDate: string | null;
