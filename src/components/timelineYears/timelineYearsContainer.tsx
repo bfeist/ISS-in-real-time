@@ -13,10 +13,6 @@ import { getCrewNormalizedName } from "utils/crew";
 import { dateComponentFromDateTime } from "utils/dateTime";
 import ControlsHeader from "./controlsHeader/controlsHeader";
 
-// Constants for year range and colors (from testtimeline.tsx)
-const START_YEAR = 2000;
-const END_YEAR = new Date().getUTCFullYear();
-
 interface CrewStayRange {
   arrivalDate: string | null;
   departureDate: string | null;
@@ -79,54 +75,44 @@ const TimelineYears2Container: FunctionComponent = (): JSX.Element => {
       { fill: string; stroke?: string; expedition?: boolean; notableDatetime?: string }
     >();
 
-    // Generate highlights for all dates in the range
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
-      for (let month = 0; month < 12; month++) {
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        for (let day = 1; day <= daysInMonth; day++) {
-          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    // Iterate through actual data items
+    dataAvailabilityItems.forEach((dayItem) => {
+      const dateStr = dayItem.date;
 
-          // Find data for this date
-          const dayItem = dataAvailabilityItems.find((item) => item.date === dateStr);
-
-          // Apply the same color logic as timelineYearsDraw.ts
-          let dayColor: string;
-          if (!dayItem) {
-            dayColor = COLORS.noData;
-          } else if (dayItem.comm || dayItem.vvComm) {
-            dayColor = COLORS.commData; // Slightly brighter grey for comm data
-          } else {
-            dayColor = COLORS.someData;
-          }
-
-          // Check if crew member was onboard this date
-          const isCrewOnboard = selectedCrewStays.some(({ arrivalDate, departureDate }) => {
-            if (!arrivalDate && !departureDate) {
-              return false;
-            }
-
-            if (arrivalDate && dateStr < arrivalDate) {
-              return false;
-            }
-
-            if (departureDate && dateStr > departureDate) {
-              return false;
-            }
-
-            return true;
-          });
-
-          if (isCrewOnboard) {
-            dayColor = COLORS.crewOnboard;
-          }
-
-          // Check if this date is part of the selected expedition
-          const isExpeditionDate = isDateInExpedition(dateStr);
-
-          dataHighlights.set(dateStr, { fill: dayColor, expedition: isExpeditionDate });
-        }
+      // Apply the same color logic as timelineYearsDraw.ts
+      let dayColor: string;
+      if (dayItem.comm || dayItem.vvComm) {
+        dayColor = COLORS.commData; // Slightly brighter grey for comm data
+      } else {
+        dayColor = COLORS.someData;
       }
-    }
+
+      // Check if crew member was onboard this date
+      const isCrewOnboard = selectedCrewStays.some(({ arrivalDate, departureDate }) => {
+        if (!arrivalDate && !departureDate) {
+          return false;
+        }
+
+        if (arrivalDate && dateStr < arrivalDate) {
+          return false;
+        }
+
+        if (departureDate && dateStr > departureDate) {
+          return false;
+        }
+
+        return true;
+      });
+
+      if (isCrewOnboard) {
+        dayColor = COLORS.crewOnboard;
+      }
+
+      // Check if this date is part of the selected expedition
+      const isExpeditionDate = isDateInExpedition(dateStr);
+
+      dataHighlights.set(dateStr, { fill: dayColor, expedition: isExpeditionDate });
+    });
 
     return dataHighlights;
   }, [dataAvailabilityItems, selectedCrewStays, isDateInExpedition]);
