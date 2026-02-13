@@ -1,0 +1,325 @@
+# ISSiRT Pipeline Definitions
+# Only includes scripts that support incremental updates
+# Video pipeline is excluded - not ready for incremental updates
+#
+# Run order and dependencies:
+# 1. articles (independent) - MUST run before comm.corpus
+# 2. comm (corpus stage depends on articles.consolidate)
+# 3. flights (independent, currently all-up not incremental)
+# 4. photos_earth (independent)
+# 5. photos_flickr (independent)
+# 6. clouds (independent)
+# 7. eva (depends on flights)
+# 8. ephemera (independent)
+# 9. aggregation (depends on all data pipelines)
+
+# =============================================================================
+# Global Configuration
+# =============================================================================
+defaults:
+  timeout_minutes: 60
+  max_retries: 3
+
+# Placeholder definitions for args_template:
+# {since_date}     - Start date in YYYY-MM-DD format
+# {until_date}     - End date in YYYY-MM-DD format
+# {dry_run_flag}   - "--dry-run" if dry run, else empty
+# {overwrite_flag} - "--overwrite" if force mode, else empty
+#     - "--json-output" for structured output
+
+# =============================================================================
+# Pipeline Definitions
+# =============================================================================
+pipelines:
+  # ---------------------------------------------------------------------------
+  # 1. Articles Pipeline - NASA Blog articles
+  # Scripts: 6c, 6d, 6j ONLY
+  # Wayback/CDX/timeline scripts are excluded - no incremental updates
+  # ---------------------------------------------------------------------------
+  articles:
+    name: "NASA Blog Articles"
+    enabled: true
+    depends_on: []
+    run_strategy: incremental
+    max_concurrent: 1
+
+    stages:
+      - id: fetch_urls
+        name: "Fetch Blog URLs"
+        script: "2_articles/6c_raw_blog_urls.py"
+        timeout_minutes: 30
+        args_template: ""
+
+      - id: fetch_articles
+        name: "Fetch Blog Articles"
+        script: "2_articles/6d_raw_blog_articles.py"
+        timeout_minutes: 60
+        depends_on_stages: [fetch_urls]
+        args_template: ""
+
+      - id: consolidate
+        name: "Consolidate Blog Articles"
+        script: "2_articles/6j_web_consolidate_blog_articles.py"
+        timeout_minutes: 30
+        depends_on_stages: [fetch_articles]
+        args_template: ""
+
+  # ---------------------------------------------------------------------------
+  # 2. Comm Pipeline - ISS Communications/Audio Transcription
+  # Scripts: 1a, 5_corpus, 6_transcribe, 3_web_comm
+  # CRITICAL: corpus stage requires articles to be up-to-date!
+  # ---------------------------------------------------------------------------
+  comm:
+    name: "ISS Communications"
+    enabled: true
+    depends_on: [] # Pipeline level - can start download, but corpus waits
+    run_strategy: incremental
+    max_concurrent: 1
+
+    stages:
+      - id: download
+        name: "Download IA ZIPs"
+        script: "1_comm/1a_download_collection_IA_zips.py"
+        timeout_minutes: 180
+        args_template: "--limit 2 {dry_run_flag}"
+
+      - id: corpus
+        name: "Generate AI Corpus"
+        script: "1_comm/5_corpus_initial_prompt_ai_gen.py"
+        timeout_minutes: 120
+        requires_gpu: true
+        gpu_task_type: ollama
+        ollama_model: "qwen3:14b"
+        depends_on_stages: [download]
+        # CRITICAL: Corpus needs blog articles for context generation
+        cross_dependencies:
+          - pipeline: articles
+            stage: consolidate
+        args_template: "--start-date {since_date} --end-date {until_date} {force_flag}"
+
+      - id: transcribe
+        name: "Transcribe Audio"
+        script: "1_comm/6_transcribe_using_corpus.py"
+        timeout_minutes: 480
+        requires_gpu: true
+        gpu_task_type: whisperx
+        depends_on_stages: [corpus]
+        args_template: "--start-date {since_date} --end-date {until_date} {force_flag}"
+
+      - id: web
+        name: "Generate Web Assets"
+        script: "1_comm/3_web_comm.py"
+        timeout_minutes: 60
+        depends_on_stages: [transcribe]
+        args_template: "--start-date {since_date} --end-date {until_date}  {overwrite_flag}"
+
+  # ---------------------------------------------------------------------------
+  # 3. Flights Pipeline - Flight/Crew data
+  # Scripts: 5a, 5c, 6
+  # NOTE: Currently all-up processing, not truly incremental
+  # ---------------------------------------------------------------------------
+  flights:
+    name: "Station Flights"
+    enabled: true
+    depends_on: []
+    run_strategy: batch # All-up, not incremental yet
+    max_concurrent: 1
+
+    stages:
+      - id: flights
+        name: "Fetch Flights"
+        script: "3_flights/5a_web_flights.py"
+        timeout_minutes: 30
+        args_template: ""
+
+      - id: supply
+        name: "Fetch Supply Flights"
+        script: "3_flights/5c_web_flights_supply.py"
+        timeout_minutes: 30
+        depends_on_stages: [flights]
+        args_template: ""
+
+      - id: crew
+        name: "Generate Crew Arrivals/Departures"
+        script: "3_flights/6_web_crew_arrive_dep_from_flights.py"
+        timeout_minutes: 30
+        depends_on_stages: [flights]
+        args_template: ""
+
+  # ---------------------------------------------------------------------------
+  # 4a. Photos Earth Pipeline - Earth photography
+  # Scripts: 9_web_earth_photography.py
+  # Strategy:
+  #   - Stage 1: Today to 60 days ago, overwrite (catch retroactive additions)
+  #   - Stage 2: 60 days ago to 6 months ago, skip existing
+  # ---------------------------------------------------------------------------
+  photos_earth:
+    name: "Earth Photography"
+    enabled: true
+    depends_on: []
+    run_strategy: incremental
+    max_concurrent: 1
+
+    stages:
+      - id: fetch_recent
+        name: "Fetch Recent Earth Photos (overwrite)"
+        script: "4_photos/9_web_earth_photography.py"
+        timeout_minutes: 30
+        # Today backwards to 60 days ago, overwrite to catch retroactive additions
+        args_template: "--stop-date {recent_60_days} --overwrite"
+
+      - id: fetch_backfill
+        name: "Fetch Earth Photos (6 month backfill)"
+        script: "4_photos/9_web_earth_photography.py"
+        timeout_minutes: 60
+        depends_on_stages: [fetch_recent]
+        # 60 days ago backwards to 6 months ago, skip existing
+        args_template: "--start-date {recent_60_days} --stop-date {recent_180_days}"
+
+  # ---------------------------------------------------------------------------
+  # 4b. Photos Flickr Pipeline - JSC Flickr albums
+  # Scripts: 9e, 9f, 9g, 9h, 9i
+  # NOTE: 9e, 9f may require manual abort when reaching older albums
+  # ---------------------------------------------------------------------------
+  photos_flickr:
+    name: "Flickr Flight Photos"
+    enabled: true
+    depends_on: []
+    run_strategy: incremental
+    max_concurrent: 1
+
+    stages:
+      - id: albums
+        name: "Get JSC Flickr Albums"
+        script: "4_photos/9e_get_jsc_flickr_albums.py"
+        timeout_minutes: 60
+        args_template: ""
+
+      - id: metadata
+        name: "Get Flickr Photo Metadata"
+        script: "4_photos/9f_get_flickr_photos_metadata.py"
+        timeout_minutes: 120
+        depends_on_stages: [albums]
+        # Only process albums updated in the last 60 days
+        args_template: "--since-date {recent_60_days}"
+
+      - id: filter
+        name: "Filter Against Existing"
+        script: "4_photos/9g_filter_flickr_against_existing_photos.py"
+        timeout_minutes: 30
+        depends_on_stages: [metadata]
+        args_template: ""
+
+      - id: ai_classify
+        name: "AI Classify Flight Photos"
+        script: "4_photos/9h_make_flickr_flight_photos_list_using_ai.py"
+        timeout_minutes: 180
+        requires_gpu: true
+        gpu_task_type: ollama
+        ollama_model: "gpt-oss:20b"
+        depends_on_stages: [filter]
+        args_template: ""
+
+      - id: web
+        name: "Generate Web Assets"
+        script: "4_photos/9i_web_flickr_flight_photos.py"
+        timeout_minutes: 30
+        depends_on_stages: [ai_classify]
+        args_template: ""
+
+  # ---------------------------------------------------------------------------
+  # 5. VIDEO PIPELINE - EXCLUDED
+  # Not ready for incremental updates - logic outside this repo
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
+  # 6. Clouds Pipeline - Cloud availability data
+  # ---------------------------------------------------------------------------
+  clouds:
+    name: "Cloud Availability"
+    enabled: true
+    depends_on: []
+    run_strategy: incremental
+    max_concurrent: 1
+
+    stages:
+      - id: fetch
+        name: "Fetch Cloud Data"
+        script: "6_clouds/cloud_availability.py"
+        timeout_minutes: 30
+        args_template: ""
+
+  # ---------------------------------------------------------------------------
+  # 7. EVA Pipeline - Spacewalk info
+  # ---------------------------------------------------------------------------
+  eva:
+    name: "EVA Information"
+    enabled: true
+    depends_on: [flights] # EVA data relates to flights
+    run_strategy: batch
+    max_concurrent: 1
+
+    stages:
+      - id: fetch
+        name: "Fetch EVA Info"
+        script: "4_web_eva_info.py"
+        timeout_minutes: 30
+        args_template: ""
+
+  # ---------------------------------------------------------------------------
+  # 8. Ephemera Pipeline - Misc orbital data
+  # Scripts: 7_web_ephemera, 7a_web_orbit_count
+  # ---------------------------------------------------------------------------
+  ephemera:
+    name: "Ephemera & Orbit Data"
+    enabled: true
+    depends_on: []
+    run_strategy: incremental
+    max_concurrent: 1
+
+    stages:
+      - id: fetch
+        name: "Fetch Ephemera"
+        script: "7_web_ephemera.py"
+        timeout_minutes: 60
+        args_template: ""
+
+      - id: orbits
+        name: "Count Orbits"
+        script: "7a_web_orbit_count.py"
+        timeout_minutes: 30
+        depends_on_stages: [fetch]
+        args_template: ""
+
+  # ---------------------------------------------------------------------------
+  # 9. Aggregation Pipeline - Final metadata and stats
+  # Scripts: 10_web_data_availability, 11_web_first_comm_each_day, 12_make_stats
+  # Runs last after all data pipelines complete
+  # ---------------------------------------------------------------------------
+  aggregation:
+    name: "Data Aggregation & Stats"
+    enabled: true
+    depends_on: [comm, articles, flights, photos_earth, photos_flickr, clouds, eva, ephemera]
+    run_strategy: batch
+    max_concurrent: 1
+
+    stages:
+      - id: availability
+        name: "Generate Data Availability"
+        script: "10_web_data_availability.py"
+        timeout_minutes: 30
+        args_template: ""
+
+      - id: first_comm
+        name: "First Comm Each Day"
+        script: "11_web_first_comm_each_day.py"
+        timeout_minutes: 30
+        depends_on_stages: [availability]
+        args_template: ""
+
+      - id: stats
+        name: "Generate Stats"
+        script: "12_make_stats.py"
+        timeout_minutes: 30
+        depends_on_stages: [first_comm]
+        args_template: ""

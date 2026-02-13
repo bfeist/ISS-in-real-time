@@ -9,7 +9,7 @@ const Expeditions: FunctionComponent = () => {
 
   const expeditions = expeditionInfo.filter(
     (exp: ExpeditionInfo) =>
-      exp.start <= selectedDate && (exp.end === null || exp.end >= selectedDate)
+      exp.start <= selectedDate && (exp.end == null || exp.end >= selectedDate)
   );
 
   if (isLoading) {

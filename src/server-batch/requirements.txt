@@ -9,10 +9,20 @@ pydub
 webrtcvad
 internetarchive
 tqdm
-torch
 numpy
 sentence-transformers
 pandas
 dotenv
 Pillow
 qbittorrent-api
+certifi
+# Extra index for CUDA wheels
+--extra-index-url https://download.pytorch.org/whl/cu126
+
+charset-normalizer>=3.4.4
+
+# PyTorch >=2.6 for CVE-2025-32434 fix, <2.9 because torchaudio 2.9+ removed
+# AudioMetaData which pyannote-audio 3.x (used by whisperx) still requires.
+torch>=2.6.0,<2.9
+torchvision>=0.21.0,<0.24
+torchaudio>=2.6.0,<2.9

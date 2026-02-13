@@ -1,0 +1,84 @@
+# ISSiRT Incremental Update System - Settings
+# See documentation in /docs/incremental/ for full details
+
+# =============================================================================
+# Database
+# =============================================================================
+db_path: "${ISSIRT_STATE_DB_PATH:-./data/incremental.db}"
+
+# =============================================================================
+# Data Paths (can use environment variables with ${VAR:-default} syntax)
+# =============================================================================
+paths:
+  # Root of the server-batch directory
+  server_batch_dir: "${ISSIRT_SERVER_BATCH_DIR:-..}"
+
+  # Web assets output directory (uses project root .env value)
+  web_data_root: "F:/_repos/ISSiRT_assets/ISSiRT_web_assets"
+
+  # Raw data directories
+  raw_folder: "F:/_repos/ISSiRT_assets/_raw"
+  raw_audio_folder: "F:/_repos/ISSiRT_assets/_raw/iss_audio"
+  raw_transcribed_folder: "${RAW_TRANSCRIBED_FOLDER:-./raw/transcribed}"
+  photos_folder: "${PHOTOS_FOLDER:-./raw/photos}"
+
+  # Cache directory for intermediate files
+  cache_dir: "./cache"
+
+# =============================================================================
+# GPU Configuration
+# =============================================================================
+gpu:
+  # Enable/disable GPU resource management
+  enabled: true
+
+  # Ollama server for LLM inference
+  ollama_host: "http://localhost:11434"
+  ollama_default_model: "qwen3:14b"
+  ollama_keepalive: "5m" # How long Ollama keeps model loaded after last request
+
+  # WhisperX transcription settings
+  whisperx_device: "cuda"
+  whisperx_compute_type: "float16"
+
+# =============================================================================
+# Scheduling
+# =============================================================================
+scheduling:
+  # Maximum number of pipelines that can run simultaneously
+  max_concurrent_pipelines: 3
+
+  # Maximum stages per pipeline running at once
+  max_concurrent_stages: 1
+
+  # Retry configuration for failed tasks
+  retry_max_attempts: 3
+  retry_backoff_minutes: [5, 10, 30, 60]
+
+  # How long before a stale "in progress" run is considered failed
+  stale_run_threshold_minutes: 60
+
+  # Default script execution timeout
+  default_timeout_minutes: 60
+
+# =============================================================================
+# Dashboard
+# =============================================================================
+dashboard:
+  # How often to refresh the Rich dashboard
+  refresh_rate_seconds: 1.0
+
+  # Number of activity log lines to display
+  activity_log_lines: 15
+
+  # Show GPU status panel
+  show_gpu_status: true
+
+  # Auto-scroll activity log
+  auto_scroll: true
+
+# =============================================================================
+# Global Flags
+# =============================================================================
+debug: false
+dry_run: false

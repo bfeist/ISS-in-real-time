@@ -646,12 +646,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         results = run_parallel(dates, settings, args.monitor, args.workers)
 
     successes = [res for res in results if res.status == "ok"]
-    failures = [res for res in results if res.status != "ok"]
+    skipped = [res for res in results if res.status == "skipped"]
+    failures = [res for res in results if res.status == "error"]
 
     console.print("\n[bold]Summary[/bold]")
     for res in successes:
         console.print(
             f"[green]✓[/green] {res.date}: {res.characters} chars in {res.elapsed:.2f}s ({res.prompt_path})"
+        )
+    if skipped:
+        console.print(
+            f"[dim]⊘ {len(skipped)} dates skipped (prompt already exists)[/dim]"
         )
     for res in failures:
         console.print(f"[red]✗[/red] {res.date}: {res.error}")

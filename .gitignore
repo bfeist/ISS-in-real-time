@@ -71,3 +71,7 @@ comm_transcription_log*
 
 **/__pycache__/
 copilot-instructions.md
+
+incremental.db
+incremental.db-shm
+incremental.db-wal
