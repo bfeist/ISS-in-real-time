@@ -18,6 +18,14 @@ const queryClient = new QueryClient({
 // Initialize Google Analytics once
 initGA();
 
+// Test component for error boundary - defined outside render
+const ErrorTesterComponent = ({ shouldError }: { shouldError: boolean }): JSX.Element | null => {
+  if (shouldError) {
+    throw new Error("This is a test error to trigger the error boundary!");
+  }
+  return null;
+};
+
 function App(): JSX.Element {
   const location = useLocation();
 
@@ -28,8 +36,8 @@ function App(): JSX.Element {
 
   return (
     <ErrorBoundary>
+      <ErrorTesterComponent shouldError={false} />
       <QueryClientProvider client={queryClient}>
-        {/* Add shared layout components like header, footer, etc. */}
         <Outlet />
       </QueryClientProvider>
     </ErrorBoundary>
