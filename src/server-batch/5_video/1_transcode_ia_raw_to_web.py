@@ -727,18 +727,19 @@ def main():
     load_dotenv(dotenv_path="../../../.env")
 
     # Get folder paths from environment
+    ia_videos_raw = os.getenv("IA_VIDEOS_RAW_FOLDER")
     raw_base = os.getenv("RAW_FOLDER")
     web_base = os.getenv("WEB_ASSETS_FOLDER")
 
-    if not raw_base or not web_base:
+    if not ia_videos_raw or not raw_base or not web_base:
         console.print(
-            "[red]Error: RAW_FOLDER and/or WEB_ASSETS_FOLDER not set in .env file[/red]"
+            "[red]Error: IA_VIDEOS_RAW_FOLDER, RAW_FOLDER, and/or WEB_ASSETS_FOLDER not set in .env file[/red]"
         )
         return 1
 
-    # Construct full paths for both raw folders
+    # IA-downloaded videos from dedicated folder, manual videos from RAW_FOLDER
     raw_folders = [
-        os.path.join(raw_base, "ia_video_files_raw"),
+        ia_videos_raw,
         os.path.join(raw_base, "ia_manual_video_files_raw"),
     ]
     web_folder = os.path.join(web_base, "videoIa")
