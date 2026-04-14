@@ -107,6 +107,11 @@ ALBUM_KEYWORDS = [
     "International Space Station Exterior",
 ]
 
+# Albums to explicitly exclude (even if they match ALBUM_KEYWORDS like "Station")
+ALBUM_SKIP_KEYWORDS = [
+    "Artemis",
+]
+
 # Directory paths
 PHOTOS_EARTH_FOLDER = (
     os.path.join(WEB_ASSETS_FOLDER, "photos_earth") if WEB_ASSETS_FOLDER else None
@@ -536,6 +541,11 @@ def find_raw_albums() -> List[Path]:
     sts_filtered_albums = []
 
     for album in raw_albums:
+        # Skip albums matching exclusion keywords
+        if any(skip_kw in album.name for skip_kw in ALBUM_SKIP_KEYWORDS):
+            print(f"   [SKIP] Excluded album: {album.name}")
+            continue
+
         # Check if album matches any of the general keywords
         if any(keyword in album.name for keyword in ALBUM_KEYWORDS):
             album_name = album.name.upper()

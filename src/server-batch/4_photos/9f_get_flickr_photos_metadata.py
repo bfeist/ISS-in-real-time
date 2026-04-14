@@ -760,10 +760,10 @@ def main():
         photoset_id = photoset.get("id")
         photoset_title = photoset.get("title", {}).get("_content", "Untitled")
 
-        # Skip albums that start with "Astronaut" or "Hurricane"
+        # Skip albums that start with "Astronaut", "Hurricane", or "Artemis"
         if photoset_title.startswith("Astronaut") or photoset_title.startswith(
             "Hurricane"
-        ):
+        ) or photoset_title.startswith("Artemis"):
             print(f"\n[{i}/{len(photosets)}] Skipping album: {photoset_title}")
             continue
 
