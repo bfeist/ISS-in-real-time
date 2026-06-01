@@ -7,9 +7,10 @@ to execute pipelines in the correct order with proper dependency management.
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Callable
+from typing import Callable, Optional
 
 from .config import Settings
 from .models import (
@@ -26,6 +27,35 @@ from .script_runner import ScriptResult, ScriptRunner
 from .state import StateDatabase, ZipFileTracker
 
 logger = logging.getLogger(__name__)
+
+
+# Pre-compiled pattern to strip ANSI escape codes from subprocess output
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def _make_output_handler(
+    pipeline_id: str,
+    stage_id: str,
+    on_progress: Optional[Callable[[str, str, str], None]],
+) -> Optional[Callable[[str, str], None]]:
+    """Return a ScriptRunner on_output callback that forwards lines to on_progress.
+
+    Strips blank lines and ANSI escape sequences (e.g. tqdm bar redraws)
+    so only meaningful text reaches the activity log.
+    """
+    if on_progress is None:
+        return None
+
+    def _handler(stream: str, line: str) -> None:
+        stripped = line.strip()
+        if not stripped:
+            return
+        clean = _ANSI_ESCAPE.sub("", stripped).strip()
+        if not clean:
+            return
+        on_progress(pipeline_id, stage_id, clean)
+
+    return _handler
 
 
 def _resolve_script_path(script: str, server_batch_dir) -> str:
@@ -435,6 +465,9 @@ class Orchestrator:
                         args=args,
                         timeout_minutes=stage.timeout_minutes,
                         env=script_env,
+                        on_output=_make_output_handler(
+                            pipeline.id, stage.id, on_progress
+                        ),
                     )
 
                     if result.success:

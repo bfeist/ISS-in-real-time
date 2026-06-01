@@ -1,6 +1,8 @@
 import argparse
 import os
 import re
+import sys
+import time
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -101,16 +103,67 @@ def download_file(url, destination: Path):
     response = requests.get(url, stream=True)
     total_size = int(response.headers.get("content-length", 0))
 
-    with destination.open("wb") as file, tqdm(
-        desc=destination.name,
-        total=total_size,
-        unit="B",
-        unit_scale=True,
-        unit_divisor=1024,
-    ) as bar:
-        for data in response.iter_content(chunk_size=1024):
-            size = file.write(data)
-            bar.update(size)
+    is_tty = sys.stdout.isatty()
+
+    if is_tty:
+        # Interactive terminal: use tqdm progress bar
+        with destination.open("wb") as file, tqdm(
+            desc=destination.name,
+            total=total_size,
+            unit="B",
+            unit_scale=True,
+            unit_divisor=1024,
+        ) as bar:
+            for data in response.iter_content(chunk_size=65536):
+                size = file.write(data)
+                bar.update(size)
+    else:
+        # Non-interactive (piped / subprocess): print plain progress lines
+        # so the orchestrator can surface them in the activity log.
+        total_mb = total_size / (1024 * 1024) if total_size else 0
+        downloaded = 0
+        last_reported_pct = -1
+        last_report_time = time.monotonic()
+        report_interval_s = 30  # print at least every 30 s
+        report_pct_step = 10  # and every 10 %
+
+        if total_size:
+            print(
+                f"Downloading {destination.name} ({total_mb:.1f} MB)",
+                flush=True,
+            )
+        else:
+            print(f"Downloading {destination.name} (size unknown)", flush=True)
+
+        with destination.open("wb") as file:
+            for data in response.iter_content(chunk_size=65536):
+                file.write(data)
+                downloaded += len(data)
+
+                now = time.monotonic()
+                if total_size:
+                    pct = int(downloaded / total_size * 100)
+                    if (
+                        pct >= last_reported_pct + report_pct_step
+                        or now - last_report_time >= report_interval_s
+                    ):
+                        dl_mb = downloaded / (1024 * 1024)
+                        print(
+                            f"  {destination.name}: {pct}% ({dl_mb:.1f}/{total_mb:.1f} MB)",
+                            flush=True,
+                        )
+                        last_reported_pct = pct
+                        last_report_time = now
+                else:
+                    if now - last_report_time >= report_interval_s:
+                        dl_mb = downloaded / (1024 * 1024)
+                        print(
+                            f"  {destination.name}: {dl_mb:.1f} MB downloaded",
+                            flush=True,
+                        )
+                        last_report_time = now
+
+        print(f"  {destination.name}: done", flush=True)
 
     return destination
 
