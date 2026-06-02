@@ -245,7 +245,9 @@ class ScriptRunner:
                     break
 
         # Start reading both streams as a background task.
-        stream_task = asyncio.create_task(
+        # asyncio.gather() returns a Future, not a coroutine, so we must use
+        # ensure_future() (which accepts both) rather than create_task() (coroutines only).
+        stream_task = asyncio.ensure_future(
             asyncio.gather(
                 read_stream(process.stdout, "stdout", stdout_lines),
                 read_stream(process.stderr, "stderr", stderr_lines),
