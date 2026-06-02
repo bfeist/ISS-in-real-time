@@ -1059,6 +1059,12 @@ def process_album(file_path):
                 p.terminate()
                 p.join()
 
+        # Clean up queues to prevent hanging on Windows
+        photo_queue.close()
+        photo_queue.join_thread()
+        result_queue.close()
+        result_queue.join_thread()
+
         # Calculate and display final worker statistics
         elapsed_total = time.time() - start_time
         total_processed = len(results)
@@ -1307,10 +1313,12 @@ def main():
         print(
             f"_ancillary.json files contain ANCILLARY photos (ground activities, training)"
         )
+        sys.exit(0)
     else:
         print(
             f"\n❌ AI classification failed. Please check configuration and try again."
         )
+        sys.exit(1)
 
 
 if __name__ == "__main__":
