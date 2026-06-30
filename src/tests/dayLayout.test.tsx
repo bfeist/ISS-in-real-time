@@ -1,7 +1,7 @@
 import React from "react";
 import { render, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MockInstance } from "vitest";
+import type { Mock, MockInstance } from "vitest";
 import DayLayout from "../components/dayLayout/dayLayout";
 import { useStateClock } from "../store/hooks/useStateClock";
 import { useStateDayNight } from "../store/hooks/useStateDayNight";
@@ -112,7 +112,7 @@ describe("DayLayout autoplay handling", () => {
   const mockedResolveLayout = vi.mocked(resolveLayout);
   const mockedUseParams = vi.mocked(useParams);
 
-  let startClock: ReturnType<typeof vi.fn>;
+  let startClock: Mock<() => void>;
   let setDayNight: ReturnType<typeof vi.fn>;
   let playMock: ReturnType<typeof vi.fn>;
   let pauseMock: ReturnType<typeof vi.fn>;
