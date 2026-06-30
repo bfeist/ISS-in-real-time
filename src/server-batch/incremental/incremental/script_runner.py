@@ -244,14 +244,37 @@ class ScriptRunner:
                 except Exception:
                     break
 
-        # Read both streams concurrently
-        await asyncio.gather(
-            read_stream(process.stdout, "stdout", stdout_lines),
-            read_stream(process.stderr, "stderr", stderr_lines),
+        # Start reading both streams as a background task.
+        # asyncio.gather() returns a Future, not a coroutine, so we must use
+        # ensure_future() (which accepts both) rather than create_task() (coroutines only).
+        stream_task = asyncio.ensure_future(
+            asyncio.gather(
+                read_stream(process.stdout, "stdout", stdout_lines),
+                read_stream(process.stderr, "stderr", stderr_lines),
+            )
         )
 
-        # Wait for process to complete
-        await process.wait()
+        try:
+            # Wait for the process itself to exit first.
+            await process.wait()
+
+            # Drain any output that arrived just before exit.  We cap this at
+            # _PIPE_DRAIN_TIMEOUT seconds because child processes spawned by the
+            # script (e.g. via multiprocessing) can inherit the pipe write handles
+            # on Windows.  Once they hold those handles open the pipe never reaches
+            # EOF and readline() blocks forever, even though the main script has
+            # already printed its final lines and exited.
+            try:
+                await asyncio.wait_for(asyncio.shield(stream_task), timeout=5.0)
+            except asyncio.TimeoutError:
+                stream_task.cancel()
+                await asyncio.gather(stream_task, return_exceptions=True)
+        except asyncio.CancelledError:
+            # Propagate outer cancellation (e.g. from the run() timeout handler)
+            # but make sure the stream task is cleaned up first.
+            stream_task.cancel()
+            await asyncio.gather(stream_task, return_exceptions=True)
+            raise
 
     async def _terminate_process(
         self,

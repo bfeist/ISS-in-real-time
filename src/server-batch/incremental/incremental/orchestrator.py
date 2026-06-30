@@ -6,10 +6,17 @@ to execute pipelines in the correct order with proper dependency management.
 """
 
 import asyncio
+import json
 import logging
+import os
+import re
+import socket
+import sys
+import time
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import Callable
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from typing import Callable, Optional
 
 from .config import Settings
 from .models import (
@@ -28,12 +35,52 @@ from .state import StateDatabase, ZipFileTracker
 logger = logging.getLogger(__name__)
 
 
+# Pre-compiled pattern to strip ANSI escape codes from subprocess output
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def _make_output_handler(
+    pipeline_id: str,
+    stage_id: str,
+    on_progress: Optional[Callable[[str, str, str], None]],
+) -> Optional[Callable[[str, str], None]]:
+    """Return a ScriptRunner on_output callback that forwards lines to on_progress.
+
+    Strips blank lines and ANSI escape sequences (e.g. tqdm bar redraws)
+    so only meaningful text reaches the activity log.
+    """
+    if on_progress is None:
+        return None
+
+    def _handler(stream: str, line: str) -> None:
+        stripped = line.strip()
+        if not stripped:
+            return
+        clean = _ANSI_ESCAPE.sub("", stripped).strip()
+        if not clean:
+            return
+        on_progress(pipeline_id, stage_id, clean)
+
+    return _handler
+
+
 def _resolve_script_path(script: str, server_batch_dir) -> str:
     """Resolve a script path relative to server_batch_dir."""
-    from pathlib import Path
-
     full_path = Path(server_batch_dir) / script
     return str(full_path)
+
+
+def _resolve_venv_python(server_batch_dir: Path) -> Optional[str]:
+    """Resolve the Python executable in server-batch's .venv, or None if missing.
+
+    Returns the platform-appropriate path (Scripts/python.exe on Windows,
+    bin/python elsewhere) if the interpreter exists, else None.
+    """
+    is_windows = sys.platform == "win32"
+    venv_bin = "Scripts" if is_windows else "bin"
+    python_name = "python.exe" if is_windows else "python"
+    candidate = server_batch_dir / ".venv" / venv_bin / python_name
+    return str(candidate) if candidate.exists() else None
 
 
 @dataclass
@@ -90,22 +137,8 @@ class Orchestrator:
         self.state_db = state_db
         self.zip_tracker = zip_tracker
 
-        # Use server-batch's venv Python for running scripts
-        import sys
-
-        server_batch_venv_python = (
-            settings.paths.server_batch_dir
-            / ".venv"
-            / ("Scripts" if sys.platform == "win32" else "bin")
-            / ("python.exe" if sys.platform == "win32" else "python")
-        )
-
         self.script_runner = ScriptRunner(
-            python_executable=(
-                str(server_batch_venv_python)
-                if server_batch_venv_python.exists()
-                else None
-            )
+            python_executable=_resolve_venv_python(settings.paths.server_batch_dir)
         )
         self.resource_manager = ResourceManager(
             ollama_host=settings.gpu.ollama_host,
@@ -237,9 +270,7 @@ class Orchestrator:
                             "No items to process",
                         )
                         # Mark as completed so dependencies are satisfied
-                        if pipeline.id not in self._completed_stages:
-                            self._completed_stages[pipeline.id] = set()
-                        self._completed_stages[pipeline.id].add(stage.id)
+                        self._mark_stage_complete(pipeline.id, stage.id)
                         continue
 
                     logger.info(
@@ -255,9 +286,7 @@ class Orchestrator:
                             f"[DRY RUN] Would process {len(work_items)} items",
                         )
                         # Track as "completed" for dependency checking in dry-run
-                        if pipeline.id not in self._completed_stages:
-                            self._completed_stages[pipeline.id] = set()
-                        self._completed_stages[pipeline.id].add(stage.id)
+                        self._mark_stage_complete(pipeline.id, stage.id)
                         continue
 
                     # Execute the stage
@@ -277,9 +306,7 @@ class Orchestrator:
 
                     # Track completed stage for dependency checking
                     if stage_result.success:
-                        if pipeline.id not in self._completed_stages:
-                            self._completed_stages[pipeline.id] = set()
-                        self._completed_stages[pipeline.id].add(stage.id)
+                        self._mark_stage_complete(pipeline.id, stage.id)
 
                     if not stage_result.success:
                         pipeline_success = False
@@ -435,6 +462,9 @@ class Orchestrator:
                         args=args,
                         timeout_minutes=stage.timeout_minutes,
                         env=script_env,
+                        on_output=_make_output_handler(
+                            pipeline.id, stage.id, on_progress
+                        ),
                     )
 
                     if result.success:
@@ -585,9 +615,6 @@ class Orchestrator:
         Looks at the processed and unprocessed ZIP file lists to determine
         which dates have new audio data to process.
         """
-        import re
-        from pathlib import Path
-
         # Get raw audio folder from settings
         raw_audio_folder = self.settings.paths.raw_audio_folder
         if not raw_audio_folder:
@@ -618,8 +645,6 @@ class Orchestrator:
 
         # Find all zip files and check which are unprocessed AND recently modified
         # Only process ZIPs modified in the last 24 hours (recently downloaded)
-        import time
-
         now = time.time()
         one_day_ago = now - (24 * 60 * 60)
 
@@ -675,9 +700,6 @@ class Orchestrator:
         Returns:
             Expanded argument list
         """
-        import re
-        from datetime import timedelta
-
         if not template:
             return []
 
@@ -893,6 +915,10 @@ class Orchestrator:
                 callback(pipeline, stage, message)
             except Exception as e:
                 logger.warning(f"Progress callback error: {e}")
+
+    def _mark_stage_complete(self, pipeline_id: str, stage_id: str) -> None:
+        """Mark a stage as completed in the current run."""
+        self._completed_stages.setdefault(pipeline_id, set()).add(stage_id)
 
     async def shutdown(self) -> None:
         """
