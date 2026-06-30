@@ -60,6 +60,10 @@ const GlobeCesium: FunctionComponent = () => {
     if (hoverSeconds !== null) {
       appSec = hoverSeconds;
     } else if (isRunning) {
+      // Intentional wall-clock read: captures real elapsed time at memo evaluation
+      // (re-runs when the deps below change). eslint-plugin-react-hooks@7.1 added the
+      // react-hooks/purity rule which flags Date.now() in render; the impurity is by design here.
+      // eslint-disable-next-line react-hooks/purity
       appSec = appSecondsAtStartStop + (Date.now() - new Date(startStopTimestamp).getTime()) / 1000;
     } else {
       appSec = appSecondsAtStartStop;
