@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, type JSX } from "react";
 import styles from "./timelineDayContainer.module.css";
 import { initializePaperCanvas } from "./timelineDayDraw";
 import {

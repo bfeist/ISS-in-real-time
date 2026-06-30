@@ -1,4 +1,4 @@
-import { FunctionComponent, useEffect, useState, useMemo, useRef } from "react";
+import { FunctionComponent, useEffect, useState, useMemo, useRef, type JSX } from "react";
 import styles from "./dayLayout.module.css";
 import { useStateClock } from "store/hooks/useStateClock";
 import { useStateDayNight } from "store/hooks/useStateDayNight";

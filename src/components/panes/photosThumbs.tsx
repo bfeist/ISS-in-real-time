@@ -123,9 +123,9 @@ const PhotosThumbs: FunctionComponent<PhotosThumbsProps> = ({
   );
 
   // Window management function refs to avoid circular dependencies
-  const calculateInitialWindowRef = useRef<(centerPhoto: PhotoItem | null) => void>();
-  const expandWindowStartRef = useRef<() => void>();
-  const expandWindowEndRef = useRef<() => void>();
+  const calculateInitialWindowRef = useRef<(centerPhoto: PhotoItem | null) => void>(undefined);
+  const expandWindowStartRef = useRef<() => void>(undefined);
+  const expandWindowEndRef = useRef<() => void>(undefined);
 
   // Auto-scroll management
   const disableAutoScroll = useCallback(() => {
