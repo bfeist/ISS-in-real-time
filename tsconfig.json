@@ -10,7 +10,16 @@
     "resolveJsonModule": true,
     "preserveConstEnums": true,
     "esModuleInterop": true,
-    "baseUrl": "./src",
+    "paths": {
+      "api/*": ["./src/api/*"],
+      "components/*": ["./src/components/*"],
+      "context/*": ["./src/context/*"],
+      "utils/*": ["./src/utils/*"],
+      "styles/*": ["./src/styles/*"],
+      "pages/*": ["./src/pages/*"],
+      "store/*": ["./src/store/*"],
+      "hooks/*": ["./src/hooks/*"]
+    },
     "forceConsistentCasingInFileNames": true,
     "strict": false,
     "noImplicitAny": true,
