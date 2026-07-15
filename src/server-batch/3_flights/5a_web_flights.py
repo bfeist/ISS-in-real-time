@@ -65,6 +65,104 @@ def convert_wikimedia_url(url):
     return url
 
 
+# Names/keywords that are never a crew member (organizations, roles, etc.).
+invalid_crew_names = {
+    "roscosmos",
+    "nasa",
+    "esa",
+    "jaxa",
+    "csa",
+    "cnsa",
+    "expedition",
+    "commander",
+    "pilot",
+    "flight engineer",
+    "mission specialist",
+    "none",
+    "tbd",
+    "unassigned",
+}
+
+# Map the space-agency / organization link found in a crew cell to a country
+# name. Wikipedia removed the per-astronaut flag images from newer mission
+# pages (e.g. SpaceX Crew-9/10/11, Soyuz MS-26), so the agency link is now the
+# most reliable nationality signal on those pages. Older pages and Axiom
+# missions still carry flag images, which take precedence (see
+# extract_nationality). Country names must match the values in
+# src/utils/countries.ts so the UI can resolve a flag URL.
+ORG_TO_NATIONALITY = {
+    "nasa": "United States",
+    "roscosmos": "Russia",
+    "jaxa": "Japan",
+    "csa": "Canada",
+    "isro": "India",
+    "hso": "Hungary",
+    "cnsa": "China",
+    "asi": "Italy",
+    "esa": "European Union",
+}
+
+
+def is_valid_crew_name(name):
+    """Check if a name is valid (not an organization, expedition, etc.)."""
+    if not name:
+        return False
+    name_lower = name.lower().strip()
+    # Check against invalid names using word boundaries to avoid false matches
+    # like "none" in "Kononenko".
+    for invalid in invalid_crew_names:
+        if re.search(r"\b" + re.escape(invalid) + r"\b", name_lower):
+            return False
+    # Valid crew names typically have at least a first and last name.
+    return len(name_lower) > 2
+
+
+def extract_crew_name(cell):
+    """Return the first valid astronaut name link in a crew cell.
+
+    On every page format the astronaut link comes first, before any agency
+    link (NASA, Roscosmos, ...). Flag-image links have empty text and are
+    skipped by is_valid_crew_name.
+    """
+    for link in cell.find_all("a"):
+        potential_name = link.get_text(strip=True)
+        if is_valid_crew_name(potential_name):
+            return potential_name
+    return ""
+
+
+def extract_nationality(cell, mission_name):
+    """Determine a crew member's nationality from a crew cell.
+
+    Order of preference:
+    1. Flag image alt text (present on older pages and Axiom missions) - most
+       accurate because it is per-astronaut.
+    2. Space-agency / organization link mapped via ORG_TO_NATIONALITY (newer
+       pages that dropped the flag images).
+    3. Fallback heuristic based on the mission name.
+    """
+    # 1. Flag image alt text.
+    for link in cell.find_all("a"):
+        img = link.find("img")
+        if img is not None and img.get("alt"):
+            return img.get("alt")
+
+    # 2. Agency / organization link text.
+    for link in cell.find_all("a"):
+        link_text = link.get_text(strip=True).lower()
+        if link_text in ORG_TO_NATIONALITY:
+            return ORG_TO_NATIONALITY[link_text]
+
+    # 3. Agency keyword anywhere in the cell text.
+    cell_text = cell.get_text(" ", strip=True).lower()
+    for org, nationality in ORG_TO_NATIONALITY.items():
+        if re.search(r"\b" + re.escape(org) + r"\b", cell_text):
+            return nationality
+
+    # 4. Last-resort heuristic from the mission name.
+    return "Russia" if "soyuz" in mission_name.lower() else "United States"
+
+
 def clean_data(x):
     if isinstance(x, str):
         # Clean non-breaking spaces, unusual hyphen characters, and citation references
@@ -202,8 +300,15 @@ for entry in data:
     print(f"Processing mission URL: {mission_url}")
     # mission_url = "https://en.wikipedia.org/wiki/SpaceX_Crew-4"  # For testing
     if mission_url:
-        # Build full URL if necessary
-        if mission_url.startswith("/"):
+        # Build full URL if necessary.
+        # Wikipedia now returns protocol-relative links (e.g.
+        # "//en.wikipedia.org/wiki/SpaceX_Crew-9") in addition to the older
+        # root-relative form ("/wiki/SpaceX_Crew-9"). Handle both so the
+        # second-pass request does not 404 (which previously wiped out crew,
+        # docking, and date data for every flight).
+        if mission_url.startswith("//"):
+            mission_url = "https:" + mission_url
+        elif mission_url.startswith("/"):
             mission_url = "https://en.wikipedia.org" + mission_url
         try:
             resp = requests.get(mission_url, headers=headers)
@@ -396,46 +501,20 @@ for entry in data:
                     else:
                         launching_entries = []
                         landing_entries = []
+                        mission_name = entry["mission_name"]
 
-                        # List of invalid crew names to filter out
-                        invalid_crew_names = {
-                            "roscosmos",
-                            "nasa",
-                            "esa",
-                            "jaxa",
-                            "csa",
-                            "cnsa",
-                            "expedition",
-                            "commander",
-                            "pilot",
-                            "flight engineer",
-                            "mission specialist",
-                            "none",
-                            "tbd",
-                            "unassigned",
-                        }
-
-                        def is_valid_crew_name(name):
-                            """Check if a name is valid (not an organization, expedition, etc.)"""
-                            if not name:
-                                return False
-                            name_lower = name.lower().strip()
-                            # Check against invalid names using word boundaries to avoid
-                            # false matches like "none" in "Kononenko"
-                            for invalid in invalid_crew_names:
-                                # Match invalid keyword as whole word(s), not as substring
-                                if re.search(
-                                    r"\b" + re.escape(invalid) + r"\b", name_lower
-                                ):
-                                    return False
-                            # Valid crew names typically have at least 2 words (first and last name)
-                            # But allow single names for edge cases
-                            return len(name_lower) > 2
-
-                        # Process each data row (skip header row)
+                        # Process each data row (skip header row).
+                        #
+                        # Row shapes on the mission page's Crew table:
+                        # - 3 cells: [position, launching crew, landing crew].
+                        #   Either crew cell may be "None" (e.g. someone who only
+                        #   landed because they launched on a different vehicle).
+                        # - 2 cells: [position, crew] where the crew cell spans
+                        #   both columns, meaning the person both launched and
+                        #   landed on this mission.
                         for row in rows[1:]:
                             cells = row.find_all(["th", "td"])
-                            # Process rows with 3 cells: [position, launching crew, landing crew]
+
                             if len(cells) == 3:
                                 position = cells[0].get_text(
                                     separator=" - ", strip=True
@@ -443,191 +522,43 @@ for entry in data:
                                 launching_cell = cells[1]
                                 landing_cell = cells[2]
 
-                                # Check if landing cell text is "None" before processing
-                                landing_cell_text = landing_cell.get_text(strip=True)
-
-                                launching_links = launching_cell.find_all("a")
-                                landing_links = landing_cell.find_all("a")
-
-                                # Extract nationality and name from launching cell
-                                name = ""
-                                nationality = ""
-
-                                # Try to find the astronaut name from links
-                                # The first link with an img is usually the flag
-                                # The astronaut name is usually the first valid link after that
-                                flag_index = -1
-                                for i, link in enumerate(launching_links):
-                                    img_tag = link.find("img")
-                                    if img_tag is not None:
-                                        flag_index = i
-                                        nationality = img_tag.get("alt", "")
-                                        break
-
-                                # Look for valid crew name in remaining links
-                                for i, link in enumerate(launching_links):
-                                    if i <= flag_index:
-                                        continue
-                                    potential_name = link.get_text(strip=True)
-                                    if is_valid_crew_name(potential_name):
-                                        name = potential_name
-                                        break
-
-                                # If no flag found and we have links, try to find a valid name
-                                if flag_index == -1 and launching_links:
-                                    for link in launching_links:
-                                        potential_name = link.get_text(strip=True)
-                                        if is_valid_crew_name(potential_name):
-                                            name = potential_name
-                                            # Infer nationality if no flag
-                                            nationality = (
-                                                "Russia"
-                                                if "soyuz"
-                                                in entry["mission_name"].lower()
-                                                else "United States"
-                                            )
-                                            break
-
-                                if name and is_valid_crew_name(name):
+                                launch_name = extract_crew_name(launching_cell)
+                                if launch_name:
                                     launching_entries.append(
                                         {
-                                            "name": name,
+                                            "name": launch_name,
                                             "position": position,
-                                            "nationality": nationality,
+                                            "nationality": extract_nationality(
+                                                launching_cell, mission_name
+                                            ),
                                         }
                                     )
 
-                                # Only process landing crew if the cell doesn't say "None"
-                                if landing_cell_text.lower() != "none":
-                                    name = ""
-                                    nationality = ""
-
-                                    # Try to find the astronaut name from links
-                                    flag_index = -1
-                                    for i, link in enumerate(landing_links):
-                                        img_tag = link.find("img")
-                                        if img_tag is not None:
-                                            flag_index = i
-                                            nationality = img_tag.get("alt", "")
-                                            break
-
-                                    # Look for valid crew name in remaining links
-                                    for i, link in enumerate(landing_links):
-                                        if i <= flag_index:
-                                            continue
-                                        potential_name = link.get_text(strip=True)
-                                        if is_valid_crew_name(potential_name):
-                                            name = potential_name
-                                            break
-
-                                    # If no flag found and we have links, try to find a valid name
-                                    if flag_index == -1 and landing_links:
-                                        for link in landing_links:
-                                            potential_name = link.get_text(strip=True)
-                                            if is_valid_crew_name(potential_name):
-                                                name = potential_name
-                                                # Infer nationality if no flag
-                                                nationality = (
-                                                    "Russia"
-                                                    if "soyuz"
-                                                    in entry["mission_name"].lower()
-                                                    else "United States"
-                                                )
-                                                break
-
-                                    if name and is_valid_crew_name(name):
+                                # Only process landing crew if the cell isn't "None".
+                                if landing_cell.get_text(strip=True).lower() != "none":
+                                    land_name = extract_crew_name(landing_cell)
+                                    if land_name:
                                         landing_entries.append(
                                             {
-                                                "name": name,
+                                                "name": land_name,
                                                 "position": position,
-                                                "nationality": nationality,
+                                                "nationality": extract_nationality(
+                                                    landing_cell, mission_name
+                                                ),
                                             }
                                         )
 
-                            # Process rows with 2 cells: [position, crew] -> same for launching and landing
                             elif len(cells) == 2:
                                 position = cells[0].get_text(
                                     separator=" - ", strip=True
                                 )
                                 crew_cell = cells[1]
-                                crew_links = crew_cell.find_all("a")
-                                crew_text = crew_cell.get_text(strip=True)
-                                name = ""
-                                nationality = ""
 
-                                # Try to find the astronaut name from links
-                                flag_index = -1
-                                for i, link in enumerate(crew_links):
-                                    img_tag = link.find("img")
-                                    if img_tag is not None:
-                                        flag_index = i
-                                        nationality = img_tag.get("alt", "")
-                                        break
-
-                                # Look for valid crew name in remaining links
-                                for i, link in enumerate(crew_links):
-                                    if i <= flag_index:
-                                        continue
-                                    potential_name = link.get_text(strip=True)
-                                    if is_valid_crew_name(potential_name):
-                                        name = potential_name
-                                        break
-
-                                # If no flag found and we have links, try to find a valid name
-                                if flag_index == -1 and crew_links:
-                                    for link in crew_links:
-                                        potential_name = link.get_text(strip=True)
-                                        if is_valid_crew_name(potential_name):
-                                            name = potential_name
-                                            break
-
-                                    # Try to extract nationality from cell text or links
-                                    # Look for organization names in the text after the astronaut name
-                                    if name and not nationality:
-                                        text_after_name = crew_text.lower()
-                                        if name.lower() in text_after_name:
-                                            # Get text after the name
-                                            name_pos = text_after_name.find(
-                                                name.lower()
-                                            )
-                                            remaining_text = text_after_name[
-                                                name_pos + len(name) :
-                                            ]
-
-                                            # Map organizations to nationalities
-                                            if (
-                                                "nasa" in remaining_text
-                                                or "united states" in remaining_text
-                                            ):
-                                                nationality = "United States"
-                                            elif (
-                                                "roscosmos" in remaining_text
-                                                or "russia" in remaining_text
-                                            ):
-                                                nationality = "Russia"
-                                            elif "esa" in remaining_text:
-                                                nationality = "European Union"
-                                            elif (
-                                                "jaxa" in remaining_text
-                                                or "japan" in remaining_text
-                                            ):
-                                                nationality = "Japan"
-                                            elif (
-                                                "csa" in remaining_text
-                                                or "canada" in remaining_text
-                                            ):
-                                                nationality = "Canada"
-
-                                        # Fallback: infer from mission name
-                                        if not nationality:
-                                            nationality = (
-                                                "Russia"
-                                                if "soyuz"
-                                                in entry["mission_name"].lower()
-                                                else "United States"
-                                            )
-
-                                if name and is_valid_crew_name(name):
+                                name = extract_crew_name(crew_cell)
+                                if name:
+                                    nationality = extract_nationality(
+                                        crew_cell, mission_name
+                                    )
                                     launching_entries.append(
                                         {
                                             "name": name,
@@ -679,7 +610,12 @@ for entry in data:
             # Pause briefly between requests to be polite to the server
             time.sleep(0.5)
         except Exception as e:
-            pass
+            # Surface failures instead of silently swallowing them - a silent
+            # except here previously hid a broken mission URL that wiped out
+            # crew/docking/date data for every flight.
+            print(
+                f"Error processing mission '{entry.get('mission_name')}' ({mission_url}): {e}"
+            )
     # print(f"Processed entry {entry['number']}")
 
 # Sort the data by launch_date ascending
