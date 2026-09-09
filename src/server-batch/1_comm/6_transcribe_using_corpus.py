@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import wave
@@ -858,6 +859,15 @@ def parse_wav_filename(
     import re
 
     basename = os.path.splitext(filename)[0]
+    # Newer IA exports use YYYY_MM_DD while older exports use YYYY-MM-DD.
+    # Normalize only the date portion so the existing filename patterns can
+    # continue to parse both layouts.
+    basename = re.sub(
+        r"(?<!\d)(\d{4})_(\d{2})_(\d{2})(?=_\d{2}_\d{2}_\d{2})",
+        r"\1-\2-\3",
+        basename,
+        count=1,
+    )
     patterns = [
         # Pattern 1: 0000000000_SYNC_SG4_2024-01-08_02_09_04_by_servername_desc
         r"^\d+_SYNC_(SG\d+)_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_by_.*)?$",
@@ -980,7 +990,7 @@ def unzip_ia_zip_wavs(
     *,
     transcription_log: CommTranscriptionLog | None = None,
     transcription_version: int = TRANSCRIPTION_VERSION,
-) -> None:
+) -> int:
     if not zipfile.is_zipfile(zip_path):
         if zip_likely_in_progress(zip_path):
             raise ZipPendingDownloadError(str(zip_path))
@@ -1005,20 +1015,59 @@ def unzip_ia_zip_wavs(
     zip_date = f"20{parts[2]}-{parts[0].zfill(2)}-{parts[1].zfill(2)}"
 
     failed_entries: List[str] = []
+    extracted_count = 0
+
+    def infer_downlink(path: str, inherited: Optional[int] = None) -> Optional[int]:
+        """Infer an SG channel from either a folder or nested ZIP name."""
+        match = re.search(
+            r"(?:space[_ -]*to[_ -]*ground|sg)[_ -]*(\d)",
+            path,
+            flags=re.IGNORECASE,
+        )
+        if match and int(match.group(1)) in range(1, 5):
+            return int(match.group(1))
+        folder_suffix = os.path.dirname(path).rstrip("/\\")[-1:]
+        if folder_suffix.isdigit() and int(folder_suffix) in range(1, 5):
+            return int(folder_suffix)
+        return inherited
+
+    def iter_wav_entries(
+        archive: zipfile.ZipFile,
+        inherited_downlink: Optional[int] = None,
+    ):
+        """Yield WAV members, descending into ZIPs embedded by newer IA exports."""
+        for member in archive.infolist():
+            member_name = member.filename
+            if member_name.lower().endswith(".wav"):
+                yield archive, member, infer_downlink(member_name, inherited_downlink)
+                continue
+            if not member_name.lower().endswith(".zip"):
+                continue
+
+            nested_downlink = infer_downlink(member_name, inherited_downlink)
+            try:
+                # TemporaryFile keeps large channel archives off the Python heap.
+                with (
+                    archive.open(member) as source,
+                    tempfile.TemporaryFile() as nested_file,
+                ):
+                    shutil.copyfileobj(source, nested_file)
+                    nested_file.seek(0)
+                    with zipfile.ZipFile(nested_file, "r") as nested_archive:
+                        yield from iter_wav_entries(nested_archive, nested_downlink)
+            except (OSError, zipfile.BadZipFile) as exc:
+                failed_entries.append(member_name)
+                logger.error(
+                    "Failed to read nested archive %s from %s: %s",
+                    member_name,
+                    zip_path.name,
+                    exc,
+                )
 
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        for file_info in zip_ref.infolist():
-            if not file_info.filename.lower().endswith(".wav"):
-                continue
+        for source_archive, file_info, inferred_downlink in iter_wav_entries(zip_ref):
             original_name = os.path.basename(file_info.filename)
-            folder_suffix = os.path.dirname(file_info.filename)[-1:]
-            downlink = None
-            if (
-                zip_type == "SG"
-                and folder_suffix.isdigit()
-                and int(folder_suffix) in range(1, 5)
-            ):
-                downlink = int(folder_suffix)
+            downlink = inferred_downlink if zip_type == "SG" else None
             try:
                 date_time, descriptor = parse_wav_filename(original_name, downlink)
             except FilenameParseError as exc:
@@ -1067,9 +1116,10 @@ def unzip_ia_zip_wavs(
                     counter += 1
 
             try:
-                with zip_ref.open(file_info) as source_file:
+                with source_archive.open(file_info) as source_file:
                     with open(destination_file_path, "wb") as target_file:
                         shutil.copyfileobj(source_file, target_file)
+                extracted_count += 1
             except zipfile.BadZipFile as exc:
                 failed_entries.append(original_name)
                 destination_file_path.unlink(missing_ok=True)
@@ -1099,6 +1149,8 @@ def unzip_ia_zip_wavs(
             ", ".join(sorted(set(failed_entries))),
         )
 
+    return extracted_count
+
 
 def ensure_mono_wav(input_wav_path: Path) -> Optional[Path]:
     try:
@@ -1106,8 +1158,20 @@ def ensure_mono_wav(input_wav_path: Path) -> Optional[Path]:
             n_channels = wf.getnchannels()
             sample_width = wf.getsampwidth()
             frame_rate = wf.getframerate()
+    except wave.Error as exc:
+        # IA commonly stores newer comm audio as G.711 mu-law (WAV format 7).
+        # Python's wave module only accepts PCM, but FFmpeg/Pydub below handles
+        # mu-law correctly, so this is an expected conversion path.
+        logger.debug(
+            "Built-in WAV reader cannot inspect %s (%s); using FFmpeg",
+            input_wav_path,
+            exc,
+        )
+        n_channels = 0
+        sample_width = 2
+        frame_rate = 0
     except Exception as exc:
-        logger.warning("wave.open failed for %s: %s", input_wav_path, exc)
+        logger.warning("Unable to inspect WAV %s: %s", input_wav_path, exc)
         n_channels = 0
         sample_width = 2
         frame_rate = 0
@@ -2618,6 +2682,7 @@ def process_zip_group(
     processed_successfully = False
 
     try:
+        extracted_wav_count = 0
         for zip_file, zip_folder, zip_type in zip_entries:
             if exit_event.is_set() or immediate_exit_event.is_set():
                 raise RuntimeError("Exit requested")
@@ -2626,7 +2691,7 @@ def process_zip_group(
                 "Unzipping %s archive %s for group %s", zip_type, zip_file, date_key
             )
             try:
-                unzip_ia_zip_wavs(
+                extracted_wav_count += unzip_ia_zip_wavs(
                     zip_path,
                     working_dir,
                     zip_type,
@@ -2653,6 +2718,11 @@ def process_zip_group(
             except Exception as exc:  # pylint: disable=broad-except
                 logger.exception("Unexpected error unzipping %s: %s", zip_file, exc)
                 raise
+
+        if extracted_wav_count == 0:
+            raise RuntimeError(
+                f"No WAV files were found in the archive group for {date_key}"
+            )
 
         wav_files = sorted(working_dir.glob("*.wav"))
         cache_dir = working_dir / "cache"
@@ -2930,6 +3000,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     silence_cfg = SilenceConfig()
     selected_names = set(args.zips) if args.zips else None
 
+    had_failures = False
+
     with CommTranscriptionLog(TRACKING_DIR) as transcription_log:
         reset_in_progress_entries(transcription_log, version=TRANSCRIPTION_VERSION)
 
@@ -2962,6 +3034,39 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 [LOG_STATUS_COMPLETED], version=TRANSCRIPTION_VERSION
             )
             already_completed = {name for name, _, _ in combined_entries} & completed_v2
+
+            # July 2026-era IA exports changed to daily ZIPs containing nested
+            # channel ZIPs. Older versions of this script marked those archives
+            # complete without extracting anything. Retry that specific false-
+            # completion shape when no output directory exists for the day.
+            false_completions: set[str] = set()
+            for name, folder, _ in combined_entries:
+                if name not in already_completed:
+                    continue
+                date_key = get_zip_date_key(name)
+                try:
+                    year, month, day = date_key.split("-")
+                    output_exists = (comm_raw / year / month / day).exists()
+                    with zipfile.ZipFile(folder / name, "r") as archive:
+                        has_direct_wavs = any(
+                            item.filename.lower().endswith(".wav")
+                            for item in archive.infolist()
+                        )
+                        has_nested_zips = any(
+                            item.filename.lower().endswith(".zip")
+                            for item in archive.infolist()
+                        )
+                    if not output_exists and has_nested_zips and not has_direct_wavs:
+                        false_completions.add(name)
+                except (OSError, ValueError, zipfile.BadZipFile):
+                    continue
+
+            if false_completions:
+                logger.warning(
+                    "Retrying %d archive(s) previously marked complete without output",
+                    len(false_completions),
+                )
+                already_completed -= false_completions
             if already_completed:
                 logger.info(
                     "Skipping %d archive(s) already completed for version %d",
@@ -3040,9 +3145,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 transcription_version=TRANSCRIPTION_VERSION,
             )
             if not success:
+                had_failures = True
                 logger.warning("Group %s did not complete successfully", date_key)
 
-    return 0
+    return 1 if had_failures else 0
 
 
 if __name__ == "__main__":

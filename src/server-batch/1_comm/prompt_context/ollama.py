@@ -211,6 +211,14 @@ class OllamaClient:
                 return self._execute(
                     payload, attempt, on_event=on_event, max_length=max_length
                 )
+            except requests.HTTPError as exc:  # pylint: disable=broad-except
+                # 4xx errors are client errors (e.g. model not found) — don't retry
+                if exc.response is not None and exc.response.status_code < 500:
+                    raise
+                last_error = exc
+                if attempt == self.max_retries:
+                    raise
+                time.sleep(self.retry_backoff ** (attempt - 1))
             except Exception as exc:  # pylint: disable=broad-except
                 last_error = exc
                 if attempt == self.max_retries:

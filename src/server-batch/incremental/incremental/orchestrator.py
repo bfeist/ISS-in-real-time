@@ -570,9 +570,11 @@ class Orchestrator:
             "transcribe",
             "web",
         ):
-            # For web stage, include recently processed zips to ensure we generate assets
-            # even if transcription happened in a previous run
-            include_processed = stage.id == "web"
+            # Transcription has its own versioned completion log and can cheaply
+            # skip valid completed archives. Include recently processed ZIPs here
+            # so it can also repair archives that an older extractor falsely
+            # marked complete. The web stage likewise needs recent completed ZIPs.
+            include_processed = stage.id in ("transcribe", "web")
             zip_dates = self._discover_dates_from_zips(
                 include_processed=include_processed
             )

@@ -75,7 +75,7 @@ def create_daily_transcript(root_dir, date_str, output_dir, overwrite=False):
     # Loop over JSON files in the directory
     if not os.path.exists(dir_path):
         print(f"Directory does not exist: {dir_path}")
-        return date_str
+        return None
 
     all_files = os.listdir(dir_path)
     json_files = [f for f in all_files if f.endswith(".json")]
@@ -236,7 +236,8 @@ def process_all_transcripts(root_dir, output_dir, end_date=None, overwrite=False
                                 output_dir,
                                 overwrite=overwrite,
                             )
-                            processed_dates.append(processed_date)
+                            if processed_date is not None:
+                                processed_dates.append(processed_date)
     return processed_dates
 
 
@@ -268,7 +269,8 @@ if __name__ == "__main__":
             processed_date = create_daily_transcript(
                 COMM_RAW, date_str, COMM_WEB, overwrite=args.overwrite
             )
-            processed_dates.append(processed_date)
+            if processed_date is not None:
+                processed_dates.append(processed_date)
             current += timedelta(days=1)
         print(f"Processed dates: {processed_dates}")
     elif args.end_date:
