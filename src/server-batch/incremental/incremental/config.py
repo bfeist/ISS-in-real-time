@@ -469,7 +469,7 @@ pipelines:
         cross_dependencies:
           - pipeline: articles
             stage: consolidate
-        args_template: "--start-date {since_date} --end-date {until_date} {overwrite_flag}"
+        args_template: "--start-date {since_date} --end-date {until_date} --model llama3.2 {overwrite_flag}"
       
       - id: transcribe
         name: "Transcribe Audio"

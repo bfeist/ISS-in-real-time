@@ -106,15 +106,22 @@ class ResourceManager:
 
     async def release_gpu(self) -> None:
         """
-        Release GPU access.
+        Release GPU access and unload a model owned by an Ollama stage.
 
-        This method releases the GPU lock but does NOT unload any Ollama model.
-        The model stays loaded for potential reuse. Use acquire_gpu with a
-        different task type to switch resources.
+        Ollama keeps models resident after a request by default. Stage
+        boundaries are resource boundaries, so an Ollama stage explicitly
+        sends ``keep_alive: 0`` before releasing the GPU for the next stage.
         """
         async with self._lock:
             logger.info(f"Releasing GPU from {self._current_task.value}")
-            self._current_task = GpuTaskType.NONE
+            try:
+                if (
+                    self._current_task == GpuTaskType.OLLAMA
+                    and self._loaded_ollama_model
+                ):
+                    await self._unload_ollama_model()
+            finally:
+                self._current_task = GpuTaskType.NONE
             logger.debug("GPU released")
 
     async def _load_ollama_model(self, model: str) -> None:
@@ -228,9 +235,9 @@ class ResourceManager:
             GpuStatus: The current status of GPU resources.
         """
         return GpuStatus(
-            current_task=self._current_task,
-            loaded_ollama_model=self._loaded_ollama_model,
-            last_error=self._last_error,
+            is_locked=self._current_task != GpuTaskType.NONE,
+            current_task_type=self._current_task,
+            ollama_model_loaded=self._loaded_ollama_model,
         )
 
     async def shutdown(self) -> None:

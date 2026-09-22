@@ -6,11 +6,8 @@ to execute pipelines in the correct order with proper dependency management.
 """
 
 import asyncio
-import json
 import logging
-import os
 import re
-import socket
 import sys
 import time
 from dataclasses import dataclass, field
@@ -22,14 +19,13 @@ from .config import Settings
 from .models import (
     GpuTaskType,
     PipelineConfig,
-    RunType,
     StageConfig,
     Status,
-    TriggerSource,
     WorkItem,
 )
+from .planning import build_execution_plan
 from .resources import ResourceManager
-from .script_runner import ScriptResult, ScriptRunner
+from .script_runner import ScriptRunner
 from .state import StateDatabase, ZipFileTracker
 
 logger = logging.getLogger(__name__)
@@ -164,6 +160,7 @@ class Orchestrator:
         force: bool = False,
         dry_run: bool = False,
         on_progress: Callable[[str, str, str], None] | None = None,
+        on_stage_status: Callable[[str, str, Status], None] | None = None,
     ) -> OrchestratorResult:
         """
         Run pipelines with the specified configuration.
@@ -175,6 +172,7 @@ class Orchestrator:
             force: If True, reprocess already-complete items
             dry_run: If True, simulate execution without making changes
             on_progress: Callback for progress updates (pipeline, stage, message)
+            on_stage_status: Execution status callback, independent of script output
 
         Returns:
             OrchestratorResult with execution summary
@@ -186,10 +184,23 @@ class Orchestrator:
         total_items_processed = 0
         total_items_failed = 0
 
+        # Completion belongs to this invocation, including when a dashboard reuses us.
+        self._completed_stages.clear()
+        self._completed_pipelines.clear()
+
+        def report_status(pipeline_id: str, stage_id: str, status: Status) -> None:
+            if on_stage_status:
+                try:
+                    on_stage_status(pipeline_id, stage_id, status)
+                except Exception as exc:
+                    logger.warning(f"Stage status callback error: {exc}")
+
         try:
+            if since and until and since > until:
+                raise ValueError("Start date must not be after end date")
             # Get pipelines to run and track which are skipped
-            all_enabled = self._get_pipelines_to_run(None)
-            pipelines = self._get_pipelines_to_run(pipeline_ids)
+            all_enabled = [p for p in self.settings.pipelines.values() if p.enabled]
+            pipelines = build_execution_plan(self.settings.pipelines, pipeline_ids)
 
             # Track which pipelines are being skipped (enabled but not in run list)
             if pipeline_ids is not None:
@@ -211,15 +222,12 @@ class Orchestrator:
                     duration_seconds=0.0,
                 )
 
-            # Sort by dependency order
-            sorted_pipelines = self._topological_sort_pipelines(pipelines)
             logger.info(
-                f"Running {len(sorted_pipelines)} pipelines: "
-                f"{[p.id for p in sorted_pipelines]}"
+                f"Running {len(pipelines)} pipelines: {[p.id for p in pipelines]}"
             )
 
             # Execute each pipeline
-            for pipeline in sorted_pipelines:
+            for pipeline in pipelines:
                 if self._shutdown:
                     logger.info("Shutdown requested, stopping pipeline execution")
                     break
@@ -234,6 +242,9 @@ class Orchestrator:
                     msg = f"Pipeline {pipeline.id} dependencies not satisfied, skipping"
                     logger.warning(msg)
                     errors.append(msg)
+                    for stage in pipeline.stages:
+                        report_status(pipeline.id, stage.id, Status.SKIPPED)
+                    self._notify_progress(on_progress, pipeline.id, "", msg)
                     continue
 
                 # Run pipeline stages
@@ -254,6 +265,10 @@ class Orchestrator:
                     if not self._check_stage_dependencies(pipeline, stage):
                         msg = f"Stage {stage.id} dependencies not satisfied, skipping"
                         logger.warning(msg)
+                        errors.append(f"{pipeline.id}: {msg}")
+                        pipeline_success = False
+                        report_status(pipeline.id, stage.id, Status.SKIPPED)
+                        self._notify_progress(on_progress, pipeline.id, stage.id, msg)
                         continue
 
                     # Discover work items
@@ -271,6 +286,7 @@ class Orchestrator:
                         )
                         # Mark as completed so dependencies are satisfied
                         self._mark_stage_complete(pipeline.id, stage.id)
+                        report_status(pipeline.id, stage.id, Status.SKIPPED)
                         continue
 
                     logger.info(
@@ -283,13 +299,17 @@ class Orchestrator:
                             on_progress,
                             pipeline.id,
                             stage.id,
-                            f"[DRY RUN] Would process {len(work_items)} items",
+                            f"[DRY RUN] Would process {len(work_items)} items: "
+                            f"{stage.script} "
+                            f"{self._expand_args_template(stage.args_template, work_items[0], force, False)}",
                         )
                         # Track as "completed" for dependency checking in dry-run
                         self._mark_stage_complete(pipeline.id, stage.id)
+                        report_status(pipeline.id, stage.id, Status.SKIPPED)
                         continue
 
                     # Execute the stage
+                    report_status(pipeline.id, stage.id, Status.PROCESSING)
                     stage_result = await self._run_stage(
                         pipeline,
                         stage,
@@ -303,6 +323,11 @@ class Orchestrator:
                     total_items_processed += stage_result.items_processed
                     total_items_failed += stage_result.items_failed
                     errors.extend(stage_result.errors)
+                    report_status(
+                        pipeline.id,
+                        stage.id,
+                        Status.COMPLETE if stage_result.success else Status.FAILED,
+                    )
 
                     # Track completed stage for dependency checking
                     if stage_result.success:
@@ -313,6 +338,10 @@ class Orchestrator:
                         # Check if stage has stop_on_error (default True for safety)
                         if getattr(stage, "stop_on_error", True):
                             logger.error(f"Stage {stage.id} failed, stopping pipeline")
+                            for remaining in pipeline.stages[
+                                pipeline.stages.index(stage) + 1 :
+                            ]:
+                                report_status(pipeline.id, remaining.id, Status.SKIPPED)
                             break
 
                     self._notify_progress(
@@ -327,7 +356,7 @@ class Orchestrator:
                 self._current_pipeline = None
                 self._current_stage = None
 
-                if pipeline_success:
+                if pipeline_success and not self._shutdown:
                     self._completed_pipelines.add(
                         pipeline.id
                     )  # Track for dependency checking
@@ -342,6 +371,12 @@ class Orchestrator:
         except Exception as e:
             logger.exception(f"Orchestrator error: {e}")
             errors.append(str(e))
+        finally:
+            self._current_pipeline = None
+            self._current_stage = None
+
+        if self._shutdown:
+            errors.append("Update interrupted by shutdown")
 
         duration = (datetime.now() - start_time).total_seconds()
 
@@ -356,6 +391,54 @@ class Orchestrator:
         )
 
     async def _run_stage(
+        self,
+        pipeline: PipelineConfig,
+        stage: StageConfig,
+        work_items: list[WorkItem],
+        force: bool = False,
+        dry_run: bool = False,
+        on_progress: Callable[[str, str, str], None] | None = None,
+    ) -> StageResult:
+        """Record a stage attempt around execution, even on failure or cancellation.
+
+        Script-owned archive logs remain the authority for incremental skipping;
+        this database records attempts for status/errors, not invented per-day success.
+        """
+        run_id = self.state_db.start_run(
+            pipeline.id, stage.id, work_items_requested=len(work_items)
+        )
+        try:
+            result = await self._execute_stage(
+                pipeline, stage, work_items, force, dry_run, on_progress
+            )
+        except asyncio.CancelledError:
+            self.state_db.complete_run(
+                run_id, "cancelled", exit_code=130, error_message="Stage cancelled"
+            )
+            raise
+        except Exception as exc:
+            result = StageResult(False, 0, len(work_items), 0.0, [str(exc)])
+
+        self.state_db.update_run_progress(
+            run_id, result.items_processed, result.items_failed
+        )
+        self.state_db.complete_run(
+            run_id,
+            "success" if result.success else "failed",
+            exit_code=0 if result.success else 1,
+            error_message="\n".join(result.errors) or None,
+        )
+        for error in result.errors:
+            self.state_db.log_error(
+                "StageError",
+                error,
+                pipeline_id=pipeline.id,
+                stage_id=stage.id,
+                run_id=run_id,
+            )
+        return result
+
+    async def _execute_stage(
         self,
         pipeline: PipelineConfig,
         stage: StageConfig,
@@ -473,7 +556,7 @@ class Orchestrator:
                         # Mark ZIP file as processed if applicable
                         zip_file = work_item.metadata.get("zip_file")
                         if zip_file:
-                            self.zip_tracker.mark_processed(stage.id, zip_file)
+                            self.zip_tracker.mark_processed(zip_file)
 
                         logger.info(
                             f"Successfully processed {work_item.item_id} "
@@ -493,7 +576,7 @@ class Orchestrator:
                         # Mark ZIP file as errored if applicable
                         zip_file = work_item.metadata.get("zip_file")
                         if zip_file:
-                            self.zip_tracker.mark_error(stage.id, zip_file, error_msg)
+                            self.zip_tracker.mark_error(zip_file, error_msg)
 
                         logger.error(
                             f"Failed to process {work_item.item_id}: {error_msg}"
@@ -516,8 +599,11 @@ class Orchestrator:
 
         duration = (datetime.now() - start_time).total_seconds()
 
+        if self._shutdown:
+            errors.append("Stage interrupted by shutdown")
+
         return StageResult(
-            success=items_failed == 0,
+            success=items_failed == 0 and not self._shutdown,
             items_processed=items_processed,
             items_failed=items_failed,
             duration_seconds=duration,
@@ -578,6 +664,12 @@ class Orchestrator:
             zip_dates = self._discover_dates_from_zips(
                 include_processed=include_processed
             )
+            zip_dates = [
+                value
+                for value in zip_dates
+                if (since is None or value >= since.isoformat())
+                and (until is None or value <= until.isoformat())
+            ]
             if zip_dates:
                 # Use date range from zips
                 min_date = min(zip_dates)
@@ -595,7 +687,7 @@ class Orchestrator:
                         },
                     )
                 ]
-            elif not force:
+            elif not force or since is not None or until is not None:
                 logger.info(f"No unprocessed ZIP dates for {stage.id}")
                 return []
 
@@ -607,6 +699,10 @@ class Orchestrator:
                 item_id=item_id,
                 pipeline_id=pipeline.id,
                 stage_id=stage.id,
+                metadata={
+                    "since_date": since.isoformat() if since else None,
+                    "until_date": until.isoformat() if until else None,
+                },
             )
         ]
 
@@ -645,10 +741,8 @@ class Orchestrator:
             f"Found {len(processed)} processed, {len(skipped)} skipped, {len(errors)} error zips"
         )
 
-        # Find all zip files and check which are unprocessed AND recently modified
-        # Only process ZIPs modified in the last 24 hours (recently downloaded)
+        # Preserve the existing 30-day modification window for routine updates.
         now = time.time()
-        one_day_ago = now - (24 * 60 * 60)
 
         dates = set()
         date_pattern = re.compile(r"(\d{2})-(\d{2})-(\d{2})")
@@ -756,61 +850,6 @@ class Orchestrator:
         # Split into args, filtering empty strings
         return [arg for arg in expanded.split() if arg]
 
-    def _get_pipelines_to_run(
-        self, pipeline_ids: list[str] | None
-    ) -> list[PipelineConfig]:
-        """Get the list of pipelines to run."""
-        # Get all enabled pipelines from settings
-        all_pipelines = [p for p in self.settings.pipelines.values() if p.enabled]
-
-        if pipeline_ids is None:
-            return all_pipelines
-
-        # Filter to requested pipelines
-        pipeline_map = {p.id: p for p in all_pipelines}
-        result = []
-        for pid in pipeline_ids:
-            if pid in pipeline_map:
-                result.append(pipeline_map[pid])
-            else:
-                logger.warning(f"Pipeline {pid} not found or not enabled")
-
-        return result
-
-    def _topological_sort_pipelines(
-        self, pipelines: list[PipelineConfig]
-    ) -> list[PipelineConfig]:
-        """
-        Sort pipelines by dependency order using topological sort.
-
-        Args:
-            pipelines: List of pipelines to sort
-
-        Returns:
-            Sorted list with dependencies first
-        """
-        pipeline_map = {p.id: p for p in pipelines}
-        visited: set[str] = set()
-        result: list[PipelineConfig] = []
-
-        def visit(pid: str) -> None:
-            if pid in visited:
-                return
-            visited.add(pid)
-
-            pipeline = pipeline_map.get(pid)
-            if pipeline:
-                # Visit dependencies first
-                for dep_id in pipeline.depends_on:
-                    if dep_id in pipeline_map:
-                        visit(dep_id)
-                result.append(pipeline)
-
-        for p in pipelines:
-            visit(p.id)
-
-        return result
-
     def _check_pipeline_dependencies(self, pipeline: PipelineConfig) -> bool:
         """
         Check if all pipeline dependencies are satisfied.
@@ -844,9 +883,9 @@ class Orchestrator:
         """
         Check if all stage dependencies are satisfied.
 
-        For now, we assume dependencies are satisfied during the same run.
-        In a more sophisticated implementation, we'd track stage completion
-        in the database.
+        A prerequisite must have completed in this invocation, unless its entire
+        pipeline was explicitly omitted from a partial update. Historical run
+        records are diagnostic and cannot satisfy dependencies here.
 
         Args:
             pipeline: The pipeline containing the stage
@@ -890,19 +929,8 @@ class Orchestrator:
         return True
 
     def _get_gpu_task_type(self, stage: StageConfig) -> GpuTaskType:
-        """Determine the GPU task type for a stage."""
-        # Try to infer from stage configuration or script name
-        script_lower = stage.script.lower()
-
-        if "whisper" in script_lower or "transcri" in script_lower:
-            return GpuTaskType.WHISPERX
-        elif "llm" in script_lower or "ollama" in script_lower:
-            return GpuTaskType.OLLAMA
-        elif "embed" in script_lower:
-            return GpuTaskType.EMBEDDING
-
-        # Default based on stage's gpu_task_type if specified
-        return stage.gpu_task_type or GpuTaskType.OTHER
+        """Use the explicit configuration; script filenames are not an API."""
+        return stage.gpu_task_type
 
     def _notify_progress(
         self,
@@ -964,5 +992,5 @@ class Orchestrator:
             "shutting_down": self._shutdown,
             "current_pipeline": self._current_pipeline,
             "current_stage": self._current_stage,
-            "resource_status": await self.resource_manager.get_status(),
+            "resource_status": self.resource_manager.get_status(),
         }

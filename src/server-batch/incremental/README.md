@@ -81,7 +81,7 @@ uv run issirt-incremental list-pipelines
 
 # Run specific pipeline with more control (alternative to update)
 uv run issirt-incremental run -p flights
-uv run issirt-incremental run -p photos_flickr -s filter  # Start from specific stage
+# Stage selection is not supported; use -p to select a whole pipeline.
 
 # Check external sources for new data
 uv run issirt-incremental check-sources
@@ -132,4 +132,47 @@ Or use the module form:
 
 ```bash
 uv run python -m incremental --help
+```
+
+## Execution guarantees and limits
+
+Before running scripts, the runner validates and orders pipeline and stage
+dependencies, including cross-pipeline stage dependencies. Invalid references and
+cycles stop the update before scripts run. Failed prerequisites block dependent
+work; independent pipelines can continue. Disabled stages are not executed.
+
+Partial updates with `-p` or `--skip` use existing outputs from omitted enabled
+pipelines. No extra pipelines are automatically added. Misspelled pipeline names
+are errors rather than successful empty updates.
+
+Stage attempts and failures are recorded for `status` and `errors`. The source
+scripts still own incremental file/archive completion; the runner does not treat
+a batch script's exit code as proof that every date was processed. `retry` and
+`reset` remain unimplemented.
+
+`--since` applies where argument templates support dates, including the comm ZIP
+date range. Scripts with fixed lookback windows or no date arguments keep their
+existing behavior. Dry runs show the currently discoverable work and arguments,
+without starting scripts, using the GPU, or writing the persistent database.
+
+See [the architecture guide](../../../ARCHITECTURE.md) for details and validation
+limits.
+
+## Offline regression tests
+
+From this directory, after `uv sync`:
+
+```bash
+uv run python -m unittest discover -s tests -v
+```
+
+These tests use temporary files and in-memory SQLite; they do not download mission
+data or contact GPU services. A few fixtures launch short local Python subprocesses
+to check exit codes, timeouts, and cancellation.
+
+If a Windows terminal or redirected output cannot encode the Unicode status icons,
+use UTF-8 mode, for example:
+
+```bash
+uv run python -X utf8 -m incremental update --dry-run
 ```

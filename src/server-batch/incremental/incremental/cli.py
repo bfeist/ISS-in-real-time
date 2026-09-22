@@ -30,7 +30,6 @@ from .config import Settings, load_settings, create_default_config_files
 from .state import StateDatabase, ZipFileTracker
 from .models import Status
 
-
 console = Console()
 
 
@@ -159,7 +158,9 @@ def status(ctx: click.Context, pipeline: Optional[str], verbose: bool) -> None:
         status_text = "✓ idle" if pconfig.enabled else "[dim]disabled[/dim]"
         if any(r.is_running for r in recent_runs):
             status_text = "[yellow]● running[/yellow]"
-        elif pstats.get("failed", 0) > 0:
+        elif pstats.get("failed", 0) > 0 or (
+            recent_runs and recent_runs[0].status in ("failed", "cancelled")
+        ):
             status_text = "[red]✗ has errors[/red]"
 
         last_run = (
@@ -324,8 +325,14 @@ def run(
     from .orchestrator import Orchestrator
 
     settings = get_settings(ctx)
-    db = get_state_db(ctx)
+    db = StateDatabase(Path(":memory:")) if dry_run else get_state_db(ctx)
     zip_tracker = ZipFileTracker(settings.paths.server_batch_dir)
+
+    if stage:
+        raise click.ClickException(
+            "--stage is not supported; select a pipeline with -p instead. "
+            "No processing scripts were started."
+        )
 
     # Determine which pipelines to run
     pipelines_to_run = list(pipeline) if pipeline else None  # None = all enabled
@@ -604,7 +611,7 @@ def update(
     from .orchestrator import Orchestrator
 
     settings = get_settings(ctx)
-    db = get_state_db(ctx)
+    db = StateDatabase(Path(":memory:")) if dry_run else get_state_db(ctx)
     zip_tracker = ZipFileTracker(settings.paths.server_batch_dir)
 
     # Determine which pipelines to run
@@ -612,19 +619,18 @@ def update(
         pid for pid, pconfig in settings.pipelines.items() if pconfig.enabled
     ]
 
-    if pipeline:
-        # Run only specified pipelines
-        pipelines_to_run = [p for p in pipeline if p in all_enabled]
-        invalid = [p for p in pipeline if p not in all_enabled]
-        if invalid:
-            console.print(
-                f"[yellow]Warning: Unknown pipelines: {', '.join(invalid)}[/yellow]"
-            )
-    else:
-        pipelines_to_run = all_enabled
-
-    if skip:
-        pipelines_to_run = [p for p in pipelines_to_run if p not in skip]
+    invalid = [pid for pid in pipeline if pid not in all_enabled]
+    if invalid:
+        raise click.ClickException(
+            f"Unknown or disabled pipelines: {', '.join(invalid)}"
+        )
+    invalid_skips = [pid for pid in skip if pid not in settings.pipelines]
+    if invalid_skips:
+        raise click.ClickException(
+            f"Unknown pipelines to skip: {', '.join(invalid_skips)}"
+        )
+    pipelines_to_run = list(dict.fromkeys(pipeline)) if pipeline else all_enabled
+    pipelines_to_run = [pid for pid in pipelines_to_run if pid not in skip]
 
     # Track state for display
     pipeline_status: dict[str, dict[str, str]] = {}  # {pipeline: {stage: status}}
@@ -633,7 +639,9 @@ def update(
     # Initialize pipeline status for selected pipelines only
     for pid in pipelines_to_run:
         pconfig = settings.pipelines[pid]
-        pipeline_status[pid] = {stage.id: "pending" for stage in pconfig.stages}
+        pipeline_status[pid] = {
+            stage.id: "pending" for stage in pconfig.stages if stage.enabled
+        }
 
     def print_status_table() -> None:
         """Print the pipeline status table."""
@@ -644,7 +652,7 @@ def update(
 
         status_icons = {
             "pending": "[dim]○[/dim]",
-            "running": "[yellow]●[/yellow]",
+            "processing": "[yellow]●[/yellow]",
             "complete": "[green]✓[/green]",
             "failed": "[red]✗[/red]",
             "skipped": "[dim]⊘[/dim]",
@@ -654,7 +662,7 @@ def update(
             # Count stage statuses
             counts = {
                 "pending": 0,
-                "running": 0,
+                "processing": 0,
                 "complete": 0,
                 "failed": 0,
                 "skipped": 0,
@@ -670,33 +678,13 @@ def update(
 
         console.print(table)
 
+    def on_stage_status(pipeline_id: str, stage_id: str, status: Status) -> None:
+        """Execution events own status; arbitrary script output is only a log."""
+        if pipeline_id in pipeline_status and stage_id in pipeline_status[pipeline_id]:
+            pipeline_status[pipeline_id][stage_id] = status.value
+
     def on_progress(pipeline_id: str, stage_id: str, message: str) -> None:
-        """Handle progress updates - prints each update to console."""
-        msg_lower = message.lower()
-
-        # Update stage status based on message patterns
-        if (
-            pipeline_id in pipeline_status
-            and stage_id
-            and stage_id in pipeline_status[pipeline_id]
-        ):
-            if "completed:" in msg_lower or "completed successfully" in msg_lower:
-                pipeline_status[pipeline_id][stage_id] = "complete"
-            elif "failed" in msg_lower or "error" in msg_lower:
-                pipeline_status[pipeline_id][stage_id] = "failed"
-            elif (
-                "skipped" in msg_lower
-                or "no items" in msg_lower
-                or "dependencies not satisfied" in msg_lower
-            ):
-                pipeline_status[pipeline_id][stage_id] = "skipped"
-            elif (
-                "starting stage" in msg_lower
-                or "processing" in msg_lower
-                or "waiting" in msg_lower
-            ):
-                pipeline_status[pipeline_id][stage_id] = "running"
-
+        """Print script output without inferring execution state from its wording."""
         # Print each activity as it happens (scrolling log)
         if stage_id:
             elapsed = (datetime.now() - start_time).total_seconds()
@@ -731,6 +719,7 @@ def update(
                 force=force,
                 dry_run=dry_run,
                 on_progress=on_progress,
+                on_stage_status=on_stage_status,
             )
 
             console.print("[dim]─" * 80 + "[/dim]")

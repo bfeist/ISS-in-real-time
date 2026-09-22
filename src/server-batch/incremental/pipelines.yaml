@@ -95,7 +95,7 @@ pipelines:
         cross_dependencies:
           - pipeline: articles
             stage: consolidate
-        args_template: "--start-date {since_date} --end-date {until_date} {force_flag}"
+        args_template: "--start-date {since_date} --end-date {until_date} --model qwen3:14b {force_flag}"
 
       - id: transcribe
         name: "Transcribe Audio"

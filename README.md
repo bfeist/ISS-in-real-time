@@ -4,6 +4,9 @@
 
 This is a web application that replays days on the International Space Station.
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the frontend state/clock design, the
+incremental update execution path, and maintenance guidance.
+
 ### Notes
 
 - Client-side (build time by Vite) .env reference is `import.meta.env.VALUE`

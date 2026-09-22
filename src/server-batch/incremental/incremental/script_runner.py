@@ -167,6 +167,11 @@ class ScriptRunner:
             # Get exit code
             exit_code = process.returncode if process.returncode is not None else -1
 
+        except asyncio.CancelledError:
+            # Cancelling an update must not leave its script running in the background.
+            if process is not None:
+                await self._terminate_process(process)
+            raise
         except FileNotFoundError:
             error_message = f"Script not found: {script_path}"
             exit_code = -1
@@ -179,6 +184,9 @@ class ScriptRunner:
         except Exception as e:
             error_message = f"Unexpected error: {type(e).__name__}: {e}"
             exit_code = -1
+        finally:
+            if process is not None and process.returncode is None:
+                await self._terminate_process(process)
 
         # Calculate duration
         duration_seconds = time.monotonic() - start_time
