@@ -118,7 +118,7 @@ class PlanningTests(unittest.TestCase):
             for s in p.stages
         ]
         self.assertEqual(planned, original)
-        self.assertEqual(len(planned), 24)
+        self.assertEqual(len(planned), 25)
 
 
 class ExecutionTests(unittest.IsolatedAsyncioTestCase):
@@ -181,6 +181,18 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("consumer", self.runner._completed_pipelines)
         self.assertNotIn("stats", self.runner._completed_pipelines)
         self.assertEqual(self.runner.script_runner.run.await_count, 2)
+
+    async def test_failure_keeps_exception_after_long_traceback_in_state(self):
+        traceback = "Traceback (most recent call last):\n" + "  stack frame\n" * 30
+        traceback += "RuntimeError: Failed to download NASA article"
+        failed = script_result(False)
+        failed.error_message = None
+        failed.stderr = traceback
+        self.runner.script_runner.run.return_value = failed
+        result = await self.runner.run_pipelines(["source"])
+        self.assertIn(traceback, result.errors[0])
+        self.assertIn(traceback, self.db.get_recent_runs()[0].error_message)
+        self.assertIn(traceback, self.db.get_unresolved_errors()[0].error_message)
 
     async def test_reused_runner_does_not_remember_previous_success(self):
         self.assertTrue((await self.runner.run_pipelines()).success)
@@ -285,10 +297,31 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.runner.script_runner.run.assert_not_awaited()
 
     async def test_gpu_configuration_is_authoritative_and_status_uses_model_fields(self):
-        configured = stage("transcribe_name_but_ollama", gpu_task_type=GpuTaskType.OLLAMA)
-        self.assertEqual(self.runner._get_gpu_task_type(configured), GpuTaskType.OLLAMA)
+        configured = stage("transcribe_name_but_lmstudio", gpu_task_type=GpuTaskType.LMSTUDIO)
+        self.assertEqual(self.runner._get_gpu_task_type(configured), GpuTaskType.LMSTUDIO)
         status = await self.runner.get_status()
         self.assertEqual(status["resource_status"].current_task_type, GpuTaskType.NONE)
+
+    async def test_lmstudio_instance_and_host_are_passed_to_stage_process(self):
+        configured = stage("classify", requires_gpu=True,
+                           gpu_task_type=GpuTaskType.LMSTUDIO,
+                           lmstudio_model="qwen3.8-27b")
+        self.settings.pipelines = {"photos": pipeline("photos", [configured])}
+        self.settings.gpu.lmstudio_host = "http://example.test:1234"
+
+        async def acquire(*args, **kwargs):
+            self.runner.resource_manager._loaded_lmstudio_model = "qwen3.8-27b"
+            self.runner.resource_manager._loaded_instance_id = "qwen3.8-27b:2"
+
+        self.runner.resource_manager.acquire_gpu.side_effect = acquire
+        result = await self.runner.run_pipelines()
+        self.assertTrue(result.success)
+        env = self.runner.script_runner.run.call_args.kwargs["env"]
+        self.assertEqual(env["LMSTUDIO_HOST"], "http://example.test:1234")
+        self.assertEqual(env["LMSTUDIO_MODEL"], "qwen3.8-27b:2")
+        self.runner.resource_manager.acquire_gpu.assert_awaited_once_with(
+            GpuTaskType.LMSTUDIO, lmstudio_model="qwen3.8-27b"
+        )
 
     def test_cli_rejects_misspellings_instead_of_reporting_success(self):
         for args in (["update", "-p", "typo"], ["update", "--skip", "typo"]):
@@ -319,12 +352,12 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
 
 
 class ResourceManagerTests(unittest.IsolatedAsyncioTestCase):
-    async def test_releasing_ollama_stage_sends_model_unload(self):
+    async def test_releasing_lmstudio_stage_sends_model_unload(self):
         manager = ResourceManager()
-        manager._current_task = GpuTaskType.OLLAMA
-        manager._loaded_ollama_model = "qwen3:14b"
+        manager._current_task = GpuTaskType.LMSTUDIO
+        manager._loaded_lmstudio_model = "gemma-4-12b-it-qat"
 
-        with patch.object(manager, "_unload_ollama_model", new_callable=AsyncMock) as unload:
+        with patch.object(manager, "_unload_lmstudio_model", new_callable=AsyncMock) as unload:
             await manager.release_gpu()
 
         unload.assert_awaited_once_with()

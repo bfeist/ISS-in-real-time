@@ -75,3 +75,4 @@ copilot-instructions.md
 incremental.db
 incremental.db-shm
 incremental.db-wal
+src/server-batch/3_flights/.cache/

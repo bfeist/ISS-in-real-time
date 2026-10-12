@@ -139,14 +139,14 @@ class InfiniteLoopDetector:
         return tokens
 
 
-class OllamaClient:
-    """Minimal Ollama streaming client with retry and telemetry support."""
+class LMStudioClient:
+    """LM Studio chat client with streaming, retry and generation telemetry."""
 
     def __init__(
         self,
         *,
         base_url: Optional[str] = None,
-        default_model: str = "gemma3:12b",
+        default_model: Optional[str] = None,
         request_timeout: int = 300,
         max_retries: int = 3,
         retry_backoff: float = 2.0,
@@ -155,26 +155,20 @@ class OllamaClient:
         loop_detector_config: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.base_url = base_url or os.getenv(
-            "OLLAMA_API_URL", "http://localhost:11434"
+            "LMSTUDIO_HOST", "http://localhost:1234"
         )
-        self.default_model = default_model
+        self.base_url = self.base_url.rstrip("/").removesuffix("/v1")
+        self.default_model = default_model or os.getenv("LMSTUDIO_MODEL", "gemma-4-12b-it-qat")
         self.request_timeout = request_timeout
         self.max_retries = max_retries
         self.retry_backoff = retry_backoff
-        # Gemma 3 optimized settings for fast, consistent generation
-        # Non-thinking model - much faster than GPT-OSS
+        # Context length and GPU offload are configured when loading the model.
         self.default_options = default_options or {
             "temperature": 0.3,  # Low temperature for consistent vocabulary generation
             "top_p": 0.9,  # Standard nucleus sampling
             "top_k": 40,  # Standard top-k sampling
-            "num_predict": -1,  # Unlimited prediction
+            "num_predict": 2048,
             "repeat_penalty": 1.1,  # Prevent repetition
-            "num_ctx": 16384,  # 16K context window
-            "num_batch": 512,  # Batch size for prompt processing
-            "num_gpu_layers": -1,  # Offload all layers to GPU
-            "num_thread": 8,  # CPU threads for processing
-            "use_mmap": True,  # Memory-mapped file access
-            "use_mlock": True,  # Lock model in RAM
         }
         self.enable_loop_detection = enable_loop_detection
         self.loop_detector_config = loop_detector_config or {}
@@ -191,19 +185,23 @@ class OllamaClient:
         on_event: Optional[Callable[[dict], None]] = None,
         max_length: Optional[int] = None,
     ) -> GenerationResult:
+        if suffix:
+            prompt += suffix
         payload = {
             "model": model or self.default_model,
-            "prompt": prompt,
+            "input": prompt,
             "stream": True,
+            "store": False,
+            "reasoning": "off",
         }
-        if options or self.default_options:
-            payload["options"] = {**self.default_options, **(options or {})}
         if system:
-            payload["system"] = system
-        if suffix:
-            payload["suffix"] = suffix
-        if metadata:
-            payload["metadata"] = metadata
+            payload["system_prompt"] = system
+        merged_options = {**self.default_options, **(options or {})}
+        for key in ("temperature", "top_p", "top_k", "repeat_penalty", "reasoning"):
+            if key in merged_options:
+                payload[key] = merged_options[key]
+        if merged_options.get("num_predict", -1) > 0:
+            payload["max_output_tokens"] = merged_options["num_predict"]
 
         last_error: Optional[Exception] = None
         for attempt in range(1, self.max_retries + 1):
@@ -235,16 +233,22 @@ class OllamaClient:
         on_event: Optional[Callable[[dict], None]] = None,
         max_length: Optional[int] = None,
     ) -> GenerationResult:
-        url = f"{self.base_url.rstrip('/')}/api/generate"
+        url = f"{self.base_url}/api/v1/chat"
+        started = time.perf_counter()
         response = requests.post(
             url, json=payload, stream=True, timeout=self.request_timeout
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except Exception:
+            response.close()
+            raise
 
-        text_parts: List[str] = []
-        raw_events: List[dict] = []
         metrics = GenerationMetrics(
-            model=payload["model"], options=payload.get("options", {}), attempt=attempt
+            model=payload["model"], options={
+                key: value for key, value in payload.items()
+                if key not in {"input", "system_prompt"}
+            }, attempt=attempt
         )
 
         # Initialize loop detector
@@ -253,16 +257,52 @@ class OllamaClient:
             detector = InfiniteLoopDetector(**self.loop_detector_config)
             detector.start()
 
-        termination_reason: Optional[str] = None
-        current_length = 0
+        try:
+            return self._read_stream(
+                response, metrics, detector, on_event=on_event,
+                max_length=max_length, started=started,
+            )
+        finally:
+            response.close()
 
+    def _read_stream(self, response, metrics, detector, *, on_event, max_length, started):
+        text_parts: List[str] = []
+        raw_events: List[dict] = []
+        current_length = 0
+        completed = False
         for line in response.iter_lines():
             if not line:
                 continue
+            if isinstance(line, bytes):
+                line = line.decode("utf-8")
+            if not line.startswith("data:"):
+                continue
+            line = line[5:].strip()
+            if line == "[DONE]":
+                break
             try:
-                event = json.loads(line)
+                frame = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if frame.get("error"):
+                raise RuntimeError(f"LM Studio stream error: {frame['error']}")
+            # Keep the pipeline's response/thinking event contract for its monitor.
+            event = {
+                "response": frame.get("content", "") if frame.get("type") == "message.delta" else "",
+                "thinking": frame.get("content", "") if frame.get("type") == "reasoning.delta" else "",
+                "done": frame.get("type") == "chat.end",
+                "raw": frame,
+            }
+            if event["done"]:
+                completed = True
+                stats = frame["result"].get("stats", {})
+                metrics.model = frame["result"].get("model_instance_id", metrics.model)
+                metrics.eval_count = stats.get("total_output_tokens")
+                rate = stats.get("tokens_per_second")
+                if rate and metrics.eval_count is not None:
+                    metrics.eval_duration = metrics.eval_count / rate * 1e9
+                if stats.get("model_load_time_seconds") is not None:
+                    metrics.load_duration = stats["model_load_time_seconds"] * 1e9
             raw_events.append(event)
 
             # Check for infinite loop before processing (check both response and thinking)
@@ -316,11 +356,10 @@ class OllamaClient:
                     )
                     response.close()
                     break
-            if event.get("done"):
-                metrics.eval_count = event.get("eval_count")
-                metrics.eval_duration = event.get("eval_duration")
-                metrics.total_duration = event.get("total_duration")
-                metrics.load_duration = event.get("load_duration")
-
+        metrics.total_duration = (time.perf_counter() - started) * 1e9
         text = "".join(text_parts).strip()
+        if not completed and not metrics.was_terminated:
+            raise RuntimeError("LM Studio stream ended before chat.end")
+        if not text and not metrics.was_terminated:
+            raise RuntimeError("LM Studio returned no answer text")
         return GenerationResult(text=text, metrics=metrics, raw_events=raw_events)

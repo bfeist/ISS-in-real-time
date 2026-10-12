@@ -2,14 +2,61 @@ import datetime
 from dotenv import load_dotenv
 import requests
 from bs4 import BeautifulSoup
-import json
 import os
-import time
+from pathlib import Path
+from urllib.parse import urljoin, urlparse
+import re
 
 # Load environment variables from .env file
-load_dotenv(dotenv_path="../../../.env")
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
 
 RAW_FOLDER = os.getenv("RAW_FOLDER")
+
+
+def extract_article_urls(soup, page_url):
+    """Resolve full-post links, with fallbacks for both NASA heading layouts."""
+    links = []
+    for entry in soup.select("article.nasa-blog"):
+        link = None
+        full_post = next(
+            (
+                a
+                for a in entry.select("a[href]")
+                if a.get_text(" ", strip=True).lower() == "read full post"
+                or a.get("aria-label", "").lower().startswith("read full post:")
+            ),
+            None,
+        )
+        if full_post:
+            link = full_post
+        else:
+            heading = entry.select_one("h2")
+            if heading:
+                link = heading.select_one("a[href]") or heading.find_parent(
+                    "a", href=True
+                )
+        if link is None:
+            raise RuntimeError(f"Blog entry has no full-post link: {page_url}")
+        links.append(link)
+
+    # Older archives do not necessarily wrap each post in article.nasa-blog.
+    if not links:
+        for heading in soup.select("h2.margin-bottom-4.margin-top-2"):
+            link = heading.select_one("a[href]") or heading.find_parent("a", href=True)
+            if link:
+                links.append(link)
+
+    urls = []
+    for link in links:
+        url = urljoin(page_url, link["href"])
+        parsed = urlparse(url)
+        if parsed.hostname in {"www.nasa.gov", "nasa.gov"} and re.fullmatch(
+            r"/blogs/[^/]+/\d{4}/\d{2}/\d{2}/[^/]+/?", parsed.path
+        ):
+            urls.append(url)
+        else:
+            raise RuntimeError(f"Invalid full-post link in NASA archive: {url}")
+    return list(dict.fromkeys(urls))
 
 
 def get_blog_urls_for_month(year, month):
@@ -18,65 +65,42 @@ def get_blog_urls_for_month(year, month):
     Handles pagination by checking for and following "Next" page links.
     """
     month_str = f"{month:02d}"  # Format month as two digits
-    base_url = f"https://www.nasa.gov/blogs/spacestation/{year}/{month_str}"
+    url = f"https://www.nasa.gov/blogs/spacestation/{year}/{month_str}/"
     all_urls = []
-    current_page = 1
+    visited = set()
 
     while True:
-        # Construct URL with page parameter if needed
-        if current_page == 1:
-            url = base_url  # For first page, use base URL without /page/1
-        else:
-            url = f"{base_url}/page/{current_page}/"  # For subsequent pages
-
+        if url in visited:
+            raise RuntimeError(f"Pagination loop in NASA blog archive: {url}")
+        visited.add(url)
         print(f"Scraping {url}")
-
-        try:
-            # Add a delay to avoid hammering NASA's servers
-            # time.sleep(1)
-
-            response = requests.get(url)
-            # Check if there's a redirect
-            final_url = response.url
-            if final_url != url and current_page > 1:
-                print(f"Redirected to {final_url}, likely at the end of pagination")
-                break
-
-            if response.status_code != 200:
-                print(f"Page returned status code {response.status_code}")
-                break
-
-            soup = BeautifulSoup(response.text, "html.parser")
-
-            # Find all article links in the page
-            articles = soup.select("h2.margin-bottom-4.margin-top-2 a")
-
-            if not articles:
-                print("No articles found on this page")
-                break
-
-            # Extract the href attribute from each article link
-            page_urls = [
-                article.get("href") for article in articles if article.get("href")
-            ]
-            all_urls.extend(page_urls)
-
-            print(f"Found {len(page_urls)} articles on page {current_page}")
-
-            # Check for pagination - look for a "Next" page link
-            next_page = soup.select_one("a.next.page-numbers")
-            if not next_page:
-                print("No next page found")
-                break
-
-            # Move to the next page
-            current_page += 1
-
-        except Exception as e:
-            print(f"Error scraping {url}: {e}")
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        if len(visited) > 1 and response.url.rstrip("/") != url.rstrip("/"):
+            raise RuntimeError(
+                f"Unexpected pagination redirect: {url} -> {response.url}"
+            )
+        soup = BeautifulSoup(response.text, "html.parser")
+        page_urls = extract_article_urls(soup, response.url)
+        if not page_urls:
+            # NASA renders a genuinely empty month as an empty archive feed.
+            feed = soup.select_one("main#blog-archive-content-feed")
+            if (
+                len(visited) == 1
+                and feed is not None
+                and not feed.get_text(strip=True)
+                and not feed.find()
+            ):
+                return []
+            raise RuntimeError(f"No full-post links found in NASA blog archive: {url}")
+        all_urls.extend(page_urls)
+        print(f"Found {len(page_urls)} articles on page {len(visited)}")
+        next_page = soup.select_one("a.next.page-numbers[href]")
+        if not next_page:
             break
+        url = urljoin(response.url, next_page["href"])
 
-    return all_urls
+    return list(dict.fromkeys(all_urls))
 
 
 def save_urls_for_month(year, month, urls):

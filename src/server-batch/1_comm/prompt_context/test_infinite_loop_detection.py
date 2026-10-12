@@ -6,7 +6,7 @@ to safeguard against AI model infinite loops during generation.
 """
 
 import time
-from ollama import InfiniteLoopDetector, OllamaClient
+from lmstudio import InfiniteLoopDetector, LMStudioClient
 
 
 def test_stall_detection():
@@ -88,10 +88,10 @@ def test_repetition_detection():
 
 
 def demonstrate_configuration():
-    """Show different configuration options for OllamaClient."""
+    """Show different configuration options for LMStudioClient."""
 
     # Conservative configuration (catch loops quickly)
-    conservative_client = OllamaClient(
+    conservative_client = LMStudioClient(
         enable_loop_detection=True,
         loop_detector_config={
             "stall_timeout": 15.0,  # 15s without output
@@ -102,7 +102,7 @@ def demonstrate_configuration():
     )
 
     # Permissive configuration (allow more time)
-    permissive_client = OllamaClient(
+    permissive_client = LMStudioClient(
         enable_loop_detection=True,
         loop_detector_config={
             "stall_timeout": 45.0,  # 45s without output
@@ -113,7 +113,7 @@ def demonstrate_configuration():
     )
 
     # Disabled (no loop detection)
-    no_detection_client = OllamaClient(
+    no_detection_client = LMStudioClient(
         enable_loop_detection=False,
     )
 
@@ -136,7 +136,7 @@ def demonstrate_monitoring():
             # Show progress
             print(".", end="", flush=True)
 
-    client = OllamaClient(
+    client = LMStudioClient(
         enable_loop_detection=True,
         loop_detector_config={
             "stall_timeout": 20.0,

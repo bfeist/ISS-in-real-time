@@ -8,7 +8,7 @@ from typing import Dict, Optional
 from .config import PromptContextConfig
 from .crew import CrewPromptBuilder
 from .daily_brief import DailyBriefBuilder
-from .ollama import OllamaClient
+from .lmstudio import LMStudioClient
 from .prompt_synthesizer import PromptSynthesizer
 
 
@@ -31,14 +31,14 @@ class PromptContextPipeline:
     def __init__(
         self,
         config: PromptContextConfig,
-        ollama: Optional[OllamaClient] = None,
+        lmstudio: Optional[LMStudioClient] = None,
     ) -> None:
         self.config = config
-        self.ollama = ollama or OllamaClient()
+        self.lmstudio = lmstudio or LMStudioClient()
         self.crew_builder = CrewPromptBuilder(config)
-        self.brief_builder = DailyBriefBuilder(config, self.ollama)
+        self.brief_builder = DailyBriefBuilder(config, self.lmstudio)
         self.prompt_synthesizer = PromptSynthesizer(
-            config, self.ollama, self.crew_builder, self.brief_builder
+            config, self.lmstudio, self.crew_builder, self.brief_builder
         )
 
     def day_directory(self, date_str: str) -> Path:
@@ -57,7 +57,17 @@ class PromptContextPipeline:
     ) -> DailyPipelineResult:
         day_dir = self.day_directory(date_str)
         prompt_path = day_dir / "prompt.txt"
-        if prompt_path.exists() and not force:
+        rebuild_unsupported = False
+        brief_path = day_dir / "daily_brief.json"
+        if prompt_path.exists() and brief_path.exists() and not force:
+            try:
+                cached_brief = json.loads(brief_path.read_text(encoding="utf-8"))
+                rebuild_unsupported = not isinstance(cached_brief, dict) or DailyBriefBuilder.has_unsupported_summary(cached_brief)
+            except json.JSONDecodeError:
+                rebuild_unsupported = True
+            if rebuild_unsupported and on_event:
+                on_event({"debug": "[BRIEF] Rebuilding cached prompt with unsupported summary"})
+        if prompt_path.exists() and not force and not rebuild_unsupported:
             if status_callback:
                 status_callback("skip", {"date": date_str, "reason": "prompt exists"})
             meta_path = day_dir / "prompt_meta.json"

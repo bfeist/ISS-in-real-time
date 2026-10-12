@@ -286,9 +286,9 @@ class Dashboard:
         elif gpu.task_type == GpuTaskType.WHISPERX:
             content.append("🎙️ ", style="bold yellow")
             content.append("WhisperX Active\n", style="bold yellow")
-        elif gpu.task_type == GpuTaskType.OLLAMA:
+        elif gpu.task_type == GpuTaskType.LMSTUDIO:
             content.append("🤖 ", style="bold cyan")
-            content.append("Ollama Active\n", style="bold cyan")
+            content.append("LM Studio Active\n", style="bold cyan")
 
         # Model info
         if gpu.model:
@@ -417,7 +417,7 @@ class Dashboard:
 
         Args:
             task_type: Type of GPU task currently running
-            model: Model name if applicable (e.g., Ollama model)
+            model: Model name if applicable (e.g., LM Studio model)
             status: Status string (e.g., "active", "idle", "loading")
             memory_used: GPU memory in use (e.g., "4.2 GB")
             memory_total: Total GPU memory (e.g., "8 GB")

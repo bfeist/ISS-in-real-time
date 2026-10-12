@@ -5,6 +5,7 @@ import json
 import re, os
 import datetime  # Added import
 from dotenv import load_dotenv
+from urllib.parse import urlsplit
 
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../../.env")
@@ -53,87 +54,42 @@ def get_expedition_patch_url(expedition_number):
     api_url = "https://commons.wikimedia.org/w/api.php"
     headers = {"User-Agent": "ISSiRT-Bot/1.0 (https://github.com/bfeist/ISSiRT)"}
 
-    for title in possible_titles:
-        # Set up parameters to check if the file exists
-        params = {
-            "action": "query",
-            "titles": title,
-            "prop": "imageinfo",
-            "iiprop": "url",
-            "format": "json",
-        }
+    def query(params):
+        # Pace Commons requests, including unsuccessful lookups.
+        time.sleep(1)
+        response = requests.get(api_url, params=params, headers=headers, timeout=30)
+        response.raise_for_status()
+        return response.json()
 
-        # Make the API request
-        response = requests.get(api_url, params=params, headers=headers)
-        try:
-            data = response.json()
-        except json.JSONDecodeError:
-            print(f"Failed to decode JSON for title: {title}")
-            print(f"Response content: {response.text[:200]}...")
-            continue
-
-        # Extract page information
-        pages = data.get("query", {}).get("pages", {})
-        for page in pages.values():
-            # Check if the page exists and has imageinfo
-            if "imageinfo" in page:
-                for info in page["imageinfo"]:
-                    image_url = info["url"]
-                    if image_url.lower().endswith((".png", ".svg")):
-                        print(f"{image_url}")
-                        return image_url
-
-    print("searching...")
-
-    # If no image was found with the constructed titles, perform a search
-    search_params = {
-        "action": "query",
-        "list": "search",
-        "srsearch": f"intitle:'Expedition {expedition_number}'",
-        "srnamespace": "6",  # Namespace 6 corresponds to 'File'
-        "format": "json",
-        "srlimit": "5",
-    }
-
-    # Make the search API request
-    search_response = requests.get(api_url, params=search_params, headers=headers)
-    try:
-        search_data = search_response.json()
-    except json.JSONDecodeError:
-        print(f"Failed to decode JSON for search query: {search_params}")
-        print(f"Response content: {search_response.text[:200]}...")
+    def lookup(titles):
+        data = query({
+            "action": "query", "titles": "|".join(titles),
+            "prop": "imageinfo", "iiprop": "url", "format": "json",
+        })
+        for page in data.get("query", {}).get("pages", {}).values():
+            for info in page.get("imageinfo", []):
+                url = info["url"]
+                if urlsplit(url).path.lower().endswith((".png", ".svg")):
+                    return url
         return None
 
-    # Iterate over search results
-    for result in search_data.get("query", {}).get("search", []):
-        file_title = result["title"]
+    patch = lookup(possible_titles)
+    if patch:
+        return patch
 
-        # Get image info for the found file
-        params["titles"] = file_title
-        response = requests.get(api_url, params=params, headers=headers)
-        try:
-            data = response.json()
-        except json.JSONDecodeError:
-            print(f"Failed to decode JSON for file title: {file_title}")
-            print(f"Response content: {response.text[:200]}...")
-            continue
-        pages = data.get("query", {}).get("pages", {})
-        for page in pages.values():
-            if "imageinfo" in page:
-                for info in page["imageinfo"]:
-                    image_url = info["url"]
-                    if image_url.lower().endswith((".png", ".svg")):
-                        print(f"{image_url}")
-                        return image_url
-
-    # If no image is found
-    return None
+    search_data = query({
+        "action": "query", "list": "search",
+        "srsearch": f"intitle:'Expedition {expedition_number}'",
+        "srnamespace": "6", "format": "json", "srlimit": "5",
+    })
+    titles = [result["title"] for result in search_data.get("query", {}).get("search", [])]
+    return lookup(titles) if titles else None
 
 
 def scrape_expedition(num):
     url = f"https://www.nasa.gov/mission/expedition-{str(num)}/"
     headers = {"User-Agent": "ISSiRT-Bot/1.0 (https://github.com/bfeist/ISSiRT)"}
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=30)
 
     # Return None if expedition doesn't exist (404)
     if response.status_code == 404:
@@ -188,83 +144,72 @@ def save_json(data, filename):
         json.dump(data, f, indent=4)
 
 
+def needs_refresh(expedition, today=None):
+    """Refresh incomplete and ongoing missions, including missing date keys."""
+    required = ("start", "end", "expeditionBlurb")
+    if any(not expedition.get(key) for key in required):
+        return True
+    try:
+        end = datetime.date.fromisoformat(expedition["end"])
+    except ValueError:
+        return True
+    return end >= (today or datetime.date.today())
+
+
+def update_expeditions(loaded_data, patch_checks, today=None):
+    """Refresh changing metadata, then discover consecutive new expeditions.
+
+    patch_checks is a persisted mapping of expedition numbers to lookup dates;
+    missing patches are retried weekly, independently of NASA metadata refreshes.
+    """
+    today = today or datetime.date.today()
+    records = {exp["expedition"]: dict(exp) for exp in loaded_data}
+    latest = max(records, default=0)
+
+    for number, existing in records.items():
+        if needs_refresh(existing, today):
+            data = scrape_expedition(number)
+            if data is not None:
+                existing.update(data)
+            time.sleep(1)
+
+    number = latest + 1
+    while True:
+        data = scrape_expedition(number)
+        time.sleep(1)
+        if data is None:
+            break  # Expeditions are sequential; check this number again next run.
+        records[number] = data
+        number += 1
+
+    for number, record in records.items():
+        if record.get("patchUrl"):
+            continue
+        key = str(number)
+        last_check = patch_checks.get(key)
+        if last_check and (today - datetime.date.fromisoformat(last_check)).days < 7:
+            continue
+        patch_checks[key] = today.isoformat()
+        try:
+            record["patchUrl"] = get_expedition_patch_url(number)
+        except (requests.RequestException, ValueError) as error:
+            # Patch availability must not prevent publishing new mission dates.
+            print(f"Patch lookup failed for Expedition {number}: {error}")
+            record.setdefault("patchUrl", None)
+            break  # Do not keep contacting Commons when it is failing.
+
+    return [records[number] for number in sorted(records)]
+
+
 if __name__ == "__main__":
-    # Load existing data
-    loaded_data = load_and_parse_json(f"{WEB_ASSETS_FOLDER}/expeditions.json")
-
-    # Find the highest expedition number already processed
-    max_existing_expedition = max((e["expedition"] for e in loaded_data), default=0)
-
-    # Identify expeditions that need reprocessing (null or empty values)
-    needs_reprocessing = []
-    for exp in loaded_data:
-        if any(value is None or value == "" for value in exp.values()):
-            needs_reprocessing.append(exp["expedition"])
-
-    print(
-        f"Starting expedition scrape. Max existing expedition: {max_existing_expedition}"
-    )
-    print(f"Expeditions needing reprocessing: {needs_reprocessing}")
-
-    # Process expeditions, stopping when we hit consecutive 404s
-    expeditions = []
-    processed_numbers = set()
-    consecutive_404s = 0
-    max_consecutive_404s = 3  # Stop after 3 consecutive 404s
-
-    i = 1
-    while consecutive_404s < max_consecutive_404s:
-        # If this expedition needs reprocessing or doesn't exist in loaded data
-        if i in needs_reprocessing or not any(
-            e["expedition"] == i for e in loaded_data
-        ):
-            try:
-                data = scrape_expedition(i)
-
-                # If expedition doesn't exist (404), increment counter
-                if data is None:
-                    consecutive_404s += 1
-                    print(
-                        f"Expedition {i}: 404 Not Found ({consecutive_404s}/{max_consecutive_404s})"
-                    )
-                else:
-                    consecutive_404s = 0  # Reset counter on success
-                    # get patch image url
-                    data["patchUrl"] = get_expedition_patch_url(i)
-
-                    # If we have existing data, merge it
-                    if i in needs_reprocessing:
-                        original_index = next(
-                            idx
-                            for idx, e in enumerate(loaded_data)
-                            if e["expedition"] == i
-                        )
-                        loaded_data[original_index] = data
-                        print(f"Expedition {i}: Updated")
-                    else:
-                        expeditions.append(data)
-                        print(f"Expedition {i}: Scraped successfully")
-
-                    processed_numbers.add(i)
-                    time.sleep(1)
-            except Exception as e:
-                print(f"Error processing expedition {i}: {str(e)}")
-                consecutive_404s += 1
-        else:
-            consecutive_404s = 0  # Reset if expedition already in data
-
-        i += 1
-
-    print(
-        f"\nFinished scraping. Processed {len(processed_numbers)} new/updated expeditions."
-    )
-
-    # Combine new and updated data - include all original data plus any new entries
-    final_expeditions = loaded_data + [
-        e
-        for e in expeditions
-        if e["expedition"] not in [x["expedition"] for x in loaded_data]
-    ]
-
-    save_json(final_expeditions, f"{WEB_ASSETS_FOLDER}/expeditions.json")
+    filename = os.path.join(WEB_ASSETS_FOLDER, "expeditions.json")
+    # Keep request bookkeeping out of the public web assets.
+    cache_folder = os.path.join(os.path.dirname(__file__), ".cache")
+    os.makedirs(cache_folder, exist_ok=True)
+    cache_filename = os.path.join(cache_folder, "expedition_patch_checks.json")
+    loaded_data = load_and_parse_json(filename)
+    patch_checks = load_and_parse_json(cache_filename) if os.path.exists(cache_filename) else {}
+    final_expeditions = update_expeditions(loaded_data, patch_checks)
+    save_json(final_expeditions, filename)
+    save_json(patch_checks, cache_filename)
     print(f"Saved {len(final_expeditions)} total expeditions to expeditions.json")

@@ -3,6 +3,11 @@ import json
 import requests
 import csv  # Added import for CSV parsing
 from bs4 import BeautifulSoup
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "1_comm"))
+from prompt_context.lmstudio import LMStudioClient
 
 # import openai  # Removed import
 from datetime import datetime
@@ -11,8 +16,8 @@ from datetime import datetime
 S3_FOLDER = os.getenv("S3_FOLDER")
 
 """
-This script requires that ollama be running with a model on it at an API key be set in the environment.
-ollama run gemma2:27b
+Start the LM Studio local server with lms server start --port 1234.
+Uses the configured LMSTUDIO_MODEL or Gemma 4 12B by default.
 """
 
 
@@ -90,25 +95,9 @@ def get_topics_summary(blog_contents):
     print("Prompt: ", prompt)
 
     try:
-        # Prepare the payload for Ollama API
-        # payload = {"model": "phi4", "prompt": prompt}
-        payload = {"model": "gemma2:27b", "prompt": prompt}
+        content = LMStudioClient().generate(prompt).text
 
-        # Make a POST request to the local Ollama API
-        response = requests.post("http://localhost:11434/api/generate", json=payload)
-        response.raise_for_status()
-
-        # Extract the content
-        content = response.json()
-
-        # Attempt to parse JSON from the response
-        try:
-            topics = json.loads(content)
-        except json.JSONDecodeError:
-            print("Failed to parse JSON from Ollama response.")
-            print("Response content:")
-            print(content)
-            topics = {}
+        topics = [line.strip() for line in content.splitlines() if line.strip()]
 
         return topics
 

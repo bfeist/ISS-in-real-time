@@ -137,7 +137,8 @@ class Orchestrator:
             python_executable=_resolve_venv_python(settings.paths.server_batch_dir)
         )
         self.resource_manager = ResourceManager(
-            ollama_host=settings.gpu.ollama_host,
+            lmstudio_host=settings.gpu.lmstudio_host,
+            context_length=settings.gpu.lmstudio_context_length,
         )
         self._shutdown = False
         self._current_pipeline: str | None = None
@@ -478,7 +479,7 @@ class Orchestrator:
 
                 try:
                     await self.resource_manager.acquire_gpu(
-                        gpu_task_type, ollama_model=stage.ollama_model
+                        gpu_task_type, lmstudio_model=stage.lmstudio_model
                     )
                     gpu_acquired = True
                     logger.info(f"GPU acquired for stage {stage.id}")
@@ -539,7 +540,10 @@ class Orchestrator:
                         "RAW_FOLDER": str(self.settings.paths.raw_folder),
                         "RAW_AUDIO_FOLDER": str(self.settings.paths.raw_audio_folder),
                         "PYTHONIOENCODING": "utf-8",  # Fix Unicode output issues
+                        "LMSTUDIO_HOST": self.settings.gpu.lmstudio_host,
                     }
+                    if self.resource_manager.loaded_lmstudio_model:
+                        script_env["LMSTUDIO_MODEL"] = self.resource_manager.loaded_instance_id
                     result = await self.script_runner.run(
                         script_path=script_path,
                         args=args,
@@ -571,7 +575,7 @@ class Orchestrator:
                             or result.stdout
                             or f"Exit code {result.exit_code}"
                         )
-                        errors.append(f"{work_item.item_id}: {error_msg[:200]}")
+                        errors.append(f"{work_item.item_id}: {error_msg}")
 
                         # Mark ZIP file as errored if applicable
                         zip_file = work_item.metadata.get("zip_file")

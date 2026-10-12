@@ -1,14 +1,34 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import EnvironmentPlugin from "vite-plugin-environment";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import cesium from "vite-plugin-cesium";
+import sirv from "sirv";
 
 // https://vitejs.dev/config/
 export default defineConfig({
   root: "./src",
   envDir: "../",
-  plugins: [react(), cesium(), EnvironmentPlugin("all", { prefix: "VITE_" })],
+  plugins: [
+    react(),
+    cesium(),
+    EnvironmentPlugin("all", { prefix: "VITE_" }),
+    {
+      name: "local-web-assets",
+      configureServer(server) {
+        const { WEB_ASSETS_FOLDER } = loadEnv(server.config.mode, __dirname, "WEB_ASSETS_FOLDER");
+        if (!WEB_ASSETS_FOLDER) return;
+
+        const serveAssets = sirv(path.resolve(__dirname, WEB_ASSETS_FOLDER), { dev: true });
+        server.middlewares.use("/ISSiRT_assets", (req, res) => {
+          serveAssets(req, res, () => {
+            res.statusCode = 404;
+            res.end("Local asset not found");
+          });
+        });
+      },
+    },
+  ],
   resolve: {
     alias: {
       api: path.resolve(__dirname, "./src/api"),

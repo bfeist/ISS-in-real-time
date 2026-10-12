@@ -3,6 +3,11 @@ import json
 import requests
 import csv  # Added import for CSV parsing
 from bs4 import BeautifulSoup
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "1_comm"))
+from prompt_context.lmstudio import LMStudioClient
 
 # import openai  # Removed import
 from datetime import datetime
@@ -10,8 +15,8 @@ from datetime import datetime
 S3_FOLDER = os.getenv("S3_FOLDER")
 
 """
-This script requires that ollama be running with a model on it at an API key be set in the environment.
-ollama run gemma2:27b
+Start the LM Studio local server with lms server start --port 1234.
+Uses the configured LMSTUDIO_MODEL or Gemma 4 12B by default.
 """
 
 
@@ -112,7 +117,7 @@ def prepare_prompt(blog_contents, transcript):
 
 def generate_event_index(prompt):
     """
-    Generates the event index using the local Ollama API.
+    Generates the event index using the local LM Studio API.
 
     Args:
         prompt (str): The prepared prompt.
@@ -122,21 +127,13 @@ def generate_event_index(prompt):
     """
 
     try:
-        # Prepare the payload for Ollama API
-        payload = {"model": "deepseek-r1:14b", "prompt": prompt}
-
-        # Make a POST request to the local Ollama API
-        response = requests.post("http://localhost:11434/api/generate", json=payload)
-        response.raise_for_status()
-
-        # Extract the content
-        content = response.json()
+        content = LMStudioClient().generate(prompt).text
 
         # Attempt to parse JSON from the response
         try:
             event_index = json.loads(content)
         except json.JSONDecodeError:
-            print("Failed to parse JSON from Ollama response.")
+            print("Failed to parse JSON from LM Studio response.")
             print("Response content:")
             print(content)
             event_index = {}
@@ -176,11 +173,11 @@ def main():
     transcript = parse_transcript(transcript_url)
 
     # Prepare prompt
-    print("Preparing prompt for Ollama...")
+    print("Preparing prompt for LM Studio...")
     prompt = prepare_prompt(blog_contents, transcript)
 
     # Generate event index
-    print("Generating event index using Ollama...")
+    print("Generating event index using LM Studio...")
     event_index = generate_event_index(prompt)
 
     if event_index:

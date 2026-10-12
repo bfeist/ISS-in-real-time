@@ -61,16 +61,22 @@ uv run issirt-incremental update --skip articles --dry-run
 | Pipeline      | Description                                            | GPU              |
 | ------------- | ------------------------------------------------------ | ---------------- |
 | articles      | NASA blog articles                                     | -                |
-| comm          | ISS audio comms (download → corpus → transcribe → web) | WhisperX, Ollama |
-| flights       | Station flights, supply missions, crew arrivals        | -                |
+| comm          | ISS audio comms (download → corpus → transcribe → web) | WhisperX, LM Studio |
+| flights       | Station flights, supply missions, crew arrivals, expeditions | -           |
 | photos_earth  | Earth photography from NASA EOL                        | -                |
-| photos_flickr | JSC Flickr photos with AI classification               | Ollama           |
+| photos_flickr | JSC Flickr photos with AI classification               | LM Studio           |
 | clouds        | Cloud cover availability data                          | -                |
 | eva           | EVA (spacewalk) information                            | -                |
 | ephemera      | Ephemera and orbit count                               | -                |
 | aggregation   | Data availability and aggregated stats                 | -                |
 
 ## Other Commands
+
+The flights pipeline refreshes incomplete or ongoing expedition metadata from
+NASA and checks consecutive new expedition numbers, stopping at the first 404.
+Completed expeditions are skipped. Existing patch URLs are reused; missing patches
+are retried at most weekly using a local `3_flights/.cache/` file. Each Commons
+lookup uses at most three batched requests, paced one second apart.
 
 ```bash
 # View status of all pipelines
@@ -100,6 +106,27 @@ uv run issirt-incremental dashboard --auto-run --interval 15m
 ```
 
 ## Configuration
+
+LLM stages use the LM Studio server at `http://localhost:1234` (`LMSTUDIO_HOST`
+overrides the host). Start it with `lms server start --port 1234` when ready to
+run the pipeline. No model needs to be loaded manually.
+
+The corpus stage uses the existing `gemma-4-12b-it-qat` model; Flickr
+classification uses the existing `qwen3.8-27b` model. Change `lmstudio_model` in
+`pipelines.yaml` to select a different installed model. Standalone scripts accept
+`LMSTUDIO_MODEL`; the corpus script also accepts `--model`.
+
+The orchestrator loads models with a 16,384-token context and unloads them at
+stage boundaries. It also unloads all LM Studio model instances before WhisperX
+starts. Load or unload failures stop the stage rather than proceeding with
+uncertain GPU availability. Avoid using LM Studio interactively during GPU stages.
+
+Generation uses LM Studio's [native chat and streaming API](https://lmstudio.ai/docs/developer/rest/chat),
+with reasoning disabled and chat storage disabled for these batch requests.
+The original three Ollama weights were copied into
+`C:\Users\Feist\.lmstudio\models\imported-ollama` before uninstalling Ollama;
+the pipeline defaults use the existing newer models above. The SQLite schema's
+unused `ollama_model` column is retained for compatibility with existing databases.
 
 - **settings.yaml** - Global settings (paths, GPU config, scheduling)
 - **pipelines.yaml** - Pipeline definitions and stage configurations

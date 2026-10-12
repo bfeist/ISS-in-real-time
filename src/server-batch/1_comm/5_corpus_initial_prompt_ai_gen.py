@@ -45,7 +45,7 @@ from dotenv import load_dotenv
 from rich.console import Console
 
 from prompt_context.config import PromptContextConfig
-from prompt_context.ollama import OllamaClient
+from prompt_context.lmstudio import LMStudioClient
 from prompt_context.pipeline import PromptContextPipeline
 
 # Commonly used ground station names and terminology
@@ -103,18 +103,18 @@ def _worker_task(date: str) -> WorkerResult:
             custom_terms=list(custom_terms) if custom_terms else [],
         )
 
-        ollama_kwargs = {}
+        lmstudio_kwargs = {}
         if settings.get("model"):
-            ollama_kwargs["default_model"] = settings["model"]
+            lmstudio_kwargs["default_model"] = settings["model"]
         if settings.get("request_timeout"):
-            ollama_kwargs["request_timeout"] = settings["request_timeout"]
+            lmstudio_kwargs["request_timeout"] = settings["request_timeout"]
         if settings.get("max_retries"):
-            ollama_kwargs["max_retries"] = settings["max_retries"]
+            lmstudio_kwargs["max_retries"] = settings["max_retries"]
         if settings.get("retry_backoff"):
-            ollama_kwargs["retry_backoff"] = settings["retry_backoff"]
+            lmstudio_kwargs["retry_backoff"] = settings["retry_backoff"]
 
-        ollama = OllamaClient(**ollama_kwargs)
-        pipeline = PromptContextPipeline(config, ollama)
+        lmstudio = LMStudioClient(**lmstudio_kwargs)
+        pipeline = PromptContextPipeline(config, lmstudio)
 
         def status_callback(stage: str, payload: Dict[str, object]) -> None:
             send("phase", {"stage": stage, **payload})
@@ -211,7 +211,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Process all ISS mission days from 2000-11-01 to today (default when no dates specified)",
     )
     parser.add_argument(
-        "--model", help="Override default Ollama model (default: qwen3:14b)"
+        "--model", help="Override default LM Studio model (default: gemma-4-12b-it-qat)"
     )
     parser.add_argument(
         "--workers",
@@ -235,10 +235,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "--request-timeout",
         type=int,
         default=300,
-        help="Ollama request timeout (seconds)",
+        help="LM Studio request timeout (seconds)",
     )
     parser.add_argument(
-        "--max-retries", type=int, default=3, help="Max retries per Ollama request"
+        "--max-retries", type=int, default=3, help="Max retries per LM Studio request"
     )
     parser.add_argument(
         "--retry-backoff", type=float, default=2.0, help="Retry backoff multiplier"

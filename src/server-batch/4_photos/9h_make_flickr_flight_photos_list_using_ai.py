@@ -5,7 +5,7 @@ This script processes filtered Flickr photo albums (created by 9g_filter_against
 and uses AI classification to determine whether photos were taken during flight operations (keep)
 or are ancillary photos like training, portraits, press events, etc. (exclude).
 
-Uses Ollama API with pipeline processing for optimal performance:
+Uses LM Studio API with pipeline processing for optimal performance:
 - Processes results as they arrive (streaming)
 - Better GPU utilization (no waiting for slow requests)
 - Faster feedback (saves every 10 photos)
@@ -17,7 +17,6 @@ Saves AI-classified results to albums_categorized_photos folder with _flight and
 
 import json
 import os
-import requests
 from pathlib import Path
 from dotenv import load_dotenv
 import sys
@@ -32,7 +31,10 @@ from functools import partial
 load_dotenv(dotenv_path="../../../.env")
 
 RAW_FOLDER = os.getenv("RAW_FOLDER")
-OLLAMA_API_URL = "http://localhost:11434"  # Direct Ollama API endpoint
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "1_comm"))
+from prompt_context.lmstudio import LMStudioClient
+
+LMSTUDIO_API_URL = os.getenv("LMSTUDIO_HOST", "http://localhost:1234")
 
 # Configuration
 # Process filtered albums (created by 9g_filter_against_existing_photos.py)
@@ -45,134 +47,39 @@ OUTPUT_FOLDER = (
     else None
 )
 
-# Recommended models for RTX 4090 (in order of preference - Updated Sept 2025)
-# MODEL_NAME = "qwen3:14b"         # LATEST: Qwen3 series - excellent reasoning & classification
-# MODEL_NAME = "qwen3:30b"         # LATEST: Best accuracy, slower but fits RTX 4090
-# MODEL_NAME = "qwen3:8b"          # LATEST: Fastest Qwen3 option
-# MODEL_NAME = "deepseek-r1:14b"   # Excellent reasoning model
-# MODEL_NAME = "gemma3:27b"        # Google's latest, runs on single GPU
-# MODEL_NAME = "llama3.3:70b"      # Meta's latest (may need quantization)
-# MODEL_NAME = "qwen2.5:14b"       # Previous generation but proven
-# MODEL_NAME = "mistral-nemo:12b"  # Good alternative
-
-# MODEL_NAME = "gemma3:27b"  # Using non-reasoning model for better classification
-MODEL_NAME = "gpt-oss:20b"  # Open-source GPT-style model with good reasoning
+MODEL_NAME = os.getenv("LMSTUDIO_MODEL", "qwen3.8-27b")
 
 # ============================================================================
 # MULTIPROCESSING CONFIGURATION
 # ============================================================================
 NUM_WORKERS = 3  # Fixed number of worker processes
-REQUEST_TIMEOUT = 60  # Request timeout for API calls
+REQUEST_TIMEOUT = 180  # Request timeout for API calls
 
 
-def make_ollama_request_full(prompt, model=MODEL_NAME):
-    """
-    Make a request to Ollama API and return full JSON response
-
-    Args:
-        prompt: The text prompt to send
-        model: The model to use
-
-    Returns:
-        Full JSON response dict or None if error
-    """
+def make_lmstudio_request_full(prompt, model=MODEL_NAME):
+    """Generate with LM Studio, preserving classification response metadata."""
     try:
-        payload = {
-            "model": model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.2,  # Low temperature for consistent classification
-                "top_p": 0.95,
-                "top_k": 40,
-                "num_predict": -1,  # Let model determine response length for batch processing
-                "repeat_penalty": 1.1,
-                # GPU optimization parameters
-                "num_ctx": 4096,  # Context window size
-                "num_batch": 512,  # Batch size for processing
-                "num_gpu_layers": -1,  # Use all GPU layers (-1 = auto)
-                "num_thread": 8,  # CPU threads for non-GPU parts
-                "use_mmap": True,  # Memory mapping for efficiency
-                "use_mlock": True,  # Lock memory to prevent swapping
-            },
-        }
-
-        response = requests.post(
-            f"{OLLAMA_API_URL}/api/generate", json=payload, timeout=REQUEST_TIMEOUT
+        client = LMStudioClient(
+            base_url=LMSTUDIO_API_URL,
+            default_model=model,
+            request_timeout=REQUEST_TIMEOUT,
+            default_options={"temperature": 0.2, "top_p": 0.95, "num_predict": 256},
         )
-
-        if response.status_code == 200:
-            return response.json()
-        else:
-            print(f"Ollama API Error: {response.status_code} - {response.text}")
-            return None
-
-    except Exception as e:
-        print(f"Error making Ollama API request: {e}")
+        result = client.generate(prompt)
+        if result.metrics.was_terminated:
+            raise RuntimeError(result.metrics.termination_reason)
+        return {
+            "response": result.text,
+            "thinking": "".join(event.get("thinking", "") for event in result.raw_events),
+        }
+    except Exception as exc:
+        print(f"Error making LM Studio API request: {exc}")
         return None
 
 
-def make_ollama_request(prompt, model=MODEL_NAME):
-    """
-    Make a request to Ollama API with GPU-optimized parameters
-
-    Args:
-        prompt: The text prompt to send
-        model: The model to use (default: gemma3:27b)
-
-    Returns:
-        Response text or None if error
-    """
-    try:
-        payload = {
-            "model": model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.2,  # Low temperature for consistent classification
-                "top_p": 0.95,
-                "top_k": 40,
-                "num_predict": -1,  # Let model determine response length for batch processing
-                "repeat_penalty": 1.1,
-                # GPU optimization parameters
-                "num_ctx": 4096,  # Context window size
-                "num_batch": 512,  # Batch size for processing
-                "num_gpu_layers": -1,  # Use all GPU layers (-1 = auto)
-                "num_thread": 8,  # CPU threads for non-GPU parts
-                "use_mmap": True,  # Memory mapping for efficiency
-                "use_mlock": True,  # Lock memory to prevent swapping
-            },
-        }
-
-        response = requests.post(
-            f"{OLLAMA_API_URL}/api/generate", json=payload, timeout=REQUEST_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            result = response.json()
-            response_text = result.get("response", "").strip()
-            thinking_text = result.get("thinking", "").strip()
-
-            # For thinking models, return both thinking and response
-            if thinking_text and response_text:
-                # Both thinking and response available - combine them
-                full_response = (
-                    f"🧠 THINKING:\n{thinking_text}\n\n💡 RESPONSE:\n{response_text}"
-                )
-                return full_response
-            elif response_text:
-                return response_text
-            elif thinking_text:
-                return thinking_text
-            else:
-                return ""
-        else:
-            print(f"Ollama API Error: {response.status_code} - {response.text}")
-            return None
-
-    except Exception as e:
-        print(f"Error making Ollama API request: {e}")
-        return None
+def make_lmstudio_request(prompt, model=MODEL_NAME):
+    result = make_lmstudio_request_full(prompt, model)
+    return result["response"] if result else None
 
 
 def queue_worker(photo_queue, result_queue, worker_id):
@@ -333,7 +240,7 @@ CRITICAL: If description is ambiguous with only crew name/affiliation and no cle
 Answer with exactly one word: FLIGHT or ANCILLARY"""
 
         # Make API request and get full response
-        full_json = make_ollama_request_full(prompt)
+        full_json = make_lmstudio_request_full(prompt)
         if full_json:
             response_text = full_json.get("response", "").strip()
             thinking_text = full_json.get("thinking", "").strip()
@@ -1150,19 +1057,19 @@ def batch_process_albums():
     print("=" * 60)
 
     # Check API connectivity
-    print(f"Testing connection to Ollama API...")
-    print(f"  Ollama API: {OLLAMA_API_URL}")
+    print(f"Testing connection to LM Studio API...")
+    print(f"  LM Studio API: {LMSTUDIO_API_URL}")
     print(f"  Model: {MODEL_NAME}")
     print(f"  Workers: {NUM_WORKERS}")
 
-    test_response = make_ollama_request("Hello", MODEL_NAME)
+    test_response = make_lmstudio_request("Hello", MODEL_NAME)
     if not test_response:
-        print(f"❌ Cannot connect to Ollama API")
-        print("Please ensure Ollama is running and model is available")
+        print(f"❌ Cannot connect to LM Studio API")
+        print("Please ensure LM Studio is running and model is available")
         print("\nTips for setup:")
-        print(f"  1. Make sure {MODEL_NAME} is loaded: ollama pull {MODEL_NAME}")
+        print(f"  1. Make sure {MODEL_NAME} is available in LM Studio")
         print("  2. Check GPU memory: nvidia-smi")
-        print("  3. Restart Ollama if needed: ollama serve")
+        print("  3. Start the LM Studio server: lms server start --port 1234")
         return False
     else:
         print(f"✅ API connection successful")
@@ -1290,9 +1197,9 @@ def main():
         "Processing filtered albums (created by 9g_filter_against_existing_photos.py)"
     )
     print(
-        f"Using Ollama API with {NUM_WORKERS} worker processes for optimal performance"
+        f"Using LM Studio API with {NUM_WORKERS} worker processes for optimal performance"
     )
-    print(f"Ollama API: {OLLAMA_API_URL}")
+    print(f"LM Studio API: {LMSTUDIO_API_URL}")
     print(f"Model: {MODEL_NAME}")
 
     # Check configuration

@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Dict, List
+from unittest.mock import Mock
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1] / "1_comm"
 sys.path.insert(0, str(PACKAGE_ROOT))
@@ -14,10 +15,10 @@ sys.path.insert(0, str(PACKAGE_ROOT))
 from prompt_context.config import PromptContextConfig  # type: ignore[import]
 from prompt_context.crew import CrewPromptBuilder  # type: ignore[import]
 from prompt_context.daily_brief import DailyBriefBuilder  # type: ignore[import]
-from prompt_context.ollama import (  # type: ignore[import]
+from prompt_context.lmstudio import (  # type: ignore[import]
     GenerationMetrics,
     GenerationResult,
-    OllamaClient,
+    LMStudioClient,
 )
 from prompt_context.pipeline import PromptContextPipeline  # type: ignore[import]
 from prompt_context.prompt_synthesizer import PromptSynthesizer  # type: ignore[import]
@@ -26,7 +27,7 @@ FIXTURE_DIR = Path(__file__).resolve().parents[2] / "tests" / "mock_data"
 CREW_FIXTURE = FIXTURE_DIR / "iss_crew_arr_dep.json"
 
 
-class FakeOllamaClient(OllamaClient):
+class FakeLMStudioClient(LMStudioClient):
     def __init__(self, responses: List[str]) -> None:  # type: ignore[override]
         self._responses = responses
         self.calls: List[str] = []
@@ -85,7 +86,7 @@ class PromptContextTests(unittest.TestCase):
         self.assertEqual(samples[-1]["sample_time"], "2001-03-21T23:59:59Z")
 
     def test_daily_brief_handles_missing_sources(self) -> None:
-        fake_client = FakeOllamaClient(
+        fake_client = FakeLMStudioClient(
             [json.dumps({"blog_topics": [], "comms_focus": []})]
         )
         brief_builder = DailyBriefBuilder(self.config, fake_client)
@@ -96,12 +97,117 @@ class PromptContextTests(unittest.TestCase):
         self.assertEqual(brief["blog_topics"], [])
         self.assertEqual(brief["comms_focus"], [])
         self.assertTrue((day_dir / "daily_brief.json").exists())
+        self.assertEqual(fake_client.calls, [])
+
+    def test_empty_sources_ignore_previously_invented_cached_summary(self) -> None:
+        client = FakeLMStudioClient([])
+        builder = DailyBriefBuilder(self.config, client)
+        sections = {"payload_highlights": [], "blog_headlines": []}
+        day_dir = self.config.prompt_context_root / "2000" / "12" / "01"
+        cache_dir = day_dir / "blog_cache"
+        cache_dir.mkdir(parents=True)
+        key = builder._compute_summary_cache_key([], sections)
+        (cache_dir / f"summary_{key}.json").write_text(json.dumps({
+            "blog_topics": ["Invented activity"], "comms_focus": ["Invented briefing"]
+        }), encoding="utf-8")
+        summary = builder._summarize_with_lmstudio(
+            date_str="2000-12-01", articles=[], summary_sections=sections, cache_dir=cache_dir
+        )
+        self.assertEqual(summary, ([], []))
+        self.assertEqual(client.calls, [])
+
+    def test_bad_json_summary_is_retried_and_failed_response_is_saved(self) -> None:
+        client = FakeLMStudioClient([
+            "There are no updates.",
+            json.dumps({"blog_topics": ["Cargo transfer"], "comms_focus": ["Cargo ops"]}),
+        ])
+        builder = DailyBriefBuilder(self.config, client)
+        cache_dir = self.raw_folder / "retry-cache"
+        result = builder._summarize_with_lmstudio(
+            date_str="2000-12-01", articles=[],
+            summary_sections={"payload_highlights": ["Cargo transfer"]}, cache_dir=cache_dir,
+        )
+        self.assertEqual(result, (["Cargo transfer"], ["Cargo ops"]))
+        self.assertEqual(len(client.calls), 2)
+        self.assertEqual(next(cache_dir.glob("*.attempt-1.txt")).read_text(encoding="utf-8"),
+                         "There are no updates.")
+
+    def test_bad_json_summary_retry_is_bounded_and_does_not_cache_success(self) -> None:
+        client = FakeLMStudioClient(["Not JSON", '{"blog_topics": "wrong type", "comms_focus": []}'])
+        builder = DailyBriefBuilder(self.config, client)
+        cache_dir = self.raw_folder / "failed-cache"
+        with self.assertRaisesRegex(ValueError, "after 2 attempts.*Response saved"):
+            builder._summarize_with_lmstudio(
+                date_str="2000-12-01", articles=[],
+                summary_sections={"payload_highlights": ["Cargo transfer"]}, cache_dir=cache_dir,
+            )
+        self.assertEqual(len(client.calls), 2)
+        self.assertEqual(list(cache_dir.glob("summary_*.json")), [])
+        self.assertEqual(len(list(cache_dir.glob("*.txt"))), 2)
+
+    def test_interrupted_summary_is_retried_even_if_partial_text_is_valid_json(self) -> None:
+        text = '{"blog_topics": ["Cargo transfer"], "comms_focus": []}'
+        client = Mock()
+        client.generate.side_effect = [
+            GenerationResult(text, GenerationMetrics(was_terminated=True,
+                termination_reason="length limit"), []),
+            GenerationResult(text, GenerationMetrics(), []),
+        ]
+        result = DailyBriefBuilder(self.config, client)._summarize_with_lmstudio(
+            date_str="2000-12-01", articles=[],
+            summary_sections={"payload_highlights": ["Cargo transfer"]},
+            cache_dir=self.raw_folder / "interrupted-cache",
+        )
+        self.assertEqual(result, (["Cargo transfer"], []))
+        self.assertEqual(client.generate.call_count, 2)
+        self.assertEqual(client.generate.call_args.kwargs["max_length"], 12000)
+
+    def test_json_extraction_handles_fences_and_unrelated_braces(self) -> None:
+        builder = DailyBriefBuilder(self.config, FakeLMStudioClient([]))
+        result = GenerationResult(
+            text='Ignore {example}.\n```json\n{"blog_topics": ["Cargo"], "comms_focus": []}\n```',
+            metrics=GenerationMetrics(), raw_events=[],
+        )
+        self.assertEqual(builder._parse_summary_response(result), (["Cargo"], []))
+        for text in ('{}', '{"blog_topics": [42], "comms_focus": []}'):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                builder._parse_summary_response(GenerationResult(text, GenerationMetrics(), []))
+
+    def test_pipeline_rebuilds_cached_prompt_with_unsupported_summary(self) -> None:
+        day_dir = self.config.prompt_context_root / "2000" / "12" / "01"
+        day_dir.mkdir(parents=True)
+        (day_dir / "prompt.txt").write_text("Invented activities", encoding="utf-8")
+        (day_dir / "daily_brief.json").write_text(json.dumps({
+            "blog_topics": ["Invented activities"], "comms_focus": [],
+            "payload_highlights": [], "systems_work": [], "planned_activities": [],
+            "ground_ops": [], "blog_headlines": [],
+        }), encoding="utf-8")
+        glossary = "Yuri, Sergei, William, Houston, Moscow, Tsukuba, Munich, Huntsville, space-to-ground, Soyuz, Zvezda, Unity, Zarya, MCC, ISS, EVA, ECLSS, communications, crew, station, telemetry, docking, life support, orbital operations"
+        client = FakeLMStudioClient([glossary])
+        result = PromptContextPipeline(self.config, client).process_date("2000-12-01")
+        self.assertFalse(result.skipped)
+        self.assertNotIn("Invented", result.prompt_path.read_text(encoding="utf-8"))
+        brief = json.loads(result.brief_path.read_text(encoding="utf-8"))
+        self.assertEqual(brief["blog_topics"], [])
+        self.assertEqual(len(client.calls), 1)
+
+    def test_pipeline_still_skips_cached_prompt_with_grounded_brief(self) -> None:
+        day_dir = self.config.prompt_context_root / "2000" / "12" / "01"
+        day_dir.mkdir(parents=True)
+        (day_dir / "prompt.txt").write_text("Cargo transfer", encoding="utf-8")
+        (day_dir / "daily_brief.json").write_text(json.dumps({
+            "payload_highlights": ["Cargo transfer"], "blog_topics": ["Cargo transfer"]
+        }), encoding="utf-8")
+        client = FakeLMStudioClient([])
+        result = PromptContextPipeline(self.config, client).process_date("2000-12-01")
+        self.assertTrue(result.skipped)
+        self.assertEqual(client.calls, [])
 
     def test_daily_brief_uses_cached_summary(self) -> None:
         responses = [
             json.dumps({"blog_topics": ["Maintenance"], "comms_focus": ["Cargo ops"]})
         ]
-        first_client = FakeOllamaClient(list(responses))
+        first_client = FakeLMStudioClient(list(responses))
         brief_builder = DailyBriefBuilder(self.config, first_client)
         day_dir = self.config.prompt_context_root / "2000" / "12" / "02"
 
@@ -130,7 +236,7 @@ class PromptContextTests(unittest.TestCase):
         brief_builder.build_daily_brief(date_str="2000-12-02", output_dir=day_dir)
         self.assertEqual(len(first_client.calls), 1)
 
-        cached_client = FakeOllamaClient([])
+        cached_client = FakeLMStudioClient([])
         cached_builder = DailyBriefBuilder(self.config, cached_client)
         brief = cached_builder.build_daily_brief(
             date_str="2000-12-02", output_dir=day_dir
@@ -186,7 +292,7 @@ class PromptContextTests(unittest.TestCase):
             # Add a shortened response for the refinement call
             "Yuri, Sergei, William, Maintenance, Cargo ops, Life support, Network, ISS, MCC, Houston, Moscow, Tsukuba, EVA, ECLSS, payload",
         ]
-        fake_client = FakeOllamaClient(fake_responses)
+        fake_client = FakeLMStudioClient(fake_responses)
         pipeline = PromptContextPipeline(self.config, fake_client)
 
         result = pipeline.process_date("2000-12-01", force=True)
@@ -226,7 +332,7 @@ class PromptContextTests(unittest.TestCase):
                 )
             )
         config = PromptContextConfig(repo_root=Path(self.temp_dir.name), env_file=None)
-        fake_client = FakeOllamaClient(
+        fake_client = FakeLMStudioClient(
             [json.dumps({"blog_topics": [], "comms_focus": []})]
         )
         crew_builder = CrewPromptBuilder(config)

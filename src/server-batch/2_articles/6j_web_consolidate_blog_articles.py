@@ -2,9 +2,10 @@ import os
 import json
 import shutil
 from dotenv import load_dotenv
+from pathlib import Path
 
 # Load environment variables from .env file
-load_dotenv(dotenv_path="../../../.env")
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
 
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
 RAW_FOLDER = os.getenv("RAW_FOLDER")
@@ -188,11 +189,17 @@ def copy_blog_article_for_date(date_str, wayback_articles_by_date=None):
         dest_dir = os.path.join(web_blog_articles_folder, year, month, day)
         os.makedirs(dest_dir, exist_ok=True)
 
-        # Added check: skip if consolidated articles.json already exists
+        # A day can gain more posts after its first consolidation.
         merged_json_path = os.path.join(dest_dir, "articles.json")
         if os.path.exists(merged_json_path):
-            print(f"Consolidated json file already exists for {date_str}. Skipping.")
-            return
+            with open(merged_json_path, "r", encoding="utf-8") as f:
+                existing_articles = json.load(f)
+            if existing_articles == all_articles and all(
+                os.path.isfile(os.path.join(dest_dir, name))
+                for _, name in article_images
+            ):
+                print(f"Consolidated articles unchanged for {date_str}. Skipping.")
+                return
 
         # Copy all collected images
         for src_file, file_name in article_images:

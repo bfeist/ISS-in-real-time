@@ -7,6 +7,7 @@ import os
 import json
 import time
 from dateutil import parser
+from wikimedia import convert_wikimedia_url
 
 load_dotenv(dotenv_path="../../../.env")
 WEB_ASSETS_FOLDER = os.getenv("WEB_ASSETS_FOLDER")
@@ -45,24 +46,6 @@ def extract_date(date_str):
     except Exception as e:
         print(f"Error parsing date '{date_str}': {e}")
         return date_str
-
-
-# Helper function to convert Wikimedia URLs
-def convert_wikimedia_url(url):
-    if url.startswith("//"):
-        url = "https:" + url
-    if "/thumb/" in url:
-        try:
-            base, rest = url.split("/thumb/", 1)
-            parts = rest.split("/")
-            if len(parts) >= 4:
-                if base.endswith("/commons"):
-                    return f"{base}/{parts[0]}/{parts[1]}/{parts[2]}"
-                else:
-                    return f"{base}/commons/{parts[0]}/{parts[1]}/{parts[2]}"
-        except Exception:
-            pass
-    return url
 
 
 # Names/keywords that are never a crew member (organizations, roles, etc.).

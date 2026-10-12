@@ -7,7 +7,7 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).resolve().parents[1] / "1_comm"
 sys.path.insert(0, str(PACKAGE_ROOT))
 
-from prompt_context.ollama import InfiniteLoopDetector  # type: ignore[import]
+from prompt_context.lmstudio import InfiniteLoopDetector  # type: ignore[import]
 
 
 class InfiniteLoopDetectorTests(unittest.TestCase):
