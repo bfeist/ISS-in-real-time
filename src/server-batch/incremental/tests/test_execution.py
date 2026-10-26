@@ -281,6 +281,74 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.db.get_recent_runs()[0].status, "failed")
         self.assertEqual(len(self.db.get_unresolved_errors()), 1)
 
+    async def test_completed_corpus_skips_model_load_and_allows_downstream_stages(self):
+        configured = self.settings.pipelines["source"].stages[0]
+        configured.requires_gpu = True
+        configured.gpu_task_type = GpuTaskType.STRATA
+        configured.work_check_args = ["--check-work"]
+        check = script_result()
+        check.json_output = {"needs_work": False}
+        self.runner.script_runner.run.side_effect = [check, script_result()]
+
+        result = await self.runner.run_pipelines()
+
+        self.assertTrue(result.success)
+        self.assertIn("stats", self.runner._completed_pipelines)
+        self.runner.resource_manager.acquire_gpu.assert_not_awaited()
+        self.runner.resource_manager.release_gpu.assert_not_awaited()
+        calls = self.runner.script_runner.run.call_args_list
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0].kwargs["args"], ["--check-work"])
+        self.assertTrue(calls[1].kwargs["script_path"].endswith("build.py"))
+        source_run = next(r for r in self.db.get_recent_runs() if r.pipeline_id == "source")
+        self.assertEqual(source_run.work_items_processed, 0)
+
+    async def test_corpus_model_load_follows_successful_work_check_with_same_date_and_force_args(self):
+        configured = self.settings.pipelines["source"].stages[0]
+        configured.requires_gpu = True
+        configured.gpu_task_type = GpuTaskType.STRATA
+        configured.work_check_args = ["--check-work"]
+        configured.args_template = "--start-date {since_date} --end-date {until_date} {force_flag}"
+
+        async def run_script(**kwargs):
+            result = script_result()
+            if "--check-work" in kwargs["args"]:
+                self.runner.resource_manager.acquire_gpu.assert_not_awaited()
+                result.json_output = {"needs_work": True}
+            else:
+                self.runner.resource_manager.acquire_gpu.assert_awaited_once()
+            return result
+
+        self.runner.script_runner.run.side_effect = run_script
+        result = await self.runner.run_pipelines(
+            ["source"], since=date(2024, 1, 2), until=date(2024, 1, 4), force=True
+        )
+
+        self.assertTrue(result.success)
+        expected_args = ["--start-date", "2024-01-02", "--end-date", "2024-01-04", "--force"]
+        calls = self.runner.script_runner.run.call_args_list
+        self.assertEqual(calls[0].kwargs["args"], [*expected_args, "--check-work"])
+        self.assertEqual(calls[1].kwargs["args"], expected_args)
+        self.assertEqual(calls[0].kwargs["env"], calls[1].kwargs["env"])
+        self.runner.resource_manager.release_gpu.assert_awaited_once()
+
+    async def test_failed_or_invalid_work_check_fails_without_loading_model(self):
+        configured = self.settings.pipelines["source"].stages[0]
+        configured.requires_gpu = True
+        configured.work_check_args = ["--check-work"]
+        for success, output in ((False, None), (True, None), (True, {"needs_work": "false"})):
+            check = script_result(success)
+            check.json_output = output
+            with self.subTest(success=success, output=output):
+                self.runner.script_runner.run.reset_mock()
+                self.runner.script_runner.run.return_value = check
+                result = await self.runner.run_pipelines()
+                self.assertFalse(result.success)
+                self.runner.script_runner.run.assert_awaited_once()
+                self.runner.resource_manager.acquire_gpu.assert_not_awaited()
+                self.runner.resource_manager.release_gpu.assert_not_awaited()
+                self.assertNotIn("stats", self.runner._completed_pipelines)
+
     async def test_cancellation_closes_run_and_releases_gpu(self):
         self.settings.pipelines["source"].stages[0].requires_gpu = True
         self.runner.script_runner.run.side_effect = asyncio.CancelledError

@@ -468,32 +468,6 @@ class Orchestrator:
         gpu_acquired = False
 
         try:
-            # Acquire GPU if needed
-            if stage.requires_gpu:
-                gpu_task_type = self._get_gpu_task_type(stage)
-                logger.info(f"Acquiring GPU for stage {stage.id} ({gpu_task_type})")
-                self._notify_progress(
-                    on_progress, pipeline.id, stage.id, "Waiting for GPU..."
-                )
-
-                try:
-                    await self.resource_manager.acquire_gpu(
-                        gpu_task_type,
-                        strata_model=stage.strata_model or self.settings.gpu.strata_default_model,
-                    )
-                    gpu_acquired = True
-                    logger.info(f"GPU acquired for stage {stage.id}")
-                except Exception as e:
-                    msg = f"Failed to acquire GPU for stage {stage.id}: {e}"
-                    logger.error(msg)
-                    return StageResult(
-                        success=False,
-                        items_processed=0,
-                        items_failed=len(work_items),
-                        duration_seconds=0.0,
-                        errors=[msg],
-                    )
-
             # Process work items
             for i, work_item in enumerate(work_items):
                 if self._shutdown:
@@ -542,6 +516,52 @@ class Orchestrator:
                         "PYTHONIOENCODING": "utf-8",  # Fix Unicode output issues
                         "STRATA_BASE_URL": self.settings.gpu.strata_base_url,
                     }
+                    if stage.work_check_args:
+                        check = await self.script_runner.run(
+                            script_path=script_path,
+                            args=[*args, *stage.work_check_args],
+                            timeout_minutes=stage.timeout_minutes,
+                            env=script_env,
+                            on_output=_make_output_handler(pipeline.id, stage.id, on_progress),
+                        )
+                        if not check.success:
+                            raise RuntimeError(
+                                f"Work check failed: {check.error_message or check.stderr or check.stdout or check.exit_code}"
+                            )
+                        needs_work = (check.json_output or {}).get("needs_work")
+                        if not isinstance(needs_work, bool):
+                            raise RuntimeError("Work check did not return a boolean needs_work")
+                        if not needs_work:
+                            self._notify_progress(
+                                on_progress, pipeline.id, stage.id, "No items to process"
+                            )
+                            continue
+
+                    # Check script-owned completion before loading a GPU model.
+                    if stage.requires_gpu and not gpu_acquired:
+                        gpu_task_type = self._get_gpu_task_type(stage)
+                        logger.info(f"Acquiring GPU for stage {stage.id} ({gpu_task_type})")
+                        self._notify_progress(
+                            on_progress, pipeline.id, stage.id, "Waiting for GPU..."
+                        )
+                        try:
+                            await self.resource_manager.acquire_gpu(
+                                gpu_task_type,
+                                strata_model=stage.strata_model or self.settings.gpu.strata_default_model,
+                            )
+                            gpu_acquired = True
+                        except Exception as exc:
+                            msg = f"Failed to acquire GPU for stage {stage.id}: {exc}"
+                            logger.error(msg)
+                            return StageResult(
+                                success=False,
+                                items_processed=items_processed,
+                                items_failed=items_failed + len(work_items) - i,
+                                duration_seconds=(datetime.now() - start_time).total_seconds(),
+                                errors=[*errors, msg],
+                            )
+                        logger.info(f"GPU acquired for stage {stage.id}")
+
                     if self.resource_manager.loaded_strata_model:
                         script_env["STRATA_MODEL"] = self.resource_manager.loaded_strata_model
                     result = await self.script_runner.run(

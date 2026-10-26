@@ -128,6 +128,13 @@ It also unloads all native Strata instances before WhisperX starts. Failures
 stop the stage. Context length and GPU placement use your saved Strata settings.
 Avoid running interactive Strata requests during pipeline GPU stages.
 
+The corpus stage first checks its cached prompts with `--check-work`, so a run
+with no prompts to generate never loads the model. Empty or interrupted prompts,
+invalid metadata, and unsupported summaries still trigger regeneration, as does
+`--force`. Stages can opt into this preflight with `work_check_args`; the script
+receives its normal arguments plus these flags and must exit successfully with
+JSON `{"needs_work": true}` or `{"needs_work": false}`.
+
 The SQLite schema's unused `ollama_model` column is retained for compatibility
 with existing databases.
 

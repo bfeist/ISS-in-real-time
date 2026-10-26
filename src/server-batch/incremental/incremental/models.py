@@ -136,6 +136,7 @@ class StageConfig:
     depends_on_stages: list[str] = field(default_factory=list)
     cross_dependencies: list[dict[str, str]] = field(default_factory=list)
     args_template: str = ""
+    work_check_args: list[str] = field(default_factory=list)
     enabled: bool = True
 
 

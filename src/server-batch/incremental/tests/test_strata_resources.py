@@ -137,6 +137,8 @@ class StrataResourceTests(unittest.IsolatedAsyncioTestCase):
                   if s.gpu_task_type == GpuTaskType.STRATA]
         self.assertEqual({s.id for s in stages}, {"corpus", "ai_classify"})
         self.assertTrue(all(s.strata_model == "iq3_xxs" for s in stages))
+        corpus = next(s for s in stages if s.id == "corpus")
+        self.assertEqual(corpus.work_check_args, ["--check-work"])
 
 
 if __name__ == "__main__":

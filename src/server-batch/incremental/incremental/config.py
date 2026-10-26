@@ -166,6 +166,7 @@ def parse_stage_config(stage_data: dict[str, Any]) -> StageConfig:
         depends_on_stages=stage_data.get("depends_on_stages", []),
         cross_dependencies=stage_data.get("cross_dependencies", []),
         args_template=stage_data.get("args_template", ""),
+        work_check_args=stage_data.get("work_check_args", []),
         enabled=stage_data.get("enabled", True),
     )
 
@@ -462,6 +463,7 @@ pipelines:
         requires_gpu: true
         gpu_task_type: strata
         strata_model: "iq3_xxs"
+        work_check_args: ["--check-work"]
         depends_on_stages: [download]
         cross_dependencies:
           - pipeline: articles

@@ -46,7 +46,7 @@ from rich.console import Console
 
 from prompt_context.config import PromptContextConfig
 from prompt_context.strata import StrataClient
-from prompt_context.pipeline import PromptContextPipeline
+from prompt_context.pipeline import PromptContextPipeline, needs_prompt_generation
 
 # Commonly used ground station names and terminology
 CUSTOM_TERMS = [
@@ -231,6 +231,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Print streaming chunks to console for debugging",
     )
     parser.add_argument("--dry-run", action="store_true", help="List dates and exit")
+    parser.add_argument(
+        "--check-work",
+        action="store_true",
+        help="Report JSON needs_work without generating prompts or contacting Strata",
+    )
     parser.add_argument(
         "--request-timeout",
         type=int,
@@ -621,6 +626,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         return 1
+
+    if args.check_work:
+        needs_work = any(
+            needs_prompt_generation(config.prompt_context_root.joinpath(*date.split("-")), force=args.force)
+            for date in dates
+        )
+        print(json.dumps({"needs_work": needs_work}))
+        return 0
 
     if args.dry_run:
         console.print("Dry run: the following dates would be processed:")

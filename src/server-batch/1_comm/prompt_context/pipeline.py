@@ -12,6 +12,36 @@ from .strata import StrataClient
 from .prompt_synthesizer import PromptSynthesizer
 
 
+def needs_prompt_generation(day_dir: Path, *, force: bool = False, on_event=None) -> bool:
+    """Check cached outputs without creating directories or contacting Strata."""
+    prompt_path = day_dir / "prompt.txt"
+    if force or not prompt_path.exists():
+        return True
+
+    rebuild_incomplete = not prompt_path.read_text(encoding="utf-8").strip()
+    meta_path = day_dir / "prompt_meta.json"
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            rebuild_incomplete |= not isinstance(meta, dict) or bool(meta.get("was_terminated"))
+        except json.JSONDecodeError:
+            rebuild_incomplete = True
+    if rebuild_incomplete and on_event:
+        on_event({"debug": "[PROMPT] Rebuilding empty or interrupted cached prompt"})
+
+    rebuild_unsupported = False
+    brief_path = day_dir / "daily_brief.json"
+    if brief_path.exists():
+        try:
+            brief = json.loads(brief_path.read_text(encoding="utf-8"))
+            rebuild_unsupported = not isinstance(brief, dict) or DailyBriefBuilder.has_unsupported_summary(brief)
+        except json.JSONDecodeError:
+            rebuild_unsupported = True
+    if rebuild_unsupported and on_event:
+        on_event({"debug": "[BRIEF] Rebuilding cached prompt with unsupported summary"})
+    return rebuild_incomplete or rebuild_unsupported
+
+
 @dataclass(slots=True)
 class DailyPipelineResult:
     date: str
@@ -58,32 +88,8 @@ class PromptContextPipeline:
         day_dir = self.day_directory(date_str)
         prompt_path = day_dir / "prompt.txt"
         meta_path = day_dir / "prompt_meta.json"
-        existing_meta = {}
-        rebuild_incomplete = False
-        if prompt_path.exists() and not force:
-            rebuild_incomplete = not prompt_path.read_text(encoding="utf-8").strip()
-            if meta_path.exists():
-                try:
-                    existing_meta = json.loads(meta_path.read_text(encoding="utf-8"))
-                    if not isinstance(existing_meta, dict):
-                        existing_meta = {}
-                        rebuild_incomplete = True
-                    rebuild_incomplete |= bool(existing_meta.get("was_terminated"))
-                except json.JSONDecodeError:
-                    rebuild_incomplete = True
-            if rebuild_incomplete and on_event:
-                on_event({"debug": "[PROMPT] Rebuilding empty or interrupted cached prompt"})
-        rebuild_unsupported = False
-        brief_path = day_dir / "daily_brief.json"
-        if prompt_path.exists() and brief_path.exists() and not force:
-            try:
-                cached_brief = json.loads(brief_path.read_text(encoding="utf-8"))
-                rebuild_unsupported = not isinstance(cached_brief, dict) or DailyBriefBuilder.has_unsupported_summary(cached_brief)
-            except json.JSONDecodeError:
-                rebuild_unsupported = True
-            if rebuild_unsupported and on_event:
-                on_event({"debug": "[BRIEF] Rebuilding cached prompt with unsupported summary"})
-        if prompt_path.exists() and not force and not rebuild_unsupported and not rebuild_incomplete:
+        if not needs_prompt_generation(day_dir, force=force, on_event=on_event):
+            existing_meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
             if status_callback:
                 status_callback("skip", {"date": date_str, "reason": "prompt exists"})
             meta_path = day_dir / "prompt_meta.json"

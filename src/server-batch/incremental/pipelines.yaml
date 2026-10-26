@@ -90,6 +90,7 @@ pipelines:
         requires_gpu: true
         gpu_task_type: strata
         strata_model: "iq3_xxs"
+        work_check_args: ["--check-work"]
         depends_on_stages: [download]
         # CRITICAL: Corpus needs blog articles for context generation
         cross_dependencies:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -202,6 +203,55 @@ class PromptContextTests(unittest.TestCase):
         result = PromptContextPipeline(self.config, client).process_date("2000-12-01")
         self.assertTrue(result.skipped)
         self.assertEqual(client.calls, [])
+
+    def test_corpus_work_check_uses_cache_rules_without_generating_outputs(self) -> None:
+        day_dir = self.config.prompt_context_root / "2000" / "12" / "01"
+        day_dir.mkdir(parents=True)
+        env_file = Path(self.temp_dir.name) / ".env"
+        env_file.touch()
+        command = [
+            sys.executable, str(PACKAGE_ROOT / "5_corpus_initial_prompt_ai_gen.py"),
+            "--env-file", str(env_file),
+            "--start-date", "2000-12-01", "--end-date", "2000-12-01", "--check-work",
+        ]
+        cases = (
+            (None, None, None, False, True),
+            ("Cargo transfer", None, None, False, False),
+            ("Cargo transfer", "{}", '{"payload_highlights": ["Cargo transfer"], "blog_topics": ["Cargo transfer"]}', False, False),
+            ("Cargo transfer", "{}", "{}", True, True),
+            ("  ", "{}", "{}", False, True),
+            ("Partial", '{"was_terminated": true}', "{}", False, True),
+            ("Partial", "invalid metadata", "{}", False, True),
+            ("Partial", "[]", "{}", False, True),
+            ("Invented", "{}", '{"blog_topics": ["Invented"]}', False, True),
+            ("Cargo transfer", "{}", "invalid brief", False, True),
+        )
+        for prompt, meta, brief, force, expected in cases:
+            with self.subTest(prompt=prompt, meta=meta, brief=brief, force=force):
+                for name, content in (("prompt.txt", prompt), ("prompt_meta.json", meta), ("daily_brief.json", brief)):
+                    path = day_dir / name
+                    if content is None:
+                        path.unlink(missing_ok=True)
+                    else:
+                        path.write_text(content, encoding="utf-8")
+                before = {p.name: p.read_bytes() for p in day_dir.iterdir()}
+                result = subprocess.run(
+                    [*command, *(["--force"] if force else [])],
+                    capture_output=True, text=True, timeout=10,
+                    env={**os.environ, "STRATA_BASE_URL": "http://127.0.0.1:1/v1"},
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads(result.stdout), {"needs_work": expected})
+                self.assertEqual({p.name: p.read_bytes() for p in day_dir.iterdir()}, before)
+
+        # A completed first date must not hide a missing date later in the range.
+        (day_dir / "prompt.txt").write_text("Completed", encoding="utf-8")
+        (day_dir / "daily_brief.json").write_text("{}", encoding="utf-8")
+        command[command.index("--end-date") + 1] = "2000-12-02"
+        result = subprocess.run(command, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), {"needs_work": True})
+        self.assertFalse((day_dir.parent / "02").exists())
 
     def test_pipeline_rebuilds_empty_interrupted_or_invalid_cached_prompt(self) -> None:
         day_dir = self.config.prompt_context_root / "2000" / "12" / "01"
