@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Dict, List
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1] / "1_comm"
 sys.path.insert(0, str(PACKAGE_ROOT))
@@ -202,6 +202,56 @@ class PromptContextTests(unittest.TestCase):
         result = PromptContextPipeline(self.config, client).process_date("2000-12-01")
         self.assertTrue(result.skipped)
         self.assertEqual(client.calls, [])
+
+    def test_pipeline_rebuilds_empty_interrupted_or_invalid_cached_prompt(self) -> None:
+        day_dir = self.config.prompt_context_root / "2000" / "12" / "01"
+        day_dir.mkdir(parents=True)
+        glossary = "Houston, Moscow, Tsukuba, Munich, Huntsville, space-to-ground, Yuri, Sergei, William, Soyuz, Zvezda, Unity, Zarya, MCC, ISS, EVA, ECLSS, communications, crew, station, telemetry, docking, life support, orbital operations"
+        for text, meta in (
+            ("", {}),
+            ("partial", {"was_terminated": True}),
+            ("partial", "invalid metadata"),
+        ):
+            with self.subTest(text=text, meta=meta):
+                (day_dir / "prompt.txt").write_text(text, encoding="utf-8")
+                (day_dir / "prompt_meta.json").write_text(
+                    meta if isinstance(meta, str) else json.dumps(meta), encoding="utf-8"
+                )
+                (day_dir / "daily_brief.json").write_text("{}", encoding="utf-8")
+                client = FakeStrataClient([glossary])
+                result = PromptContextPipeline(self.config, client).process_date("2000-12-01")
+                self.assertFalse(result.skipped)
+                self.assertEqual(result.prompt_path.read_text(encoding="utf-8"), glossary)
+
+    def test_interrupted_or_empty_generation_is_not_saved_as_completed_prompt(self) -> None:
+        glossary = "Houston, Moscow, Tsukuba, Munich, Huntsville, space-to-ground, Yuri, Sergei, William, Soyuz, Zvezda, Unity, Zarya, MCC, ISS, EVA, ECLSS, communications, crew, station, telemetry, docking, life support, orbital operations"
+        for first_text, failed_text, terminated in (
+            (None, "partial", True),
+            (None, "", False),
+            ("ISS", "partial", True),
+            ("A long explanation without commas. " * 15, "partial", True),
+        ):
+            with self.subTest(first_text=first_text, terminated=terminated), tempfile.TemporaryDirectory() as tmp:
+                failed = GenerationResult(
+                    text=failed_text,
+                    metrics=GenerationMetrics(was_terminated=terminated, termination_reason="stalled"),
+                    raw_events=[],
+                )
+                responses = [failed]
+                if first_text is not None:
+                    responses.insert(0, GenerationResult(
+                        text=first_text, metrics=GenerationMetrics(), raw_events=[]
+                    ))
+                client = Mock()
+                client.generate.side_effect = responses
+                pipeline = PromptContextPipeline(self.config, client)
+                with patch.object(pipeline.prompt_synthesizer, "_build_generation_prompt", return_value=glossary):
+                    with self.assertRaises(RuntimeError):
+                        pipeline.prompt_synthesizer.synthesize_prompt(
+                            date_str="2000-12-01", prompt_input={}, output_dir=Path(tmp)
+                        )
+                self.assertFalse((Path(tmp) / "prompt.txt").exists())
+                self.assertFalse((Path(tmp) / "prompt_meta.json").exists())
 
     def test_daily_brief_uses_cached_summary(self) -> None:
         responses = [

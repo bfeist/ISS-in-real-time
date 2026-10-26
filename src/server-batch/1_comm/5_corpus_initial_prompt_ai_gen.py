@@ -25,7 +25,7 @@ Usage:
   python 5_corpus_initial_prompt_ai_gen.py --date 2020-03-15 --date 2020-04-20
 
   # Do all the days
-  python 5_corpus_initial_prompt_ai_gen.py --workers 2 --monitor --all-days
+  python 5_corpus_initial_prompt_ai_gen.py --monitor --all-days
 """
 
 from __future__ import annotations
@@ -216,8 +216,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--workers",
         type=int,
-        default=os.cpu_count() or 2,
-        help="Number of parallel workers",
+        default=1,
+        help="Number of parallel workers (default: 1 for local Strata inference)",
     )
     parser.add_argument(
         "--force", action="store_true", help="Regenerate even if prompt already exists"

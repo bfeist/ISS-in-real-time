@@ -262,7 +262,6 @@ class StrataClient:
         detector: Optional[InfiniteLoopDetector] = None
         if self.enable_loop_detection:
             detector = InfiniteLoopDetector(**self.loop_detector_config)
-            detector.start()
 
         try:
             return self._read_stream(
@@ -277,7 +276,15 @@ class StrataClient:
         raw_events: List[dict] = []
         current_length = 0
         completed = False
+        generation_started = False
         for line in response.iter_lines():
+            # Strata may send heartbeats while queued or reading the prompt.
+            # Bound that wait separately from the active-generation watchdog.
+            if not generation_started and time.perf_counter() - started > self.request_timeout:
+                raise requests.Timeout(
+                    f"Strata produced no output within {self.request_timeout}s "
+                    "while queued or processing the prompt"
+                )
             if not line:
                 continue
             if isinstance(line, bytes):
@@ -315,15 +322,15 @@ class StrataClient:
                 metrics.eval_duration = frame["timings"]["predicted_ms"] * 1e6
             raw_events.append(event)
 
-            # Check for infinite loop before processing (check both response and thinking)
-            token_to_check = None
-            if detector:
-                if event.get("response"):
-                    token_to_check = event["response"]
-                elif event.get("thinking"):
-                    token_to_check = event["thinking"]
-
-                if token_to_check:
+            # Queue and prompt-processing time are not a generation stall.
+            # Empty role frames and heartbeats must not start this clock.
+            token_to_check = event["response"] or event["thinking"]
+            if token_to_check:
+                if not generation_started:
+                    generation_started = True
+                    if detector:
+                        detector.start()
+                if detector:
                     termination_reason = detector.check_token(token_to_check)
                     if termination_reason:
                         # Add termination event to raw events

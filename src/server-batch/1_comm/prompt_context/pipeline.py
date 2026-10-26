@@ -57,6 +57,22 @@ class PromptContextPipeline:
     ) -> DailyPipelineResult:
         day_dir = self.day_directory(date_str)
         prompt_path = day_dir / "prompt.txt"
+        meta_path = day_dir / "prompt_meta.json"
+        existing_meta = {}
+        rebuild_incomplete = False
+        if prompt_path.exists() and not force:
+            rebuild_incomplete = not prompt_path.read_text(encoding="utf-8").strip()
+            if meta_path.exists():
+                try:
+                    existing_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                    if not isinstance(existing_meta, dict):
+                        existing_meta = {}
+                        rebuild_incomplete = True
+                    rebuild_incomplete |= bool(existing_meta.get("was_terminated"))
+                except json.JSONDecodeError:
+                    rebuild_incomplete = True
+            if rebuild_incomplete and on_event:
+                on_event({"debug": "[PROMPT] Rebuilding empty or interrupted cached prompt"})
         rebuild_unsupported = False
         brief_path = day_dir / "daily_brief.json"
         if prompt_path.exists() and brief_path.exists() and not force:
@@ -67,18 +83,13 @@ class PromptContextPipeline:
                 rebuild_unsupported = True
             if rebuild_unsupported and on_event:
                 on_event({"debug": "[BRIEF] Rebuilding cached prompt with unsupported summary"})
-        if prompt_path.exists() and not force and not rebuild_unsupported:
+        if prompt_path.exists() and not force and not rebuild_unsupported and not rebuild_incomplete:
             if status_callback:
                 status_callback("skip", {"date": date_str, "reason": "prompt exists"})
             meta_path = day_dir / "prompt_meta.json"
             roster_path = day_dir / "crew_roster.json"
             brief_path = day_dir / "daily_brief.json"
             prompt_input_path = day_dir / "prompt_input.json"
-            existing_meta = (
-                json.loads(meta_path.read_text(encoding="utf-8"))
-                if meta_path.exists()
-                else {}
-            )
             return DailyPipelineResult(
                 date=date_str,
                 prompt_path=prompt_path,

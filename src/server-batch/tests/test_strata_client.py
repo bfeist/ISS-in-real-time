@@ -39,6 +39,65 @@ def final_frame():
 
 
 class StrataClientTests(unittest.TestCase):
+    def test_queue_and_prompt_processing_do_not_trigger_generation_watchdog(self):
+        for first_delta in ({"content": "OK"}, {"reasoning_content": "Check"}):
+            clock = [0.0]
+            response = Mock()
+
+            def lines():
+                yield ("data: " + json.dumps(delta_frame(role="assistant", content=""))).encode()
+                clock[0] = 100.0
+                yield b": keep-alive"
+                clock[0] = 350.0
+                yield ("data: " + json.dumps(delta_frame(**first_delta))).encode()
+                clock[0] = 351.0
+                if "reasoning_content" in first_delta:
+                    yield ("data: " + json.dumps(delta_frame(content="OK"))).encode()
+                yield ("data: " + json.dumps(final_frame())).encode()
+
+            response.iter_lines.side_effect = lines
+            with self.subTest(first_delta=first_delta), patch(
+                "prompt_context.strata.requests.post", return_value=response
+            ), patch("prompt_context.strata.time.perf_counter", side_effect=lambda: clock[0]):
+                result = StrataClient(request_timeout=600, max_retries=1).generate("test")
+            self.assertEqual(result.text, "OK")
+            self.assertFalse(result.metrics.was_terminated)
+
+    def test_heartbeats_cannot_keep_first_output_wait_alive_indefinitely(self):
+        clock = [0.0]
+        response = Mock()
+
+        def lines():
+            yield b": keep-alive"
+            clock[0] = 301.0
+            yield b": keep-alive"
+
+        response.iter_lines.side_effect = lines
+        with patch("prompt_context.strata.requests.post", return_value=response), patch(
+            "prompt_context.strata.time.perf_counter", side_effect=lambda: clock[0]
+        ):
+            with self.assertRaisesRegex(requests.Timeout, "queued or processing the prompt"):
+                StrataClient(max_retries=1).generate("test")
+        response.close.assert_called()
+
+    def test_real_stall_after_generation_starts_is_still_terminated(self):
+        clock = [0.0]
+        response = Mock()
+
+        def lines():
+            yield ("data: " + json.dumps(delta_frame(content="partial"))).encode()
+            clock[0] = 40.0
+            yield ("data: " + json.dumps(delta_frame(content="late"))).encode()
+
+        response.iter_lines.side_effect = lines
+        with patch("prompt_context.strata.requests.post", return_value=response), patch(
+            "prompt_context.strata.time.perf_counter", side_effect=lambda: clock[0]
+        ):
+            result = StrataClient(max_retries=1).generate("test")
+        self.assertTrue(result.metrics.was_terminated)
+        self.assertIn("stalled", result.metrics.termination_reason)
+        response.close.assert_called()
+
     def test_chat_stream_preserves_unicode_reasoning_and_monitor_contract(self):
         response = stream_response(
             delta_frame(role="assistant", content=""),

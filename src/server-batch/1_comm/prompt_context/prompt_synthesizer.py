@@ -118,12 +118,7 @@ class PromptSynthesizer:
             on_event({"debug": "[PROMPT] Calling Strata (initial generation)"})
         result = self.strata.generate(prompt, on_event=on_event, max_length=2000)
 
-        # Check if generation was terminated due to infinite loop
-        if result.metrics.was_terminated:
-            msg = f"⚠️  Generation was terminated: {result.metrics.termination_reason}"
-            print(msg)
-            if on_event:
-                on_event({"debug": f"[PROMPT] {msg}"})
+        self._require_complete_response(result)
 
         text = result.text.strip().replace("\n", " ")
         char_count = len(text)
@@ -243,6 +238,7 @@ Please shorten this glossary to be ≤{PROMPT_CHAR_LIMIT} characters by removing
             result = self.strata.generate(
                 refinement_prompt, on_event=on_event, max_length=2000
             )
+            self._require_complete_response(result)
             text = result.text.strip().replace("\n", " ")
             char_count = len(text)
             all_raw_events.extend(result.raw_events)
@@ -268,6 +264,7 @@ Please expand this glossary by adding more relevant spaceflight terms, acronyms,
             result = self.strata.generate(
                 refinement_prompt, on_event=on_event, max_length=2000
             )
+            self._require_complete_response(result)
             text = result.text.strip().replace("\n", " ")
             char_count = len(text)
             all_raw_events.extend(result.raw_events)
@@ -320,6 +317,15 @@ Please expand this glossary by adding more relevant spaceflight terms, acronyms,
             encoding="utf-8",
         )
         return text, result, elapsed
+
+    @staticmethod
+    def _require_complete_response(result: GenerationResult) -> None:
+        if result.metrics.was_terminated:
+            raise RuntimeError(
+                f"Prompt generation was terminated: {result.metrics.termination_reason}"
+            )
+        if not result.text.strip():
+            raise RuntimeError("Prompt generation returned no answer text")
 
     def _build_generation_prompt(self, prompt_input: dict) -> str:
         crew_lines: List[str] = []

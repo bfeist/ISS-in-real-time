@@ -13,14 +13,14 @@ Key features:
 - Deterministic crew roster snapshots at 00:00:00Z and 23:59:59Z with handover notes when the crew changes mid-day.
 - Daily brief extraction that flattens activity summaries, ingests blog articles, and caches map-reduce style model summaries per day.
 - Prompt synthesis that constrains output to ≤250 characters, saves rich metadata and streamed JSONL traces, and respects static vocabulary overrides from `PROMPT_CONTEXT_STATIC_VOCAB`.
-- Parallel execution with a Rich-powered `--monitor` view that streams partial Strata tokens for each worker.
+- Sequential execution by default for local Strata, with a Rich-powered `--monitor` view that streams partial tokens. Set `--workers` explicitly only when the server can handle concurrent requests.
 
 Example invocation:
 
 ```bash
 python src/server-batch/1_comm/5_corpus_initial_prompt_ai_gen.py \
   --start-date 2024-01-01 --end-date 2024-01-07 \
-  --workers 3 --monitor
+  --monitor
 ```
 
 The script writes outputs under `${RAW_FOLDER}/prompt_context/YYYY/MM/DD/`:
@@ -31,7 +31,9 @@ The script writes outputs under `${RAW_FOLDER}/prompt_context/YYYY/MM/DD/`:
 - `prompt.txt`, `prompt_meta.json`, `prompt_raw.jsonl`: final prompt string, telemetry, and streamed Strata frames
 - `blog_cache/`: cached article summaries keyed by content hash
 
-If a day has already been processed, rerun with `--force` to regenerate. Use `--discover-comm` to infer dates from the `comm_transcripts_aacs` tree or `--dry-run` to list the plan without executing.
+Completed prompts are skipped on reruns. Empty prompts and prompts marked as interrupted are regenerated automatically; use `--force` to regenerate completed prompts too. Use `--discover-comm` to infer dates from the `comm_transcripts_aacs` tree or `--dry-run` to list the plan without executing.
+
+The generation watchdog starts with the first answer or thinking text, so queue and prompt-processing time do not trigger its 30-second stall limit. `--request-timeout` bounds the wait for first output, including when the server sends only heartbeats. Interrupted or empty generations are not saved as completed prompts.
 
 Days without activity or article source material receive empty brief summaries without
 an inference request. Existing prompts with summaries unsupported by any recorded
