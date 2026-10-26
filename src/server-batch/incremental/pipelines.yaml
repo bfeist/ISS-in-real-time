@@ -88,8 +88,8 @@ pipelines:
         script: "1_comm/5_corpus_initial_prompt_ai_gen.py"
         timeout_minutes: 120
         requires_gpu: true
-        gpu_task_type: lmstudio
-        lmstudio_model: "gemma-4-12b-it-qat"
+        gpu_task_type: strata
+        strata_model: "iq3_xxs"
         depends_on_stages: [download]
         # CRITICAL: Corpus needs blog articles for context generation
         cross_dependencies:
@@ -221,8 +221,8 @@ pipelines:
         script: "4_photos/9h_make_flickr_flight_photos_list_using_ai.py"
         timeout_minutes: 180
         requires_gpu: true
-        gpu_task_type: lmstudio
-        lmstudio_model: "qwen3.8-27b"
+        gpu_task_type: strata
+        strata_model: "iq3_xxs"
         depends_on_stages: [filter]
         args_template: ""
 

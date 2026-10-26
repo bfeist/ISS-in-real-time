@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "1_comm"))
-from prompt_context.lmstudio import LMStudioClient
+from prompt_context.strata import StrataClient
 
 # import openai  # Removed import
 from datetime import datetime
@@ -16,8 +16,8 @@ from datetime import datetime
 S3_FOLDER = os.getenv("S3_FOLDER")
 
 """
-Start the LM Studio local server with lms server start --port 1234.
-Uses the configured LMSTUDIO_MODEL or Gemma 4 12B by default.
+Start the Strata desktop app with Qwen3.8-Flash-Next IQ3_XXS loaded.
+Uses STRATA_BASE_URL (http://127.0.0.1:47831/v1) and STRATA_MODEL (iq3_xxs).
 """
 
 
@@ -95,7 +95,7 @@ def get_topics_summary(blog_contents):
     print("Prompt: ", prompt)
 
     try:
-        content = LMStudioClient().generate(prompt).text
+        content = StrataClient().generate(prompt).text
 
         topics = [line.strip() for line in content.splitlines() if line.strip()]
 

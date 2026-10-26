@@ -137,8 +137,7 @@ class Orchestrator:
             python_executable=_resolve_venv_python(settings.paths.server_batch_dir)
         )
         self.resource_manager = ResourceManager(
-            lmstudio_host=settings.gpu.lmstudio_host,
-            context_length=settings.gpu.lmstudio_context_length,
+            strata_base_url=settings.gpu.strata_base_url,
         )
         self._shutdown = False
         self._current_pipeline: str | None = None
@@ -479,7 +478,8 @@ class Orchestrator:
 
                 try:
                     await self.resource_manager.acquire_gpu(
-                        gpu_task_type, lmstudio_model=stage.lmstudio_model
+                        gpu_task_type,
+                        strata_model=stage.strata_model or self.settings.gpu.strata_default_model,
                     )
                     gpu_acquired = True
                     logger.info(f"GPU acquired for stage {stage.id}")
@@ -540,10 +540,10 @@ class Orchestrator:
                         "RAW_FOLDER": str(self.settings.paths.raw_folder),
                         "RAW_AUDIO_FOLDER": str(self.settings.paths.raw_audio_folder),
                         "PYTHONIOENCODING": "utf-8",  # Fix Unicode output issues
-                        "LMSTUDIO_HOST": self.settings.gpu.lmstudio_host,
+                        "STRATA_BASE_URL": self.settings.gpu.strata_base_url,
                     }
-                    if self.resource_manager.loaded_lmstudio_model:
-                        script_env["LMSTUDIO_MODEL"] = self.resource_manager.loaded_instance_id
+                    if self.resource_manager.loaded_strata_model:
+                        script_env["STRATA_MODEL"] = self.resource_manager.loaded_strata_model
                     result = await self.script_runner.run(
                         script_path=script_path,
                         args=args,

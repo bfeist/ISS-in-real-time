@@ -297,30 +297,30 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.runner.script_runner.run.assert_not_awaited()
 
     async def test_gpu_configuration_is_authoritative_and_status_uses_model_fields(self):
-        configured = stage("transcribe_name_but_lmstudio", gpu_task_type=GpuTaskType.LMSTUDIO)
-        self.assertEqual(self.runner._get_gpu_task_type(configured), GpuTaskType.LMSTUDIO)
+        configured = stage("transcribe_name_but_strata", gpu_task_type=GpuTaskType.STRATA)
+        self.assertEqual(self.runner._get_gpu_task_type(configured), GpuTaskType.STRATA)
         status = await self.runner.get_status()
         self.assertEqual(status["resource_status"].current_task_type, GpuTaskType.NONE)
 
-    async def test_lmstudio_instance_and_host_are_passed_to_stage_process(self):
+    async def test_strata_instance_and_host_are_passed_to_stage_process(self):
         configured = stage("classify", requires_gpu=True,
-                           gpu_task_type=GpuTaskType.LMSTUDIO,
-                           lmstudio_model="qwen3.8-27b")
+                           gpu_task_type=GpuTaskType.STRATA,
+                           strata_model="iq3_xxs")
         self.settings.pipelines = {"photos": pipeline("photos", [configured])}
-        self.settings.gpu.lmstudio_host = "http://example.test:1234"
+        self.settings.gpu.strata_base_url = "http://example.test:47831/v1"
 
         async def acquire(*args, **kwargs):
-            self.runner.resource_manager._loaded_lmstudio_model = "qwen3.8-27b"
-            self.runner.resource_manager._loaded_instance_id = "qwen3.8-27b:2"
+            self.runner.resource_manager._loaded_strata_model = "iq3_xxs"
+            self.runner.resource_manager._loaded_instance_id = "iq3_xxs:2"
 
         self.runner.resource_manager.acquire_gpu.side_effect = acquire
         result = await self.runner.run_pipelines()
         self.assertTrue(result.success)
         env = self.runner.script_runner.run.call_args.kwargs["env"]
-        self.assertEqual(env["LMSTUDIO_HOST"], "http://example.test:1234")
-        self.assertEqual(env["LMSTUDIO_MODEL"], "qwen3.8-27b:2")
+        self.assertEqual(env["STRATA_BASE_URL"], "http://example.test:47831/v1")
+        self.assertEqual(env["STRATA_MODEL"], "iq3_xxs")
         self.runner.resource_manager.acquire_gpu.assert_awaited_once_with(
-            GpuTaskType.LMSTUDIO, lmstudio_model="qwen3.8-27b"
+            GpuTaskType.STRATA, strata_model="iq3_xxs"
         )
 
     def test_cli_rejects_misspellings_instead_of_reporting_success(self):
@@ -352,12 +352,12 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
 
 
 class ResourceManagerTests(unittest.IsolatedAsyncioTestCase):
-    async def test_releasing_lmstudio_stage_sends_model_unload(self):
+    async def test_releasing_strata_stage_sends_model_unload(self):
         manager = ResourceManager()
-        manager._current_task = GpuTaskType.LMSTUDIO
-        manager._loaded_lmstudio_model = "gemma-4-12b-it-qat"
+        manager._current_task = GpuTaskType.STRATA
+        manager._loaded_strata_model = "iq3_xxs"
 
-        with patch.object(manager, "_unload_lmstudio_model", new_callable=AsyncMock) as unload:
+        with patch.object(manager, "_unload_strata_model", new_callable=AsyncMock) as unload:
             await manager.release_gpu()
 
         unload.assert_awaited_once_with()

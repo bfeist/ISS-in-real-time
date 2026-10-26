@@ -35,9 +35,9 @@ class GpuTaskType(Enum):
 
     NONE = "none"
     WHISPERX = (
-        "whisperx"  # Audio transcription - needs full GPU, LM Studio must be unloaded
+        "whisperx"  # Audio transcription - needs full GPU, Strata must be unloaded
     )
-    LMSTUDIO = "lmstudio"  # AI inference - needs specific model loaded
+    STRATA = "strata"  # AI inference - needs specific model loaded
 
 
 class TriggerSource(Enum):
@@ -132,7 +132,7 @@ class StageConfig:
     timeout_minutes: int = 60
     requires_gpu: bool = False
     gpu_task_type: GpuTaskType = GpuTaskType.NONE
-    lmstudio_model: Optional[str] = None
+    strata_model: Optional[str] = None
     depends_on_stages: list[str] = field(default_factory=list)
     cross_dependencies: list[dict[str, str]] = field(default_factory=list)
     args_template: str = ""
@@ -285,7 +285,7 @@ class GpuStatus:
     current_task_type: GpuTaskType = GpuTaskType.NONE
     current_pipeline: Optional[str] = None
     current_stage: Optional[str] = None
-    lmstudio_model_loaded: Optional[str] = None
+    strata_model_loaded: Optional[str] = None
     locked_since: Optional[datetime] = None
 
     @property

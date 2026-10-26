@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Sequence, Union
 from bs4 import BeautifulSoup
 
 from .config import PromptContextConfig
-from .lmstudio import GenerationResult, LMStudioClient
+from .strata import GenerationResult, StrataClient
 
 
 @dataclass(slots=True)
@@ -44,9 +44,9 @@ def normalize_text(text: str) -> str:
 class DailyBriefBuilder:
     """Generate structured daily brief data for prompt context."""
 
-    def __init__(self, config: PromptContextConfig, lmstudio: LMStudioClient) -> None:
+    def __init__(self, config: PromptContextConfig, strata: StrataClient) -> None:
         self.config = config
-        self.lmstudio = lmstudio
+        self.strata = strata
 
     def build_daily_brief(
         self, *, date_str: str, output_dir: Path, on_event=None
@@ -91,8 +91,8 @@ class DailyBriefBuilder:
         }
 
         if on_event:
-            on_event({"debug": f"[BRIEF] Calling LM Studio to summarize blog articles"})
-        blog_topics, comms_focus = self._summarize_with_lmstudio(
+            on_event({"debug": f"[BRIEF] Calling Strata to summarize blog articles"})
+        blog_topics, comms_focus = self._summarize_with_strata(
             date_str=date_str,
             articles=articles,
             summary_sections=summary_sections,
@@ -175,7 +175,7 @@ class DailyBriefBuilder:
             return f"{name} — {description}"
         return name or description
 
-    def _summarize_with_lmstudio(
+    def _summarize_with_strata(
         self,
         *,
         date_str: str,
@@ -213,18 +213,18 @@ class DailyBriefBuilder:
                 return cached["blog_topics"], cached["comms_focus"]
 
         if on_event:
-            on_event({"debug": f"[BRIEF] Building prompt for LM Studio"})
+            on_event({"debug": f"[BRIEF] Building prompt for Strata"})
         prompt = self._build_summary_prompt(
             date_str=date_str, articles=articles, summary_sections=summary_sections
         )
         if on_event:
             on_event(
                 {
-                    "debug": f"[BRIEF] Sending to LM Studio (prompt length: {len(prompt)} chars)"
+                    "debug": f"[BRIEF] Sending to Strata (prompt length: {len(prompt)} chars)"
                 }
             )
         for attempt in range(1, 3):
-            result = self.lmstudio.generate(
+            result = self.strata.generate(
                 prompt,
                 system="Return only the requested JSON object. Use only the supplied sources; do not invent activities.",
                 options={"temperature": 0.2 if attempt == 1 else 0.0, "num_predict": 2048},
@@ -245,7 +245,7 @@ class DailyBriefBuilder:
             except ValueError as exc:
                 if attempt == 2:
                     raise ValueError(
-                        f"Invalid LM Studio summary after {attempt} attempts: {exc}. Response saved at {attempt_path}"
+                        f"Invalid Strata summary after {attempt} attempts: {exc}. Response saved at {attempt_path}"
                     ) from exc
                 if on_event:
                     on_event({"debug": f"[BRIEF] Invalid JSON summary; retrying once: {exc}"})
@@ -333,12 +333,12 @@ class DailyBriefBuilder:
             payload = self._extract_json_object(text)
 
         if not isinstance(payload, dict):
-            raise ValueError("LM Studio summary response did not contain JSON object")
+            raise ValueError("Strata summary response did not contain JSON object")
         for key in ("blog_topics", "comms_focus"):
             if key not in payload or not isinstance(payload[key], list) or any(
                 not isinstance(item, str) for item in payload[key]
             ):
-                raise ValueError(f"LM Studio summary {key} must be an array of strings")
+                raise ValueError(f"Strata summary {key} must be an array of strings")
 
         blog_topics = [
             normalize_text(item) for item in payload.get("blog_topics", []) if item
@@ -360,7 +360,7 @@ class DailyBriefBuilder:
                 continue
             if isinstance(payload, dict) and {"blog_topics", "comms_focus"} <= payload.keys():
                 return payload
-        raise ValueError("Unable to locate JSON object in LM Studio response")
+        raise ValueError("Unable to locate JSON object in Strata response")
 
     @staticmethod
     def has_unsupported_summary(brief: dict) -> bool:

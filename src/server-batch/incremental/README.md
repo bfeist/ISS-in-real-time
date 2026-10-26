@@ -61,10 +61,10 @@ uv run issirt-incremental update --skip articles --dry-run
 | Pipeline      | Description                                            | GPU              |
 | ------------- | ------------------------------------------------------ | ---------------- |
 | articles      | NASA blog articles                                     | -                |
-| comm          | ISS audio comms (download → corpus → transcribe → web) | WhisperX, LM Studio |
+| comm          | ISS audio comms (download → corpus → transcribe → web) | WhisperX, Strata |
 | flights       | Station flights, supply missions, crew arrivals, expeditions | -           |
 | photos_earth  | Earth photography from NASA EOL                        | -                |
-| photos_flickr | JSC Flickr photos with AI classification               | LM Studio           |
+| photos_flickr | JSC Flickr photos with AI classification               | Strata           |
 | clouds        | Cloud cover availability data                          | -                |
 | eva           | EVA (spacewalk) information                            | -                |
 | ephemera      | Ephemera and orbit count                               | -                |
@@ -107,26 +107,29 @@ uv run issirt-incremental dashboard --auto-run --interval 15m
 
 ## Configuration
 
-LLM stages use the LM Studio server at `http://localhost:1234` (`LMSTUDIO_HOST`
-overrides the host). Start it with `lms server start --port 1234` when ready to
-run the pipeline. No model needs to be loaded manually.
+All LLM stages use local Strata with **Qwen3.8-Flash-Next IQ3_XXS**
+(model ID `iq3_xxs`) at `http://127.0.0.1:47831/v1`. This includes corpus prompt
+context, Flickr classification, and the standalone summary scripts under `ai/`.
+Start the Strata desktop app before running them.
 
-The corpus stage uses the existing `gemma-4-12b-it-qat` model; Flickr
-classification uses the existing `qwen3.8-27b` model. Change `lmstudio_model` in
-`pipelines.yaml` to select a different installed model. Standalone scripts accept
-`LMSTUDIO_MODEL`; the corpus script also accepts `--model`.
+`STRATA_BASE_URL` and `STRATA_MODEL` override the defaults for standalone scripts;
+the corpus script also accepts `--model`. The orchestrator uses `strata_base_url`
+and `strata_default_model` from `settings.yaml` (with the same environment
+overrides), and passes the selected stage's `strata_model` from `pipelines.yaml`
+to its subprocess. Set `STRATA_API_KEY` only if you enable API authentication.
 
-The orchestrator loads models with a 16,384-token context and unloads them at
-stage boundaries. It also unloads all LM Studio model instances before WhisperX
-starts. Load or unload failures stop the stage rather than proceeding with
-uncertain GPU availability. Avoid using LM Studio interactively during GPU stages.
+Generation uses Strata's OpenAI-compatible `/v1/chat/completions` endpoint with
+streaming and thinking disabled. The pipeline monitor still receives answer,
+thinking, token-count, and timing events.
 
-Generation uses LM Studio's [native chat and streaming API](https://lmstudio.ai/docs/developer/rest/chat),
-with reasoning disabled and chat storage disabled for these batch requests.
-The original three Ollama weights were copied into
-`C:\Users\Feist\.lmstudio\models\imported-ollama` before uninstalling Ollama;
-the pipeline defaults use the existing newer models above. The SQLite schema's
-unused `ollama_model` column is retained for compatibility with existing databases.
+The orchestrator uses Strata Control's local `/api/native` API to reuse or load
+the stage's model, wait until it is ready, and unload it at stage boundaries.
+It also unloads all native Strata instances before WhisperX starts. Failures
+stop the stage. Context length and GPU placement use your saved Strata settings.
+Avoid running interactive Strata requests during pipeline GPU stages.
+
+The SQLite schema's unused `ollama_model` column is retained for compatibility
+with existing databases.
 
 - **settings.yaml** - Global settings (paths, GPU config, scheduling)
 - **pipelines.yaml** - Pipeline definitions and stage configurations

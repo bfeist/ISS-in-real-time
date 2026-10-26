@@ -32,10 +32,9 @@ gpu:
   # Enable/disable GPU resource management
   enabled: true
 
-  # LM Studio server for LLM inference
-  lmstudio_host: "http://localhost:1234"
-  lmstudio_default_model: "gemma-4-12b-it-qat"
-  lmstudio_context_length: 16384 # Models unload at the end of each GPU stage
+  # Strata server for LLM inference
+  strata_base_url: "http://127.0.0.1:47831/v1"
+  strata_default_model: "iq3_xxs"
 
   # WhisperX transcription settings
   whisperx_device: "cuda"

@@ -5,7 +5,7 @@ This script demonstrates how to use the loop detection in practice
 with real-time monitoring and handling of terminated generations.
 """
 
-from lmstudio import LMStudioClient, GenerationResult
+from strata import StrataClient, GenerationResult
 import time
 
 
@@ -15,7 +15,7 @@ def example_basic_usage():
     print("Example 1: Basic Usage (Default Settings)")
     print("=" * 60)
 
-    client = LMStudioClient(
+    client = StrataClient(
         enable_loop_detection=True,
         # Uses default config:
         # - stall_timeout: 30s
@@ -69,7 +69,7 @@ def example_with_monitoring():
             elapsed = time.perf_counter() - progress["start_time"]
             print(f"\n✓ Completed: {progress['tokens']} tokens in {elapsed:.1f}s")
 
-    client = LMStudioClient(enable_loop_detection=True)
+    client = StrataClient(enable_loop_detection=True)
 
     print("\nSimulating generation with monitoring...")
     print("(In real usage, call client.generate() with on_event callback)")
@@ -85,7 +85,7 @@ def example_conservative_config():
     print("Example 3: Conservative Configuration")
     print("=" * 60)
 
-    client = LMStudioClient(
+    client = StrataClient(
         enable_loop_detection=True,
         loop_detector_config={
             "stall_timeout": 15.0,  # Quick stall detection
@@ -109,7 +109,7 @@ def example_permissive_config():
     print("Example 4: Permissive Configuration")
     print("=" * 60)
 
-    client = LMStudioClient(
+    client = StrataClient(
         enable_loop_detection=True,
         loop_detector_config={
             "stall_timeout": 60.0,  # Allow longer pauses
@@ -133,7 +133,7 @@ def example_handling_termination():
     print("Example 5: Handling Terminated Generations")
     print("=" * 60)
 
-    client = LMStudioClient(enable_loop_detection=True)
+    client = StrataClient(enable_loop_detection=True)
 
     # Simulated result (in real usage, from client.generate())
     print("\nAfter calling client.generate():")
@@ -168,7 +168,7 @@ def example_debugging():
         """
 {
   "date": "2011-12-06",
-  "model": "qwen3.8-27b",
+  "model": "iq3_xxs",
   "elapsed_seconds": 45.3,
   "characters": 180,
   "was_terminated": true,

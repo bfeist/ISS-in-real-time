@@ -8,7 +8,7 @@ from typing import Dict, Optional
 from .config import PromptContextConfig
 from .crew import CrewPromptBuilder
 from .daily_brief import DailyBriefBuilder
-from .lmstudio import LMStudioClient
+from .strata import StrataClient
 from .prompt_synthesizer import PromptSynthesizer
 
 
@@ -31,14 +31,14 @@ class PromptContextPipeline:
     def __init__(
         self,
         config: PromptContextConfig,
-        lmstudio: Optional[LMStudioClient] = None,
+        strata: Optional[StrataClient] = None,
     ) -> None:
         self.config = config
-        self.lmstudio = lmstudio or LMStudioClient()
+        self.strata = strata or StrataClient()
         self.crew_builder = CrewPromptBuilder(config)
-        self.brief_builder = DailyBriefBuilder(config, self.lmstudio)
+        self.brief_builder = DailyBriefBuilder(config, self.strata)
         self.prompt_synthesizer = PromptSynthesizer(
-            config, self.lmstudio, self.crew_builder, self.brief_builder
+            config, self.strata, self.crew_builder, self.brief_builder
         )
 
     def day_directory(self, date_str: str) -> Path:

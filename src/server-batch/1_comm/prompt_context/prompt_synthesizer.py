@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 from .config import PromptContextConfig
 from .crew import CrewPromptBuilder
 from .daily_brief import DailyBriefBuilder
-from .lmstudio import GenerationResult, LMStudioClient
+from .strata import GenerationResult, StrataClient
 
 PROMPT_CHAR_LIMIT = 250
 
@@ -21,17 +21,17 @@ class StaticVocab:
 
 
 class PromptSynthesizer:
-    """Combine context inputs and call LM Studio to synthesize final prompt."""
+    """Combine context inputs and call Strata to synthesize final prompt."""
 
     def __init__(
         self,
         config: PromptContextConfig,
-        lmstudio: LMStudioClient,
+        strata: StrataClient,
         crew_builder: CrewPromptBuilder,
         brief_builder: DailyBriefBuilder,
     ) -> None:
         self.config = config
-        self.lmstudio = lmstudio
+        self.strata = strata
         self.crew_builder = crew_builder
         self.brief_builder = brief_builder
 
@@ -115,8 +115,8 @@ class PromptSynthesizer:
 
         # First attempt: generate initial prompt
         if on_event:
-            on_event({"debug": "[PROMPT] Calling LM Studio (initial generation)"})
-        result = self.lmstudio.generate(prompt, on_event=on_event, max_length=2000)
+            on_event({"debug": "[PROMPT] Calling Strata (initial generation)"})
+        result = self.strata.generate(prompt, on_event=on_event, max_length=2000)
 
         # Check if generation was terminated due to infinite loop
         if result.metrics.was_terminated:
@@ -240,7 +240,7 @@ Previous response:
 
 Please shorten this glossary to be ≤{PROMPT_CHAR_LIMIT} characters by removing less critical terms. Keep crew names, mission callsigns, and custom terms (Huntsville, Houston, Moscow, Tsukuba, Munich, space-to-ground). Prioritize unique/uncommon spaceflight terms. Output ONLY the shortened glossary, no explanation."""
 
-            result = self.lmstudio.generate(
+            result = self.strata.generate(
                 refinement_prompt, on_event=on_event, max_length=2000
             )
             text = result.text.strip().replace("\n", " ")
@@ -265,7 +265,7 @@ Previous response:
 
 Please expand this glossary by adding more relevant spaceflight terms, acronyms, or technical vocabulary. Aim for around {PROMPT_CHAR_LIMIT} characters. Output ONLY the expanded glossary, no explanation."""
 
-            result = self.lmstudio.generate(
+            result = self.strata.generate(
                 refinement_prompt, on_event=on_event, max_length=2000
             )
             text = result.text.strip().replace("\n", " ")

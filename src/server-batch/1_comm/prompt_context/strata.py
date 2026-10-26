@@ -139,8 +139,8 @@ class InfiniteLoopDetector:
         return tokens
 
 
-class LMStudioClient:
-    """LM Studio chat client with streaming, retry and generation telemetry."""
+class StrataClient:
+    """Strata chat-completions client with streaming and generation telemetry."""
 
     def __init__(
         self,
@@ -155,14 +155,16 @@ class LMStudioClient:
         loop_detector_config: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.base_url = base_url or os.getenv(
-            "LMSTUDIO_HOST", "http://localhost:1234"
+            "STRATA_BASE_URL", "http://127.0.0.1:47831/v1"
         )
-        self.base_url = self.base_url.rstrip("/").removesuffix("/v1")
-        self.default_model = default_model or os.getenv("LMSTUDIO_MODEL", "gemma-4-12b-it-qat")
+        self.base_url = self.base_url.rstrip("/")
+        if not self.base_url.endswith("/v1"):
+            self.base_url += "/v1"
+        self.default_model = default_model or os.getenv("STRATA_MODEL", "iq3_xxs")
         self.request_timeout = request_timeout
         self.max_retries = max_retries
         self.retry_backoff = retry_backoff
-        # Context length and GPU offload are configured when loading the model.
+        # Context length and GPU placement are managed in Strata.
         self.default_options = default_options or {
             "temperature": 0.3,  # Low temperature for consistent vocabulary generation
             "top_p": 0.9,  # Standard nucleus sampling
@@ -187,21 +189,23 @@ class LMStudioClient:
     ) -> GenerationResult:
         if suffix:
             prompt += suffix
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
         payload = {
             "model": model or self.default_model,
-            "input": prompt,
+            "messages": messages,
             "stream": True,
-            "store": False,
-            "reasoning": "off",
+            "stream_options": {"include_usage": True},
+            "chat_template_kwargs": {"enable_thinking": False},
         }
-        if system:
-            payload["system_prompt"] = system
         merged_options = {**self.default_options, **(options or {})}
-        for key in ("temperature", "top_p", "top_k", "repeat_penalty", "reasoning"):
+        for key in ("temperature", "top_p", "top_k", "repeat_penalty"):
             if key in merged_options:
                 payload[key] = merged_options[key]
         if merged_options.get("num_predict", -1) > 0:
-            payload["max_output_tokens"] = merged_options["num_predict"]
+            payload["max_tokens"] = merged_options["num_predict"]
 
         last_error: Optional[Exception] = None
         for attempt in range(1, self.max_retries + 1):
@@ -233,10 +237,13 @@ class LMStudioClient:
         on_event: Optional[Callable[[dict], None]] = None,
         max_length: Optional[int] = None,
     ) -> GenerationResult:
-        url = f"{self.base_url}/api/v1/chat"
+        url = f"{self.base_url}/chat/completions"
         started = time.perf_counter()
+        headers = {}
+        if api_key := os.getenv("STRATA_API_KEY"):
+            headers["Authorization"] = f"Bearer {api_key}"
         response = requests.post(
-            url, json=payload, stream=True, timeout=self.request_timeout
+            url, json=payload, headers=headers, stream=True, timeout=self.request_timeout
         )
         try:
             response.raise_for_status()
@@ -247,7 +254,7 @@ class LMStudioClient:
         metrics = GenerationMetrics(
             model=payload["model"], options={
                 key: value for key, value in payload.items()
-                if key not in {"input", "system_prompt"}
+                if key != "messages"
             }, attempt=attempt
         )
 
@@ -285,24 +292,27 @@ class LMStudioClient:
             except json.JSONDecodeError:
                 continue
             if frame.get("error"):
-                raise RuntimeError(f"LM Studio stream error: {frame['error']}")
+                raise RuntimeError(f"Strata stream error: {frame['error']}")
+            choices = frame.get("choices", [])
+            choice = next((item for item in choices if item.get("index", 0) == 0), {})
+            delta = choice.get("delta", {})
+            finish_reason = choice.get("finish_reason")
+            if finish_reason and finish_reason != "stop":
+                raise RuntimeError(f"Strata generation stopped with {finish_reason}")
             # Keep the pipeline's response/thinking event contract for its monitor.
             event = {
-                "response": frame.get("content", "") if frame.get("type") == "message.delta" else "",
-                "thinking": frame.get("content", "") if frame.get("type") == "reasoning.delta" else "",
-                "done": frame.get("type") == "chat.end",
+                "response": delta.get("content") or "",
+                "thinking": delta.get("reasoning_content") or delta.get("reasoning") or "",
+                "done": finish_reason == "stop",
                 "raw": frame,
             }
             if event["done"]:
                 completed = True
-                stats = frame["result"].get("stats", {})
-                metrics.model = frame["result"].get("model_instance_id", metrics.model)
-                metrics.eval_count = stats.get("total_output_tokens")
-                rate = stats.get("tokens_per_second")
-                if rate and metrics.eval_count is not None:
-                    metrics.eval_duration = metrics.eval_count / rate * 1e9
-                if stats.get("model_load_time_seconds") is not None:
-                    metrics.load_duration = stats["model_load_time_seconds"] * 1e9
+            metrics.model = frame.get("model", metrics.model)
+            if frame.get("usage"):
+                metrics.eval_count = frame["usage"].get("completion_tokens")
+            if frame.get("timings", {}).get("predicted_ms") is not None:
+                metrics.eval_duration = frame["timings"]["predicted_ms"] * 1e6
             raw_events.append(event)
 
             # Check for infinite loop before processing (check both response and thinking)
@@ -359,7 +369,7 @@ class LMStudioClient:
         metrics.total_duration = (time.perf_counter() - started) * 1e9
         text = "".join(text_parts).strip()
         if not completed and not metrics.was_terminated:
-            raise RuntimeError("LM Studio stream ended before chat.end")
+            raise RuntimeError("Strata stream ended before a finish reason")
         if not text and not metrics.was_terminated:
-            raise RuntimeError("LM Studio returned no answer text")
+            raise RuntimeError("Strata returned no answer text")
         return GenerationResult(text=text, metrics=metrics, raw_events=raw_events)

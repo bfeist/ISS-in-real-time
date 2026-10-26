@@ -5,7 +5,7 @@ This script processes filtered Flickr photo albums (created by 9g_filter_against
 and uses AI classification to determine whether photos were taken during flight operations (keep)
 or are ancillary photos like training, portraits, press events, etc. (exclude).
 
-Uses LM Studio API with pipeline processing for optimal performance:
+Uses Strata API with pipeline processing for optimal performance:
 - Processes results as they arrive (streaming)
 - Better GPU utilization (no waiting for slow requests)
 - Faster feedback (saves every 10 photos)
@@ -32,9 +32,9 @@ load_dotenv(dotenv_path="../../../.env")
 
 RAW_FOLDER = os.getenv("RAW_FOLDER")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "1_comm"))
-from prompt_context.lmstudio import LMStudioClient
+from prompt_context.strata import StrataClient
 
-LMSTUDIO_API_URL = os.getenv("LMSTUDIO_HOST", "http://localhost:1234")
+STRATA_API_URL = os.getenv("STRATA_BASE_URL", "http://127.0.0.1:47831/v1")
 
 # Configuration
 # Process filtered albums (created by 9g_filter_against_existing_photos.py)
@@ -47,7 +47,7 @@ OUTPUT_FOLDER = (
     else None
 )
 
-MODEL_NAME = os.getenv("LMSTUDIO_MODEL", "qwen3.8-27b")
+MODEL_NAME = os.getenv("STRATA_MODEL", "iq3_xxs")
 
 # ============================================================================
 # MULTIPROCESSING CONFIGURATION
@@ -56,11 +56,11 @@ NUM_WORKERS = 3  # Fixed number of worker processes
 REQUEST_TIMEOUT = 180  # Request timeout for API calls
 
 
-def make_lmstudio_request_full(prompt, model=MODEL_NAME):
-    """Generate with LM Studio, preserving classification response metadata."""
+def make_strata_request_full(prompt, model=MODEL_NAME):
+    """Generate with Strata, preserving classification response metadata."""
     try:
-        client = LMStudioClient(
-            base_url=LMSTUDIO_API_URL,
+        client = StrataClient(
+            base_url=STRATA_API_URL,
             default_model=model,
             request_timeout=REQUEST_TIMEOUT,
             default_options={"temperature": 0.2, "top_p": 0.95, "num_predict": 256},
@@ -73,12 +73,12 @@ def make_lmstudio_request_full(prompt, model=MODEL_NAME):
             "thinking": "".join(event.get("thinking", "") for event in result.raw_events),
         }
     except Exception as exc:
-        print(f"Error making LM Studio API request: {exc}")
+        print(f"Error making Strata API request: {exc}")
         return None
 
 
-def make_lmstudio_request(prompt, model=MODEL_NAME):
-    result = make_lmstudio_request_full(prompt, model)
+def make_strata_request(prompt, model=MODEL_NAME):
+    result = make_strata_request_full(prompt, model)
     return result["response"] if result else None
 
 
@@ -240,7 +240,7 @@ CRITICAL: If description is ambiguous with only crew name/affiliation and no cle
 Answer with exactly one word: FLIGHT or ANCILLARY"""
 
         # Make API request and get full response
-        full_json = make_lmstudio_request_full(prompt)
+        full_json = make_strata_request_full(prompt)
         if full_json:
             response_text = full_json.get("response", "").strip()
             thinking_text = full_json.get("thinking", "").strip()
@@ -1057,19 +1057,19 @@ def batch_process_albums():
     print("=" * 60)
 
     # Check API connectivity
-    print(f"Testing connection to LM Studio API...")
-    print(f"  LM Studio API: {LMSTUDIO_API_URL}")
+    print(f"Testing connection to Strata API...")
+    print(f"  Strata API: {STRATA_API_URL}")
     print(f"  Model: {MODEL_NAME}")
     print(f"  Workers: {NUM_WORKERS}")
 
-    test_response = make_lmstudio_request("Hello", MODEL_NAME)
+    test_response = make_strata_request("Hello", MODEL_NAME)
     if not test_response:
-        print(f"❌ Cannot connect to LM Studio API")
-        print("Please ensure LM Studio is running and model is available")
+        print(f"❌ Cannot connect to Strata API")
+        print("Please ensure Strata is running and model is available")
         print("\nTips for setup:")
-        print(f"  1. Make sure {MODEL_NAME} is available in LM Studio")
+        print(f"  1. Make sure {MODEL_NAME} is available in Strata")
         print("  2. Check GPU memory: nvidia-smi")
-        print("  3. Start the LM Studio server: lms server start --port 1234")
+        print("  3. Start the Strata desktop app and load Qwen3.8-Flash-Next IQ3_XXS")
         return False
     else:
         print(f"✅ API connection successful")
@@ -1197,9 +1197,9 @@ def main():
         "Processing filtered albums (created by 9g_filter_against_existing_photos.py)"
     )
     print(
-        f"Using LM Studio API with {NUM_WORKERS} worker processes for optimal performance"
+        f"Using Strata API with {NUM_WORKERS} worker processes for optimal performance"
     )
-    print(f"LM Studio API: {LMSTUDIO_API_URL}")
+    print(f"Strata API: {STRATA_API_URL}")
     print(f"Model: {MODEL_NAME}")
 
     # Check configuration

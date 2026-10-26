@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "1_comm"))
-from prompt_context.lmstudio import LMStudioClient
+from prompt_context.strata import StrataClient
 
 # import openai  # Removed import
 from datetime import datetime
@@ -15,8 +15,8 @@ from datetime import datetime
 S3_FOLDER = os.getenv("S3_FOLDER")
 
 """
-Start the LM Studio local server with lms server start --port 1234.
-Uses the configured LMSTUDIO_MODEL or Gemma 4 12B by default.
+Start the Strata desktop app with Qwen3.8-Flash-Next IQ3_XXS loaded.
+Uses STRATA_BASE_URL (http://127.0.0.1:47831/v1) and STRATA_MODEL (iq3_xxs).
 """
 
 
@@ -117,7 +117,7 @@ def prepare_prompt(blog_contents, transcript):
 
 def generate_event_index(prompt):
     """
-    Generates the event index using the local LM Studio API.
+    Generates the event index using the local Strata API.
 
     Args:
         prompt (str): The prepared prompt.
@@ -127,13 +127,13 @@ def generate_event_index(prompt):
     """
 
     try:
-        content = LMStudioClient().generate(prompt).text
+        content = StrataClient().generate(prompt).text
 
         # Attempt to parse JSON from the response
         try:
             event_index = json.loads(content)
         except json.JSONDecodeError:
-            print("Failed to parse JSON from LM Studio response.")
+            print("Failed to parse JSON from Strata response.")
             print("Response content:")
             print(content)
             event_index = {}
@@ -173,11 +173,11 @@ def main():
     transcript = parse_transcript(transcript_url)
 
     # Prepare prompt
-    print("Preparing prompt for LM Studio...")
+    print("Preparing prompt for Strata...")
     prompt = prepare_prompt(blog_contents, transcript)
 
     # Generate event index
-    print("Generating event index using LM Studio...")
+    print("Generating event index using Strata...")
     event_index = generate_event_index(prompt)
 
     if event_index:

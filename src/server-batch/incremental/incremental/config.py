@@ -47,9 +47,8 @@ class GpuConfig:
     """Configuration for GPU resource management."""
 
     enabled: bool = True
-    lmstudio_host: str = "http://localhost:1234"
-    lmstudio_default_model: str = "gemma-4-12b-it-qat"
-    lmstudio_context_length: int = 16384
+    strata_base_url: str = "http://127.0.0.1:47831/v1"
+    strata_default_model: str = "iq3_xxs"
     whisperx_device: str = "cuda"
     whisperx_compute_type: str = "float16"
 
@@ -163,7 +162,7 @@ def parse_stage_config(stage_data: dict[str, Any]) -> StageConfig:
         timeout_minutes=stage_data.get("timeout_minutes", 60),
         requires_gpu=stage_data.get("requires_gpu", False),
         gpu_task_type=gpu_task_type,
-        lmstudio_model=stage_data.get("lmstudio_model"),
+        strata_model=stage_data.get("strata_model"),
         depends_on_stages=stage_data.get("depends_on_stages", []),
         cross_dependencies=stage_data.get("cross_dependencies", []),
         args_template=stage_data.get("args_template", ""),
@@ -288,13 +287,12 @@ def load_settings(
     gpu_data = yaml_data.get("gpu", {})
     gpu = GpuConfig(
         enabled=_get_bool_env("ISSIRT_GPU_ENABLED", gpu_data.get("enabled", True)),
-        lmstudio_host=os.environ.get(
-            "LMSTUDIO_HOST", gpu_data.get("lmstudio_host", "http://localhost:1234")
+        strata_base_url=os.environ.get(
+            "STRATA_BASE_URL", gpu_data.get("strata_base_url", "http://127.0.0.1:47831/v1")
         ),
-        lmstudio_default_model=os.environ.get(
-            "LMSTUDIO_MODEL", gpu_data.get("lmstudio_default_model", "gemma-4-12b-it-qat")
+        strata_default_model=os.environ.get(
+            "STRATA_MODEL", gpu_data.get("strata_default_model", "iq3_xxs")
         ),
-        lmstudio_context_length=int(gpu_data.get("lmstudio_context_length", 16384)),
         whisperx_device=os.environ.get(
             "WHISPERX_DEVICE", gpu_data.get("whisperx_device", "cuda")
         ),
@@ -383,9 +381,8 @@ paths:
 # GPU configuration
 gpu:
   enabled: true
-  lmstudio_host: "${LMSTUDIO_HOST:-http://localhost:1234}"
-  lmstudio_default_model: "gemma-4-12b-it-qat"
-  lmstudio_context_length: 16384
+  strata_base_url: "${STRATA_BASE_URL:-http://127.0.0.1:47831/v1}"
+  strata_default_model: "iq3_xxs"
   whisperx_device: "cuda"
   whisperx_compute_type: "float16"
 
@@ -463,8 +460,8 @@ pipelines:
         script: "1_comm/5_corpus_initial_prompt_ai_gen.py"
         timeout_minutes: 60
         requires_gpu: true
-        gpu_task_type: lmstudio
-        lmstudio_model: "gemma-4-12b-it-qat"
+        gpu_task_type: strata
+        strata_model: "iq3_xxs"
         depends_on_stages: [download]
         cross_dependencies:
           - pipeline: articles
@@ -506,8 +503,8 @@ RAW_TRANSCRIBED_FOLDER=/path/to/raw/transcribed
 PHOTOS_FOLDER=/path/to/raw/photos
 
 # GPU/AI settings
-LMSTUDIO_HOST=http://localhost:1234
-LMSTUDIO_MODEL=gemma-4-12b-it-qat
+STRATA_BASE_URL=http://127.0.0.1:47831/v1
+STRATA_MODEL=iq3_xxs
 WHISPERX_DEVICE=cuda
 
 # API keys (if needed)
