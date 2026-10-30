@@ -14,7 +14,7 @@ Key features:
 - Daily brief extraction that flattens activity summaries, ingests blog articles, and caches map-reduce style model summaries per day.
 - Prompt synthesis that constrains output to ≤250 characters, saves rich metadata and streamed JSONL traces, and respects static vocabulary overrides from `PROMPT_CONTEXT_STATIC_VOCAB`.
 - Sequential execution by default for local Strata, with a Rich-powered `--monitor` view that streams partial tokens. Set `--workers` explicitly only when the server can handle concurrent requests.
-- All Strata requests explicitly use medium reasoning effort (`reasoning_effort: medium`).
+- Corpus generation (daily briefs and final prompts) uses low reasoning effort (`reasoning_effort: low`). Other users of the shared Strata client default to medium.
 
 Example invocation:
 
@@ -32,12 +32,22 @@ The script writes outputs under `${RAW_FOLDER}/prompt_context/YYYY/MM/DD/`:
 - `prompt.txt`, `prompt_meta.json`, `prompt_raw.jsonl`: final prompt string, telemetry, and streamed Strata frames
 - `blog_cache/`: cached article summaries keyed by content hash
 
-Completed prompts are skipped on reruns. Empty prompts and prompts marked as interrupted are regenerated automatically; use `--force` to regenerate completed prompts too. Use `--discover-comm` to infer dates from the `comm_transcripts_aacs` tree or `--dry-run` to list the plan without executing.
+Incremental runs use `--zip-dates` and the per-date `comm_corpus_log` table in
+`comm_transcription_log.sqlite3`. Saved nonempty corpuses are imported as completed
+once; future selection uses database status rather than inspecting existing
+files or old telemetry. Pending, failed, interrupted, and unrecorded local ZIP
+dates are generated, and successful generation records completion. `--force`
+also rebuilds completed dates. ZIP replacement does not invalidate corpus status.
+Corpus requests use low reasoning effort. `--dry-run` previews the plan using an
+in-memory database snapshot.
+
+Standalone date-range runs retain file validation for empty, interrupted, or
+unsupported cached prompts, and record generated corpus status in SQLite.
 
 The generation watchdog starts with the first answer or thinking text, so queue and prompt-processing time do not trigger its 30-second stall limit. `--request-timeout` bounds the wait for first output, including when the server sends only heartbeats. Interrupted or empty generations are not saved as completed prompts.
 
 Days without activity or article source material receive empty brief summaries without
 an inference request. Existing prompts with summaries unsupported by any recorded
-sources are rebuilt automatically on their next run. For days with sources, malformed
+sources are rebuilt automatically on standalone date-range runs. For days with sources, malformed
 or interrupted JSON summaries are retried once; each attempt is saved as
 `blog_cache/summary_<key>.attempt-<n>.txt` and `.jsonl` for diagnosis.

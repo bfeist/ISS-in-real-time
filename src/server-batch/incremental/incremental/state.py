@@ -3,13 +3,13 @@ State management for the incremental update system.
 
 This module provides:
 - StateDatabase: SQLite-based state tracking for pipelines and dates
-- ZipFileTracker: Text file-based tracking for ZIP files (preserves legacy format)
+- ZipFileTracker: Read-only view of comm_transcription_log.sqlite3
 """
 
 import json
 import sqlite3
 import threading
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Iterator, Optional
@@ -28,87 +28,94 @@ from .models import (
 
 
 class ZipFileTracker:
-    """
-    Interface for reading/writing ia_zips_*.txt files.
+    """Read comm ZIP status from the transcription database, never text files.
 
-    Preserves the existing text file format used by transcription scripts.
-    Thread-safe with file locking for concurrent access.
+    The transcription script owns status writes. Read-only connections also keep
+    status commands and dry runs from creating or modifying the comm database.
     """
 
     def __init__(self, server_batch_dir: Path):
         self.base_dir = Path(server_batch_dir)
-        self.processed_file = self.base_dir / "ia_zips_processed.txt"
-        self.in_progress_file = self.base_dir / "ia_zips_in_progress.txt"
-        self.errors_file = self.base_dir / "ia_zips_errors.txt"
-        self.skip_file = self.base_dir / "ia_skip_zips.txt"
-        self._lock = threading.Lock()
+        self.db_path = self.base_dir / "comm_transcription_log.sqlite3"
 
-    def _read_file(self, path: Path) -> set[str]:
-        """Read lines from a text file as a set."""
-        if not path.exists():
-            return set()
-        with open(path, "r", encoding="utf-8") as f:
-            return {line.strip() for line in f if line.strip()}
+    def _entries(self) -> list[sqlite3.Row]:
+        if not self.db_path.exists():
+            return []
+        uri = f"{self.db_path.resolve().as_uri()}?mode=ro"
+        with closing(sqlite3.connect(uri, uri=True)) as conn:
+            conn.row_factory = sqlite3.Row
+            return conn.execute(
+                """
+                SELECT zip_name, status, error_message
+                FROM comm_transcription_zip_log AS current
+                WHERE version = (
+                    SELECT MAX(version) FROM comm_transcription_zip_log
+                    WHERE zip_name = current.zip_name
+                )
+                """
+            ).fetchall()
 
-    def _append_to_file(self, path: Path, value: str) -> None:
-        """Append a value to a text file atomically."""
-        with self._lock:
-            with open(path, "a", encoding="utf-8") as f:
-                f.write(f"{value}\n")
-
-    def _remove_from_file(self, path: Path, value: str) -> None:
-        """Remove a value from a text file."""
-        with self._lock:
-            if not path.exists():
-                return
-            lines = self._read_file(path)
-            # Handle both plain filenames and filename|error format
-            lines = {l for l in lines if not l.startswith(value)}
-            lines.discard(value)
-            with open(path, "w", encoding="utf-8") as f:
-                for line in sorted(lines):
-                    f.write(f"{line}\n")
-
-    # --- Read operations ---
+    def _names_by_status(self, status: str) -> set[str]:
+        return {row["zip_name"] for row in self._entries() if row["status"] == status}
 
     def get_processed(self) -> set[str]:
         """Get all successfully processed ZIP filenames."""
-        return self._read_file(self.processed_file)
+        return self._names_by_status("completed")
 
     def get_in_progress(self) -> set[str]:
         """Get all currently processing ZIP filenames."""
-        return self._read_file(self.in_progress_file)
+        return self._names_by_status("in_progress")
 
     def get_errors(self) -> set[str]:
         """Get all failed ZIP filenames (may include error messages)."""
-        return self._read_file(self.errors_file)
+        return {
+            f"{row['zip_name']}|{row['error_message']}"
+            if row["error_message"] else row["zip_name"]
+            for row in self._entries() if row["status"] == "error"
+        }
 
     def get_error_filenames(self) -> set[str]:
         """Get just the filenames from errors (strip error messages)."""
-        errors = self.get_errors()
-        return {e.split("|")[0] for e in errors}
+        return self._names_by_status("error")
 
     def get_skipped(self) -> set[str]:
         """Get all manually skipped ZIP filenames."""
-        return self._read_file(self.skip_file)
+        return self._names_by_status("skipped")
+
+    def get_pending(self) -> set[str]:
+        """Read pending ZIPs from the current version of the transcription log."""
+        return self._names_by_status("pending")
+
+    def get_replaced(self) -> set[str]:
+        """Get ZIPs explicitly invalidated by a successful download replacement."""
+        if not self.db_path.exists():
+            return set()
+        uri = f"{self.db_path.resolve().as_uri()}?mode=ro"
+        with closing(sqlite3.connect(uri, uri=True)) as conn:
+            rows = conn.execute(
+                """
+                SELECT zip.zip_name FROM comm_transcription_zip_log AS zip
+                JOIN comm_transcription_day_log AS day ON day.date = zip.date
+                WHERE zip.status = 'pending' AND day.note = 'zip_replaced'
+                  AND zip.version = (
+                    SELECT MAX(version) FROM comm_transcription_zip_log
+                    WHERE zip_name = zip.zip_name
+                  )
+                """
+            ).fetchall()
+        return {row[0] for row in rows}
 
     def get_status(self, filename: str) -> ZipStatus:
         """Get the status of a specific ZIP file."""
-        error_entry = None
-        for e in self.get_errors():
-            if e.startswith(filename):
-                parts = e.split("|", 1)
-                if len(parts) > 1:
-                    error_entry = parts[1]
-                break
-
+        entry = next((row for row in self._entries() if row["zip_name"] == filename), None)
+        status = entry["status"] if entry else None
         return ZipStatus(
             filename=filename,
-            is_processed=filename in self.get_processed(),
-            is_in_progress=filename in self.get_in_progress(),
-            is_error=filename in self.get_error_filenames(),
-            is_skipped=filename in self.get_skipped(),
-            error_message=error_entry,
+            is_processed=status == "completed",
+            is_in_progress=status == "in_progress",
+            is_error=status == "error",
+            is_skipped=status == "skipped",
+            error_message=entry["error_message"] if entry else None,
         )
 
     def get_unprocessed(self, available_zips: set[str]) -> set[str]:
@@ -128,49 +135,15 @@ class ZipFileTracker:
 
         return available_zips - processed - skipped - in_progress - errors
 
-    # --- Write operations ---
-
-    def mark_in_progress(self, filename: str) -> None:
-        """Mark a ZIP as currently processing."""
-        self._append_to_file(self.in_progress_file, filename)
-
-    def mark_processed(self, filename: str) -> None:
-        """Mark a ZIP as successfully processed."""
-        self._remove_from_file(self.in_progress_file, filename)
-        self._remove_from_file(self.errors_file, filename)
-        self._append_to_file(self.processed_file, filename)
-
-    def mark_error(self, filename: str, error_msg: Optional[str] = None) -> None:
-        """Mark a ZIP as failed."""
-        self._remove_from_file(self.in_progress_file, filename)
-        # Include error message in the entry if provided
-        entry = f"{filename}|{error_msg}" if error_msg else filename
-        self._append_to_file(self.errors_file, entry)
-
-    def mark_skipped(self, filename: str) -> None:
-        """Mark a ZIP as manually skipped."""
-        self._remove_from_file(self.in_progress_file, filename)
-        self._remove_from_file(self.errors_file, filename)
-        self._append_to_file(self.skip_file, filename)
-
-    def clear_in_progress(self) -> None:
-        """Clear all in-progress markers (for recovery after crash)."""
-        if self.in_progress_file.exists():
-            self.in_progress_file.unlink()
-
-    def retry_error(self, filename: str) -> None:
-        """Move a ZIP from errors back to unprocessed state."""
-        self._remove_from_file(self.errors_file, filename)
-
-    # --- Dashboard info ---
-
     def get_summary(self) -> dict[str, int]:
         """Get summary counts for dashboard display."""
+        statuses = [row["status"] for row in self._entries()]
         return {
-            "processed": len(self.get_processed()),
-            "in_progress": len(self.get_in_progress()),
-            "errors": len(self.get_error_filenames()),
-            "skipped": len(self.get_skipped()),
+            "processed": statuses.count("completed"),
+            "in_progress": statuses.count("in_progress"),
+            "errors": statuses.count("error"),
+            "skipped": statuses.count("skipped"),
+            "pending": statuses.count("pending"),
         }
 
 

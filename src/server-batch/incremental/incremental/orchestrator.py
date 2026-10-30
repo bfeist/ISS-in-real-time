@@ -226,7 +226,7 @@ class Orchestrator:
                 f"Running {len(pipelines)} pipelines: {[p.id for p in pipelines]}"
             )
 
-            # Execute each pipeline
+            # Execute each pipeline in full; comm follows independent data work.
             for pipeline in pipelines:
                 if self._shutdown:
                     logger.info("Shutdown requested, stopping pipeline execution")
@@ -374,6 +374,12 @@ class Orchestrator:
         finally:
             self._current_pipeline = None
             self._current_stage = None
+            if not dry_run:
+                try:
+                    await self.resource_manager.shutdown()
+                except Exception as exc:
+                    logger.exception("Failed to release GPU resources: %s", exc)
+                    errors.append(f"Failed to release GPU resources: {exc}")
 
         if self._shutdown:
             errors.append("Update interrupted by shutdown")
@@ -577,11 +583,6 @@ class Orchestrator:
                     if result.success:
                         items_processed += 1
 
-                        # Mark ZIP file as processed if applicable
-                        zip_file = work_item.metadata.get("zip_file")
-                        if zip_file:
-                            self.zip_tracker.mark_processed(zip_file)
-
                         logger.info(
                             f"Successfully processed {work_item.item_id} "
                             f"in {result.duration_seconds:.1f}s"
@@ -596,11 +597,6 @@ class Orchestrator:
                             or f"Exit code {result.exit_code}"
                         )
                         errors.append(f"{work_item.item_id}: {error_msg}")
-
-                        # Mark ZIP file as errored if applicable
-                        zip_file = work_item.metadata.get("zip_file")
-                        if zip_file:
-                            self.zip_tracker.mark_error(zip_file, error_msg)
 
                         logger.error(
                             f"Failed to process {work_item.item_id}: {error_msg}"
@@ -619,7 +615,7 @@ class Orchestrator:
             # Release GPU if acquired
             if gpu_acquired:
                 logger.info(f"Releasing GPU for stage {stage.id}")
-                await self.resource_manager.release_gpu()
+                await self.resource_manager.release_gpu(keep_model=True)
 
         duration = (datetime.now() - start_time).total_seconds()
 
@@ -674,9 +670,22 @@ class Orchestrator:
                 )
             ]
 
-        # For comm.corpus or comm.transcribe, discover dates from unprocessed zips
+        # Corpus completion comes from its SQLite table, independently of ZIP status.
+        # The corpus script checks exact local ZIP dates rather than a date span.
+        if pipeline.id == "comm" and stage.id == "corpus":
+            return [WorkItem(
+                item_type="corpus_discovery",
+                item_id="comm:missing_corpuses",
+                pipeline_id=pipeline.id,
+                stage_id=stage.id,
+                metadata={
+                    "since_date": since.isoformat() if since else None,
+                    "until_date": until.isoformat() if until else None,
+                },
+            )]
+
+        # Transcription and web output discover dates from local ZIPs.
         if "comm" in pipeline.id.lower() and stage.id in (
-            "corpus",
             "transcribe",
             "web",
         ):
@@ -695,6 +704,16 @@ class Orchestrator:
                 and (until is None or value <= until.isoformat())
             ]
             if zip_dates:
+                if stage.id == "transcribe":
+                    # Bound argument length on Windows and pass only selected
+                    # dates, rather than every day between the oldest and newest.
+                    return [WorkItem(
+                        item_type="zip_dates",
+                        item_id=f"{batch[0]}_to_{batch[-1]}",
+                        pipeline_id=pipeline.id,
+                        stage_id=stage.id,
+                        metadata={"dates": batch},
+                    ) for batch in (zip_dates[i:i + 128] for i in range(0, len(zip_dates), 128))]
                 # Use date range from zips
                 min_date = min(zip_dates)
                 max_date = max(zip_dates)
@@ -734,8 +753,8 @@ class Orchestrator:
         """
         Discover dates from ZIP files that need processing.
 
-        Looks at the processed and unprocessed ZIP file lists to determine
-        which dates have new audio data to process.
+        Uses the transcription database and local ZIPs to find new or pending
+        audio. Text tracking files are not consulted.
         """
         # Get raw audio folder from settings
         raw_audio_folder = self.settings.paths.raw_audio_folder
@@ -744,13 +763,15 @@ class Orchestrator:
             return []
 
         sg_folder = Path(raw_audio_folder) / "InternetArchive_space_to_grounds"
-        if not sg_folder.exists():
-            logger.warning(f"Space-to-ground folder not found: {sg_folder}")
+        ag_folder = Path(raw_audio_folder) / "InternetArchive_dragon_cst_to_grounds"
+        if not sg_folder.exists() and not ag_folder.exists():
+            logger.warning(f"Comm ZIP folders not found under: {raw_audio_folder}")
             return []
 
         # Get processed zips
         processed = self.zip_tracker.get_processed()
         skipped = self.zip_tracker.get_skipped()
+        replaced = self.zip_tracker.get_replaced()
         errors = (
             self.zip_tracker.get_error_filenames()
         )  # Gets just filenames, not error msgs
@@ -771,14 +792,17 @@ class Orchestrator:
         dates = set()
         date_pattern = re.compile(r"(\d{2})-(\d{2})-(\d{2})")
 
-        for zip_file in sg_folder.glob("*.zip"):
+        zip_files = (
+            path for folder in (sg_folder, ag_folder) for path in folder.glob("*.zip")
+        )
+        for zip_file in zip_files:
             if zip_file.name in ignored:
                 continue  # Already processed/skipped/errored
 
             # Check if file was modified recently (within last 30 days)
             # This prevents picking up ancient unprocessed files when we only care about new data
             mtime = zip_file.stat().st_mtime
-            if mtime < (now - (30 * 24 * 60 * 60)):
+            if zip_file.name not in replaced and mtime < (now - (30 * 24 * 60 * 60)):
                 logger.debug(f"Skipping old unprocessed ZIP: {zip_file.name}")
                 continue
 
@@ -871,8 +895,22 @@ class Orchestrator:
         else:
             expanded = expanded.replace("{dry_run_flag}", "")
 
-        # Split into args, filtering empty strings
-        return [arg for arg in expanded.split() if arg]
+        # Split into args, filtering empty strings.
+        args = [arg for arg in expanded.split() if arg]
+        if work_item.pipeline_id == "comm" and work_item.stage_id == "transcribe":
+            dates = work_item.metadata.get("dates")
+            if dates:
+                filtered_args = []
+                remaining = iter(args)
+                for arg in remaining:
+                    if arg in ("--start-date", "--end-date"):
+                        next(remaining, None)
+                    else:
+                        filtered_args.append(arg)
+                args = filtered_args
+                for value in dates:
+                    args.extend(["--date", value])
+        return args
 
     def _check_pipeline_dependencies(self, pipeline: PipelineConfig) -> bool:
         """

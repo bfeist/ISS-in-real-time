@@ -11,7 +11,11 @@ import xml.etree.ElementTree as ET
 from dotenv import load_dotenv
 from tqdm import tqdm
 
+from log_db import CommTranscriptionLog, parse_zip_metadata
+
 load_dotenv(dotenv_path="../../../.env")
+
+TRACKING_DIR = Path(__file__).resolve().parent.parent
 
 # Base paths for files
 issSpaceToGroundsBasePath = None
@@ -96,12 +100,14 @@ def download_file(url, destination: Path, expected_size=None):
     normalized_name = normalize_filename(destination.name)
     destination = destination.with_name(normalized_name)
 
-    if destination.exists() and (
+    replacing_existing = destination.exists()
+    if replacing_existing and (
         expected_size is None or destination.stat().st_size == expected_size
     ):
         print(f"Skipping existing file {destination.name}.")
         return destination
 
+    date_key = parse_zip_metadata(destination.name)[0] if replacing_existing else None
     destination.parent.mkdir(parents=True, exist_ok=True)
     # Keep incomplete downloads out of the ZIP glob used by later stages.
     partial_path = destination.with_suffix(destination.suffix + ".part")
@@ -128,6 +134,10 @@ def download_file(url, destination: Path, expected_size=None):
             f"downloaded {downloaded_size} bytes"
         )
     partial_path.replace(destination)
+    if date_key is not None:
+        with CommTranscriptionLog(TRACKING_DIR) as log:
+            log.mark_date_pending(date_key)
+        print(f"  {date_key}: transcription reset to pending", flush=True)
     print(f"  {destination.name}: done", flush=True)
     return destination
 

@@ -50,10 +50,11 @@ class ResourceManager:
             self._current_task = task_type
             logger.info("GPU acquired for %s", task_type.value)
 
-    async def release_gpu(self) -> None:
+    async def release_gpu(self, keep_model: bool = False) -> None:
+        """Release the stage's GPU claim, optionally retaining Strata for reuse."""
         async with self._lock:
             try:
-                if self._current_task == GpuTaskType.STRATA:
+                if self._current_task == GpuTaskType.STRATA and not keep_model:
                     await self._unload_strata_model()
             finally:
                 self._current_task = GpuTaskType.NONE

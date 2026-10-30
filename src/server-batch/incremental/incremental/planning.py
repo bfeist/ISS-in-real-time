@@ -105,4 +105,15 @@ def build_execution_plan(
         planned[pid] = replace(pipeline, stages=[stages[sid] for sid in stage_order])
 
     pipeline_order = _dependency_order(selected_ids, lambda pid: prerequisites[pid], "Pipeline")
+    # Keep comm whole and run it after independent data pipelines. Its consumers
+    # (including aggregation) must remain after it. The dependency order above
+    # ensures this also propagates through indirect consumers.
+    deferred = {"comm"} & set(pipeline_order)
+    for pid in pipeline_order:
+        if deferred.intersection(prerequisites[pid]):
+            deferred.add(pid)
+    pipeline_order = (
+        [pid for pid in pipeline_order if pid not in deferred]
+        + [pid for pid in pipeline_order if pid in deferred]
+    )
     return [planned[pid] for pid in pipeline_order]

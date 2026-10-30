@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import os
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
@@ -24,7 +25,7 @@ __all__ = [
 ]
 
 COMM_LOG_DB_NAME = "comm_transcription_log.sqlite3"
-COMM_LOG_SCHEMA_VERSION = 1
+COMM_LOG_SCHEMA_VERSION = 2
 
 LOG_STATUS_PENDING = "pending"
 LOG_STATUS_IN_PROGRESS = "in_progress"
@@ -71,12 +72,17 @@ class ZipLogEntry:
 class CommTranscriptionLog:
     """Lightweight SQLite-backed log tracker for ISS comm transcription runs."""
 
-    def __init__(self, storage_dir: Path) -> None:
+    def __init__(self, storage_dir: Path, *, in_memory: bool = False) -> None:
         self.storage_dir = Path(storage_dir)
-        self.storage_dir.mkdir(parents=True, exist_ok=True)
+        if not in_memory:
+            self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.storage_dir / COMM_LOG_DB_NAME
         # Enable URI so we can set connection pragmas via query string if needed later.
-        self._connection = sqlite3.connect(str(self.db_path))
+        self._connection = sqlite3.connect(":memory:" if in_memory else str(self.db_path))
+        if in_memory and self.db_path.exists():
+            uri = f"{self.db_path.resolve().as_uri()}?mode=ro"
+            with closing(sqlite3.connect(uri, uri=True)) as source:
+                source.backup(self._connection)
         self._connection.row_factory = sqlite3.Row
         self._initialize_schema()
 
@@ -123,6 +129,15 @@ class CommTranscriptionLog:
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS comm_corpus_log (
+                date TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                prompt_path TEXT,
+                completed_at TEXT,
+                error_message TEXT,
+                updated_at TEXT NOT NULL
+            );
             """
         )
         self._ensure_metadata("schema_version", str(COMM_LOG_SCHEMA_VERSION))
@@ -160,6 +175,73 @@ class CommTranscriptionLog:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    def corpus_dates_by_status(self, statuses: Sequence[str]) -> set[str]:
+        if not statuses:
+            return set()
+        if set(statuses) - SUPPORTED_STATUSES:
+            raise ValueError("Unsupported corpus status")
+        placeholders = ",".join("?" for _ in statuses)
+        rows = self._connection.execute(
+            f"SELECT date FROM comm_corpus_log WHERE status IN ({placeholders})",
+            list(statuses),
+        ).fetchall()
+        return {row[0] for row in rows}
+
+    def record_corpus_status(
+        self, date: str, status: str, *, prompt_path: Optional[Path] = None,
+        error_message: Optional[str] = None,
+    ) -> None:
+        date = dt.date.fromisoformat(date).isoformat()
+        if status not in SUPPORTED_STATUSES:
+            raise ValueError(f"Unsupported corpus status: {status}")
+        now = iso_utc_now()
+        with self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO comm_corpus_log (
+                    date, status, prompt_path, completed_at, error_message, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(date) DO UPDATE SET
+                    status = excluded.status,
+                    prompt_path = COALESCE(excluded.prompt_path, comm_corpus_log.prompt_path),
+                    completed_at = excluded.completed_at,
+                    error_message = excluded.error_message,
+                    updated_at = excluded.updated_at
+                """,
+                (date, status, str(prompt_path) if prompt_path else None,
+                 now if status == LOG_STATUS_COMPLETED else None, error_message, now),
+            )
+
+    def import_existing_corpuses(self, prompt_root: Path) -> int:
+        """Import saved nonempty corpuses once; existing database status wins."""
+        root = str(prompt_root.resolve())
+        marker = self._connection.execute(
+            "SELECT value FROM comm_log_metadata WHERE key = 'corpus_import_root'"
+        ).fetchone()
+        if marker and marker[0] == root:
+            return 0
+        imported = 0
+        now = iso_utc_now()
+        with self._connection:
+            for path in prompt_root.glob("*/*/*/prompt.txt"):
+                try:
+                    date = dt.date.fromisoformat("-".join(path.parent.relative_to(prompt_root).parts)).isoformat()
+                    if not path.read_text(encoding="utf-8").strip():
+                        continue
+                except (ValueError, UnicodeDecodeError):
+                    continue
+                cursor = self._connection.execute(
+                    """
+                    INSERT INTO comm_corpus_log (
+                        date, status, prompt_path, completed_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?) ON CONFLICT(date) DO NOTHING
+                    """,
+                    (date, LOG_STATUS_COMPLETED, str(path.resolve()), now, now),
+                )
+                imported += cursor.rowcount
+            self._ensure_metadata("corpus_import_root", root)
+        return imported
 
     def record_zip_status(
         self,
@@ -256,6 +338,61 @@ class CommTranscriptionLog:
             commit=True,
         )
 
+    def mark_date_pending(self, date: str) -> None:
+        """Invalidate a replaced ZIP's date across transcription versions."""
+        date = dt.date.fromisoformat(date).isoformat()
+        now = iso_utc_now()
+        with self._connection:
+            # Keep deliberate skips, but retry the other archives for this day.
+            self._connection.execute(
+                """
+                UPDATE comm_transcription_zip_log
+                SET status = ?, transcribed_at = NULL, error_message = NULL,
+                    updated_at = ?
+                WHERE date = ? AND status != ?
+                """,
+                (LOG_STATUS_PENDING, now, date, LOG_STATUS_SKIPPED),
+            )
+            self._connection.execute(
+                """
+                INSERT INTO comm_transcription_day_log (
+                    date, has_zip, note, last_status, created_at, updated_at
+                ) VALUES (?, 1, 'zip_replaced', ?, ?, ?)
+                ON CONFLICT(date) DO UPDATE SET
+                    has_zip = 1,
+                    note = 'zip_replaced',
+                    last_status = excluded.last_status,
+                    last_transcribed_at = NULL,
+                    updated_at = excluded.updated_at
+                """,
+                (date, LOG_STATUS_PENDING, now, now),
+            )
+
+    def reconcile_legacy_completions(self, completed_names: Iterable[str]) -> set[str]:
+        """Explicitly migrate stale pending/in-progress legacy completion records.
+
+        This is a one-time migration API, not a runtime text-file fallback.
+        Deliberate skips, errors, and replacement invalidations are preserved.
+        """
+        restored = set()
+        with self._connection:
+            for name in set(completed_names):
+                entry = self.latest_entry_for_zip(name)
+                if entry is None or entry.status not in (LOG_STATUS_PENDING, LOG_STATUS_IN_PROGRESS):
+                    continue
+                day = self._connection.execute(
+                    "SELECT note FROM comm_transcription_day_log WHERE date = ?", (entry.date,)
+                ).fetchone()
+                if day and day[0] == "zip_replaced":
+                    continue
+                self.record_zip_status(
+                    entry.zip_name, entry.date, entry.zip_type, LOG_STATUS_COMPLETED,
+                    version=entry.version, transcribed_at=entry.transcribed_at,
+                    commit=False,
+                )
+                restored.add(name)
+        return restored
+
     def mark_zip_error(
         self,
         zip_name: str,
@@ -338,7 +475,8 @@ class CommTranscriptionLog:
             self._connection.commit()
 
     def zips_by_status(
-        self, statuses: Sequence[str], *, version: Optional[int] = None
+        self, statuses: Sequence[str], *, version: Optional[int] = None,
+        latest_only: bool = False,
     ) -> set[str]:
         if not statuses:
             return set()
@@ -348,12 +486,17 @@ class CommTranscriptionLog:
         placeholders = ",".join("?" for _ in statuses)
         params: list[object] = list(statuses)
         query = (
-            "SELECT zip_name FROM comm_transcription_zip_log "
+            "SELECT zip_name FROM comm_transcription_zip_log AS current "
             "WHERE status IN (" + placeholders + ")"
         )
         if version is not None:
             query += " AND version = ?"
             params.append(version)
+        if latest_only:
+            query += (
+                " AND version = (SELECT MAX(version) FROM comm_transcription_zip_log "
+                "WHERE zip_name = current.zip_name)"
+            )
         rows = self._connection.execute(query, params).fetchall()
         return {row[0] for row in rows}
 

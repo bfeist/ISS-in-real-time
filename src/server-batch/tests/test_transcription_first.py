@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
+import logging
+import os
 import sys
 import tempfile
 import unittest
@@ -9,6 +12,7 @@ from pathlib import Path
 from unittest import mock
 
 from pydub import AudioSegment  # type: ignore
+from rich.console import Console
 
 MODULE_PATH = (
     Path(__file__).resolve().parents[1] / "1_comm" / "6_transcribe_using_corpus.py"
@@ -51,6 +55,114 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
         self.addCleanup(self.temp_dir.cleanup)
         self.prompt_root = Path(self.temp_dir.name) / "prompt_context"
         self.prompt_root.mkdir(parents=True, exist_ok=True)
+
+    def test_previous_version_completion_is_not_transcribed_again_without_force(self) -> None:
+        root = Path(self.temp_dir.name)
+        audio = root / "audio"
+        folder = audio / "InternetArchive_space_to_grounds"
+        folder.mkdir(parents=True)
+        name = "04-04-12_Space-to-Grounds.zip"
+        (folder / name).touch()
+        with TRANSCRIPTION_MODULE.CommTranscriptionLog(root) as log:
+            log.mark_zip_completed(name, "2012-04-04", "SG", version=1)
+        with (
+            mock.patch.dict(os.environ, {"RAW_FOLDER": str(root / "raw"), "RAW_AUDIO_FOLDER": str(audio), "IA_ZIP_WORK_DIR": str(root / "work")}),
+            mock.patch.object(TRANSCRIPTION_MODULE, "TRACKING_DIR", root),
+            mock.patch.object(TRANSCRIPTION_MODULE, "load_environment"),
+            mock.patch.object(TRANSCRIPTION_MODULE, "configure_logging"),
+            mock.patch.object(TRANSCRIPTION_MODULE.WhisperResources, "load") as load,
+            mock.patch.object(TRANSCRIPTION_MODULE, "process_zip_group", return_value=True) as process,
+        ):
+            self.assertEqual(TRANSCRIPTION_MODULE.main(["--date", "2012-04-04"]), 0)
+            process.assert_not_called()
+            load.assert_not_called()
+            self.assertEqual(TRANSCRIPTION_MODULE.main(["--date", "2012-04-04", "--force"]), 0)
+            process.assert_called_once()
+            # An explicit newer pending record must still override an older
+            # completion, including after a replacement invalidates this ZIP.
+            with TRANSCRIPTION_MODULE.CommTranscriptionLog(root) as log:
+                log.mark_zip_pending(name, "2012-04-04", "SG", version=2)
+            process.reset_mock()
+            self.assertEqual(TRANSCRIPTION_MODULE.main(["--date", "2012-04-04"]), 0)
+            process.assert_called_once()
+
+    def test_piped_logging_keeps_long_wav_message_on_one_line(self) -> None:
+        output = io.StringIO()
+        console = Console(file=output, width=40, force_terminal=False)
+        message = (
+            "Transcribing 2026-10-05T134849-1_SG_2_IA.wav on cuda "
+            "(batch_size=32, chunk_length=30)"
+        )
+        with (
+            mock.patch.object(TRANSCRIPTION_MODULE, "console", console),
+            mock.patch.object(logging, "basicConfig") as configure,
+        ):
+            TRANSCRIPTION_MODULE.configure_logging()
+        handler = configure.call_args.kwargs["handlers"][0]
+        handler.handle(logging.LogRecord("test", logging.INFO, __file__, 1, message, (), None))
+        self.assertEqual(output.getvalue().splitlines(), [message])
+
+    def test_transcript_summary_preserves_language_text_and_full_filename(self) -> None:
+        filename = "2026-10-05T134849-1_SG_2_IA.wav"
+        for language, original, translated, expected in [
+            ("en", "Houston [red] ready for the next check.", None,
+             ["Transcript (en): Houston [red] ready for the next check."]),
+            ("ru", "Москва, станция готова. [red]", "Moscow, the station is ready. [red]",
+             ["Original transcript (ru): Москва, станция готова. [red]",
+              "Translated transcript (English): Moscow, the station is ready. [red]"]),
+            ("ru", "", "",
+             ["Original transcript (ru): Unavailable",
+              "Translated transcript (English): Unavailable"]),
+        ]:
+            with self.subTest(language=language, original=original):
+                output = io.StringIO()
+                source = [{"text": original}]
+                translation = [{"text": translated}] if translated is not None else None
+                artifacts = TranscriptionArtifacts(
+                    language="en", detected_language=language,
+                    final_segments=translation if translation is not None else source,
+                    source_segments=source, alignment_segments=source,
+                    translation_segments=translation,
+                )
+                with mock.patch.object(
+                    TRANSCRIPTION_MODULE, "console",
+                    Console(file=output, width=20, force_terminal=False),
+                ):
+                    TRANSCRIPTION_MODULE.display_transcription_summary(Path(filename), artifacts)
+                self.assertEqual(output.getvalue().splitlines(), [filename, *expected])
+
+    def test_transcription_completion_is_written_only_to_sqlite(self) -> None:
+        self.check_group_tracking(skipped=False)
+
+    def test_extraction_skip_is_preserved_in_sqlite_without_text_tracking(self) -> None:
+        self.check_group_tracking(skipped=True)
+
+    def check_group_tracking(self, *, skipped: bool) -> None:
+        root = Path(self.temp_dir.name)
+        name = "09-07-24_Space-to-Grounds.zip"
+        with TRANSCRIPTION_MODULE.CommTranscriptionLog(root) as log:
+            def unpack(*args, **kwargs):
+                if skipped:
+                    log.mark_zip_skipped(name, "2024-09-07", "SG", version=2)
+                    raise TRANSCRIPTION_MODULE.FilenameParseError("invalid filename")
+                return 1
+
+            with (
+                mock.patch.object(TRANSCRIPTION_MODULE, "CURRENT_IA_ZIP_WAVS_WORKING", root / "work"),
+                mock.patch.object(TRANSCRIPTION_MODULE, "unzip_ia_zip_wavs", side_effect=unpack),
+            ):
+                result = TRANSCRIPTION_MODULE.process_zip_group(
+                    "2024-09-07", [(name, root, "SG")], _make_resources(),
+                    self.prompt_root, SilenceConfig(), root / "output",
+                    force=False, erase=False, see_transcriptions=False,
+                    log=log, transcription_version=2,
+                )
+            self.assertEqual(result, not skipped)
+            self.assertEqual(
+                log.latest_entry_for_zip(name).status,
+                "skipped" if skipped else "completed",
+            )
+        self.assertEqual(list(root.glob("ia_*.txt")), [])
 
     def test_build_initial_prompt_uses_prompt_text(self) -> None:
         day_dir = self.prompt_root / "2024" / "09" / "07"

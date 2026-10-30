@@ -4,6 +4,9 @@ Run from incremental/: python -m unittest discover -s tests -v
 """
 
 import asyncio
+import io
+import os
+import sys
 import tempfile
 import unittest
 from datetime import date
@@ -11,15 +14,20 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 from click.testing import CliRunner
+from rich.console import Console
+from rich.text import Text
 
 from incremental.cli import main
 from incremental.config import PathsConfig, Settings, load_pipelines
-from incremental.models import GpuTaskType, PipelineConfig, StageConfig, Status
-from incremental.orchestrator import Orchestrator
+from incremental.models import GpuTaskType, PipelineConfig, StageConfig, Status, WorkItem
+from incremental.orchestrator import Orchestrator, OrchestratorResult
 from incremental.planning import build_execution_plan
 from incremental.resources import ResourceManager
 from incremental.script_runner import ScriptResult, ScriptRunner
 from incremental.state import StateDatabase, ZipFileTracker
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "1_comm"))
+from log_db import CommTranscriptionLog
 
 
 def stage(sid="build", **kwargs):
@@ -120,6 +128,53 @@ class PlanningTests(unittest.TestCase):
         self.assertEqual(planned, original)
         self.assertEqual(len(planned), 25)
 
+    def test_comm_transcribe_enables_transcript_output(self):
+        configured = load_pipelines(Path(__file__).resolve().parents[1])
+        transcribe = next(s for s in configured["comm"].stages if s.id == "transcribe")
+        self.assertIn("--see-transcriptions", transcribe.args_template.split())
+
+    def test_entire_comm_runs_after_independent_work_and_before_aggregation(self):
+        configured = load_pipelines(Path(__file__).resolve().parents[1])
+        batches = build_execution_plan(configured)
+        stages = [(p.id, s.id) for p in batches for s in p.stages]
+        self.assertEqual(len(stages), 25)
+        self.assertEqual(len(set(stages)), 25)
+        self.assertLess(stages.index(("photos_flickr", "ai_classify")), stages.index(("comm", "download")))
+        self.assertLess(stages.index(("ephemera", "orbits")), stages.index(("comm", "download")))
+        self.assertEqual(stages[-7:], [
+            ("comm", "download"), ("comm", "corpus"),
+            ("comm", "transcribe"), ("comm", "web"),
+            ("aggregation", "availability"), ("aggregation", "first_comm"),
+            ("aggregation", "stats"),
+        ])
+        self.assertEqual([s.id for s in configured["comm"].stages],
+                         ["download", "corpus", "transcribe", "web"])
+
+    def test_partial_comm_update_keeps_all_comm_stages_and_omits_photos(self):
+        configured = load_pipelines(Path(__file__).resolve().parents[1])
+        batches = build_execution_plan(configured, ["comm"])
+        self.assertEqual([(p.id, s.id) for p in batches for s in p.stages], [
+            ("comm", "download"), ("comm", "corpus"),
+            ("comm", "transcribe"), ("comm", "web"),
+        ])
+
+    def test_comm_and_its_consumers_follow_independent_pipelines(self):
+        config = {
+            "comm": pipeline("comm", [stage("corpus"), stage("transcribe", gpu_task_type=GpuTaskType.WHISPERX)]),
+            "consumer": pipeline("consumer", [stage(cross_dependencies=[{"pipeline": "comm", "stage": "transcribe"}])]),
+            "stats": pipeline("stats", depends_on=["consumer"]),
+            "photos": pipeline("photos"),
+        }
+        batches = build_execution_plan(config)
+        self.assertEqual([p.id for p in batches], ["photos", "comm", "consumer", "stats"])
+
+    def test_partial_selection_runs_whole_comm_after_selected_photos(self):
+        configured = load_pipelines(Path(__file__).resolve().parents[1])
+        plan = build_execution_plan(configured, ["comm", "photos_flickr"])
+        self.assertEqual([p.id for p in plan], ["photos_flickr", "comm"])
+        self.assertEqual([s.id for s in plan[-1].stages],
+                         ["download", "corpus", "transcribe", "web"])
+
 
 class ExecutionTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -139,6 +194,63 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.runner.script_runner.run = AsyncMock(return_value=script_result())
         self.runner.resource_manager.acquire_gpu = AsyncMock()
         self.runner.resource_manager.release_gpu = AsyncMock()
+        self.runner.resource_manager.shutdown = AsyncMock()
+
+    def configure_comm_last_update(self):
+        self.settings.pipelines = {
+            "comm": pipeline("comm", [
+                stage("download"),
+                stage("corpus", requires_gpu=True, gpu_task_type=GpuTaskType.STRATA, strata_model="iq3_s", depends_on_stages=["download"]),
+                stage("transcribe", requires_gpu=True, gpu_task_type=GpuTaskType.WHISPERX, depends_on_stages=["corpus"]),
+                stage("web", depends_on_stages=["transcribe"]),
+            ]),
+            "photos": pipeline("photos", [stage("classify", requires_gpu=True, gpu_task_type=GpuTaskType.STRATA, strata_model="iq3_s")]),
+            "stats": pipeline("stats", depends_on=["comm", "photos"]),
+        }
+
+        async def discover(pipeline, stage, *args):
+            return [WorkItem(item_type="full", item_id="full", pipeline_id=pipeline.id, stage_id=stage.id)]
+
+        self.runner._discover_work_items = AsyncMock(side_effect=discover)
+
+    async def test_whole_comm_runs_last_and_counts_each_pipeline_once(self):
+        self.configure_comm_last_update()
+        result = await self.runner.run_pipelines()
+        self.assertTrue(result.success)
+        self.assertEqual(result.pipelines_run, 3)
+        self.assertEqual(result.stages_run, 6)
+        self.assertEqual([Path(c.kwargs["script_path"]).stem for c in self.runner.script_runner.run.call_args_list],
+                         ["classify", "download", "corpus", "transcribe", "web", "build"])
+        self.assertEqual(self.runner._completed_pipelines, {"comm", "photos", "stats"})
+        self.runner.resource_manager.shutdown.assert_awaited_once()
+
+    async def test_failed_corpus_blocks_transcription_and_aggregation(self):
+        self.configure_comm_last_update()
+        self.runner.script_runner.run.side_effect = [script_result(), script_result(), script_result(False)]
+        statuses = []
+        result = await self.runner.run_pipelines(on_stage_status=lambda *event: statuses.append(event))
+        self.assertFalse(result.success)
+        self.assertEqual(result.pipelines_run, 2)
+        self.assertEqual(self.runner._completed_pipelines, {"photos"})
+        self.assertEqual(self.runner.script_runner.run.await_count, 3)
+        self.assertIn(("comm", "transcribe", Status.SKIPPED), statuses)
+        self.assertIn(("comm", "web", Status.SKIPPED), statuses)
+        self.assertIn(("stats", "build", Status.SKIPPED), statuses)
+
+    async def test_cleanup_failure_fails_the_update(self):
+        self.runner.resource_manager.shutdown.side_effect = RuntimeError("unload failed")
+        result = await self.runner.run_pipelines()
+        self.assertFalse(result.success)
+        self.assertIn("Failed to release GPU resources: unload failed", result.errors)
+
+    async def test_failed_transcription_blocks_web_and_aggregation(self):
+        self.configure_comm_last_update()
+        self.runner.script_runner.run.side_effect = [script_result(), script_result(), script_result(), script_result(False)]
+        result = await self.runner.run_pipelines()
+        self.assertFalse(result.success)
+        self.assertEqual(self.runner._completed_pipelines, {"photos"})
+        self.assertEqual(self.runner.script_runner.run.await_count, 4)
+        self.runner.resource_manager.shutdown.assert_awaited_once()
 
     async def test_success_records_stage_attempts_without_inventing_date_watermarks(self):
         result = await self.runner.run_pipelines()
@@ -214,6 +326,7 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.runner.resource_manager.acquire_gpu.assert_not_awaited()
         self.assertEqual(self.db.get_recent_runs(), [])
         self.assertEqual(self.db.get_recent_activity(), [])
+        self.runner.resource_manager.shutdown.assert_not_awaited()
 
     async def test_invalid_plan_starts_no_scripts(self):
         self.settings.pipelines["stats"].depends_on = ["typo"]
@@ -247,13 +360,75 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
         folder.mkdir(parents=True)
         for filename in ("09-01-24.zip", "09-02-24.zip", "09-03-24.zip"):
             (folder / filename).touch()
-        self.runner.zip_tracker.processed_file.write_text("09-01-24.zip\n")
-        self.runner.zip_tracker.skip_file.write_text("09-03-24.zip\n")
+        with CommTranscriptionLog(self.settings.paths.server_batch_dir) as log:
+            log.mark_zip_completed("09-01-24.zip", "2024-09-01", "SG", version=2)
+            log.mark_zip_skipped("09-03-24.zip", "2024-09-03", "SG", version=2)
         comm = pipeline("comm", [stage("corpus"), stage("transcribe")])
         corpus = await self.runner._discover_work_items(comm, comm.stages[0], None, None, False)
         transcribe = await self.runner._discover_work_items(comm, comm.stages[1], None, None, False)
-        self.assertEqual(corpus[0].metadata["dates"], ["2024-09-02"])
+        self.assertEqual(corpus[0].item_id, "comm:missing_corpuses")
+        self.assertEqual(corpus[0].metadata, {"since_date": None, "until_date": None})
         self.assertEqual(transcribe[0].metadata["dates"], ["2024-09-01", "2024-09-02"])
+
+    async def test_pending_date_overrides_old_text_status_and_modification_window(self):
+        folder = self.settings.paths.raw_audio_folder / "InternetArchive_dragon_cst_to_grounds"
+        folder.mkdir(parents=True)
+        filename = "09-01-24_Dragon-to-Grounds.zip"
+        path = folder / filename
+        path.touch()
+        os.utime(path, (0, 0))
+        root = self.settings.paths.server_batch_dir
+        for text_file in ("ia_zips_processed.txt", "ia_zips_errors.txt", "ia_skip_zips.txt"):
+            (root / text_file).write_text(filename + "\n")
+        with CommTranscriptionLog(root) as log:
+            log.mark_zip_completed(filename, "2024-09-01", "AG", version=2)
+            log.mark_date_pending("2024-09-01")
+        comm = pipeline("comm", [stage("transcribe"), stage("web")])
+        for configured in comm.stages:
+            items = await self.runner._discover_work_items(comm, configured, None, None, False)
+            self.assertEqual(items[0].metadata["dates"], ["2024-09-01"])
+
+    async def test_corpus_discovery_uses_cache_check_and_explicit_bounds_not_zip_status(self):
+        configured = stage(
+            "corpus", args_template="--zip-dates --start-date {since_date} --end-date {until_date} {force_flag}"
+        )
+        comm = pipeline("comm", [configured])
+        with patch.object(self.runner, "_discover_dates_from_zips", side_effect=AssertionError("ZIP status used")):
+            items = await self.runner._discover_work_items(comm, configured, None, None, False)
+            self.assertEqual(self.runner._expand_args_template(configured.args_template, items[0], False, False), ["--zip-dates"])
+            items = await self.runner._discover_work_items(
+                comm, configured, date(2024, 1, 2), date(2024, 1, 4), False
+            )
+        self.assertEqual(
+            self.runner._expand_args_template(configured.args_template, items[0], False, False),
+            ["--zip-dates", "--start-date", "2024-01-02", "--end-date", "2024-01-04"],
+        )
+
+    async def test_old_unmarked_pending_zips_do_not_trigger_historical_backfill(self):
+        folder = self.settings.paths.raw_audio_folder / "InternetArchive_space_to_grounds"
+        folder.mkdir(parents=True)
+        filename = "04-04-12_Space-to-Grounds.zip"
+        path = folder / filename
+        path.touch()
+        os.utime(path, (0, 0))
+        with CommTranscriptionLog(self.settings.paths.server_batch_dir) as log:
+            log.mark_zip_pending(filename, "2012-04-04", "SG", version=2)
+        self.assertEqual(self.runner._discover_dates_from_zips(include_processed=True), [])
+
+    async def test_transcription_receives_only_exact_selected_dates_in_bounded_batches(self):
+        configured = stage("transcribe", args_template="--start-date {since_date} --end-date {until_date} --see-transcriptions {force_flag}")
+        comm = pipeline("comm", [configured])
+        with patch.object(self.runner, "_discover_dates_from_zips", return_value=["2012-04-04", "2026-10-25"]):
+            items = await self.runner._discover_work_items(comm, configured, None, None, False)
+        self.assertEqual(
+            self.runner._expand_args_template(configured.args_template, items[0], False, False),
+            ["--see-transcriptions", "--date", "2012-04-04", "--date", "2026-10-25"],
+        )
+        dates = [f"2024-{month:02d}-{day:02d}" for month in range(1, 13) for day in range(1, 29)]
+        with patch.object(self.runner, "_discover_dates_from_zips", return_value=dates):
+            items = await self.runner._discover_work_items(comm, configured, None, None, False)
+        self.assertTrue(all(len(item.metadata["dates"]) <= 128 for item in items))
+        self.assertEqual([value for item in items for value in item.metadata["dates"]], dates)
 
     async def test_comm_range_is_intersected_with_requested_dates(self):
         comm = pipeline("comm", [stage("web")])
@@ -355,6 +530,7 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(asyncio.CancelledError):
             await self.runner.run_pipelines()
         self.runner.resource_manager.release_gpu.assert_awaited_once()
+        self.runner.resource_manager.shutdown.assert_awaited_once()
         self.assertEqual(self.db.get_recent_runs()[0].status, "cancelled")
         self.assertEqual(self.db.get_active_runs(), [])
         self.assertIsNone(self.runner._current_pipeline)
@@ -411,6 +587,38 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
             result = CliRunner().invoke(main, ["update", "--dry-run"])
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("Would process", result.output)
+
+    def test_cli_activity_preserves_complete_literal_lines_at_normal_brightness(self):
+        messages = [
+            "2026-10-05T134849-1_SG_2_IA.wav",
+            "Original transcript (ru): Москва, станция готова. [red]",
+            "Translated transcript (English): Moscow, the station is ready. [red]",
+        ]
+
+        async def run_pipelines(**kwargs):
+            for message in messages:
+                kwargs["on_progress"]("comm", "transcribe", message)
+            return OrchestratorResult(True, 1, 1, 1, 0, 0.01)
+
+        for command in ("run", "update"):
+            with (
+                self.subTest(command=command),
+                patch("incremental.cli.load_settings", return_value=self.settings),
+                patch.object(Orchestrator, "run_pipelines", side_effect=run_pipelines),
+                patch(
+                    "incremental.cli.console",
+                    Console(file=io.StringIO(), width=40, force_terminal=True, color_system="standard", no_color=False),
+                ) as console,
+            ):
+                result = CliRunner().invoke(main, [command, "--dry-run"])
+                self.assertEqual(result.exit_code, 0, result.exception)
+                lines = Text.from_ansi(console.file.getvalue()).split("\n")
+                for message in messages:
+                    matching = [line for line in lines if line.plain.endswith(message)]
+                    self.assertTrue(matching, lines)
+                    line = matching[0]
+                    for offset in (line.plain.index("comm"), line.plain.index("transcribe"), len(line) - len(message)):
+                        self.assertFalse(line.get_style_at_offset(console, offset).dim, line)
 
     def test_unsupported_stage_selection_cannot_silently_run_a_pipeline(self):
         with patch("incremental.cli.load_settings", return_value=self.settings):

@@ -107,7 +107,7 @@ uv run issirt-incremental dashboard --auto-run --interval 15m
 
 ## Configuration
 
-All LLM stages use local Strata with **Qwen3.8-Flash-Next IQ3_S**
+IQ3_S is the supported quantization. All LLM stages use local Strata with **Qwen3.8-Flash-Next IQ3_S**
 (model ID `iq3_s`) at `http://127.0.0.1:47831/v1`. This includes corpus prompt
 context, Flickr classification, and the standalone summary scripts under `ai/`.
 Start the Strata desktop app before running them.
@@ -128,8 +128,10 @@ log as `Photo <id> / worker <id> REASONING: ...`, then prints `FINAL OUTPUT` and
 reasoning remains visible while inference runs, including with multiple workers.
 
 The orchestrator uses Strata Control's local `/api/native` API to reuse or load
-the stage's model, wait until it is ready, and unload it at stage boundaries.
-It also unloads all native Strata instances before WhisperX starts. Failures
+the stage's model and wait until it is ready. It retains IQ3_S between
+photo classification and comm corpus generation, then unloads all native Strata instances
+before WhisperX starts. Any retained model is also unloaded when the update ends,
+including on failure or cancellation. Failures
 stop the stage. If Strata is offline and this run has no tracked Strata model,
 WhisperX can start without it. A tracked model, an unload failure, or an
 unresponsive Strata server still blocks the handoff. LLM stages require Strata
@@ -142,10 +144,29 @@ The script selects Silero for voice activity detection and logs the current WAV
 and GPU operation. Failed subprocess reports include the exit code, stderr, and
 recent stdout so startup warnings cannot hide a later native crash.
 
-The corpus stage first checks its cached prompts with `--check-work`, so a run
-with no prompts to generate never loads the model. Empty or interrupted prompts,
-invalid metadata, and unsupported summaries still trigger regeneration, as does
-`--force`. Stages can opt into this preflight with `work_check_args`; the script
+Comm transcription output keeps each WAV filename on one logical line and shows
+its transcript after processing. Foreign-language WAVs include both the original
+transcript (labeled with the detected language code) and the English translation.
+The transcribe stage enables this with `--see-transcriptions` in `pipelines.yaml`.
+
+The corpus stage checks `comm_corpus_log` in `comm_transcription_log.sqlite3`
+with `--zip-dates --check-work`, so a run with no corpuses to generate never loads
+the model. Existing nonempty corpus files are imported as completed once. Later
+runs use database status, without rechecking old metadata or summaries. Missing,
+pending, failed, and interrupted database records are eligible for generation;
+`--force` also selects completed corpuses. Only actual local ZIP dates are
+considered, respecting explicit date bounds, without filling intervening days.
+Corpus requests use low reasoning effort. A replaced ZIP resets transcription
+status without invalidating its completed corpus.
+
+The incremental corpus stage enables `--show-output`: each digest logs Strata's
+`REASONING` and `TEXT` as it streams, labeled with the date, worker, and phase
+(`brief` or `prompt`). `FINAL OUTPUT` shows the saved corpus after any refinement
+or truncation. Lines are bounded and flushed so they appear during inference;
+partial output is also flushed on failure. Use the same flag when running
+`5_corpus_initial_prompt_ai_gen.py` directly.
+
+Stages can opt into this preflight with `work_check_args`; the script
 receives its normal arguments plus these flags and must exit successfully with
 JSON `{"needs_work": true}` or `{"needs_work": false}`.
 
@@ -169,6 +190,34 @@ Key dependencies:
 - `eva` depends on `flights`
 - `aggregation` depends on `comm`, `articles`, `flights`, `photos_earth`, `photos_flickr`, `clouds`, `eva`, `ephemera`
 - Stage dependencies within `comm`: download → corpus → transcribe → web
+
+The update completes the other data pipelines (including Flickr classification),
+then runs the entire comm pipeline: download → corpus → transcribe → web.
+Aggregation runs afterward so it includes the new transcripts. Partial updates
+keep the same pipeline IDs and only run the selected pipelines.
+
+Comm ZIP completion, pending, error, and skip status all come from
+`src/server-batch/comm_transcription_log.sqlite3`. Discovery and status displays
+use each ZIP's latest transcription-version record. The `ia_zips_processed.txt`,
+`ia_zips_in_progress.txt`, `ia_zips_errors.txt`, and `ia_skip_zips.txt` status files
+are no longer read or updated by incremental comm runs.
+Existing SQLite records are retained; no text-file import is performed.
+
+When the download stage replaces a ZIP whose size differs from Internet Archive's
+metadata, it resets that date's non-skipped ZIP records and day summary to
+`pending` after the replacement succeeds. Incremental discovers pending ZIPs in
+both comm folders even outside the usual 30-day file modification window, so the
+next transcription stage retries them without `--force`. This age exception
+applies to explicit ZIP replacement invalidations, not unrelated historical
+pending rows. Failed downloads and
+dry runs leave completion status unchanged.
+
+Historical completions under earlier transcription versions remain completed
+unless their latest SQLite record explicitly invalidates them or `--force` is
+requested. Transcription receives exact selected dates in bounded batches,
+instead of processing intervening dates in a continuous range. Archived text
+completion records were reconciled once where SQLite had stale pending status;
+the text files remain backups and are not consulted during normal runs.
 
 ## CLI Entry Point
 

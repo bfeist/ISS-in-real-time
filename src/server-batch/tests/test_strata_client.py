@@ -39,6 +39,12 @@ def final_frame():
 
 
 class StrataClientTests(unittest.TestCase):
+    def test_corpus_low_reasoning_is_sent_in_request_payload(self):
+        response = stream_response(delta_frame(content="Corpus"), final_frame())
+        with patch("prompt_context.strata.requests.post", return_value=response) as post:
+            StrataClient(reasoning_effort="low").generate("mission context")
+        self.assertEqual(post.call_args.kwargs["json"]["reasoning_effort"], "low")
+
     def test_queue_and_prompt_processing_do_not_trigger_generation_watchdog(self):
         for first_delta in ({"content": "OK"}, {"reasoning_content": "Check"}):
             clock = [0.0]

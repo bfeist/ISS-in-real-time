@@ -64,7 +64,7 @@ class PromptContextPipeline:
         strata: Optional[StrataClient] = None,
     ) -> None:
         self.config = config
-        self.strata = strata or StrataClient()
+        self.strata = strata or StrataClient(reasoning_effort="low")
         self.crew_builder = CrewPromptBuilder(config)
         self.brief_builder = DailyBriefBuilder(config, self.strata)
         self.prompt_synthesizer = PromptSynthesizer(

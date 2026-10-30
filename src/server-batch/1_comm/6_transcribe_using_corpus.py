@@ -34,6 +34,7 @@ from pydub import AudioSegment  # type: ignore
 from pydub.exceptions import CouldntDecodeError  # type: ignore
 from rich.console import Console
 from rich.logging import RichHandler
+from rich.text import Text
 
 try:
     import torch
@@ -47,7 +48,6 @@ if str(SCRIPT_DIR) not in sys.path:
 from log_db import (  # noqa: E402  - local module import after path injection
     CommTranscriptionLog,
     LOG_STATUS_COMPLETED,
-    LOG_STATUS_ERROR,
     LOG_STATUS_IN_PROGRESS,
     LOG_STATUS_SKIPPED,
     parse_zip_metadata,
@@ -197,15 +197,10 @@ ZIP_KIND_DEFAULT_TYPE = {
     "AG": "Dragon-to-Grounds",
 }
 
-IA_ZIPS_PROCESSED_TRACKING_FILE = TRACKING_DIR / "ia_zips_processed.txt"
-IA_ZIPS_IN_PROGRESS_TRACKING_FILE = TRACKING_DIR / "ia_zips_in_progress.txt"
-IA_SKIP_ZIPS_TRACKING_FILE = TRACKING_DIR / "ia_skip_zips.txt"
-IA_ZIPS_ERRORS_TRACKING_FILE = TRACKING_DIR / "ia_zips_errors.txt"
 UNREADABLE_WAV_SUBDIR = "unreadable"
 
 ZIP_PENDING_GRACE_PERIOD = dt.timedelta(minutes=10)
 
-file_lock = threading.RLock()
 exit_event = threading.Event()
 immediate_exit_event = threading.Event()
 stdout_silence_lock = threading.RLock()
@@ -687,7 +682,13 @@ class AlignmentModelUnavailableError(Exception):
 
 
 def configure_logging(debug: bool = False) -> None:
-    handler = RichHandler(console=console, show_level=True, show_time=True)
+    # The incremental updater captures stdout one line at a time. Rich's log
+    # table wraps messages to the pipe's default width, splitting WAV names.
+    handler = (
+        RichHandler(console=console, show_level=True, show_time=True)
+        if console.is_terminal
+        else logging.StreamHandler(console.file)
+    )
     logging.basicConfig(
         level=logging.DEBUG if debug else logging.INFO,
         format="%(message)s",
@@ -713,76 +714,6 @@ def load_environment(env_path: Path | None = None) -> None:
 
 def ensure_directory(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
-
-
-def read_tracking_file(file_path: Path) -> List[str]:
-    with file_lock:
-        if file_path.exists():
-            return [
-                line.strip()
-                for line in file_path.read_text(encoding="utf-8").splitlines()
-                if line
-            ]
-    return []
-
-
-def add_to_tracking_file(file_path: Path, item: str) -> None:
-    with file_lock:
-        items = set(read_tracking_file(file_path))
-        if item not in items:
-            items.add(item)
-            file_path.write_text("\n".join(sorted(items)), encoding="utf-8")
-
-
-def remove_from_tracking_file(file_path: Path, item: str) -> None:
-    with file_lock:
-        if not file_path.exists():
-            return
-        items = [
-            line.strip()
-            for line in file_path.read_text(encoding="utf-8").splitlines()
-            if line
-        ]
-        if item in items:
-            items.remove(item)
-            file_path.write_text("\n".join(items), encoding="utf-8")
-
-
-def read_skip_list(file_path: Path) -> List[str]:
-    return read_tracking_file(file_path)
-
-
-def sync_skip_entries_with_log(
-    log: CommTranscriptionLog,
-    skip_entries: Sequence[str],
-    *,
-    target_version: int,
-) -> None:
-    """Ensure any manual skip entries are reflected in the database."""
-
-    pending_updates = False
-    for zip_name in skip_entries:
-        entry = log.latest_entry_for_zip(zip_name)
-        if entry and entry.status == LOG_STATUS_SKIPPED:
-            continue
-        try:
-            iso_date, zip_type = parse_zip_metadata(zip_name)
-        except ValueError:
-            logger.warning("Unable to parse skip entry %s; skipping DB sync", zip_name)
-            continue
-        log.record_zip_status(
-            zip_name,
-            iso_date,
-            zip_type,
-            LOG_STATUS_SKIPPED,
-            version=target_version,
-            transcribed_at=None,
-            error_message="legacy skip import",
-            commit=False,
-        )
-        pending_updates = True
-    if pending_updates:
-        log.commit()
 
 
 def reset_in_progress_entries(log: CommTranscriptionLog, *, version: int) -> None:
@@ -997,7 +928,6 @@ def unzip_ia_zip_wavs(
     if not zipfile.is_zipfile(zip_path):
         if zip_likely_in_progress(zip_path):
             raise ZipPendingDownloadError(str(zip_path))
-        add_to_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE, zip_path.name)
         if transcription_log is not None:
             try:
                 iso_date, derived_type = parse_zip_metadata(zip_path.name)
@@ -1075,8 +1005,6 @@ def unzip_ia_zip_wavs(
                 date_time, descriptor = parse_wav_filename(original_name, downlink)
             except FilenameParseError as exc:
                 logger.critical("Critical filename error in %s: %s", zip_path.name, exc)
-                add_to_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE, zip_path.name)
-                add_to_tracking_file(IA_SKIP_ZIPS_TRACKING_FILE, zip_path.name)
                 if transcription_log is not None:
                     try:
                         iso_date, derived_type = parse_zip_metadata(zip_path.name)
@@ -2164,10 +2092,9 @@ def prune_empty_segments(
 def display_transcription_summary(
     wav_path: Path, transcription: TranscriptionArtifacts
 ) -> None:
-    console.rule(f"[bold cyan]{wav_path.name}")
-    console.print(
-        f"[bold]Detected language:[/] {transcription.detected_language or 'unknown'}"
-    )
+    # Keep logical lines intact through pipes, and treat transcript text as
+    # literal text (it can contain brackets that look like Rich markup).
+    console.print(Text(wav_path.name, style="bold cyan"), soft_wrap=True)
 
     original_text = segments_to_text(transcription.source_segments)
     translated_text = (
@@ -2179,31 +2106,20 @@ def display_transcription_summary(
     language_label = transcription.detected_language or "unknown"
 
     if transcription.translation_segments is not None:
-        if original_text:
-            console.print(
-                f"[bold]Original transcript ({language_label}):[/]\n{original_text}"
-            )
-        else:
-            console.print(
-                f"[bold]Original transcript ({language_label}):[/] [italic]Unavailable[/]"
-            )
-
-        if translated_text:
-            console.print(
-                "[bold]Translated transcript (English):[/]\n" f"{translated_text}"
-            )
-        else:
-            console.print(
-                "[bold]Translated transcript (English):[/] [italic]Unavailable[/]"
-            )
+        console.print(
+            Text(f"Original transcript ({language_label}): {original_text or 'Unavailable'}"),
+            soft_wrap=True,
+        )
+        console.print(
+            Text(f"Translated transcript (English): {translated_text or 'Unavailable'}"),
+            soft_wrap=True,
+        )
     else:
         combined_text = translated_text or original_text
-        if combined_text:
-            console.print(f"[bold]Transcript ({language_label}):[/]\n{combined_text}")
-        else:
-            console.print(
-                f"[bold]Transcript ({language_label}):[/] [italic]Unavailable[/]"
-            )
+        console.print(
+            Text(f"Transcript ({language_label}): {combined_text or 'Unavailable'}"),
+            soft_wrap=True,
+        )
 
 
 def render_utterances(
@@ -2675,7 +2591,6 @@ def process_zip_group(
         log.mark_zip_in_progress(
             zip_file, iso_date, derived_type, version=transcription_version
         )
-        add_to_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
 
     working_dir_name = date_key if date_key != "unknown" else zip_entries[0][0]
     working_dir = CURRENT_IA_ZIP_WAVS_WORKING / f"{working_dir_name}_wavs"
@@ -2718,7 +2633,6 @@ def process_zip_group(
                 raise
             except zipfile.BadZipFile as exc:
                 logger.error("Failed to unzip %s: %s", zip_file, exc)
-                add_to_tracking_file(IA_ZIPS_ERRORS_TRACKING_FILE, zip_file)
                 raise
             except Exception as exc:  # pylint: disable=broad-except
                 logger.exception("Unexpected error unzipping %s: %s", zip_file, exc)
@@ -2842,6 +2756,9 @@ def process_zip_group(
         else:
             logger.error("Runtime error while processing group %s: %s", date_key, exc)
             for zip_file, (iso_date, derived_type) in metadata_map.items():
+                entry = log.latest_entry_for_zip(zip_file)
+                if entry and entry.status == LOG_STATUS_SKIPPED:
+                    continue
                 log.mark_zip_error(
                     zip_file,
                     iso_date,
@@ -2854,6 +2771,9 @@ def process_zip_group(
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("Unhandled exception processing group %s: %s", date_key, exc)
         for zip_file, (iso_date, derived_type) in metadata_map.items():
+            entry = log.latest_entry_for_zip(zip_file)
+            if entry and entry.status == LOG_STATUS_SKIPPED:
+                continue
             log.mark_zip_error(
                 zip_file,
                 iso_date,
@@ -2864,8 +2784,6 @@ def process_zip_group(
     finally:
         if working_dir.exists():
             shutil.rmtree(working_dir)
-        for zip_file, _, _ in zip_entries:
-            remove_from_tracking_file(IA_ZIPS_IN_PROGRESS_TRACKING_FILE, zip_file)
 
     if processed_successfully:
         completed_at = dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
@@ -2877,7 +2795,6 @@ def process_zip_group(
                 version=transcription_version,
                 transcribed_at=completed_at,
             )
-            add_to_tracking_file(IA_ZIPS_PROCESSED_TRACKING_FILE, zip_file)
 
     return processed_successfully
 
@@ -3003,7 +2920,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         return 1
 
-    resources = WhisperResources.load(DEVICE, MODEL_TYPE, COMPUTE_TYPE)
     silence_cfg = SilenceConfig()
     selected_names = set(args.zips) if args.zips else None
 
@@ -3012,15 +2928,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     with CommTranscriptionLog(TRACKING_DIR) as transcription_log:
         reset_in_progress_entries(transcription_log, version=TRANSCRIPTION_VERSION)
 
-        manual_skip_entries = set(read_skip_list(IA_SKIP_ZIPS_TRACKING_FILE))
-        sync_skip_entries_with_log(
-            transcription_log,
-            manual_skip_entries,
-            target_version=TRANSCRIPTION_VERSION,
+        skip_list = transcription_log.zips_by_status(
+            [LOG_STATUS_SKIPPED], latest_only=True
         )
-
-        db_skip_entries = transcription_log.zips_by_status([LOG_STATUS_SKIPPED])
-        skip_list = manual_skip_entries | db_skip_entries
 
         sg_entries = list_zip_entries(ia_zip_sg_folder, "SG", selected_names, skip_list)
         ag_entries = list_zip_entries(ia_zip_ag_folder, "AG", selected_names, skip_list)
@@ -3037,10 +2947,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
         # Check for already completed archives (unless --force is used)
         if not args.force:
-            completed_v2 = transcription_log.zips_by_status(
-                [LOG_STATUS_COMPLETED], version=TRANSCRIPTION_VERSION
+            completed = transcription_log.zips_by_status(
+                [LOG_STATUS_COMPLETED], latest_only=True
             )
-            already_completed = {name for name, _, _ in combined_entries} & completed_v2
+            already_completed = {name for name, _, _ in combined_entries} & completed
 
             # July 2026-era IA exports changed to daily ZIPs containing nested
             # channel ZIPs. Older versions of this script marked those archives
@@ -3051,6 +2961,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 if name not in already_completed:
                     continue
                 date_key = get_zip_date_key(name)
+                if date_key < "2026-07-01":
+                    continue
                 try:
                     year, month, day = date_key.split("-")
                     output_exists = (comm_raw / year / month / day).exists()
@@ -3076,9 +2988,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 already_completed -= false_completions
             if already_completed:
                 logger.info(
-                    "Skipping %d archive(s) already completed for version %d",
+                    "Skipping %d archive(s) already completed in the transcription log",
                     len(already_completed),
-                    TRANSCRIPTION_VERSION,
                 )
                 combined_entries = [
                     entry
@@ -3131,6 +3042,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if args.limit:
             grouped_entries = grouped_entries[: args.limit]
 
+        resources = WhisperResources.load(DEVICE, MODEL_TYPE, COMPUTE_TYPE)
         order_desc = "newest -> oldest" if args.newest_first else "oldest -> newest"
         logger.info("Processing %d zip group(s) (%s)", len(grouped_entries), order_desc)
 

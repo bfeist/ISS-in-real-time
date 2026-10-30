@@ -4,14 +4,16 @@
 #
 # Run order and dependencies:
 # 1. articles (independent) - MUST run before comm.corpus
-# 2. comm (corpus stage depends on articles.consolidate)
-# 3. flights (independent, currently all-up not incremental)
-# 4. photos_earth (independent)
-# 5. photos_flickr (independent)
-# 6. clouds (independent)
-# 7. eva (depends on flights)
-# 8. ephemera (independent)
+# 2. flights (independent, currently all-up not incremental)
+# 3. photos_earth (independent)
+# 4. photos_flickr (independent)
+# 5. clouds (independent)
+# 6. eva (depends on flights)
+# 7. ephemera (independent)
+# 8. comm (entire pipeline; corpus depends on articles.consolidate)
 # 9. aggregation (depends on all data pipelines)
+# The entire comm pipeline runs after the other data pipelines.
+# Photo classification and comm corpus share one IQ3_S load before WhisperX starts.
 
 # =============================================================================
 # Global Configuration
@@ -65,57 +67,7 @@ pipelines:
         args_template: ""
 
   # ---------------------------------------------------------------------------
-  # 2. Comm Pipeline - ISS Communications/Audio Transcription
-  # Scripts: 1a, 5_corpus, 6_transcribe, 3_web_comm
-  # CRITICAL: corpus stage requires articles to be up-to-date!
-  # ---------------------------------------------------------------------------
-  comm:
-    name: "ISS Communications"
-    enabled: true
-    depends_on: [] # Pipeline level - can start download, but corpus waits
-    run_strategy: incremental
-    max_concurrent: 1
-
-    stages:
-      - id: download
-        name: "Download IA ZIPs"
-        script: "1_comm/1a_download_collection_IA_zips.py"
-        timeout_minutes: 180
-        args_template: "--limit 2 {dry_run_flag}"
-
-      - id: corpus
-        name: "Generate AI Corpus"
-        script: "1_comm/5_corpus_initial_prompt_ai_gen.py"
-        timeout_minutes: 120
-        requires_gpu: true
-        gpu_task_type: strata
-        strata_model: "iq3_s"
-        work_check_args: ["--check-work"]
-        depends_on_stages: [download]
-        # CRITICAL: Corpus needs blog articles for context generation
-        cross_dependencies:
-          - pipeline: articles
-            stage: consolidate
-        args_template: "--start-date {since_date} --end-date {until_date} {force_flag}"
-
-      - id: transcribe
-        name: "Transcribe Audio"
-        script: "1_comm/6_transcribe_using_corpus.py"
-        timeout_minutes: 480
-        requires_gpu: true
-        gpu_task_type: whisperx
-        depends_on_stages: [corpus]
-        args_template: "--start-date {since_date} --end-date {until_date} {force_flag}"
-
-      - id: web
-        name: "Generate Web Assets"
-        script: "1_comm/3_web_comm.py"
-        timeout_minutes: 60
-        depends_on_stages: [transcribe]
-        args_template: "--start-date {since_date} --end-date {until_date}  {overwrite_flag}"
-
-  # ---------------------------------------------------------------------------
-  # 3. Flights Pipeline - Flight/Crew data
+  # 2. Flights Pipeline - Flight/Crew data
   # Scripts: 5a, 5c, 6, 11
   # NOTE: Currently all-up processing, not truly incremental
   # ---------------------------------------------------------------------------
@@ -154,7 +106,7 @@ pipelines:
         args_template: ""
 
   # ---------------------------------------------------------------------------
-  # 4a. Photos Earth Pipeline - Earth photography
+  # 3. Photos Earth Pipeline - Earth photography
   # Scripts: 9_web_earth_photography.py
   # Strategy:
   #   - Stage 1: Today to 60 days ago, overwrite (catch retroactive additions)
@@ -184,7 +136,7 @@ pipelines:
         args_template: "--start-date {recent_60_days} --stop-date {recent_180_days}"
 
   # ---------------------------------------------------------------------------
-  # 4b. Photos Flickr Pipeline - JSC Flickr albums
+  # 4. Photos Flickr Pipeline - JSC Flickr albums
   # Scripts: 9e, 9f, 9g, 9h, 9i
   # NOTE: 9e, 9f may require manual abort when reaching older albums
   # ---------------------------------------------------------------------------
@@ -235,12 +187,12 @@ pipelines:
         args_template: ""
 
   # ---------------------------------------------------------------------------
-  # 5. VIDEO PIPELINE - EXCLUDED
+  # VIDEO PIPELINE - EXCLUDED
   # Not ready for incremental updates - logic outside this repo
   # ---------------------------------------------------------------------------
 
   # ---------------------------------------------------------------------------
-  # 6. Clouds Pipeline - Cloud availability data
+  # 5. Clouds Pipeline - Cloud availability data
   # ---------------------------------------------------------------------------
   clouds:
     name: "Cloud Availability"
@@ -257,7 +209,7 @@ pipelines:
         args_template: ""
 
   # ---------------------------------------------------------------------------
-  # 7. EVA Pipeline - Spacewalk info
+  # 6. EVA Pipeline - Spacewalk info
   # ---------------------------------------------------------------------------
   eva:
     name: "EVA Information"
@@ -274,7 +226,7 @@ pipelines:
         args_template: ""
 
   # ---------------------------------------------------------------------------
-  # 8. Ephemera Pipeline - Misc orbital data
+  # 7. Ephemera Pipeline - Misc orbital data
   # Scripts: 7_web_ephemera, 7a_web_orbit_count
   # ---------------------------------------------------------------------------
   ephemera:
@@ -297,6 +249,56 @@ pipelines:
         timeout_minutes: 30
         depends_on_stages: [fetch]
         args_template: ""
+
+  # ---------------------------------------------------------------------------
+  # 8. Comm Pipeline - ISS Communications/Audio Transcription
+  # Scripts: 1a, 5_corpus, 6_transcribe, 3_web_comm
+  # CRITICAL: corpus stage requires articles to be up-to-date!
+  # ---------------------------------------------------------------------------
+  comm:
+    name: "ISS Communications"
+    enabled: true
+    depends_on: [] # Pipeline level - can start download, but corpus waits
+    run_strategy: incremental
+    max_concurrent: 1
+
+    stages:
+      - id: download
+        name: "Download IA ZIPs"
+        script: "1_comm/1a_download_collection_IA_zips.py"
+        timeout_minutes: 180
+        args_template: "--limit 2 {dry_run_flag}"
+
+      - id: corpus
+        name: "Generate AI Corpus"
+        script: "1_comm/5_corpus_initial_prompt_ai_gen.py"
+        timeout_minutes: 120
+        requires_gpu: true
+        gpu_task_type: strata
+        strata_model: "iq3_s"
+        work_check_args: ["--check-work"]
+        depends_on_stages: [download]
+        # CRITICAL: Corpus needs blog articles for context generation
+        cross_dependencies:
+          - pipeline: articles
+            stage: consolidate
+        args_template: "--zip-dates --start-date {since_date} --end-date {until_date} --show-output {force_flag}"
+
+      - id: transcribe
+        name: "Transcribe Audio"
+        script: "1_comm/6_transcribe_using_corpus.py"
+        timeout_minutes: 480
+        requires_gpu: true
+        gpu_task_type: whisperx
+        depends_on_stages: [corpus]
+        args_template: "--start-date {since_date} --end-date {until_date} --see-transcriptions {force_flag}"
+
+      - id: web
+        name: "Generate Web Assets"
+        script: "1_comm/3_web_comm.py"
+        timeout_minutes: 60
+        depends_on_stages: [transcribe]
+        args_template: "--start-date {since_date} --end-date {until_date}  {overwrite_flag}"
 
   # ---------------------------------------------------------------------------
   # 9. Aggregation Pipeline - Final metadata and stats

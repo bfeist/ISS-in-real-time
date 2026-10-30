@@ -147,6 +147,7 @@ class StrataClient:
         *,
         base_url: Optional[str] = None,
         default_model: Optional[str] = None,
+        reasoning_effort: str = "medium",
         request_timeout: int = 300,
         max_retries: int = 3,
         retry_backoff: float = 2.0,
@@ -161,6 +162,7 @@ class StrataClient:
         if not self.base_url.endswith("/v1"):
             self.base_url += "/v1"
         self.default_model = default_model or os.getenv("STRATA_MODEL", "iq3_s")
+        self.reasoning_effort = reasoning_effort
         self.request_timeout = request_timeout
         self.max_retries = max_retries
         self.retry_backoff = retry_backoff
@@ -198,7 +200,7 @@ class StrataClient:
             "messages": messages,
             "stream": True,
             "stream_options": {"include_usage": True},
-            "reasoning_effort": "medium",
+            "reasoning_effort": self.reasoning_effort,
         }
         merged_options = {**self.default_options, **(options or {})}
         for key in ("temperature", "top_p", "top_k", "repeat_penalty"):

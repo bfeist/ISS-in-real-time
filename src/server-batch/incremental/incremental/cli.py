@@ -186,6 +186,7 @@ def status(ctx: click.Context, pipeline: Optional[str], verbose: bool) -> None:
     zip_table.add_column("Status", style="dim")
     zip_table.add_column("Count", style="bold")
     zip_table.add_row("Processed", str(zip_summary["processed"]))
+    zip_table.add_row("Pending", str(zip_summary["pending"]))
     zip_table.add_row("In Progress", str(zip_summary["in_progress"]))
     zip_table.add_row("Errors", str(zip_summary["errors"]))
     zip_table.add_row("Skipped", str(zip_summary["skipped"]))
@@ -345,7 +346,7 @@ def run(
 
     # Progress callback for console output
     def on_progress(pipeline_id: str, stage_id: str, message: str) -> None:
-        console.print(f"  [{pipeline_id}.{stage_id}] {message}")
+        console.print(Text(f"  [{pipeline_id}.{stage_id}] {message}"), soft_wrap=True)
 
     # Create orchestrator and run
     orchestrator = Orchestrator(
@@ -689,9 +690,13 @@ def update(
         if stage_id:
             elapsed = (datetime.now() - start_time).total_seconds()
             elapsed_str = f"{int(elapsed // 60)}:{int(elapsed % 60):02d}"
-            console.print(
-                f"[dim][{elapsed_str}][/dim] [cyan]{pipeline_id}[/cyan].[yellow]{stage_id}[/yellow]: {message}"
-            )
+            entry = Text()
+            entry.append(f"[{elapsed_str}] ", style="dim")
+            entry.append(pipeline_id, style="cyan")
+            entry.append(".")
+            entry.append(stage_id, style="yellow")
+            entry.append(f": {message}")
+            console.print(entry, soft_wrap=True)
 
     # Create orchestrator
     orchestrator = Orchestrator(

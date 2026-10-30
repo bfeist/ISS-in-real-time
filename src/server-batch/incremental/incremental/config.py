@@ -468,7 +468,7 @@ pipelines:
         cross_dependencies:
           - pipeline: articles
             stage: consolidate
-        args_template: "--start-date {since_date} --end-date {until_date} {overwrite_flag}"
+        args_template: "--zip-dates --start-date {since_date} --end-date {until_date} {force_flag}"
       
       - id: transcribe
         name: "Transcribe Audio"

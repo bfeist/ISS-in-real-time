@@ -37,13 +37,19 @@ import multiprocessing as mp
 import os
 import queue
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import wrap
 from typing import Dict, Iterable, List, Optional, Sequence
 
 from dotenv import load_dotenv
 from rich.console import Console
 
+from log_db import (
+    CommTranscriptionLog, LOG_STATUS_COMPLETED, LOG_STATUS_ERROR,
+    LOG_STATUS_IN_PROGRESS, parse_zip_metadata,
+)
 from prompt_context.config import PromptContextConfig
 from prompt_context.strata import StrataClient
 from prompt_context.pipeline import PromptContextPipeline, needs_prompt_generation
@@ -60,9 +66,51 @@ CUSTOM_TERMS = [
 ]
 
 console = Console()
+TRACKING_DIR = Path(__file__).resolve().parent.parent
 
 _worker_settings: Dict[str, object] = {}
 _status_queue: Optional[mp.Queue] = None
+
+
+class CorpusOutputLogger:
+    """Emit bounded, flushed lines for the incremental runner's line reader."""
+
+    def __init__(self, date: str, worker: str) -> None:
+        self.prefix = f"Comm {date} / {worker}"
+        self.stage = "start"
+        self.pending = {"REASONING": "", "TEXT": ""}
+        self.last_flush = time.monotonic()
+
+    def write(self, label: str, text: str) -> None:
+        for line in text.splitlines():
+            for chunk in wrap(line, width=240):
+                print(f"{self.prefix} / {self.stage} {label}: {chunk}", flush=True)
+
+    def flush(self) -> None:
+        for label, text in self.pending.items():
+            self.write(label, text)
+            self.pending[label] = ""
+        self.last_flush = time.monotonic()
+
+    def set_stage(self, stage: str) -> None:
+        self.flush()
+        self.stage = stage
+        self.write("STATUS", "Starting")
+
+    def __call__(self, event: Dict[str, object]) -> None:
+        if debug := event.get("debug"):
+            self.flush()
+            self.write("STATUS", str(debug))
+        for key, label in (("thinking", "REASONING"), ("response", "TEXT")):
+            chunk = event.get(key)
+            if isinstance(chunk, str) and chunk:
+                self.pending[label] += chunk
+        if (
+            event.get("done")
+            or any("\n" in text or len(text) >= 240 for text in self.pending.values())
+            or time.monotonic() - self.last_flush >= 1
+        ):
+            self.flush()
 
 
 @dataclass
@@ -86,6 +134,7 @@ def _worker_task(date: str) -> WorkerResult:
     settings = _worker_settings
     status_queue = _status_queue
     worker_name = mp.current_process().name
+    output_log = CorpusOutputLogger(date, worker_name) if settings.get("show_output") else None
 
     def send(msg_type: str, payload: Dict[str, object]) -> None:
         if status_queue is not None:
@@ -113,13 +162,17 @@ def _worker_task(date: str) -> WorkerResult:
         if settings.get("retry_backoff"):
             strata_kwargs["retry_backoff"] = settings["retry_backoff"]
 
-        strata = StrataClient(**strata_kwargs)
+        strata = StrataClient(reasoning_effort="low", **strata_kwargs)
         pipeline = PromptContextPipeline(config, strata)
 
         def status_callback(stage: str, payload: Dict[str, object]) -> None:
+            if output_log:
+                output_log.set_stage(stage)
             send("phase", {"stage": stage, **payload})
 
         def on_event(event: Dict[str, object]) -> None:
+            if output_log:
+                output_log(event)
             # Capture both thinking and response
             thinking = event.get("thinking")
             response = event.get("response")
@@ -150,12 +203,30 @@ def _worker_task(date: str) -> WorkerResult:
             if isinstance(response, str) and response:
                 send("stream", {"chunk": response, "type": "response"})
 
-        result = pipeline.process_date(
-            date,
-            force=bool(settings.get("force")),
-            on_event=on_event,
-            status_callback=status_callback,
-        )
+        if settings.get("track_corpuses"):
+            with CommTranscriptionLog(Path(settings["tracking_dir"])) as log:
+                log.record_corpus_status(date, LOG_STATUS_IN_PROGRESS)
+                try:
+                    # This date was selected by SQLite, so stale files cannot
+                    # override its pending/error status.
+                    result = pipeline.process_date(
+                        date, force=True, on_event=on_event, status_callback=status_callback,
+                    )
+                except Exception as exc:
+                    log.record_corpus_status(date, LOG_STATUS_ERROR, error_message=str(exc))
+                    raise
+                log.record_corpus_status(date, LOG_STATUS_COMPLETED, prompt_path=result.prompt_path)
+        else:
+            result = pipeline.process_date(
+                date,
+                force=bool(settings.get("force")),
+                on_event=on_event,
+                status_callback=status_callback,
+            )
+        if output_log:
+            output_log.flush()
+            if not result.skipped:
+                output_log.write("FINAL OUTPUT", result.prompt_path.read_text(encoding="utf-8"))
         if result.skipped:
             send(
                 "skipped",
@@ -182,6 +253,9 @@ def _worker_task(date: str) -> WorkerResult:
             prompt_path=str(result.prompt_path),
         )
     except Exception as exc:  # pylint: disable=broad-except
+        if output_log:
+            output_log.flush()
+            output_log.write("ERROR", str(exc))
         send("error", {"error": str(exc)})
         return WorkerResult(date=date, status="error", error=str(exc))
 
@@ -211,6 +285,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Process all ISS mission days from 2000-11-01 to today (default when no dates specified)",
     )
     parser.add_argument(
+        "--zip-dates",
+        action="store_true",
+        help="Only consider dates with local comm ZIPs, reusing existing valid corpuses",
+    )
+    parser.add_argument(
         "--model", help="Override default Strata model (default: iq3_s)"
     )
     parser.add_argument(
@@ -224,6 +303,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--monitor", action="store_true", help="Display Rich live monitor"
+    )
+    parser.add_argument(
+        "--show-output",
+        action="store_true",
+        help="Print dated reasoning, generated text, and final corpus output as flushed log lines",
     )
     parser.add_argument(
         "--debug-stream",
@@ -252,6 +336,19 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
 
 def collect_dates(args: argparse.Namespace, config: PromptContextConfig) -> List[str]:
+    if args.zip_dates:
+        zip_dates = discover_comm_zip_dates(config)
+        start = dt.date.fromisoformat(args.start_date) if args.start_date else None
+        end = dt.date.fromisoformat(args.end_date) if args.end_date else None
+        if start and end and start > end:
+            raise ValueError("start-date must be <= end-date")
+        return [
+            value for value in zip_dates
+            if (start is None or dt.date.fromisoformat(value) >= start)
+            and (end is None or dt.date.fromisoformat(value) <= end)
+            and (not args.dates or value in args.dates)
+        ]
+
     dates: set[str] = set()
     if args.dates:
         dates.update(args.dates)
@@ -286,6 +383,32 @@ def collect_dates(args: argparse.Namespace, config: PromptContextConfig) -> List
             "No dates provided. Use --date, --start-date/--end-date, or --all-days to specify dates."
         )
 
+    return sorted(dates)
+
+
+def discover_comm_zip_dates(config: PromptContextConfig) -> List[str]:
+    """Find exact audio dates, independently of transcription completion status."""
+    raw_audio_base = os.getenv("RAW_AUDIO_FOLDER")
+    if raw_audio_base:
+        base = Path(raw_audio_base).expanduser()
+        if not base.is_absolute():
+            base = config.repo_root / base
+        folders = [
+            base / "InternetArchive_space_to_grounds",
+            base / "InternetArchive_dragon_cst_to_grounds",
+        ]
+    else:
+        folders = [
+            folder for folder in (config.ia_zip_sg_folder, config.ia_zip_ag_folder)
+            if folder != Path()
+        ]
+    dates = set()
+    for folder in folders:
+        for path in folder.glob("*.zip"):
+            try:
+                dates.add(parse_zip_metadata(path.name)[0])
+            except ValueError:
+                continue
     return sorted(dates)
 
 
@@ -627,13 +750,34 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         console.print(f"[red]Error:[/red] {exc}")
         return 1
 
+    if args.zip_dates:
+        # Initial import preserves existing corpuses. Later runs use SQLite
+        # status only; changing old telemetry cannot trigger a bulk rebuild.
+        with CommTranscriptionLog(TRACKING_DIR, in_memory=args.dry_run) as log:
+            imported = log.import_existing_corpuses(config.prompt_context_root)
+            completed = log.corpus_dates_by_status([LOG_STATUS_COMPLETED])
+        if imported and not args.check_work:
+            console.print(f"Imported {imported} existing corpuses into SQLite.")
+        pending_dates = [date for date in dates if args.force or date not in completed]
+    else:
+        pending_dates = [
+            date for date in dates
+            if needs_prompt_generation(
+                config.prompt_context_root.joinpath(*date.split("-")), force=args.force
+            )
+        ]
     if args.check_work:
-        needs_work = any(
-            needs_prompt_generation(config.prompt_context_root.joinpath(*date.split("-")), force=args.force)
-            for date in dates
-        )
-        print(json.dumps({"needs_work": needs_work}))
+        print(json.dumps({"needs_work": bool(pending_dates)}))
         return 0
+
+    if not pending_dates:
+        console.print("No corpuses need generation.")
+        return 0
+    console.print(
+        f"Found {len(pending_dates)} corpuses to generate; "
+        f"reusing {len(dates) - len(pending_dates)} existing corpuses."
+    )
+    dates = pending_dates
 
     if args.dry_run:
         console.print("Dry run: the following dates would be processed:")
@@ -645,11 +789,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "repo_root": str(repo_root),
         "env_file": str(env_file) if env_file and env_file.exists() else None,
         "force": args.force,
+        "track_corpuses": True,
+        "tracking_dir": str(TRACKING_DIR),
         "model": args.model,
         "request_timeout": args.request_timeout,
         "max_retries": args.max_retries,
         "retry_backoff": args.retry_backoff,
         "debug_stream": args.debug_stream,
+        "show_output": args.show_output,
         "custom_terms": CUSTOM_TERMS,
     }
 

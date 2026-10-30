@@ -32,7 +32,40 @@ class StrataPhotoTests(unittest.TestCase):
         self.assertEqual(result["response"], "FLIGHT")
         self.assertEqual(result["photo_index"], 7)
         self.assertEqual(post.call_args.kwargs["json"]["model"], "iq3_s")
-        self.assertEqual(post.call_args.kwargs["json"]["max_tokens"], 256)
+        self.assertEqual(post.call_args.kwargs["json"]["max_tokens"], 2048)
+        self.assertEqual(post.call_args.kwargs["json"]["reasoning_effort"], "low")
+
+    def test_reasoning_is_preserved_but_only_final_answer_is_classified(self):
+        response = Mock()
+        response.iter_lines.return_value = iter([
+            b'data: {"choices":[{"delta":{"reasoning_content":"ANCILLARY applies to ground photos. This photo is in orbit."},"finish_reason":null}]}',
+            b'data: {"choices":[{"delta":{"content":"FLIGHT"},"finish_reason":null}]}',
+            b'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}',
+        ])
+        with patch("prompt_context.strata.requests.post", return_value=response):
+            result = self.photos.classify_single_photo((0, {"id": "123"}, 1))
+        self.assertEqual(result["classification"], "FLIGHT")
+        self.assertEqual(result["confidence"], "high")
+        self.assertEqual(result["response"], "FLIGHT")
+        self.assertIn("ANCILLARY", result["thinking"])
+
+    def test_token_limit_during_reasoning_does_not_classify_partial_output(self):
+        responses = []
+        for _ in range(3):
+            response = Mock()
+            response.iter_lines.return_value = iter([
+                b'data: {"choices":[{"delta":{"reasoning_content":"Tags include earth and internationalspacestation -> FLIGHT"},"finish_reason":null}]}',
+                b'data: {"choices":[{"delta":{},"finish_reason":"length"}]}',
+            ])
+            responses.append(response)
+        with patch("prompt_context.strata.requests.post", side_effect=responses), patch(
+            "prompt_context.strata.time.sleep"
+        ):
+            result = self.photos.classify_single_photo((0, {"id": "55617630513"}, 0))
+        self.assertEqual(result["classification"], "ERROR")
+        self.assertEqual(result["response"], "")
+        for response in responses:
+            response.close.assert_called()
 
     def test_failed_generation_becomes_error_instead_of_photo_classification(self):
         client = Mock()

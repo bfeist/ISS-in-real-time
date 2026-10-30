@@ -90,8 +90,10 @@ def make_strata_request_full(prompt, model=MODEL_NAME, *, on_event=None):
         client = StrataClient(
             base_url=STRATA_API_URL,
             default_model=model,
+            reasoning_effort="low",
             request_timeout=REQUEST_TIMEOUT,
-            default_options={"temperature": 0.2, "top_p": 0.95, "num_predict": 256},
+            # Reasoning shares the output budget with the final classification.
+            default_options={"temperature": 0.2, "top_p": 0.95, "num_predict": 2048},
         )
         result = client.generate(prompt, on_event=on_event)
         if result.metrics.was_terminated:

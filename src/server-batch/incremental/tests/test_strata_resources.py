@@ -62,6 +62,51 @@ class StrataResourceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client.post.await_count, 1)
         self.assertTrue(client.post.call_args.args[0].endswith("/instances/other-id/unload"))
 
+    async def test_photos_and_corpus_share_one_load_before_whisperx_unloads(self):
+        client = self.client()
+        ready = {"instances": [instance()], "jobs": []}
+        client.get.side_effect = [
+            reply({"instances": [], "jobs": []}),
+            reply(ready),  # Verify the photo classification load completed.
+            reply(ready),  # Comm corpus reuses the same instance.
+            reply(ready),  # WhisperX handoff finds the retained model.
+            reply({"instances": [], "jobs": []}),
+        ]
+        client.post.side_effect = [
+            reply({"state": "done", "result": {"instanceId": "strata-instance"}}),
+            reply({"instances": []}),
+        ]
+        manager = ResourceManager()
+        with patch("httpx.AsyncClient") as factory:
+            factory.return_value.__aenter__.return_value = client
+            for _ in range(2):
+                await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_s")
+                await manager.release_gpu(keep_model=True)
+                self.assertEqual(manager.current_task, GpuTaskType.NONE)
+                self.assertEqual(manager.loaded_instance_id, "strata-instance")
+                self.assertFalse(manager.get_status().is_locked)
+            await manager.acquire_gpu(GpuTaskType.WHISPERX)
+            self.assertIsNone(manager.loaded_strata_model)
+            await manager.release_gpu()
+            await manager.shutdown()
+        self.assertEqual(client.post.await_count, 2)
+        self.assertTrue(client.post.call_args_list[0].args[0].endswith("/operations"))
+        self.assertTrue(client.post.call_args_list[1].args[0].endswith("/instances/strata-instance/unload"))
+
+    async def test_shutdown_unloads_retained_model_without_whisperx(self):
+        client = self.client()
+        client.get.return_value = reply({"instances": [instance()]})
+        manager = ResourceManager()
+        with patch("httpx.AsyncClient") as factory:
+            factory.return_value.__aenter__.return_value = client
+            await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_s")
+            await manager.release_gpu(keep_model=True)
+            client.post.assert_not_awaited()
+            await manager.shutdown()
+        self.assertIsNone(manager.loaded_instance_id)
+        self.assertIsNone(manager.loaded_strata_model)
+        client.post.assert_awaited_once()
+
     async def test_whisperx_unloads_external_instances_before_acquisition(self):
         client = self.client()
         client.get.side_effect = [
