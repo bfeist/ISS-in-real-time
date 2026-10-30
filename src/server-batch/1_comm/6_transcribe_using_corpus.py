@@ -87,7 +87,6 @@ def _parse_float(
 MODEL_TYPE = os.getenv("WHISPER_MODEL_TYPE", "large-v3")
 DEVICE = os.getenv("WHISPER_DEVICE", "cuda")
 COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "float16")
-CPU_FALLBACK_COMPUTE_TYPE = os.getenv("WHISPER_CPU_COMPUTE_TYPE", "float32")
 DEFAULT_BATCH_SIZE = _parse_positive_int(os.getenv("WHISPER_BATCH_SIZE"), 32)
 DEFAULT_CHUNK_LENGTH = _parse_positive_int(os.getenv("WHISPER_CHUNK_LENGTH"), 30)
 LONG_AUDIO_THRESHOLD_SECONDS = _parse_positive_int(
@@ -228,6 +227,10 @@ class AudioDecodeError(RuntimeError):
         self.path = path
 
 
+class CudaExecutionError(RuntimeError):
+    """A fatal GPU failure that must stop the stage instead of using the CPU."""
+
+
 @dataclass
 class SilenceConfig:
     frame_duration_seconds: float = FRAME_DURATION_SECONDS
@@ -314,7 +317,7 @@ class WhisperResources:
             model_type,
             device,
             compute_type=compute_type,
-            vad_options={"vad_type": "silero"},
+            vad_method="silero",
         )
         return cls(
             base_model=base_model,
@@ -359,7 +362,7 @@ class WhisperResources:
             self.model_type,
             device,
             compute_type=compute_type,
-            vad_options={"vad_type": "silero"},
+            vad_method="silero",
         )
         self.base_model = base_model
         self.align_models.clear()
@@ -1333,7 +1336,7 @@ def _is_cuda_error(exc: BaseException) -> bool:
 _ResultT = TypeVar("_ResultT")
 
 
-def _run_with_cuda_fallback(
+def _run_with_cuda_retry(
     stage: str,
     resources: "WhisperResources",
     operation: Callable[[], _ResultT],
@@ -1354,26 +1357,22 @@ def _run_with_cuda_fallback(
                 resources.compute_type,
                 force_reload=True,
             )
-        except Exception:  # pragma: no cover - defensive guard
-            logger.exception("Failed to reload CUDA model; falling back to CPU")
-            resources.switch_device("cpu", CPU_FALLBACK_COMPUTE_TYPE)
-            logger.info("Retrying %s on CPU", stage)
-            return operation()
+        except Exception as reload_exc:
+            raise CudaExecutionError(
+                f"CUDA model reload failed during {stage}: {reload_exc}. "
+                "Stopping transcription; CPU fallback is disabled."
+            ) from reload_exc
 
         logger.info("Retrying %s on CUDA after reload", stage)
         try:
             return operation()
         except Exception as retry_exc:  # pylint: disable=broad-except
             if _is_cuda_error(retry_exc):
-                logger.error(
-                    "Second CUDA attempt for %s failed: %s; switching to CPU fallback",
-                    stage,
-                    retry_exc,
-                )
-                resources.switch_device("cpu", CPU_FALLBACK_COMPUTE_TYPE)
-                logger.info("Retrying %s on CPU", stage)
-                return operation()
-            raise retry_exc
+                raise CudaExecutionError(
+                    f"CUDA retry failed during {stage}: {retry_exc}. "
+                    "Stopping transcription; CPU fallback is disabled."
+                ) from retry_exc
+            raise
 
 
 def transcribe_full_wav(
@@ -1465,7 +1464,10 @@ def transcribe_full_wav(
     )
     batch_size, chunk_length = resolve_transcription_params(audio_duration_seconds)
 
-    logger.debug("Transcribing %s", wav_path.name)
+    logger.info(
+        "Transcribing %s on %s (batch_size=%d, chunk_length=%d)",
+        wav_path.name, resources.device, batch_size, chunk_length,
+    )
 
     def _perform_transcription() -> Dict[str, object]:
         with suppress_stdout_stderr():
@@ -1481,13 +1483,14 @@ def transcribe_full_wav(
                 word_timestamps=True,
             )
 
-    result = _run_with_cuda_fallback("transcription", resources, _perform_transcription)
+    result = _run_with_cuda_retry("transcription", resources, _perform_transcription)
     release_cuda_memory()
     resources.monitor_gpu_health(stage=f"{wav_path.name} transcription")
 
     detected_language = result.get("language", "en") or "en"
 
     def _attempt_alignment(language_code: str) -> Optional[List[Dict[str, object]]]:
+        logger.info("Aligning %s for language '%s' on %s", wav_path.name, language_code, resources.device)
         def _perform_alignment() -> Dict[str, object]:
             align_model, metadata = resources.get_alignment_model(language_code)
             with suppress_stdout_stderr():
@@ -1500,7 +1503,7 @@ def transcribe_full_wav(
                     return_char_alignments=False,
                 )
 
-        alignment_result = _run_with_cuda_fallback(
+        alignment_result = _run_with_cuda_retry(
             f"alignment[{language_code}]",
             resources,
             _perform_alignment,
@@ -1510,6 +1513,8 @@ def transcribe_full_wav(
     alignment_segments: List[Dict[str, object]]
     try:
         alignment_segments = _attempt_alignment(detected_language) or []
+    except CudaExecutionError:
+        raise
     except AlignmentModelUnavailableError:
         logger.warning(
             "Skipping alignment for language '%s' due to missing model",
@@ -1532,7 +1537,7 @@ def transcribe_full_wav(
     translation_segments: Optional[List[Dict[str, object]]] = None
     final_segments = result["segments"]
     if detected_language != "en":
-        logger.debug(
+        logger.info(
             "Detected language %s for %s; running translation",
             detected_language,
             wav_path,
@@ -1552,7 +1557,7 @@ def transcribe_full_wav(
                     word_timestamps=True,
                 )
 
-        translation_result = _run_with_cuda_fallback(
+        translation_result = _run_with_cuda_retry(
             "translation",
             resources,
             _perform_translation,
@@ -2808,7 +2813,7 @@ def process_zip_group(
                 if see_transcriptions and transcription is not None:
                     display_transcription_summary(wav_local, transcription)
             except RuntimeError as exc:
-                if str(exc) == "Exit requested":
+                if isinstance(exc, CudaExecutionError) or str(exc) == "Exit requested":
                     raise
                 logger.error("Runtime error processing %s: %s", wav_local.name, exc)
             except Exception as exc:  # pylint: disable=broad-except
@@ -2844,6 +2849,8 @@ def process_zip_group(
                     version=transcription_version,
                     error_message=str(exc),
                 )
+            if isinstance(exc, CudaExecutionError):
+                raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("Unhandled exception processing group %s: %s", date_key, exc)
         for zip_file, (iso_date, derived_type) in metadata_map.items():

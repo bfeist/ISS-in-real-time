@@ -211,7 +211,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Process all ISS mission days from 2000-11-01 to today (default when no dates specified)",
     )
     parser.add_argument(
-        "--model", help="Override default Strata model (default: iq3_xxs)"
+        "--model", help="Override default Strata model (default: iq3_s)"
     )
     parser.add_argument(
         "--workers",

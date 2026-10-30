@@ -168,7 +168,7 @@ def example_debugging():
         """
 {
   "date": "2011-12-06",
-  "model": "iq3_xxs",
+  "model": "iq3_s",
   "elapsed_seconds": 45.3,
   "characters": 180,
   "was_terminated": true,

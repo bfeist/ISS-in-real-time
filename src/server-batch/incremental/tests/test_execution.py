@@ -373,22 +373,22 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
     async def test_strata_instance_and_host_are_passed_to_stage_process(self):
         configured = stage("classify", requires_gpu=True,
                            gpu_task_type=GpuTaskType.STRATA,
-                           strata_model="iq3_xxs")
+                           strata_model="iq3_s")
         self.settings.pipelines = {"photos": pipeline("photos", [configured])}
         self.settings.gpu.strata_base_url = "http://example.test:47831/v1"
 
         async def acquire(*args, **kwargs):
-            self.runner.resource_manager._loaded_strata_model = "iq3_xxs"
-            self.runner.resource_manager._loaded_instance_id = "iq3_xxs:2"
+            self.runner.resource_manager._loaded_strata_model = "iq3_s"
+            self.runner.resource_manager._loaded_instance_id = "iq3_s:2"
 
         self.runner.resource_manager.acquire_gpu.side_effect = acquire
         result = await self.runner.run_pipelines()
         self.assertTrue(result.success)
         env = self.runner.script_runner.run.call_args.kwargs["env"]
         self.assertEqual(env["STRATA_BASE_URL"], "http://example.test:47831/v1")
-        self.assertEqual(env["STRATA_MODEL"], "iq3_xxs")
+        self.assertEqual(env["STRATA_MODEL"], "iq3_s")
         self.runner.resource_manager.acquire_gpu.assert_awaited_once_with(
-            GpuTaskType.STRATA, strata_model="iq3_xxs"
+            GpuTaskType.STRATA, strata_model="iq3_s"
         )
 
     def test_cli_rejects_misspellings_instead_of_reporting_success(self):
@@ -423,7 +423,7 @@ class ResourceManagerTests(unittest.IsolatedAsyncioTestCase):
     async def test_releasing_strata_stage_sends_model_unload(self):
         manager = ResourceManager()
         manager._current_task = GpuTaskType.STRATA
-        manager._loaded_strata_model = "iq3_xxs"
+        manager._loaded_strata_model = "iq3_s"
 
         with patch.object(manager, "_unload_strata_model", new_callable=AsyncMock) as unload:
             await manager.release_gpu()
@@ -448,6 +448,9 @@ class ScriptRunnerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.exit_code, 7)
         self.assertEqual(result.stdout, "ok")
         self.assertEqual(result.stderr, "problem")
+        self.assertIn("code 7", result.error_message)
+        self.assertIn("stderr:\nproblem", result.error_message)
+        self.assertIn("Recent stdout:\nok", result.error_message)
 
     async def test_real_subprocess_timeout(self):
         self.script.write_text("import time\ntime.sleep(60)\n")

@@ -32,6 +32,7 @@ WhisperResources = TRANSCRIPTION_MODULE.WhisperResources
 AlignmentModelUnavailableError = TRANSCRIPTION_MODULE.AlignmentModelUnavailableError
 ensure_mono_wav = TRANSCRIPTION_MODULE.ensure_mono_wav
 AudioDecodeError = TRANSCRIPTION_MODULE.AudioDecodeError
+CudaExecutionError = TRANSCRIPTION_MODULE.CudaExecutionError
 
 
 def _make_resources() -> WhisperResources:
@@ -520,7 +521,7 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
         aac_path = json_path.with_suffix(".aac")
         self.assertTrue(aac_path.exists())
 
-    def test_run_with_cuda_fallback_reloads_cuda_before_retry(self) -> None:
+    def test_run_with_cuda_retry_reloads_cuda_before_retry(self) -> None:
         resources = _make_resources()
         resources.device = "cuda"
         resources.compute_type = "float16"
@@ -534,7 +535,7 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
             return "ok"
 
         with mock.patch.object(resources, "switch_device") as mocked_switch:
-            result = TRANSCRIPTION_MODULE._run_with_cuda_fallback(  # pylint: disable=protected-access
+            result = TRANSCRIPTION_MODULE._run_with_cuda_retry(  # pylint: disable=protected-access
                 "test-stage",
                 resources,
                 flaky_operation,
@@ -548,36 +549,26 @@ class TranscriptionFirstHelpersTests(unittest.TestCase):
         )
         self.assertEqual(call_counter["count"], 2)
 
-    def test_run_with_cuda_fallback_switches_to_cpu_after_cuda_retry(self) -> None:
+    def test_run_with_cuda_retry_stops_after_second_cuda_failure(self) -> None:
         resources = _make_resources()
         resources.device = "cuda"
         resources.compute_type = "float16"
 
-        def failing_operation() -> str:
-            raise RuntimeError("CUDA error: still broken")
+        error = RuntimeError("CUDA error: still broken")
+        failing_operation = mock.Mock(side_effect=error)
 
         with mock.patch.object(resources, "switch_device") as mocked_switch:
-            with self.assertRaises(RuntimeError):
-                TRANSCRIPTION_MODULE._run_with_cuda_fallback(  # pylint: disable=protected-access
+            with self.assertRaisesRegex(CudaExecutionError, "CPU fallback is disabled") as caught:
+                TRANSCRIPTION_MODULE._run_with_cuda_retry(  # pylint: disable=protected-access
                     "test-stage",
                     resources,
                     failing_operation,
                 )
 
-        self.assertEqual(len(mocked_switch.call_args_list), 2)
-        self.assertEqual(
-            mocked_switch.call_args_list[0].kwargs,
-            {"force_reload": True},
-        )
-        self.assertEqual(
-            mocked_switch.call_args_list[0].args,
-            ("cuda", "float16"),
-        )
-        self.assertEqual(
-            mocked_switch.call_args_list[1].args,
-            ("cpu", TRANSCRIPTION_MODULE.CPU_FALLBACK_COMPUTE_TYPE),
-        )
-        self.assertEqual(mocked_switch.call_args_list[1].kwargs, {})
+        mocked_switch.assert_called_once_with("cuda", "float16", force_reload=True)
+        self.assertEqual(failing_operation.call_count, 2)
+        self.assertIs(caught.exception.__cause__, error)
+        self.assertEqual(resources.device, "cuda")
 
     def test_get_alignment_model_caches_missing_languages(self) -> None:
         resources = _make_resources()

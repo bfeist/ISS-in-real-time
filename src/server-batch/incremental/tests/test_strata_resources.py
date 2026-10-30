@@ -16,7 +16,7 @@ def reply(data):
     return response
 
 
-def instance(model="iq3_xxs", instance_id="strata-instance", status="ready"):
+def instance(model="iq3_s", instance_id="strata-instance", status="ready"):
     return {"id": instance_id, "model": model, "status": status}
 
 
@@ -40,12 +40,12 @@ class StrataResourceTests(unittest.IsolatedAsyncioTestCase):
         manager = ResourceManager()
         with patch("httpx.AsyncClient") as factory, patch("incremental.resources.asyncio.sleep", new_callable=AsyncMock):
             factory.return_value.__aenter__.return_value = client
-            await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_xxs")
+            await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_s")
             self.assertEqual(manager.loaded_instance_id, "strata-instance")
             self.assertEqual(manager.current_task, GpuTaskType.STRATA)
             load = client.post.call_args
             self.assertEqual(load.args[0], "http://127.0.0.1:47831/api/native/operations")
-            self.assertEqual(load.kwargs["json"], {"kind": "load", "args": {"model": "iq3_xxs"}})
+            self.assertEqual(load.kwargs["json"], {"kind": "load", "args": {"model": "iq3_s"}})
             await manager.release_gpu()
         self.assertTrue(client.post.call_args.args[0].endswith("/api/native/instances/strata-instance/unload"))
         self.assertIsNone(manager.loaded_strata_model)
@@ -57,7 +57,7 @@ class StrataResourceTests(unittest.IsolatedAsyncioTestCase):
         manager = ResourceManager()
         with patch("httpx.AsyncClient") as factory:
             factory.return_value.__aenter__.return_value = client
-            await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_xxs")
+            await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_s")
         self.assertEqual(manager.loaded_instance_id, "strata-instance")
         self.assertEqual(client.post.await_count, 1)
         self.assertTrue(client.post.call_args.args[0].endswith("/instances/other-id/unload"))
@@ -88,7 +88,7 @@ class StrataResourceTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(failure=failure), patch("httpx.AsyncClient") as factory:
                 factory.return_value.__aenter__.return_value = client
                 with self.assertRaises(RuntimeError):
-                    await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_xxs")
+                    await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_s")
             self.assertEqual(manager.current_task, GpuTaskType.NONE)
             self.assertIsNone(manager.loaded_instance_id)
 
@@ -99,14 +99,14 @@ class StrataResourceTests(unittest.IsolatedAsyncioTestCase):
         with patch("httpx.AsyncClient") as factory, patch("incremental.resources.monotonic", side_effect=[0, 301]):
             factory.return_value.__aenter__.return_value = client
             with self.assertRaisesRegex(RuntimeError, "timed out"):
-                await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_xxs")
+                await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_s")
         self.assertTrue(client.post.call_args.args[0].endswith("/operations/job-id/cancel"))
         self.assertEqual(manager.current_task, GpuTaskType.NONE)
 
     async def test_unload_failure_retains_instance_and_blocks_whisperx(self):
         client = self.client()
         manager = ResourceManager()
-        manager._loaded_strata_model = "iq3_xxs"
+        manager._loaded_strata_model = "iq3_s"
         manager._loaded_instance_id = "strata-instance"
         manager._current_task = GpuTaskType.STRATA
         client.post.side_effect = httpx.ConnectError("unavailable")
@@ -132,11 +132,11 @@ class StrataResourceTests(unittest.IsolatedAsyncioTestCase):
     def test_all_real_llm_stages_use_strata_and_same_model(self):
         settings = load_settings()
         self.assertEqual(settings.gpu.strata_base_url, "http://127.0.0.1:47831/v1")
-        self.assertEqual(settings.gpu.strata_default_model, "iq3_xxs")
+        self.assertEqual(settings.gpu.strata_default_model, "iq3_s")
         stages = [s for p in settings.pipelines.values() for s in p.stages
                   if s.gpu_task_type == GpuTaskType.STRATA]
         self.assertEqual({s.id for s in stages}, {"corpus", "ai_classify"})
-        self.assertTrue(all(s.strata_model == "iq3_xxs" for s in stages))
+        self.assertTrue(all(s.strata_model == "iq3_s" for s in stages))
         corpus = next(s for s in stages if s.id == "corpus")
         self.assertEqual(corpus.work_check_args, ["--check-work"])
 

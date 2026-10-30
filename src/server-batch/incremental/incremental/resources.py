@@ -121,7 +121,13 @@ class ResourceManager:
     async def _unload_all_models(self) -> None:
         """Free Strata VRAM, including instances loaded from its UI."""
         async with httpx.AsyncClient(timeout=120.0) as client:
-            state = await self._state(client)
+            try:
+                state = await self._state(client)
+            except httpx.ConnectError:
+                if self._loaded_instance_id or self._loaded_strata_model:
+                    raise
+                logger.info("Strata is offline; no tracked model to unload before WhisperX")
+                return
             for item in state["instances"]:
                 await self._unload_instance(client, item["id"])
             if (await self._state(client))["instances"]:

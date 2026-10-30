@@ -91,25 +91,55 @@ collections_xml = [
 ]
 
 
-def download_file(url, destination: Path):
-    """Download a file with progress bar"""
+def download_file(url, destination: Path, expected_size=None):
+    """Download a ZIP, replacing it only after its size has been verified."""
     normalized_name = normalize_filename(destination.name)
     destination = destination.with_name(normalized_name)
 
-    if destination.exists():
+    if destination.exists() and (
+        expected_size is None or destination.stat().st_size == expected_size
+    ):
         print(f"Skipping existing file {destination.name}.")
         return destination
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    response = requests.get(url, stream=True)
-    total_size = int(response.headers.get("content-length", 0))
+    # Keep incomplete downloads out of the ZIP glob used by later stages.
+    partial_path = destination.with_suffix(destination.suffix + ".part")
+    with requests.get(url, stream=True, timeout=(30, 120)) as response:
+        response.raise_for_status()
+        content_length = response.headers.get("content-length")
+        response_size = int(content_length) if content_length is not None else None
+        if (
+            expected_size is not None
+            and response_size is not None
+            and response_size != expected_size
+        ):
+            raise ValueError(
+                f"Size mismatch for {destination.name}: Internet Archive lists "
+                f"{expected_size} bytes but the response advertises {response_size} bytes"
+            )
+        total_size = expected_size if expected_size is not None else response_size
+        stream_download(response, partial_path, destination.name, total_size or 0)
 
+    downloaded_size = partial_path.stat().st_size
+    if total_size is not None and downloaded_size != total_size:
+        raise ValueError(
+            f"Size mismatch for {destination.name}: expected {total_size} bytes, "
+            f"downloaded {downloaded_size} bytes"
+        )
+    partial_path.replace(destination)
+    print(f"  {destination.name}: done", flush=True)
+    return destination
+
+
+def stream_download(response, partial_path: Path, filename, total_size):
+    """Stream a response to a temporary file with terminal or plain progress."""
     is_tty = sys.stdout.isatty()
 
     if is_tty:
         # Interactive terminal: use tqdm progress bar
-        with destination.open("wb") as file, tqdm(
-            desc=destination.name,
+        with partial_path.open("wb") as file, tqdm(
+            desc=filename,
             total=total_size,
             unit="B",
             unit_scale=True,
@@ -130,13 +160,13 @@ def download_file(url, destination: Path):
 
         if total_size:
             print(
-                f"Downloading {destination.name} ({total_mb:.1f} MB)",
+                f"Downloading {filename} ({total_mb:.1f} MB)",
                 flush=True,
             )
         else:
-            print(f"Downloading {destination.name} (size unknown)", flush=True)
+            print(f"Downloading {filename} (size unknown)", flush=True)
 
-        with destination.open("wb") as file:
+        with partial_path.open("wb") as file:
             for data in response.iter_content(chunk_size=65536):
                 file.write(data)
                 downloaded += len(data)
@@ -150,7 +180,7 @@ def download_file(url, destination: Path):
                     ):
                         dl_mb = downloaded / (1024 * 1024)
                         print(
-                            f"  {destination.name}: {pct}% ({dl_mb:.1f}/{total_mb:.1f} MB)",
+                            f"  {filename}: {pct}% ({dl_mb:.1f}/{total_mb:.1f} MB)",
                             flush=True,
                         )
                         last_reported_pct = pct
@@ -159,14 +189,10 @@ def download_file(url, destination: Path):
                     if now - last_report_time >= report_interval_s:
                         dl_mb = downloaded / (1024 * 1024)
                         print(
-                            f"  {destination.name}: {dl_mb:.1f} MB downloaded",
+                            f"  {filename}: {dl_mb:.1f} MB downloaded",
                             flush=True,
                         )
                         last_report_time = now
-
-        print(f"  {destination.name}: done", flush=True)
-
-    return destination
 
 
 def normalize_filename(filename):
@@ -293,15 +319,14 @@ def main():
         # Get existing files (normalized mapping)
         space_files, dragon_files = get_existing_files()
 
-        # Track missing files
+        # Track missing files and existing ZIPs with a different size.
         missing_space_files = []
         missing_dragon_files = []
         skipped_files = []
 
-        # Check for missing files
-        print("Checking for missing files...")
+        print("Checking for missing or size-mismatched files...")
         for file_elem in root.findall(".//file"):
-            original_filename = file_elem.get("name")
+            original_filename = file_elem.get("name", "")
             if not original_filename.endswith(".zip"):
                 continue
 
@@ -309,19 +334,34 @@ def main():
             normalized_filename = normalize_filename(original_filename)
 
             if is_space_to_ground(original_filename):
-                if normalized_filename not in space_files:
-                    missing_space_files.append((original_filename, normalized_filename))
-                else:
-                    # File already exists, log it as skipped
-                    skipped_files.append(f"{original_filename}|{collection}")
+                existing_files = space_files
+                base_path = issSpaceToGroundsBasePath
+                pending_files = missing_space_files
             elif is_dragon_comm(original_filename):
-                if normalized_filename not in dragon_files:
-                    missing_dragon_files.append(
-                        (original_filename, normalized_filename)
-                    )
-                else:
-                    # File already exists, log it as skipped
+                existing_files = dragon_files
+                base_path = issDragonCommBasePath
+                pending_files = missing_dragon_files
+            else:
+                continue
+
+            size_text = file_elem.findtext("size")
+            expected_size = int(size_text) if size_text else None
+            existing_name = existing_files.get(normalized_filename)
+            if existing_name is not None:
+                actual_size = (base_path / existing_name).stat().st_size
+                if expected_size is None or actual_size == expected_size:
+                    if expected_size is None:
+                        print(
+                            f"No listed size for {original_filename}; keeping existing file."
+                        )
                     skipped_files.append(f"{original_filename}|{collection}")
+                    continue
+                print(
+                    f"Size mismatch for {normalized_filename}: local {actual_size} bytes, "
+                    f"expected {expected_size} bytes; will re-download.",
+                    flush=True,
+                )
+            pending_files.append((original_filename, normalized_filename, expected_size))
 
         # Log skipped files
         if skipped_files:
@@ -330,33 +370,38 @@ def main():
                     log_file.write(f"{skipped_entry}\n")
 
         # Print summary of missing files
-        print(f"Found {len(missing_space_files)} missing Space-to-Ground files.")
-        print(f"Found {len(missing_dragon_files)} missing Dragon/CST files.")
+        print(
+            f"Found {len(missing_space_files)} missing or size-mismatched "
+            "Space-to-Ground files."
+        )
+        print(
+            f"Found {len(missing_dragon_files)} missing or size-mismatched Dragon/CST files."
+        )
         print(f"Skipped {len(skipped_files)} existing files.")
 
         # Download missing Space-to-Ground files
         if missing_space_files:
-            print("\nDownloading missing Space-to-Ground files:")
-            for original, normalized in missing_space_files:
+            print("\nDownloading missing or size-mismatched Space-to-Ground files:")
+            for original, normalized, expected_size in missing_space_files:
                 print(f"  {original} -> {normalized}")
 
             if not args.dry_run:
-                for original, normalized in missing_space_files:
+                for original, normalized, expected_size in missing_space_files:
                     file_url = urljoin(base_download_url, original)
                     destination = issSpaceToGroundsBasePath / normalized
-                    download_file(file_url, destination)
+                    download_file(file_url, destination, expected_size)
 
         # Download missing Dragon/CST files
         if missing_dragon_files:
-            print("\nDownloading missing Dragon/CST files:")
-            for original, normalized in missing_dragon_files:
+            print("\nDownloading missing or size-mismatched Dragon/CST files:")
+            for original, normalized, expected_size in missing_dragon_files:
                 print(f"  {original} -> {normalized}")
 
             if not args.dry_run:
-                for original, normalized in missing_dragon_files:
+                for original, normalized, expected_size in missing_dragon_files:
                     file_url = urljoin(base_download_url, original)
                     destination = issDragonCommBasePath / normalized
-                download_file(file_url, destination)
+                    download_file(file_url, destination, expected_size)
 
     print("\nIncremental download complete!")
 

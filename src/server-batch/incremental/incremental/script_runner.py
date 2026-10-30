@@ -126,6 +126,8 @@ class ScriptRunner:
         process_env = os.environ.copy()
         if env:
             process_env.update(env)
+        process_env.setdefault("PYTHONUNBUFFERED", "1")
+        process_env.setdefault("PYTHONFAULTHANDLER", "1")
 
         # Track timing
         start_time = time.monotonic()
@@ -200,6 +202,17 @@ class ScriptRunner:
 
         # Determine success
         success = exit_code == 0 and not timed_out
+
+        if not success:
+            exit_message = f"Script exited with code {exit_code}"
+            if self._is_windows and (exit_code & 0xFFFFFFFF) >= 0x80000000:
+                exit_message += f" (Windows status 0x{exit_code & 0xFFFFFFFF:08X})"
+            diagnostics = [error_message or exit_message]
+            if stderr:
+                diagnostics.append(f"stderr:\n{stderr}")
+            if stdout:
+                diagnostics.append("Recent stdout:\n" + "\n".join(stdout_lines[-80:]))
+            error_message = "\n".join(diagnostics)
 
         return ScriptResult(
             success=success,

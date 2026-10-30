@@ -34,7 +34,7 @@ gpu:
 
   # Strata server for LLM inference
   strata_base_url: "http://127.0.0.1:47831/v1"
-  strata_default_model: "iq3_xxs"
+  strata_default_model: "iq3_s"
 
   # WhisperX transcription settings
   whisperx_device: "cuda"

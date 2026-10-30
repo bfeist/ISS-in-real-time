@@ -107,8 +107,8 @@ uv run issirt-incremental dashboard --auto-run --interval 15m
 
 ## Configuration
 
-All LLM stages use local Strata with **Qwen3.8-Flash-Next IQ3_XXS**
-(model ID `iq3_xxs`) at `http://127.0.0.1:47831/v1`. This includes corpus prompt
+All LLM stages use local Strata with **Qwen3.8-Flash-Next IQ3_S**
+(model ID `iq3_s`) at `http://127.0.0.1:47831/v1`. This includes corpus prompt
 context, Flickr classification, and the standalone summary scripts under `ai/`.
 Start the Strata desktop app before running them.
 
@@ -119,14 +119,28 @@ overrides), and passes the selected stage's `strata_model` from `pipelines.yaml`
 to its subprocess. Set `STRATA_API_KEY` only if you enable API authentication.
 
 Generation uses Strata's OpenAI-compatible `/v1/chat/completions` endpoint with
-streaming and thinking disabled. The pipeline monitor still receives answer,
+streaming and medium reasoning effort (`reasoning_effort: medium`). The pipeline monitor still receives answer,
 thinking, token-count, and timing events.
+
+Flickr classification streams each photo's reasoning into the incremental update
+log as `Photo <id> / worker <id> REASONING: ...`, then prints `FINAL OUTPUT` and
+`CLASSIFICATION` when the response completes. Lines are flushed immediately so
+reasoning remains visible while inference runs, including with multiple workers.
 
 The orchestrator uses Strata Control's local `/api/native` API to reuse or load
 the stage's model, wait until it is ready, and unload it at stage boundaries.
 It also unloads all native Strata instances before WhisperX starts. Failures
-stop the stage. Context length and GPU placement use your saved Strata settings.
+stop the stage. If Strata is offline and this run has no tracked Strata model,
+WhisperX can start without it. A tracked model, an unload failure, or an
+unresponsive Strata server still blocks the handoff. LLM stages require Strata
+to be running. Context length and GPU placement use your saved Strata settings.
 Avoid running interactive Strata requests during pipeline GPU stages.
+
+WhisperX retries a CUDA failure once after reloading the GPU model. If the reload
+or CUDA retry fails, transcription stops with an error; it never switches to CPU.
+The script selects Silero for voice activity detection and logs the current WAV
+and GPU operation. Failed subprocess reports include the exit code, stderr, and
+recent stdout so startup warnings cannot hide a later native crash.
 
 The corpus stage first checks its cached prompts with `--check-work`, so a run
 with no prompts to generate never loads the model. Empty or interrupted prompts,

@@ -89,7 +89,7 @@ pipelines:
         timeout_minutes: 120
         requires_gpu: true
         gpu_task_type: strata
-        strata_model: "iq3_xxs"
+        strata_model: "iq3_s"
         work_check_args: ["--check-work"]
         depends_on_stages: [download]
         # CRITICAL: Corpus needs blog articles for context generation
@@ -223,7 +223,7 @@ pipelines:
         timeout_minutes: 180
         requires_gpu: true
         gpu_task_type: strata
-        strata_model: "iq3_xxs"
+        strata_model: "iq3_s"
         depends_on_stages: [filter]
         args_template: ""
 

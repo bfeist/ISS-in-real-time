@@ -48,7 +48,7 @@ class GpuConfig:
 
     enabled: bool = True
     strata_base_url: str = "http://127.0.0.1:47831/v1"
-    strata_default_model: str = "iq3_xxs"
+    strata_default_model: str = "iq3_s"
     whisperx_device: str = "cuda"
     whisperx_compute_type: str = "float16"
 
@@ -292,7 +292,7 @@ def load_settings(
             "STRATA_BASE_URL", gpu_data.get("strata_base_url", "http://127.0.0.1:47831/v1")
         ),
         strata_default_model=os.environ.get(
-            "STRATA_MODEL", gpu_data.get("strata_default_model", "iq3_xxs")
+            "STRATA_MODEL", gpu_data.get("strata_default_model", "iq3_s")
         ),
         whisperx_device=os.environ.get(
             "WHISPERX_DEVICE", gpu_data.get("whisperx_device", "cuda")
@@ -383,7 +383,7 @@ paths:
 gpu:
   enabled: true
   strata_base_url: "${STRATA_BASE_URL:-http://127.0.0.1:47831/v1}"
-  strata_default_model: "iq3_xxs"
+  strata_default_model: "iq3_s"
   whisperx_device: "cuda"
   whisperx_compute_type: "float16"
 
@@ -462,7 +462,7 @@ pipelines:
         timeout_minutes: 60
         requires_gpu: true
         gpu_task_type: strata
-        strata_model: "iq3_xxs"
+        strata_model: "iq3_s"
         work_check_args: ["--check-work"]
         depends_on_stages: [download]
         cross_dependencies:
@@ -506,7 +506,7 @@ PHOTOS_FOLDER=/path/to/raw/photos
 
 # GPU/AI settings
 STRATA_BASE_URL=http://127.0.0.1:47831/v1
-STRATA_MODEL=iq3_xxs
+STRATA_MODEL=iq3_s
 WHISPERX_DEVICE=cuda
 
 # API keys (if needed)

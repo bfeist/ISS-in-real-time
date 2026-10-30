@@ -15,8 +15,8 @@ from datetime import datetime
 S3_FOLDER = os.getenv("S3_FOLDER")
 
 """
-Start the Strata desktop app with Qwen3.8-Flash-Next IQ3_XXS loaded.
-Uses STRATA_BASE_URL (http://127.0.0.1:47831/v1) and STRATA_MODEL (iq3_xxs).
+Start the Strata desktop app with Qwen3.8-Flash-Next IQ3_S loaded.
+Uses STRATA_BASE_URL (http://127.0.0.1:47831/v1) and STRATA_MODEL (iq3_s).
 """
 
 

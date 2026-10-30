@@ -160,7 +160,7 @@ class StrataClient:
         self.base_url = self.base_url.rstrip("/")
         if not self.base_url.endswith("/v1"):
             self.base_url += "/v1"
-        self.default_model = default_model or os.getenv("STRATA_MODEL", "iq3_xxs")
+        self.default_model = default_model or os.getenv("STRATA_MODEL", "iq3_s")
         self.request_timeout = request_timeout
         self.max_retries = max_retries
         self.retry_backoff = retry_backoff
@@ -198,7 +198,7 @@ class StrataClient:
             "messages": messages,
             "stream": True,
             "stream_options": {"include_usage": True},
-            "chat_template_kwargs": {"enable_thinking": False},
+            "reasoning_effort": "medium",
         }
         merged_options = {**self.default_options, **(options or {})}
         for key in ("temperature", "top_p", "top_k", "repeat_penalty"):

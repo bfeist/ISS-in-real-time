@@ -74,7 +74,7 @@ All data is available at `data.issinrealtime.org/ISSiRT_assets`. If that website
   - `NASA_EOL_API_KEY` - Get a NASA Earth Obs API key here: https://eol.jsc.nasa.gov/SearchPhotos/PhotosDatabaseAPI/
   - `SPACETRACK_USERNAME` and `SPACETRACK_PASSWORD` - Create an account here: https://www.space-track.org/
   - `YOUTUBE_API_KEY` - Create one in the google apps console
-  - LLM scripts use local Strata at `http://127.0.0.1:47831/v1` with model ID `iq3_xxs` (Qwen3.8-Flash-Next IQ3_XXS). Start Strata before running them; `STRATA_BASE_URL` and `STRATA_MODEL` override these defaults.
+  - LLM scripts use local Strata at `http://127.0.0.1:47831/v1` with model ID `iq3_s` (Qwen3.8-Flash-Next IQ3_S). Start Strata before running them; `STRATA_BASE_URL` and `STRATA_MODEL` override these defaults.
 - Note that the `# Data processing paths` section in the `.env` are all local paths. Pushing this content to an S3 bucket is outside of the scope of these scripts.
 
 To generate all of the data this website needs, run the server_batch scripts in order. These pull from various publicly available locations into structured data that can be consumed by the ISS in Real Time website.

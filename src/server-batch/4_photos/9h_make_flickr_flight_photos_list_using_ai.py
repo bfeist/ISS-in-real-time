@@ -26,6 +26,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List, Dict, Any
 import multiprocessing as mp
 from functools import partial
+from queue import Empty
+from textwrap import wrap
 
 # Load environment variables
 load_dotenv(dotenv_path="../../../.env")
@@ -47,7 +49,7 @@ OUTPUT_FOLDER = (
     else None
 )
 
-MODEL_NAME = os.getenv("STRATA_MODEL", "iq3_xxs")
+MODEL_NAME = os.getenv("STRATA_MODEL", "iq3_s")
 
 # ============================================================================
 # MULTIPROCESSING CONFIGURATION
@@ -56,7 +58,33 @@ NUM_WORKERS = 3  # Fixed number of worker processes
 REQUEST_TIMEOUT = 180  # Request timeout for API calls
 
 
-def make_strata_request_full(prompt, model=MODEL_NAME):
+class PhotoReasoningLogger:
+    """Write bounded, flushed lines that the incremental runner can forward."""
+
+    def __init__(self, photo_id, worker_id):
+        self.prefix = f"Photo {photo_id} / worker {worker_id}"
+        self.pending = ""
+        self.last_flush = time.monotonic()
+
+    def __call__(self, event):
+        self.pending += event.get("thinking", "")
+        if (
+            event.get("done")
+            or "\n" in self.pending
+            or len(self.pending) >= 240
+            or time.monotonic() - self.last_flush >= 1
+        ):
+            self.flush()
+
+    def flush(self):
+        for line in self.pending.splitlines():
+            for chunk in wrap(line, width=240):
+                print(f"{self.prefix} REASONING: {chunk}", flush=True)
+        self.pending = ""
+        self.last_flush = time.monotonic()
+
+
+def make_strata_request_full(prompt, model=MODEL_NAME, *, on_event=None):
     """Generate with Strata, preserving classification response metadata."""
     try:
         client = StrataClient(
@@ -65,7 +93,7 @@ def make_strata_request_full(prompt, model=MODEL_NAME):
             request_timeout=REQUEST_TIMEOUT,
             default_options={"temperature": 0.2, "top_p": 0.95, "num_predict": 256},
         )
-        result = client.generate(prompt)
+        result = client.generate(prompt, on_event=on_event)
         if result.metrics.was_terminated:
             raise RuntimeError(result.metrics.termination_reason)
         return {
@@ -73,13 +101,23 @@ def make_strata_request_full(prompt, model=MODEL_NAME):
             "thinking": "".join(event.get("thinking", "") for event in result.raw_events),
         }
     except Exception as exc:
-        print(f"Error making Strata API request: {exc}")
+        print(f"Error making Strata API request: {exc}", flush=True)
         return None
 
 
 def make_strata_request(prompt, model=MODEL_NAME):
     result = make_strata_request_full(prompt, model)
     return result["response"] if result else None
+
+
+def get_classification_result(result_queue, processes):
+    """A quiet result queue does not mean a live inference worker has failed."""
+    while True:
+        try:
+            return result_queue.get(timeout=30)
+        except Empty:
+            if not any(p.is_alive() for p in processes):
+                raise RuntimeError("Classification workers stopped before all results arrived") from None
 
 
 def queue_worker(photo_queue, result_queue, worker_id):
@@ -240,7 +278,12 @@ CRITICAL: If description is ambiguous with only crew name/affiliation and no cle
 Answer with exactly one word: FLIGHT or ANCILLARY"""
 
         # Make API request and get full response
-        full_json = make_strata_request_full(prompt)
+        reasoning_log = PhotoReasoningLogger(photo.get("id", "unknown"), worker_id)
+        print(f"{reasoning_log.prefix} Starting classification", flush=True)
+        try:
+            full_json = make_strata_request_full(prompt, on_event=reasoning_log)
+        finally:
+            reasoning_log.flush()
         if full_json:
             response_text = full_json.get("response", "").strip()
             thinking_text = full_json.get("thinking", "").strip()
@@ -275,6 +318,9 @@ Answer with exactly one word: FLIGHT or ANCILLARY"""
         result["ai_response"] = full_ai_response
         result["thinking"] = thinking_text if full_json else ""
         result["response"] = response_text if full_json else ""
+
+        print(f"{reasoning_log.prefix} FINAL OUTPUT: {result['response'] or '(no final answer)'}", flush=True)
+        print(f"{reasoning_log.prefix} CLASSIFICATION: {result['classification']} (confidence: {result['confidence']})", flush=True)
 
         return result
 
@@ -329,9 +375,9 @@ def classify_photos_multiprocessing(
 
     # Collect results
     results = []
-    for _ in range(len(photos_list)):
+    while len(results) < len(photos_list):
         try:
-            result = result_queue.get(timeout=30)
+            result = get_classification_result(result_queue, processes)
             results.append(result)
         except Exception as e:
             print(f"Error getting result: {e}")
@@ -884,7 +930,7 @@ def process_album(file_path):
         # Process results as they come in (streaming)
         while completed_count < len(photos_to_process):
             try:
-                result = result_queue.get(timeout=30)  # 30 second timeout
+                result = get_classification_result(result_queue, processes)
                 if result is None:  # Error signal
                     break
 
@@ -903,7 +949,6 @@ def process_album(file_path):
                 classification = result.get("classification", "ERROR")
                 confidence = result.get("confidence", "none")
                 photo_id = result.get("photo_id", "unknown")
-                ai_response = result.get("ai_response", "")
 
                 # Show classification result
                 if classification == "FLIGHT":
@@ -942,8 +987,6 @@ def process_album(file_path):
                     f"   Description: {description[:200]}{'...' if len(description) > 200 else ''}"
                 )
                 print(f"   Tags: {tags}")
-                print(f"\n🤖 FULL AI RESPONSE:")
-                print(f"   {ai_response}")
                 print(
                     f"\n🎯 CLASSIFICATION: {status_icon} {classification} (confidence: {confidence})"
                 )
@@ -1069,7 +1112,7 @@ def batch_process_albums():
         print("\nTips for setup:")
         print(f"  1. Make sure {MODEL_NAME} is available in Strata")
         print("  2. Check GPU memory: nvidia-smi")
-        print("  3. Start the Strata desktop app and load Qwen3.8-Flash-Next IQ3_XXS")
+        print("  3. Start the Strata desktop app and load Qwen3.8-Flash-Next IQ3_S")
         return False
     else:
         print(f"✅ API connection successful")

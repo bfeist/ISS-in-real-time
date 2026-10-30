@@ -26,12 +26,12 @@ def stream_response(*frames):
 
 
 def delta_frame(**delta):
-    return {"model": "iq3_xxs", "choices": [{"index": 0, "delta": delta, "finish_reason": None}]}
+    return {"model": "iq3_s", "choices": [{"index": 0, "delta": delta, "finish_reason": None}]}
 
 
 def final_frame():
     return {
-        "model": "iq3_xxs",
+        "model": "iq3_s",
         "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
         "usage": {"completion_tokens": 6},
         "timings": {"predicted_ms": 2000},
@@ -119,7 +119,8 @@ class StrataClientTests(unittest.TestCase):
             {"role": "user", "content": "mission context"},
         ])
         self.assertEqual(payload["max_tokens"], 128)
-        self.assertEqual(payload["chat_template_kwargs"], {"enable_thinking": False})
+        self.assertEqual(payload["reasoning_effort"], "medium")
+        self.assertNotIn("chat_template_kwargs", payload)
         self.assertEqual(payload["stream_options"], {"include_usage": True})
         self.assertNotIn("num_ctx", payload)
         self.assertEqual(result.text, "Soyuz, Zvezdá")
@@ -134,7 +135,7 @@ class StrataClientTests(unittest.TestCase):
         with patch.dict(os.environ, {"LMSTUDIO_MODEL": "old", "OLLAMA_MODEL": "old"}, clear=True):
             client = StrataClient()
         self.assertEqual(client.base_url, "http://127.0.0.1:47831/v1")
-        self.assertEqual(client.default_model, "iq3_xxs")
+        self.assertEqual(client.default_model, "iq3_s")
 
     def test_base_url_normalization_and_api_key(self):
         for base in ("http://example.test:47831", "http://example.test:47831/v1/"):
