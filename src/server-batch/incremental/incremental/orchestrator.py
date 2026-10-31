@@ -238,8 +238,12 @@ class Orchestrator:
                 )
 
                 # Check cross-pipeline dependencies
-                if not self._check_pipeline_dependencies(pipeline):
-                    msg = f"Pipeline {pipeline.id} dependencies not satisfied, skipping"
+                missing = self._unsatisfied_pipeline_dependencies(pipeline)
+                if missing:
+                    msg = (
+                        f"Pipeline {pipeline.id} dependencies not satisfied "
+                        f"({', '.join(missing)} did not complete), skipping"
+                    )
                     logger.warning(msg)
                     errors.append(msg)
                     for stage in pipeline.stages:
@@ -912,16 +916,17 @@ class Orchestrator:
                     args.extend(["--date", value])
         return args
 
-    def _check_pipeline_dependencies(self, pipeline: PipelineConfig) -> bool:
+    def _unsatisfied_pipeline_dependencies(self, pipeline: PipelineConfig) -> list[str]:
         """
-        Check if all pipeline dependencies are satisfied.
+        Return pipeline dependencies that did not complete in this run.
 
         Args:
             pipeline: The pipeline to check
 
         Returns:
-            True if all dependencies are satisfied
+            Dependency IDs that were not completed by this run
         """
+        missing: list[str] = []
         for dep_id in pipeline.depends_on:
             # If the dependency pipeline was explicitly skipped, ignore this dependency
             if dep_id in self._skipped_pipelines:
@@ -936,8 +941,8 @@ class Orchestrator:
                     f"Pipeline {pipeline.id} depends on {dep_id} "
                     f"which has not completed successfully in this run"
                 )
-                return False
-        return True
+                missing.append(dep_id)
+        return missing
 
     def _check_stage_dependencies(
         self, pipeline: PipelineConfig, stage: StageConfig

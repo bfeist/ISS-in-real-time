@@ -128,7 +128,8 @@ log as `Photo <id> / worker <id> REASONING: ...`, then prints `FINAL OUTPUT` and
 reasoning remains visible while inference runs, including with multiple workers.
 
 The orchestrator uses Strata Control's local `/api/native` API to reuse or load
-the stage's model and wait until it is ready. It retains IQ3_S between
+the stage's model and wait until it is ready; if Strata is already running an
+operation, the load waits for it and retries instead of failing. It retains IQ3_S between
 photo classification and comm corpus generation, then unloads all native Strata instances
 before WhisperX starts. Any retained model is also unloaded when the update ends,
 including on failure or cancellation. Failures

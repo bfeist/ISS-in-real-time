@@ -10,9 +10,10 @@ from incremental.models import GpuTaskType
 from incremental.resources import ResourceManager
 
 
-def reply(data):
+def reply(data, status_code=200):
     response = Mock()
     response.json.return_value = data
+    response.status_code = status_code
     return response
 
 
@@ -146,6 +147,82 @@ class StrataResourceTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaisesRegex(RuntimeError, "timed out"):
                 await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_s")
         self.assertTrue(client.post.call_args.args[0].endswith("/operations/job-id/cancel"))
+        self.assertEqual(manager.current_task, GpuTaskType.NONE)
+
+    async def test_conflict_waits_for_running_operation_then_reuses_its_model(self):
+        client = self.client()
+        client.post.return_value = reply({"instances": []}, status_code=409)
+        client.get.side_effect = [
+            reply({"instances": [], "jobs": []}),  # Initial state: nothing ready.
+            reply({"instances": [], "jobs": [{"id": "other", "state": "running"}]}),  # 409.
+            reply({"instances": [], "jobs": [{"id": "other", "state": "running"}]}),
+            reply({"instances": [instance()], "jobs": [{"id": "other", "state": "done"}]}),
+            reply({"instances": [instance()], "jobs": []}),  # Ready-instance poll.
+        ]
+        manager = ResourceManager()
+        with patch("httpx.AsyncClient") as factory, patch("incremental.resources.asyncio.sleep", new_callable=AsyncMock):
+            factory.return_value.__aenter__.return_value = client
+            await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_s")
+        self.assertEqual(manager.loaded_instance_id, "strata-instance")
+        self.assertEqual(client.post.await_count, 1)  # Only the rejected load; no unload.
+
+    async def test_conflict_with_failed_operation_retries_its_own_load(self):
+        client = self.client()
+        client.post.side_effect = [
+            reply({"instances": []}, status_code=409),  # Rejected load.
+            reply({"id": "job-id", "state": "running"}),  # Retry load accepted.
+        ]
+        client.get.side_effect = [
+            reply({"instances": [], "jobs": []}),  # Initial state.
+            reply({"instances": [], "jobs": [{"id": "other", "state": "error", "error": "OOM"}]}),
+            reply({"instances": [], "jobs": []}),  # Ready poll: nothing loading our model.
+            reply({"instances": [], "jobs": []}),  # Unload pass: nothing to clear.
+            reply({"instances": [], "jobs": [{"id": "job-id", "state": "done",
+                                              "result": {"instanceId": "strata-instance"}}]}),
+            reply({"instances": [instance()], "jobs": []}),  # Final ready check.
+        ]
+        manager = ResourceManager()
+        with patch("httpx.AsyncClient") as factory, patch("incremental.resources.asyncio.sleep", new_callable=AsyncMock):
+            factory.return_value.__aenter__.return_value = client
+            await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_s")
+        self.assertEqual(manager.loaded_instance_id, "strata-instance")
+        self.assertEqual(client.post.await_count, 2)
+        self.assertTrue(client.post.call_args_list[1].args[0].endswith("/operations"))
+
+    async def test_conflict_with_no_competing_operation_unloads_and_retries(self):
+        client = self.client()
+        client.post.side_effect = [
+            reply({"instances": []}, status_code=409),  # Rejected load.
+            reply({"instances": []}),  # Unload of a stale instance.
+            reply({"id": "job-id", "state": "running"}),  # Retry load accepted.
+        ]
+        client.get.side_effect = [
+            reply({"instances": [], "jobs": []}),  # Initial state.
+            reply({"instances": [], "jobs": []}),  # 409: no running job.
+            reply({"instances": [], "jobs": []}),  # Ready poll: nothing loading our model.
+            reply({"instances": [instance("other", "stale-id")], "jobs": []}),  # Stale instance.
+            reply({"instances": [], "jobs": [{"id": "job-id", "state": "done",
+                                              "result": {"instanceId": "strata-instance"}}]}),
+            reply({"instances": [instance()], "jobs": []}),  # Final ready check.
+        ]
+        manager = ResourceManager()
+        with patch("httpx.AsyncClient") as factory, patch("incremental.resources.asyncio.sleep", new_callable=AsyncMock):
+            factory.return_value.__aenter__.return_value = client
+            await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_s")
+        self.assertEqual(manager.loaded_instance_id, "strata-instance")
+        self.assertEqual(client.post.await_count, 3)
+        self.assertTrue(client.post.call_args_list[1].args[0].endswith("/instances/stale-id/unload"))
+        self.assertTrue(client.post.call_args_list[2].args[0].endswith("/operations"))
+
+    async def test_persistent_conflict_fails_after_retries(self):
+        client = self.client()
+        client.post.return_value = reply({"instances": []}, status_code=409)
+        client.get.return_value = reply({"instances": [], "jobs": []})
+        manager = ResourceManager()
+        with patch("httpx.AsyncClient") as factory, patch("incremental.resources.asyncio.sleep", new_callable=AsyncMock):
+            factory.return_value.__aenter__.return_value = client
+            with self.assertRaisesRegex(RuntimeError, "blocked by another running operation"):
+                await manager.acquire_gpu(GpuTaskType.STRATA, "iq3_s")
         self.assertEqual(manager.current_task, GpuTaskType.NONE)
 
     async def test_unload_failure_retains_instance_and_blocks_whisperx(self):

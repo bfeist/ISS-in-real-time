@@ -81,43 +81,92 @@ class ResourceManager:
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 state = await self._state(client)
-                ready = next((item for item in state["instances"]
-                              if item["model"] == model and item["status"] == "ready"), None)
+                ready = self._ready_instance(state, model)
                 for item in state["instances"]:
                     if ready is None or item["id"] != ready["id"]:
                         await self._unload_instance(client, item["id"])
                 if ready is None:
-                    response = await client.post(
-                        f"{self.strata_host}/api/native/operations",
-                        json={"kind": "load", "args": {"model": model}},
-                    )
-                    response.raise_for_status()
-                    job = response.json()
-                    deadline = monotonic() + 300
-                    while job["state"] == "running":
-                        if monotonic() >= deadline:
-                            cancelled = await client.post(
-                                f"{self.strata_host}/api/native/operations/{quote(job['id'], safe='')}/cancel",
-                                json={},
-                            )
-                            cancelled.raise_for_status()
-                            raise TimeoutError("Strata model loading timed out")
-                        await asyncio.sleep(1)
-                        state = await self._state(client)
-                        job = next(item for item in state["jobs"] if item["id"] == job["id"])
-                    if job["state"] != "done":
-                        raise RuntimeError(job.get("error") or f"Strata load {job['state']}")
-                    state = await self._state(client)
-                    ready = next((item for item in state["instances"]
-                                  if item["id"] == job["result"]["instanceId"]
-                                  and item["model"] == model and item["status"] == "ready"), None)
-                    if ready is None:
-                        raise RuntimeError("Strata load finished without a ready model")
+                    ready = await self._start_load(client, model)
                 self._loaded_instance_id = ready["id"]
                 self._loaded_strata_model = model
         except Exception as exc:
             self._last_error = f"Failed to load Strata model {model}: {exc}"
             raise RuntimeError(self._last_error) from exc
+
+    @staticmethod
+    def _ready_instance(state: dict, model: str) -> Optional[dict]:
+        return next((item for item in state["instances"]
+                     if item["model"] == model and item["status"] == "ready"), None)
+
+    async def _start_load(self, client, model: str) -> dict:
+        """Start a load operation and wait for the instance to become ready.
+
+        Strata runs one native operation at a time and rejects a second request
+        with 409; wait out the running operation, then re-check or retry.
+        """
+        for _ in range(2):
+            response = await client.post(
+                f"{self.strata_host}/api/native/operations",
+                json={"kind": "load", "args": {"model": model}},
+            )
+            if response.status_code != httpx.codes.CONFLICT:
+                response.raise_for_status()
+                job = await self._await_job(client, response.json())
+                state = await self._state(client)
+                ready = next((item for item in state["instances"]
+                              if item["id"] == job["result"]["instanceId"]
+                              and item["model"] == model and item["status"] == "ready"), None)
+                if ready is None:
+                    raise RuntimeError("Strata load finished without a ready model")
+                return ready
+            state = await self._state(client)
+            running = next((job for job in state["jobs"] if job["state"] == "running"), None)
+            if running is not None:
+                try:
+                    await self._await_job(client, running)
+                except RuntimeError:
+                    pass  # The blocking operation failed; our own retry reports why.
+            ready = await self._await_ready_instance(client, model)
+            if ready is not None:
+                return ready
+            # Nothing is loading the model for us; clear the deck and retry.
+            state = await self._state(client)
+            for item in state["instances"]:
+                await self._unload_instance(client, item["id"])
+            await asyncio.sleep(1)
+        raise RuntimeError("Strata load blocked by another running operation")
+
+    async def _await_job(self, client, job: dict) -> dict:
+        """Poll a Strata operation until it leaves the running state."""
+        deadline = monotonic() + 300
+        while job["state"] == "running":
+            if monotonic() >= deadline:
+                cancelled = await client.post(
+                    f"{self.strata_host}/api/native/operations/{quote(job['id'], safe='')}/cancel",
+                    json={},
+                )
+                cancelled.raise_for_status()
+                raise TimeoutError("Strata model loading timed out")
+            await asyncio.sleep(1)
+            state = await self._state(client)
+            job = next(item for item in state["jobs"] if item["id"] == job["id"])
+        if job["state"] != "done":
+            raise RuntimeError(job.get("error") or f"Strata load {job['state']}")
+        return job
+
+    async def _await_ready_instance(self, client, model: str) -> Optional[dict]:
+        """Wait for the model's instance to become ready; None if it never will."""
+        deadline = monotonic() + 300
+        while True:
+            state = await self._state(client)
+            ready = self._ready_instance(state, model)
+            if ready is not None:
+                return ready
+            if not any(item["model"] == model for item in state["instances"]):
+                return None
+            if monotonic() >= deadline:
+                return None
+            await asyncio.sleep(1)
 
     async def _unload_all_models(self) -> None:
         """Free Strata VRAM, including instances loaded from its UI."""
